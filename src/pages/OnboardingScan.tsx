@@ -35,8 +35,21 @@ const OnboardingScan = () => {
       readerRef.current = codeReader;
 
       if (videoRef.current) {
+        // Get available video devices
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        
+        // Try to find back camera on mobile
+        const backCamera = videoDevices.find(device => 
+          device.label.toLowerCase().includes('back') || 
+          device.label.toLowerCase().includes('rear') ||
+          device.label.toLowerCase().includes('arrière')
+        );
+        
+        const deviceId = backCamera?.deviceId;
+
         await codeReader.decodeFromVideoDevice(
-          undefined, // Use default camera
+          deviceId,
           videoRef.current,
           (result, error) => {
             if (result) {
@@ -174,6 +187,7 @@ const OnboardingScan = () => {
                 className="w-full h-full object-cover"
                 autoPlay
                 playsInline
+                muted
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">
