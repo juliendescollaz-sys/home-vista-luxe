@@ -35,34 +35,56 @@ const OnboardingScan = () => {
       readerRef.current = codeReader;
 
       if (videoRef.current) {
-        // Get available video devices
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        
-        // Try to find back camera on mobile
-        const backCamera = videoDevices.find(device => 
-          device.label.toLowerCase().includes('back') || 
-          device.label.toLowerCase().includes('rear') ||
-          device.label.toLowerCase().includes('arrière')
-        );
-        
-        const deviceId = backCamera?.deviceId;
+        // First, request camera permission with back camera preference
+        // This is crucial for iOS - it needs permission before enumerating devices
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { 
+              facingMode: { ideal: 'environment' } // Prefer back camera
+            }
+          });
+          
+          // Stop the temporary stream - @zxing will create its own
+          stream.getTracks().forEach(track => track.stop());
+          
+          // Now enumerate devices (labels will be available after permission granted)
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(device => device.kind === 'videoinput');
+          
+          console.log("📹 Available cameras:", videoDevices.map(d => d.label));
+          
+          // Try to find back camera
+          const backCamera = videoDevices.find(device => 
+            device.label && (
+              device.label.toLowerCase().includes('back') || 
+              device.label.toLowerCase().includes('rear') ||
+              device.label.toLowerCase().includes('arrière') ||
+              device.label.toLowerCase().includes('environment')
+            )
+          );
+          
+          const deviceId = backCamera?.deviceId;
+          console.log("📷 Using camera:", backCamera?.label || "default camera");
 
-        await codeReader.decodeFromVideoDevice(
-          deviceId,
-          videoRef.current,
-          (result, error) => {
-            if (result) {
-              const qrText = result.getText();
-              console.log("📱 QR code detected:", qrText);
-              handleQRCode(qrText);
+          await codeReader.decodeFromVideoDevice(
+            deviceId,
+            videoRef.current,
+            (result, error) => {
+              if (result) {
+                const qrText = result.getText();
+                console.log("📱 QR code detected:", qrText);
+                handleQRCode(qrText);
+              }
+              // Ignore NOT_FOUND errors (normal when no QR is in view)
+              if (error && error.name !== 'NotFoundException') {
+                console.error("Scanner error:", error);
+              }
             }
-            // Ignore NOT_FOUND errors (normal when no QR is in view)
-            if (error && error.name !== 'NotFoundException') {
-              console.error("Scanner error:", error);
-            }
-          }
-        );
+          );
+        } catch (permError) {
+          console.error("Permission denied or camera unavailable:", permError);
+          throw permError;
+        }
       }
     } catch (error) {
       console.error("Failed to start camera:", error);
