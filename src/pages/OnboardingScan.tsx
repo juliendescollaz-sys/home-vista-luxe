@@ -31,83 +31,107 @@ const OnboardingScan = () => {
       setStatus("scanning");
       setMessage("Positionnez le QR code dans le cadre");
 
+      console.log("🎬 Starting camera initialization...");
+
+      if (!videoRef.current) {
+        throw new Error("Video element not available");
+      }
+
+      // Request camera access with iOS-compatible constraints
+      const constraints = {
+        audio: false,
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      };
+
+      console.log("📸 Requesting camera access...");
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log("✅ Camera access granted, stream active:", stream.active);
+
+      // Manually attach stream to video element (crucial for iOS)
+      const video = videoRef.current;
+      video.srcObject = stream;
+      
+      // Ensure video plays (iOS requirement)
+      await video.play();
+      console.log("▶️ Video playing");
+
+      // Wait for video to be ready
+      await new Promise<void>((resolve) => {
+        if (video.readyState >= 2) {
+          resolve();
+        } else {
+          video.onloadedmetadata = () => {
+            console.log("📹 Video metadata loaded");
+            resolve();
+          };
+        }
+      });
+
+      // Now initialize @zxing scanner
       const codeReader = new BrowserMultiFormatReader();
       readerRef.current = codeReader;
 
-      if (videoRef.current) {
-        // First, request camera permission with back camera preference
-        // This is crucial for iOS - it needs permission before enumerating devices
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { 
-              facingMode: { ideal: 'environment' } // Prefer back camera
-            }
-          });
-          
-          // Stop the temporary stream - @zxing will create its own
-          stream.getTracks().forEach(track => track.stop());
-          
-          // Now enumerate devices (labels will be available after permission granted)
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const videoDevices = devices.filter(device => device.kind === 'videoinput');
-          
-          console.log("📹 Available cameras:", videoDevices.map(d => d.label));
-          
-          // Try to find back camera
-          const backCamera = videoDevices.find(device => 
-            device.label && (
-              device.label.toLowerCase().includes('back') || 
-              device.label.toLowerCase().includes('rear') ||
-              device.label.toLowerCase().includes('arrière') ||
-              device.label.toLowerCase().includes('environment')
-            )
-          );
-          
-          const deviceId = backCamera?.deviceId;
-          console.log("📷 Using camera:", backCamera?.label || "default camera");
-
-          await codeReader.decodeFromVideoDevice(
-            deviceId,
-            videoRef.current,
-            (result, error) => {
-              if (result) {
-                const qrText = result.getText();
-                console.log("📱 QR code detected:", qrText);
-                handleQRCode(qrText);
-              }
-              // Ignore NOT_FOUND errors (normal when no QR is in view)
-              if (error && error.name !== 'NotFoundException') {
-                console.error("Scanner error:", error);
-              }
-            }
-          );
-        } catch (permError) {
-          console.error("Permission denied or camera unavailable:", permError);
-          throw permError;
+      console.log("🔍 Starting QR code detection...");
+      
+      // Use the already-active stream
+      await codeReader.decodeFromStream(
+        stream,
+        video,
+        (result, error) => {
+          if (result) {
+            const qrText = result.getText();
+            console.log("📱 QR code detected:", qrText);
+            handleQRCode(qrText);
+          }
+          if (error && error.name !== 'NotFoundException') {
+            console.error("Scanner error:", error);
+          }
         }
-      }
-    } catch (error) {
-      console.error("Failed to start camera:", error);
+      );
+
+    } catch (error: any) {
+      console.error("❌ Camera error:", error.name, error.message);
+      setScanning(false);
       setStatus("error");
-      setMessage("Impossible d'accéder à la caméra");
+      
+      let errorMessage = "Impossible d'accéder à la caméra";
+      if (error.name === 'NotAllowedError') {
+        errorMessage = "Permission caméra refusée";
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = "Aucune caméra trouvée";
+      } else if (error.name === 'NotReadableError') {
+        errorMessage = "Caméra déjà utilisée par une autre app";
+      }
+      
+      setMessage(errorMessage);
       toast.error("Erreur caméra", {
-        description: "Vérifiez les permissions de votre navigateur",
+        description: errorMessage,
       });
     }
   };
 
   const stopScanning = () => {
-    if (videoRef.current) {
-      // Stop all video tracks
+    console.log("🛑 Stopping scanner...");
+    
+    if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
+      stream.getTracks().forEach(track => {
+        track.stop();
+        console.log("⏹️ Track stopped:", track.kind);
+      });
+      videoRef.current.srcObject = null;
     }
+    
     if (readerRef.current) {
       readerRef.current = null;
     }
+    
     setScanning(false);
+    console.log("✅ Scanner stopped");
   };
 
   const handleQRCode = async (qrText: string) => {
