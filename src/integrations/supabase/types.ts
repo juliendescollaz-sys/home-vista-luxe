@@ -39,15 +39,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "ha_links_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       pair_codes: {
         Row: {
@@ -111,27 +103,6 @@ export type Database = {
           identifier?: string
           request_count?: number
           window_start?: string
-        }
-        Relationships: []
-      }
-      users: {
-        Row: {
-          created_at: string
-          email: string
-          id: string
-          pass_hash: string | null
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          id?: string
-          pass_hash?: string | null
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          id?: string
-          pass_hash?: string | null
         }
         Relationships: []
       }

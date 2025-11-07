@@ -23,7 +23,7 @@ export async function getOrCreateDeviceKey(): Promise<string> {
 /**
  * Derive an AES-GCM key from the device key using PBKDF2
  */
-async function deriveKey(deviceKey: string): Promise<CryptoKey> {
+async function deriveKey(deviceKey: string, purpose: 'encrypt' | 'hmac' = 'encrypt'): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const keyMaterial = encoder.encode(deviceKey);
   
@@ -35,10 +35,27 @@ async function deriveKey(deviceKey: string): Promise<CryptoKey> {
     ['deriveBits', 'deriveKey']
   );
 
+  const salt = encoder.encode(`neolia-ha-${purpose}`);
+
+  if (purpose === 'hmac') {
+    return crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt,
+        iterations: PBKDF2_ITERATIONS,
+        hash: 'SHA-256',
+      },
+      importedKey,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign', 'verify']
+    );
+  }
+
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: encoder.encode('neolia-ha-salt'), // Static salt is OK here since deviceKey is random
+      salt,
       iterations: PBKDF2_ITERATIONS,
       hash: 'SHA-256',
     },
@@ -50,11 +67,12 @@ async function deriveKey(deviceKey: string): Promise<CryptoKey> {
 }
 
 /**
- * Encrypt data using AES-GCM
+ * Encrypt data using AES-GCM with HMAC authentication
  */
 export async function encryptData(data: string): Promise<string> {
   const deviceKey = await getOrCreateDeviceKey();
-  const key = await deriveKey(deviceKey);
+  const encryptKey = await deriveKey(deviceKey, 'encrypt');
+  const hmacKey = await deriveKey(deviceKey, 'hmac');
   
   const encoder = new TextEncoder();
   const nonce = crypto.getRandomValues(new Uint8Array(12));
@@ -62,7 +80,7 @@ export async function encryptData(data: string): Promise<string> {
   
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: nonce },
-    key,
+    encryptKey,
     plaintext
   );
   
@@ -71,26 +89,60 @@ export async function encryptData(data: string): Promise<string> {
   combined.set(nonce, 0);
   combined.set(new Uint8Array(ciphertext), nonce.length);
   
+  // Generate HMAC for integrity check
+  const hmacSignature = await crypto.subtle.sign(
+    'HMAC',
+    hmacKey,
+    combined
+  );
+  
+  // Combine data + HMAC
+  const withHmac = new Uint8Array(combined.length + hmacSignature.byteLength);
+  withHmac.set(combined, 0);
+  withHmac.set(new Uint8Array(hmacSignature), combined.length);
+  
   // Convert to base64
-  return btoa(String.fromCharCode(...combined));
+  return btoa(String.fromCharCode(...withHmac));
 }
 
 /**
- * Decrypt data using AES-GCM
+ * Decrypt data using AES-GCM with HMAC verification
  */
 export async function decryptData(encryptedBase64: string): Promise<string> {
   const deviceKey = await getOrCreateDeviceKey();
-  const key = await deriveKey(deviceKey);
+  const encryptKey = await deriveKey(deviceKey, 'encrypt');
+  const hmacKey = await deriveKey(deviceKey, 'hmac');
   
   // Decode from base64
-  const combined = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+  const withHmac = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+  
+  // HMAC is last 32 bytes (SHA-256 output)
+  const hmacSize = 32;
+  if (withHmac.length < hmacSize + 12) {
+    throw new Error('Invalid encrypted data');
+  }
+  
+  const combined = withHmac.slice(0, -hmacSize);
+  const storedHmac = withHmac.slice(-hmacSize);
+  
+  // Verify HMAC
+  const isValid = await crypto.subtle.verify(
+    'HMAC',
+    hmacKey,
+    storedHmac,
+    combined
+  );
+  
+  if (!isValid) {
+    throw new Error('Data integrity check failed - possible tampering detected');
+  }
   
   const nonce = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
   
   const decrypted = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: nonce },
-    key,
+    encryptKey,
     ciphertext
   );
   

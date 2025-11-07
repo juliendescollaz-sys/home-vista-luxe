@@ -47,7 +47,8 @@ serve(async (req) => {
     const body = await req.json();
     const validationResult = pairCreateSchema.safeParse(body);
     if (!validationResult.success) {
-      throw new Error('Invalid input: ' + validationResult.error.errors[0].message);
+      console.error('Validation error:', validationResult.error);
+      throw new Error('Invalid input');
     }
 
     const { linkId, haBaseUrl, haToken } = validationResult.data;
