@@ -14,7 +14,100 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ha_links: {
+        Row: {
+          created_at: string
+          ha_base_url: string
+          ha_token_enc: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ha_base_url: string
+          ha_token_enc: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ha_base_url?: string
+          ha_token_enc?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ha_links_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pair_codes: {
+        Row: {
+          code_jwt_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          link_id: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          code_jwt_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          link_id: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          code_jwt_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          link_id?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pair_codes_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "ha_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          pass_hash: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          pass_hash?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          pass_hash?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
