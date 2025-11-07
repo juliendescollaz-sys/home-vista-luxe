@@ -10,7 +10,7 @@ import { Home, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 const Onboarding = () => {
-  const [url, setUrl] = useState("http://homeassistant.local:8123");
+  const [url, setUrl] = useState("https://");
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
@@ -75,18 +75,18 @@ const Onboarding = () => {
         <Card className="p-8 bg-gradient-card border-border/50 backdrop-blur-sm">
           <div className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="url" className="text-base">URL Home Assistant</Label>
+              <Label htmlFor="url" className="text-base">URL Nabu Casa</Label>
               <Input
                 id="url"
                 type="url"
-                placeholder="http://homeassistant.local:8123"
+                placeholder="https://xxxxx.ui.nabu.casa"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 className="h-12"
                 disabled={loading}
               />
               <p className="text-sm text-muted-foreground">
-                L'adresse de votre serveur Home Assistant
+                Votre URL Nabu Casa (trouvée dans Configuration → Home Assistant Cloud)
               </p>
             </div>
 
@@ -142,27 +142,17 @@ const Onboarding = () => {
 
         <Card className="p-4 bg-muted/50 border-border/50">
           <div className="space-y-3 text-sm">
-            <p className="font-medium text-foreground">⚠️ Problème de connexion ?</p>
+            <p className="font-medium text-foreground">📍 Comment trouver votre URL Nabu Casa ?</p>
             <div className="space-y-2 text-muted-foreground">
-              <p>Les URL <code className="px-1 py-0.5 bg-background rounded text-xs">http://</code> locales ne fonctionnent pas depuis cette app web (CORS/HTTPS).</p>
-              <p className="font-medium text-foreground">Solutions :</p>
-              <ul className="space-y-1 pl-4 list-disc">
-                <li>
-                  <strong>Recommandé:</strong> Utilisez{" "}
-                  <a
-                    href="https://www.nabucasa.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    Nabu Casa
-                  </a>{" "}
-                  (URL HTTPS fournie)
-                </li>
-                <li>
-                  Configurez un accès HTTPS externe (DuckDNS + Let's Encrypt)
-                </li>
-              </ul>
+              <ol className="space-y-2 pl-4 list-decimal">
+                <li>Ouvrez Home Assistant</li>
+                <li>Allez dans <strong className="text-foreground">Configuration</strong> → <strong className="text-foreground">Home Assistant Cloud</strong></li>
+                <li>Copiez l'URL Remote Control (format: <code className="px-1 py-0.5 bg-background rounded text-xs">https://xxxxx.ui.nabu.casa</code>)</li>
+                <li>Créez un token longue durée dans <strong className="text-foreground">Profil</strong> → <strong className="text-foreground">Sécurité</strong></li>
+              </ol>
+              <p className="pt-2">
+                <strong className="text-foreground">Note:</strong> Assurez-vous que Nabu Casa est actif (abonnement valide)
+              </p>
             </div>
           </div>
         </Card>

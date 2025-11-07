@@ -136,12 +136,17 @@ export async function fetchHA<T>(
 
 export async function testConnection(url: string, token: string): Promise<boolean> {
   try {
-    console.log("Testing connection to:", url);
+    // Remove trailing slash from URL if present
+    const cleanUrl = url.endsWith('/') ? url.slice(0, -1) : url;
     
+    console.log("Testing connection to:", cleanUrl);
+    console.log("Token length:", token.length);
+    
+    // Add timeout to prevent hanging (Nabu Casa can be slower)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
     
-    const response = await fetch(`${url}/api/`, {
+    const response = await fetch(`${cleanUrl}/api/`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -153,9 +158,11 @@ export async function testConnection(url: string, token: string): Promise<boolea
     clearTimeout(timeoutId);
     
     console.log("Connection response status:", response.status);
+    console.log("Response headers:", Object.fromEntries(response.headers.entries()));
     
     if (!response.ok) {
-      console.error("Connection failed with status:", response.status);
+      const errorText = await response.text().catch(() => "Unable to read error");
+      console.error("Connection failed with status:", response.status, "Error:", errorText);
       return false;
     }
     
@@ -168,6 +175,7 @@ export async function testConnection(url: string, token: string): Promise<boolea
       console.error("Error details:", {
         name: error.name,
         message: error.message,
+        stack: error.stack,
       });
     }
     return false;
