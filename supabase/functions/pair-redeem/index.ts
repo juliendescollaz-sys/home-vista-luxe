@@ -1,32 +1,61 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import * as jose from "https://deno.land/x/jose@v5.2.0/index.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Simple rate limiter (in-memory, resets on function cold start)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const MAX_REQUESTS = 10;
-const WINDOW_MS = 60000; // 1 minute
+// Input validation schema
+const pairRedeemSchema = z.object({
+  code: z.string().min(50).max(2000)
+});
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = rateLimitMap.get(ip);
+// Database-backed rate limiter
+async function checkRateLimit(supabaseAdmin: any, ip: string): Promise<boolean> {
+  const now = new Date();
+  const windowStart = new Date(now.getTime() - 60000); // 1 minute window
+  const MAX_REQUESTS = 10;
 
-  if (!record || now > record.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+  try {
+    // Get or create rate limit record
+    const { data: existing } = await supabaseAdmin
+      .from('rate_limits')
+      .select('*')
+      .eq('identifier', ip)
+      .eq('endpoint', 'pair-redeem')
+      .gte('window_start', windowStart.toISOString())
+      .single();
+
+    if (existing) {
+      if (existing.request_count >= MAX_REQUESTS) {
+        return false;
+      }
+      // Increment counter
+      await supabaseAdmin
+        .from('rate_limits')
+        .update({ request_count: existing.request_count + 1 })
+        .eq('id', existing.id);
+    } else {
+      // Create new record
+      await supabaseAdmin
+        .from('rate_limits')
+        .insert({
+          identifier: ip,
+          endpoint: 'pair-redeem',
+          request_count: 1,
+          window_start: now.toISOString()
+        });
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Rate limit check error:', error);
+    // Fail open on error to avoid blocking legitimate requests
     return true;
   }
-
-  if (record.count >= MAX_REQUESTS) {
-    return false;
-  }
-
-  record.count++;
-  return true;
 }
 
 serve(async (req) => {
@@ -37,21 +66,32 @@ serve(async (req) => {
   try {
     console.log('🔓 Redeeming pair code...');
 
-    // Rate limiting
+    // Create Supabase admin client
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Database-backed rate limiting
     const clientIp = req.headers.get('x-forwarded-for') || 'unknown';
-    if (!checkRateLimit(clientIp)) {
-      throw new Error('Rate limit exceeded. Please try again later.');
+    if (!await checkRateLimit(supabaseAdmin, clientIp)) {
+      throw new Error('Rate limit exceeded');
     }
 
-    const { code } = await req.json();
-    if (!code) {
-      throw new Error('Missing code parameter');
+    // Validate input
+    const body = await req.json();
+    const validationResult = pairRedeemSchema.safeParse(body);
+    if (!validationResult.success) {
+      throw new Error('Invalid input format');
     }
+
+    const { code } = validationResult.data;
 
     // Verify JWT
     const jwtSecret = Deno.env.get('JWT_SECRET');
     if (!jwtSecret) {
-      throw new Error('JWT_SECRET not configured');
+      console.error('JWT_SECRET not configured');
+      throw new Error('Server configuration error');
     }
 
     const secret = new TextEncoder().encode(jwtSecret);
@@ -61,16 +101,10 @@ serve(async (req) => {
 
     const { jti, linkId } = payload as { jti: string; linkId: string };
     if (!jti || !linkId) {
-      throw new Error('Invalid token payload');
+      throw new Error('Invalid code format');
     }
 
     console.log('✅ JWT verified:', jti);
-
-    // Create Supabase admin client
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
 
     // Check if code exists and is valid
     const { data: pairCode, error: fetchError } = await supabaseAdmin
@@ -80,7 +114,7 @@ serve(async (req) => {
       .single();
 
     if (fetchError || !pairCode) {
-      console.error('❌ Pair code not found:', fetchError);
+      console.error('❌ Pair code not found');
       throw new Error('Invalid or expired code');
     }
 
@@ -104,7 +138,7 @@ serve(async (req) => {
 
     if (updateError) {
       console.error('❌ Error marking code as used:', updateError);
-      throw updateError;
+      throw new Error('Failed to process code');
     }
 
     console.log('✅ Code marked as used');
@@ -117,18 +151,19 @@ serve(async (req) => {
       .single();
 
     if (linkError || !haLink) {
-      console.error('❌ HA link not found:', linkError);
-      throw new Error('HA link not found');
+      console.error('❌ HA link not found');
+      throw new Error('Configuration not found');
     }
 
-    // Decrypt token
+    // Decrypt token with strong key validation
     const secret_key = Deno.env.get('SECRET_KEY');
-    if (!secret_key) {
-      throw new Error('SECRET_KEY not configured');
+    if (!secret_key || secret_key.length < 32) {
+      console.error('SECRET_KEY must be at least 32 characters');
+      throw new Error('Server configuration error');
     }
 
     const encoder = new TextEncoder();
-    const keyMaterial = encoder.encode(secret_key.padEnd(32, '0').slice(0, 32));
+    const keyMaterial = encoder.encode(secret_key.slice(0, 32));
     
     const key = await crypto.subtle.importKey(
       'raw',
@@ -163,9 +198,13 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('❌ Error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'An error occurred';
+    // Return generic error message to client
+    const clientMessage = message.includes('Rate limit') ? 'Too many requests' :
+                         message.includes('Invalid') || message.includes('expired') ? message :
+                         'An error occurred';
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({ error: clientMessage }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
     );
   }

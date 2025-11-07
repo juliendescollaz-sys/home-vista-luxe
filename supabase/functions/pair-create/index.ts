@@ -1,11 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import * as jose from "https://deno.land/x/jose@v5.2.0/index.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schema
+const pairCreateSchema = z.object({
+  haBaseUrl: z.string().url().max(500).refine(
+    url => url.includes('.ui.nabu.casa') || url.startsWith('http://') || url.startsWith('https://'),
+    'URL invalide'
+  ),
+  haToken: z.string().min(50).max(1000),
+  linkId: z.string().uuid().optional()
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -32,7 +43,14 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { linkId, haBaseUrl, haToken } = await req.json();
+    // Validate input
+    const body = await req.json();
+    const validationResult = pairCreateSchema.safeParse(body);
+    if (!validationResult.success) {
+      throw new Error('Invalid input: ' + validationResult.error.errors[0].message);
+    }
+
+    const { linkId, haBaseUrl, haToken } = validationResult.data;
     
     let finalLinkId = linkId;
 
@@ -40,14 +58,15 @@ serve(async (req) => {
     if (haToken && haBaseUrl) {
       console.log('🔐 Encrypting HA token...');
       
-      // Encrypt token with AES-GCM
+      // Encrypt token with strong key validation
       const secret = Deno.env.get('SECRET_KEY');
-      if (!secret) {
-        throw new Error('SECRET_KEY not configured');
+      if (!secret || secret.length < 32) {
+        console.error('SECRET_KEY must be at least 32 characters');
+        throw new Error('Server configuration error');
       }
 
       const encoder = new TextEncoder();
-      const keyMaterial = encoder.encode(secret.padEnd(32, '0').slice(0, 32));
+      const keyMaterial = encoder.encode(secret.slice(0, 32));
       
       const key = await crypto.subtle.importKey(
         'raw',
@@ -98,7 +117,8 @@ serve(async (req) => {
     // Generate JWT for pair code
     const jwtSecret = Deno.env.get('JWT_SECRET');
     if (!jwtSecret) {
-      throw new Error('JWT_SECRET not configured');
+      console.error('JWT_SECRET not configured');
+      throw new Error('Server configuration error');
     }
 
     const jti = crypto.randomUUID();
@@ -142,8 +162,12 @@ serve(async (req) => {
   } catch (error) {
     console.error('❌ Error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
+    // Return generic error to client
+    const clientMessage = message.includes('Invalid input') ? message :
+                         message.includes('Unauthorized') ? 'Authentication required' :
+                         'An error occurred';
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({ error: clientMessage }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
     );
   }

@@ -7,6 +7,7 @@ import { lazy, Suspense } from "react";
 import { useHAStore } from "./store/useHAStore";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import Onboarding from "./pages/Onboarding";
+import Auth from "./pages/Auth";
 import Home from "./pages/Home";
 import Rooms from "./pages/Rooms";
 import Favorites from "./pages/Favorites";
@@ -15,6 +16,7 @@ import Activity from "./pages/Activity";
 import Settings from "./pages/Settings";
 import Dev from "./pages/Dev";
 import NotFound from "./pages/NotFound";
+import { useAuth } from "./hooks/useAuth";
 
 // Lazy load pages avec dependencies lourdes
 const OnboardingScan = lazy(() => import("./pages/OnboardingScan"));
@@ -32,6 +34,20 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   return (isConnected && hasValidConnection) ? <>{children}</> : <Navigate to="/onboarding" />;
 };
 
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 const App = () => {
   const isConnected = useHAStore((state) => state.isConnected);
 
@@ -43,6 +59,7 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <Routes>
+            <Route path="/auth" element={<Auth />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/onboarding/scan" element={
               <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
@@ -50,9 +67,11 @@ const App = () => {
               </Suspense>
             } />
             <Route path="/admin" element={
-              <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
-                <Admin />
-              </Suspense>
+              <AdminRoute>
+                <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
+                  <Admin />
+                </Suspense>
+              </AdminRoute>
             } />
             <Route
               path="/"

@@ -8,6 +8,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import QRCodeCanvas from "qrcode";
 import { useNavigate } from "react-router-dom";
+import { z } from "zod";
+
+const urlSchema = z.string().url('URL invalide').max(500);
+const tokenSchema = z.string().min(50, 'Token trop court (minimum 50 caractères)').max(1000, 'Token trop long (maximum 1000 caractères)');
 
 const Admin = () => {
   const [haUrl, setHaUrl] = useState("https://");
@@ -18,8 +22,14 @@ const Admin = () => {
   const navigate = useNavigate();
 
   const handleGenerateQR = async () => {
-    if (!haUrl || !haToken) {
-      toast.error("Veuillez remplir tous les champs");
+    // Validate inputs
+    try {
+      urlSchema.parse(haUrl);
+      tokenSchema.parse(haToken);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      }
       return;
     }
 
@@ -125,6 +135,7 @@ const Admin = () => {
                   value={haUrl}
                   onChange={(e) => setHaUrl(e.target.value)}
                   disabled={loading}
+                  maxLength={500}
                 />
               </div>
 
@@ -138,6 +149,8 @@ const Admin = () => {
                   onChange={(e) => setHaToken(e.target.value)}
                   className="font-mono text-sm"
                   disabled={loading}
+                  maxLength={1000}
+                  minLength={50}
                 />
                 <p className="text-xs text-muted-foreground">
                   Le token sera chiffré et stocké de manière sécurisée
