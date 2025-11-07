@@ -19,8 +19,13 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
+  const connection = useHAStore((state) => state.connection);
   const isConnected = useHAStore((state) => state.isConnected);
-  return isConnected ? <>{children}</> : <Navigate to="/onboarding" />;
+  
+  // Check if we have valid connection data
+  const hasValidConnection = connection && connection.url && connection.token;
+  
+  return (isConnected && hasValidConnection) ? <>{children}</> : <Navigate to="/onboarding" />;
 };
 
 const App = () => {

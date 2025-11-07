@@ -15,8 +15,9 @@ export function useHAClient() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!connection) {
+    if (!connection || !connection.url || !connection.token) {
       console.log("⚠️ Pas de connexion configurée");
+      setConnected(false);
       return;
     }
 

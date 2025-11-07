@@ -55,6 +55,28 @@ export const useHAStore = create<HAStore>()(
         connection: state.connection,
         favorites: state.favorites,
       }),
+      // Add version and migration for safety
+      version: 1,
+      migrate: (persistedState: any, version: number) => {
+        // Reset if version mismatch or invalid data
+        if (version !== 1 || !persistedState) {
+          return {
+            connection: null,
+            favorites: [],
+          };
+        }
+        return persistedState;
+      },
+      // Handle storage errors gracefully
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            console.error('Failed to rehydrate store:', error);
+            // Clear corrupted storage
+            localStorage.removeItem('ha-storage');
+          }
+        };
+      },
     }
   )
 );
