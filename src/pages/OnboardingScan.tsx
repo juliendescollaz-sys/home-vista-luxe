@@ -13,6 +13,7 @@ const OnboardingScan = () => {
   const [scanning, setScanning] = useState(false);
   const [status, setStatus] = useState<"idle" | "scanning" | "processing" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [videoReady, setVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const navigate = useNavigate();
@@ -20,6 +21,10 @@ const OnboardingScan = () => {
   const setConnected = useHAStore((state) => state.setConnected);
 
   useEffect(() => {
+    // Ensure video element is mounted
+    if (videoRef.current) {
+      setVideoReady(true);
+    }
     return () => {
       stopScanning();
     };
@@ -234,11 +239,23 @@ const OnboardingScan = () => {
                 autoPlay
                 playsInline
                 muted
+                webkit-playsinline="true"
               />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Camera className="h-16 w-16 text-muted-foreground" />
-              </div>
+              <>
+                {/* Hidden video element to initialize ref */}
+                <video
+                  ref={videoRef}
+                  className="hidden"
+                  autoPlay
+                  playsInline
+                  muted
+                  webkit-playsinline="true"
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Camera className="h-16 w-16 text-muted-foreground" />
+                </div>
+              </>
             )}
 
             {/* Scanning overlay */}
@@ -292,9 +309,10 @@ const OnboardingScan = () => {
                 onClick={startScanning}
                 className="w-full"
                 size="lg"
+                disabled={!videoReady}
               >
                 <Camera className="mr-2 h-5 w-5" />
-                Démarrer le scan
+                {videoReady ? "Démarrer le scan" : "Chargement..."}
               </Button>
             )}
 
