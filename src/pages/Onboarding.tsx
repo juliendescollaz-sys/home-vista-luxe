@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useHAStore } from "@/store/useHAStore";
 import { testNabucasaConnection } from "@/lib/haClient";
-import { Home, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Home, Loader2, CheckCircle2, AlertCircle, QrCode } from "lucide-react";
 import { toast } from "sonner";
 
 const Onboarding = () => {
@@ -157,13 +157,24 @@ const Onboarding = () => {
           </div>
         </Card>
 
-        <div className="text-center text-sm text-muted-foreground space-y-1">
-          <p>Première installation ?</p>
+        <div className="text-center space-y-3">
+          <Button
+            onClick={() => navigate("/onboarding/scan")}
+            variant="outline"
+            size="lg"
+            className="w-full"
+          >
+            <QrCode className="mr-2 h-5 w-5" />
+            Scanner un QR Code
+          </Button>
+          <p className="text-sm text-muted-foreground">
+            ou
+          </p>
           <a
             href="https://www.home-assistant.io/getting-started/"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-primary hover:underline"
+            className="text-sm text-primary hover:underline block"
           >
             Guide de démarrage Home Assistant →
           </a>
