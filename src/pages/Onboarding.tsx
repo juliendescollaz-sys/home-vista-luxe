@@ -140,6 +140,33 @@ const Onboarding = () => {
           </div>
         </Card>
 
+        <Card className="p-4 bg-muted/50 border-border/50">
+          <div className="space-y-3 text-sm">
+            <p className="font-medium text-foreground">⚠️ Problème de connexion ?</p>
+            <div className="space-y-2 text-muted-foreground">
+              <p>Les URL <code className="px-1 py-0.5 bg-background rounded text-xs">http://</code> locales ne fonctionnent pas depuis cette app web (CORS/HTTPS).</p>
+              <p className="font-medium text-foreground">Solutions :</p>
+              <ul className="space-y-1 pl-4 list-disc">
+                <li>
+                  <strong>Recommandé:</strong> Utilisez{" "}
+                  <a
+                    href="https://www.nabucasa.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    Nabu Casa
+                  </a>{" "}
+                  (URL HTTPS fournie)
+                </li>
+                <li>
+                  Configurez un accès HTTPS externe (DuckDNS + Let's Encrypt)
+                </li>
+              </ul>
+            </div>
+          </div>
+        </Card>
+
         <div className="text-center text-sm text-muted-foreground space-y-1">
           <p>Première installation ?</p>
           <a
