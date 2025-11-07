@@ -136,13 +136,40 @@ export async function fetchHA<T>(
 
 export async function testConnection(url: string, token: string): Promise<boolean> {
   try {
+    console.log("Testing connection to:", url);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
     const response = await fetch(`${url}/api/`, {
+      method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
+      signal: controller.signal,
     });
-    return response.ok;
-  } catch {
+    
+    clearTimeout(timeoutId);
+    
+    console.log("Connection response status:", response.status);
+    
+    if (!response.ok) {
+      console.error("Connection failed with status:", response.status);
+      return false;
+    }
+    
+    const data = await response.json();
+    console.log("Connection successful:", data);
+    return true;
+  } catch (error) {
+    console.error("Connection error:", error);
+    if (error instanceof Error) {
+      console.error("Error details:", {
+        name: error.name,
+        message: error.message,
+      });
+    }
     return false;
   }
 }

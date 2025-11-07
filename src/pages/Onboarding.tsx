@@ -46,13 +46,13 @@ const Onboarding = () => {
       } else {
         setStatus("error");
         toast.error("Connexion échouée", {
-          description: "Vérifiez l'URL et le token",
+          description: "Vérifiez la console pour plus de détails. Problèmes possibles: CORS, URL incorrecte, ou token invalide.",
         });
       }
     } catch (error) {
       setStatus("error");
       toast.error("Erreur de connexion", {
-        description: "Impossible de se connecter à Home Assistant",
+        description: "Consultez la console du navigateur (F12) pour voir les détails de l'erreur",
       });
     } finally {
       setLoading(false);
