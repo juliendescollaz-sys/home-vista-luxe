@@ -1,6 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
 import { useHAStore } from "@/store/useHAStore";
-import { HomeAssistantAPI } from "@/lib/homeassistant";
+import { useHAClient } from "@/hooks/useHAClient";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Card } from "@/components/ui/card";
@@ -24,35 +23,9 @@ const domainIcons: Record<EntityDomain, any> = {
 };
 
 const Home = () => {
-  const connection = useHAStore((state) => state.connection);
-  const setEntities = useHAStore((state) => state.setEntities);
-  const setAreas = useHAStore((state) => state.setAreas);
-
-  const { data: areas, isLoading: areasLoading } = useQuery({
-    queryKey: ["areas"],
-    queryFn: async () => {
-      if (!connection) return [];
-      const api = new HomeAssistantAPI(connection);
-      await api.connect();
-      const areas = await api.getAreas();
-      setAreas(areas);
-      return areas;
-    },
-    enabled: !!connection,
-  });
-
-  const { data: entities, isLoading: entitiesLoading } = useQuery({
-    queryKey: ["entities"],
-    queryFn: async () => {
-      if (!connection) return [];
-      const api = new HomeAssistantAPI(connection);
-      await api.connect();
-      const entities = await api.getStates();
-      setEntities(entities);
-      return entities;
-    },
-    enabled: !!connection,
-  });
+  const areas = useHAStore((state) => state.areas);
+  const entities = useHAStore((state) => state.entities);
+  const { isConnecting, error } = useHAClient();
 
   const getAreaEntities = (areaId: string) => {
     return entities?.filter((e) => e.attributes.area_id === areaId) || [];
@@ -62,7 +35,7 @@ const Home = () => {
     return getAreaEntities(areaId).filter((e) => e.state === "on").length;
   };
 
-  if (areasLoading || entitiesLoading) {
+  if (isConnecting) {
     return (
       <div className="min-h-screen bg-background pb-24 pt-20">
         <TopBar />

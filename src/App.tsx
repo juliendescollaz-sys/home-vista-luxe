@@ -11,6 +11,7 @@ import Favorites from "./pages/Favorites";
 import Scenes from "./pages/Scenes";
 import Activity from "./pages/Activity";
 import Settings from "./pages/Settings";
+import Dev from "./pages/Dev";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -76,6 +77,14 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <Settings />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dev"
+              element={
+                <PrivateRoute>
+                  <Dev />
                 </PrivateRoute>
               }
             />

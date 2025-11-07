@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useHAStore } from "@/store/useHAStore";
-import { testConnection } from "@/lib/homeassistant";
+import { testNabucasaConnection } from "@/lib/haClient";
 import { Home, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -29,7 +29,7 @@ const Onboarding = () => {
     setStatus("testing");
 
     try {
-      const isValid = await testConnection(url, token);
+      const isValid = await testNabucasaConnection(url, token);
       
       if (isValid) {
         setStatus("success");
@@ -46,7 +46,7 @@ const Onboarding = () => {
       } else {
         setStatus("error");
         toast.error("Connexion échouée", {
-          description: "Vérifiez la console pour plus de détails. Problèmes possibles: CORS, URL incorrecte, ou token invalide.",
+          description: "Vérifiez la console (F12) pour plus de détails.",
         });
       }
     } catch (error) {
