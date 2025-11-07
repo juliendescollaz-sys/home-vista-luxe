@@ -3,10 +3,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import { useHAStore } from "./store/useHAStore";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import Onboarding from "./pages/Onboarding";
-import OnboardingScan from "./pages/OnboardingScan";
-import Admin from "./pages/Admin";
 import Home from "./pages/Home";
 import Rooms from "./pages/Rooms";
 import Favorites from "./pages/Favorites";
@@ -15,6 +15,10 @@ import Activity from "./pages/Activity";
 import Settings from "./pages/Settings";
 import Dev from "./pages/Dev";
 import NotFound from "./pages/NotFound";
+
+// Lazy load pages avec dependencies lourdes
+const OnboardingScan = lazy(() => import("./pages/OnboardingScan"));
+const Admin = lazy(() => import("./pages/Admin"));
 
 const queryClient = new QueryClient();
 
@@ -32,15 +36,24 @@ const App = () => {
   const isConnected = useHAStore((state) => state.isConnected);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
             <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/onboarding/scan" element={<OnboardingScan />} />
-            <Route path="/admin" element={<Admin />} />
+            <Route path="/onboarding/scan" element={
+              <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
+                <OnboardingScan />
+              </Suspense>
+            } />
+            <Route path="/admin" element={
+              <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
+                <Admin />
+              </Suspense>
+            } />
             <Route
               path="/"
               element={
@@ -102,6 +115,7 @@ const App = () => {
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 
