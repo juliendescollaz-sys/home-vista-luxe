@@ -262,6 +262,10 @@ export class HAClient {
   isConnected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN && this.isAuthenticated;
   }
+
+  getSocket(): WebSocket | null {
+    return this.ws;
+  }
 }
 
 // Helper pour tester la connexion
