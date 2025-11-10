@@ -234,9 +234,15 @@ export class HAClient {
     console.log(`📂 Browse media pour ${entityId}`, { mediaContentId, mediaContentType });
     
     const data: any = { entity_id: entityId };
-    if (mediaContentId && mediaContentType) {
-      data.media_content_id = mediaContentId;
+    
+    // Toujours envoyer le type s'il est défini
+    if (mediaContentType !== undefined) {
       data.media_content_type = mediaContentType;
+    }
+    
+    // Envoyer l'ID même si c'est une chaîne vide, mais pas s'il est undefined
+    if (mediaContentId !== undefined) {
+      data.media_content_id = mediaContentId;
     }
 
     return this.sendWithResponse("media_player/browse_media", data);
