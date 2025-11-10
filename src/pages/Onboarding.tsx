@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Home, QrCode, Mail } from "lucide-react";
+import { QrCode, Mail } from "lucide-react";
+import neoliaLogo from "@/assets/neolia-logo.png";
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -9,13 +10,14 @@ const Onboarding = () => {
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
       <div className="w-full max-w-md space-y-12 animate-fade-up">
         {/* Logo Neolia */}
-        <div className="text-center space-y-4">
-          <div className="flex justify-center mb-8">
-            <div className="p-6 rounded-3xl bg-gradient-primary shadow-glow">
-              <Home className="h-16 w-16 text-primary-foreground" />
-            </div>
+        <div className="text-center space-y-6">
+          <div className="flex justify-center">
+            <img 
+              src={neoliaLogo} 
+              alt="Neolia" 
+              className="h-24 w-auto"
+            />
           </div>
-          <h1 className="text-5xl font-bold tracking-tight">Neolia</h1>
           <p className="text-muted-foreground text-xl">Smart Home Premium</p>
         </div>
 
