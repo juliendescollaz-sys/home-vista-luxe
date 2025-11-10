@@ -168,7 +168,7 @@ const MediaPlayerDetails = () => {
           <div className="flex items-center justify-center gap-2">
             {canShuffle && (
               <Button
-                variant={attributes.shuffle ? "default" : "ghost"}
+                variant={attributes.shuffle ? "default" : "outline"}
                 className="h-12 w-12 min-w-12 p-0 flex items-center justify-center aspect-square shrink-0"
                 onClick={() => callService("shuffle_set", { shuffle: !attributes.shuffle })}
               >
@@ -211,7 +211,7 @@ const MediaPlayerDetails = () => {
 
             {canRepeat && (
               <Button
-                variant={attributes.repeat && attributes.repeat !== "off" ? "default" : "ghost"}
+                variant={attributes.repeat && attributes.repeat !== "off" ? "default" : "outline"}
                 className="h-12 w-12 min-w-12 p-0 flex items-center justify-center aspect-square relative shrink-0"
                 onClick={() => {
                   const repeatModes = ["off", "all", "one"];
