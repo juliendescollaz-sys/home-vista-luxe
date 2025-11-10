@@ -17,10 +17,11 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
   const { page, loadRoot, navigateTo, navigateBack, playMedia } = useSonosBrowser(client, entityId);
 
   useEffect(() => {
-    if (client) {
+    if (client && page.items.length === 0 && !page.loading && page.path.length === 1) {
+      console.log("🚀 Chargement initial de la racine");
       loadRoot();
     }
-  }, [client, loadRoot]);
+  }, [client, loadRoot, page.items.length, page.loading, page.path.length]);
 
   const getIconForNode = (node: BrowseNode) => {
     if (node.canPlay && !node.canExpand) return Play;
