@@ -31,15 +31,11 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
   };
 
   return (
-    <Card className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 [&]:select-none [&]:outline-none [&]:focus-visible:outline-none [&]:active:outline-none" style={{ WebkitTapHighlightColor: 'transparent' }}>
-      {/* Zone cliquable pour la navigation - en dessous du bouton */}
+    <Card className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
+      {/* Zone cliquable pour la navigation */}
       <div 
         onClick={handleCardClick}
-        onTouchEnd={(e) => {
-          e.preventDefault();
-          handleCardClick();
-        }}
-        className="absolute inset-0 cursor-pointer z-0 select-none touch-manipulation"
+        className="absolute inset-0 cursor-pointer z-0 touch-manipulation active:bg-primary/5"
         style={{ WebkitTapHighlightColor: 'transparent' }}
       />
       
@@ -59,12 +55,13 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
           </div>
         )}
         
-        {/* Bouton pour ajouter/changer la photo - au-dessus de la zone cliquable */}
+        {/* Bouton pour ajouter/changer la photo - toujours visible sur mobile, au hover sur desktop */}
         <button
           type="button"
           onClick={handlePhotoClick}
-          className="absolute top-2 right-2 p-3 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-200 opacity-0 group-hover:opacity-100 z-20"
+          className="absolute top-2 right-2 p-3 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-200 md:opacity-0 md:group-hover:opacity-100 opacity-70 z-20 touch-manipulation"
           aria-label="Changer la photo de la pièce"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
         >
           <Camera className="h-5 w-5" />
         </button>
