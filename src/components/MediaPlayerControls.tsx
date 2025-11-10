@@ -1,6 +1,6 @@
 import { Play, Pause, SkipForward, SkipBack, Repeat, Repeat1, Shuffle, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 interface MediaPlayerControlsProps {
   isPlaying: boolean;
@@ -26,6 +26,141 @@ interface MediaPlayerControlsProps {
   };
 }
 
+// Helper: Transport button (prev/next/play)
+function TransportButton({ 
+  icon: Icon, 
+  onPress, 
+  disabled, 
+  pending = false, 
+  size = "sm", 
+  primary = false 
+}: {
+  icon: any;
+  onPress: () => void;
+  disabled?: boolean;
+  pending?: boolean;
+  size?: "sm" | "lg";
+  primary?: boolean;
+}) {
+  const dim = size === "lg" ? "h-[70px] w-[70px]" : "h-12 w-12";
+  const iconSize = size === "lg" ? "h-8 w-8" : "h-6 w-6";
+  const rounded = size === "lg" ? "rounded-full" : "rounded-xl";
+
+  return (
+    <button
+      onClick={onPress}
+      disabled={disabled}
+      className={cn(
+        dim,
+        rounded,
+        "flex items-center justify-center transition-all duration-200",
+        "active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed",
+        disabled
+          ? "bg-muted"
+          : primary
+          ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
+          : "bg-card border border-border hover:bg-accent"
+      )}
+    >
+      {pending ? (
+        <Loader2 className={cn(iconSize, "animate-spin")} />
+      ) : (
+        <Icon className={iconSize} />
+      )}
+    </button>
+  );
+}
+
+// Helper: Toggle button (shuffle on/off)
+function ToggleButton({ 
+  icon: Icon, 
+  active, 
+  onPress, 
+  disabled, 
+  pending = false 
+}: {
+  icon: any;
+  active: boolean;
+  onPress: () => void;
+  disabled?: boolean;
+  pending?: boolean;
+}) {
+  return (
+    <button
+      onClick={onPress}
+      disabled={disabled}
+      className={cn(
+        "flex-1 h-11 rounded-xl transition-all duration-200",
+        "flex items-center justify-center gap-2",
+        "active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed",
+        disabled
+          ? "bg-muted"
+          : "bg-card hover:bg-accent",
+        active
+          ? "border-2 border-primary"
+          : "border border-border"
+      )}
+    >
+      {pending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <>
+          <Icon className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground")} />
+          <span className={cn("text-sm font-medium", active ? "text-primary" : "text-muted-foreground")}>
+            {active ? "ON" : "OFF"}
+          </span>
+        </>
+      )}
+    </button>
+  );
+}
+
+// Helper: Repeat button (off/all/one)
+function RepeatButton({ 
+  repeat, 
+  onPress, 
+  disabled, 
+  pending = false 
+}: {
+  repeat: "off" | "all" | "one";
+  onPress: () => void;
+  disabled?: boolean;
+  pending?: boolean;
+}) {
+  const active = repeat !== "off";
+  const Icon = repeat === "one" ? Repeat1 : Repeat;
+  const label = repeat === "off" ? "OFF" : repeat === "all" ? "ALL" : "ONE";
+
+  return (
+    <button
+      onClick={onPress}
+      disabled={disabled}
+      className={cn(
+        "flex-1 h-11 rounded-xl transition-all duration-200",
+        "flex items-center justify-center gap-2",
+        "active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed",
+        disabled
+          ? "bg-muted"
+          : "bg-card hover:bg-accent",
+        active
+          ? "border-2 border-primary"
+          : "border border-border"
+      )}
+    >
+      {pending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <>
+          <Icon className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground")} />
+          <span className={cn("text-sm font-medium", active ? "text-primary" : "text-muted-foreground")}>
+            {label}
+          </span>
+        </>
+      )}
+    </button>
+  );
+}
+
 export const MediaPlayerControls = ({
   isPlaying,
   shuffle,
@@ -44,138 +179,59 @@ export const MediaPlayerControls = ({
   pending = {},
 }: MediaPlayerControlsProps) => {
   return (
-    <Card className="p-6">
+    <Card className="p-6 space-y-4">
+      {/* Transport controls */}
       <div className="flex items-center justify-center gap-3">
-        {/* Shuffle Button */}
-        {canShuffle && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-11 w-11 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
-            onClick={onShuffleToggle}
-            disabled={pending.shuffle}
-          >
-            {pending.shuffle ? (
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            ) : (
-              <Shuffle 
-                className={`h-5 w-5 transition-colors ${
-                  shuffle 
-                    ? 'text-primary' 
-                    : 'text-muted-foreground'
-                }`}
-              />
-            )}
-          </Button>
-        )}
-
-        {/* Previous Track Button */}
         {canPrevious && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-12 w-12 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
-            onClick={onPrevious}
-            disabled={pending.previous}
-          >
-            {pending.previous ? (
-              <Loader2 className="h-6 w-6 animate-spin text-foreground" />
-            ) : (
-              <SkipBack className="h-6 w-6 text-foreground" />
-            )}
-          </Button>
+          <TransportButton
+            icon={SkipBack}
+            onPress={onPrevious}
+            disabled={!canPrevious || pending.previous}
+            pending={pending.previous}
+          />
         )}
-
-        {/* Play/Pause Button */}
-        <Button
-          variant="default"
-          size="icon"
-          className="h-16 w-16 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg disabled:opacity-50"
-          onClick={onPlayPause}
+        
+        <TransportButton
+          icon={isPlaying ? Pause : Play}
+          onPress={onPlayPause}
           disabled={(!canPlay && !canPause) || pending.playPause}
-        >
-          {pending.playPause ? (
-            <Loader2 className="h-8 w-8 animate-spin" />
-          ) : isPlaying ? (
-            <Pause className="h-8 w-8" />
-          ) : (
-            <Play className="h-8 w-8 ml-1" />
-          )}
-        </Button>
-
-        {/* Next Track Button */}
+          pending={pending.playPause}
+          size="lg"
+          primary
+        />
+        
         {canNext && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-12 w-12 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
-            onClick={onNext}
-            disabled={pending.next}
-          >
-            {pending.next ? (
-              <Loader2 className="h-6 w-6 animate-spin text-foreground" />
-            ) : (
-              <SkipForward className="h-6 w-6 text-foreground" />
-            )}
-          </Button>
-        )}
-
-        {/* Repeat Button */}
-        {canRepeat && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-11 w-11 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 relative disabled:opacity-50"
-            onClick={onRepeatCycle}
-            disabled={pending.repeat}
-          >
-            {pending.repeat ? (
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            ) : repeat === "one" ? (
-              <Repeat1 
-                className={`h-5 w-5 transition-colors ${
-                  repeat === "one" 
-                    ? 'text-primary' 
-                    : 'text-muted-foreground'
-                }`}
-              />
-            ) : (
-              <Repeat 
-                className={`h-5 w-5 transition-colors ${
-                  repeat === "all" 
-                    ? 'text-primary' 
-                    : 'text-muted-foreground'
-                }`}
-              />
-            )}
-            {repeat !== "off" && !pending.repeat && (
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
-            )}
-          </Button>
+          <TransportButton
+            icon={SkipForward}
+            onPress={onNext}
+            disabled={!canNext || pending.next}
+            pending={pending.next}
+          />
         )}
       </div>
 
-      {/* State Indicators */}
-      <div className="flex items-center justify-center gap-3 mt-4 text-xs text-muted-foreground">
-        {shuffle && (
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 bg-primary rounded-full" />
-            Aléatoire
-          </span>
-        )}
-        {repeat === "all" && (
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 bg-primary rounded-full" />
-            Répéter tout
-          </span>
-        )}
-        {repeat === "one" && (
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 bg-primary rounded-full" />
-            Répéter une
-          </span>
-        )}
-      </div>
+      {/* Options: Shuffle & Repeat */}
+      {(canShuffle || canRepeat) && (
+        <div className="flex gap-3">
+          {canShuffle && (
+            <ToggleButton
+              icon={Shuffle}
+              active={shuffle}
+              onPress={onShuffleToggle}
+              disabled={!canShuffle || pending.shuffle}
+              pending={pending.shuffle}
+            />
+          )}
+          {canRepeat && (
+            <RepeatButton
+              repeat={repeat}
+              onPress={onRepeatCycle}
+              disabled={!canRepeat || pending.repeat}
+              pending={pending.repeat}
+            />
+          )}
+        </div>
+      )}
     </Card>
   );
 };
