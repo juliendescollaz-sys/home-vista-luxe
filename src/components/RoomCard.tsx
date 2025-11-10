@@ -28,21 +28,19 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
     }
   };
 
-  const handleCardClick = () => {
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Ne pas naviguer si le clic provient du bouton photo ou de ses enfants
+    const target = e.target as HTMLElement;
+    if (target.closest('button[aria-label="Changer la photo de la pièce"]')) {
+      return;
+    }
     navigate(`/rooms/${areaId}`);
   };
 
   return (
     <Card 
       onClick={handleCardClick}
-      className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 cursor-pointer select-none"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleCardClick();
-        }
-      }}
+      className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 cursor-pointer"
     >
       <div className="aspect-video relative overflow-hidden">
         {customPhoto ? (
