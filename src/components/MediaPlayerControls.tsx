@@ -94,19 +94,18 @@ function ToggleButton({
         "flex items-center justify-center gap-2",
         "active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed",
         disabled
-          ? "bg-muted"
-          : "bg-card hover:bg-accent",
-        active
-          ? "border-2 border-primary"
-          : "border border-border"
+          ? "bg-muted border border-border"
+          : active
+          ? "bg-primary/10 border-2 border-primary hover:bg-primary/15"
+          : "bg-card/50 border border-border/50 hover:bg-card"
       )}
     >
       {pending ? (
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
         <>
-          <Icon className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground")} />
-          <span className={cn("text-sm font-medium", active ? "text-primary" : "text-muted-foreground")}>
+          <Icon className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground/60")} />
+          <span className={cn("text-sm font-medium", active ? "text-primary" : "text-muted-foreground/60")}>
             {active ? "ON" : "OFF"}
           </span>
         </>
@@ -140,19 +139,18 @@ function RepeatButton({
         "flex items-center justify-center gap-2",
         "active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed",
         disabled
-          ? "bg-muted"
-          : "bg-card hover:bg-accent",
-        active
-          ? "border-2 border-primary"
-          : "border border-border"
+          ? "bg-muted border border-border"
+          : active
+          ? "bg-primary/10 border-2 border-primary hover:bg-primary/15"
+          : "bg-card/50 border border-border/50 hover:bg-card"
       )}
     >
       {pending ? (
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
         <>
-          <Icon className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground")} />
-          <span className={cn("text-sm font-medium", active ? "text-primary" : "text-muted-foreground")}>
+          <Icon className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground/60")} />
+          <span className={cn("text-sm font-medium", active ? "text-primary" : "text-muted-foreground/60")}>
             {label}
           </span>
         </>
