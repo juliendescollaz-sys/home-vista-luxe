@@ -239,48 +239,6 @@ const MediaPlayerDetails = () => {
           Retour
         </Button>
 
-        {/* Debug - Afficher tous les attributs disponibles */}
-        <Card className="p-4 mb-6">
-          <h3 className="text-sm font-medium mb-3">Attributs du lecteur (Debug)</h3>
-          <pre className="text-xs p-2 bg-muted rounded overflow-auto max-h-[400px]">
-            {JSON.stringify(entity?.attributes, null, 2)}
-          </pre>
-        </Card>
-
-        {/* Favoris Sonos */}
-        {entity?.attributes.source_list && entity.attributes.source_list.length > 0 && (
-          <Card className="p-4 mb-6">
-            <h3 className="text-sm font-medium mb-3">Favoris Sonos</h3>
-            <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
-              {entity.attributes.source_list.map((source: string) => (
-                <button
-                  key={source}
-                  onClick={() => handleSelectSource(source)}
-                  className={cn(
-                    "p-3 rounded-lg transition-all duration-200",
-                    "flex items-center gap-2 text-left",
-                    "hover:bg-accent active:scale-95",
-                    entity.attributes.source === source
-                      ? "bg-primary/10 border-2 border-primary"
-                      : "bg-card border border-border"
-                  )}
-                >
-                  <Music className={cn(
-                    "h-4 w-4 flex-shrink-0",
-                    entity.attributes.source === source ? "text-primary" : "text-muted-foreground"
-                  )} />
-                  <span className={cn(
-                    "text-sm truncate",
-                    entity.attributes.source === source ? "text-primary font-medium" : "text-foreground"
-                  )}>
-                    {source}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </Card>
-        )}
-
         {/* Jaquette et infos */}
         <Card className="overflow-hidden mb-6">
           <div className="relative">
