@@ -343,9 +343,9 @@ const MediaPlayerDetails = () => {
               disabled={!canPlay && !canPause}
             >
               {isPlaying ? (
-                <Pause className="h-7 w-7" />
+                <Pause className="h-9 w-9" />
               ) : (
-                <Play className="h-7 w-7 ml-0.5" />
+                <Play className="h-9 w-9 ml-0.5" />
               )}
             </Button>
 
@@ -372,7 +372,7 @@ const MediaPlayerDetails = () => {
                 }}
               >
                 {attributes.repeat === "one" ? (
-                  <Repeat1 className="h-5 w-5" />
+                  <Repeat1 className="h-6 w-6" />
                 ) : (
                   <Repeat className="h-5 w-5" />
                 )}
