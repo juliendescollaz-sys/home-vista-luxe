@@ -12,6 +12,7 @@ import Auth from "./pages/Auth";
 import Home from "./pages/Home";
 import Rooms from "./pages/Rooms";
 import RoomDetails from "./pages/RoomDetails";
+import MediaPlayerDetails from "./pages/MediaPlayerDetails";
 import Favorites from "./pages/Favorites";
 import Scenes from "./pages/Scenes";
 import Activity from "./pages/Activity";
@@ -123,6 +124,14 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <RoomDetails />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/media-player/:entityId"
+              element={
+                <PrivateRoute>
+                  <MediaPlayerDetails />
                 </PrivateRoute>
               }
             />

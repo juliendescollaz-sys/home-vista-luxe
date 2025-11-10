@@ -3,6 +3,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { useHAStore } from "@/store/useHAStore";
 import { useParams, useNavigate } from "react-router-dom";
 import { DeviceCard } from "@/components/DeviceCard";
+import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHAClient } from "@/hooks/useHAClient";
@@ -121,13 +122,26 @@ const RoomDetails = () => {
           </p>
         ) : (
           <div className="space-y-3">
-            {roomEntities.map((entity) => (
-              <DeviceCard
-                key={entity.entity_id}
-                entity={entity}
-                onToggle={handleToggle}
-              />
-            ))}
+            {roomEntities.map((entity) => {
+              const domain = entity.entity_id.split(".")[0];
+              
+              if (domain === "media_player") {
+                return (
+                  <MediaPlayerCard
+                    key={entity.entity_id}
+                    entity={entity}
+                  />
+                );
+              }
+              
+              return (
+                <DeviceCard
+                  key={entity.entity_id}
+                  entity={entity}
+                  onToggle={handleToggle}
+                />
+              );
+            })}
           </div>
         )}
       </div>
