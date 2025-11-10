@@ -184,7 +184,7 @@ const MediaPlayerDetails = () => {
                 className="h-12 w-12 min-w-12 p-0 flex items-center justify-center aspect-square shrink-0"
                 onClick={() => callService("shuffle_set", { shuffle: !attributes.shuffle })}
               >
-                <Shuffle className={`h-5 w-5 ${attributes.shuffle ? 'text-primary' : ''}`} />
+                <Shuffle className={`h-5 w-5 ${attributes.shuffle ? 'text-primary' : 'text-muted-foreground'}`} />
               </Button>
             )}
             
@@ -234,9 +234,9 @@ const MediaPlayerDetails = () => {
                 }}
               >
                 {attributes.repeat === "one" ? (
-                  <Repeat1 className={`h-6 w-6 ${attributes.repeat !== "off" ? 'text-primary' : ''}`} />
+                  <Repeat1 className={`h-6 w-6 ${attributes.repeat !== "off" ? 'text-primary' : 'text-muted-foreground'}`} />
                 ) : (
-                  <Repeat className={`h-5 w-5 ${attributes.repeat !== "off" ? 'text-primary' : ''}`} />
+                  <Repeat className={`h-5 w-5 ${attributes.repeat !== "off" ? 'text-primary' : 'text-muted-foreground'}`} />
                 )}
                 {attributes.repeat && attributes.repeat !== "off" && (
                   <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
