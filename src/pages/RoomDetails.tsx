@@ -43,23 +43,30 @@ const RoomDetails = () => {
     roomEntityIds.has(entity.entity_id)
   );
 
-  // 4. Créer un Set des friendly_name des media_players
-  const mediaPlayerNames = new Set(
+  // 4. Trouver les device_id des media_players
+  const mediaPlayerDeviceIds = new Set(
     allRoomEntities
       .filter((entity) => entity.entity_id.startsWith("media_player."))
-      .map((entity) => entity.attributes.friendly_name)
+      .map((entity) => {
+        const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+        return reg?.device_id;
+      })
+      .filter(Boolean)
   );
 
-  // 5. Filtrer pour cacher les entités non-media_player qui partagent le même nom qu'un media_player
+  // 5. Filtrer pour ne garder QUE les media_players et cacher toutes les autres entités du même device
   const roomEntities = allRoomEntities.filter((entity) => {
     const domain = entity.entity_id.split(".")[0];
-    const friendlyName = entity.attributes.friendly_name;
     
     // Si c'est un media_player, toujours l'afficher
     if (domain === "media_player") return true;
     
-    // Si une autre entité partage le nom d'un media_player, la cacher
-    if (mediaPlayerNames.has(friendlyName)) return false;
+    // Trouver le device_id de cette entité
+    const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+    const deviceId = reg?.device_id;
+    
+    // Si cette entité appartient au même device qu'un media_player, la cacher
+    if (deviceId && mediaPlayerDeviceIds.has(deviceId)) return false;
     
     // Sinon, l'afficher
     return true;
