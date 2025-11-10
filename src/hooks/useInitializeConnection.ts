@@ -1,8 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import { getHACredentials } from "@/lib/crypto";
 
 export function useInitializeConnection() {
+  const [isInitialized, setIsInitialized] = useState(false);
+
   useEffect(() => {
     const initializeConnection = async () => {
       const connection = useHAStore.getState().connection;
@@ -23,8 +25,12 @@ export function useInitializeConnection() {
           console.error("❌ Erreur lors de la restauration des credentials:", error);
         }
       }
+      
+      setIsInitialized(true);
     };
 
     initializeConnection();
   }, []);
+
+  return isInitialized;
 }

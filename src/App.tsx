@@ -33,7 +33,24 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   // Check if we have valid connection data
   const hasValidConnection = connection && connection.url && connection.token;
   
-  return (isConnected && hasValidConnection) ? <>{children}</> : <Navigate to="/onboarding" />;
+  // Si on a des credentials valides mais qu'on n'est pas encore connecté, afficher un loader
+  if (hasValidConnection && !isConnected) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-2">
+          <div className="animate-pulse text-muted-foreground">Connexion en cours...</div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Si pas de credentials du tout, rediriger vers onboarding
+  if (!hasValidConnection) {
+    return <Navigate to="/onboarding" />;
+  }
+  
+  // Si connecté avec des credentials valides, afficher la page
+  return <>{children}</>;
 };
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
@@ -51,7 +68,15 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => {
-  useInitializeConnection();
+  const isInitialized = useInitializeConnection();
+
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground">Chargement...</div>
+      </div>
+    );
+  }
 
   return (
     <ErrorBoundary>
