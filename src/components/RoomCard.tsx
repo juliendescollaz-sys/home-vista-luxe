@@ -15,7 +15,8 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
-  const handlePhotoClick = () => {
+  const handlePhotoClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     fileInputRef.current?.click();
   };
 
@@ -31,13 +32,11 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
   };
 
   return (
-    <Card className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
-      {/* Zone cliquable pour la navigation */}
-      <div 
-        onClick={handleCardClick}
-        className="absolute inset-0 cursor-pointer z-0 touch-manipulation active:bg-primary/5"
-        style={{ WebkitTapHighlightColor: 'transparent' }}
-      />
+    <Card 
+      onClick={handleCardClick}
+      className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 cursor-pointer touch-manipulation active:scale-[0.98]" 
+      style={{ WebkitTapHighlightColor: 'transparent' }}
+    >
       
       <div className="aspect-video relative overflow-hidden">
         {customPhoto ? (
@@ -45,12 +44,12 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
             <img
               src={customPhoto}
               alt={name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/60 to-background/30 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/60 to-background/30" />
           </>
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-muted/30 pointer-events-none">
+          <div className="w-full h-full flex items-center justify-center bg-muted/30">
             <Home className="h-12 w-12 text-muted-foreground" />
           </div>
         )}
@@ -75,7 +74,7 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
         />
       </div>
       
-      <div className="p-4 relative pointer-events-none">
+      <div className="p-4 relative">
         <h3 className="font-semibold text-lg mb-1">{name}</h3>
         <p className="text-sm text-muted-foreground">
           {deviceCount} {deviceCount === 1 ? "appareil" : "appareils"}
