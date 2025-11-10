@@ -15,10 +15,7 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
-  const handlePhotoClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    e.preventDefault();
-    e.nativeEvent.stopImmediatePropagation();
+  const handlePhotoClick = () => {
     fileInputRef.current?.click();
   };
 
@@ -34,39 +31,34 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
   };
 
   return (
-    <Card 
-      onClick={handleCardClick}
-      className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 cursor-pointer outline-none focus:outline-none focus-visible:outline-none"
-    >
+    <Card className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300">
+      {/* Zone cliquable pour la navigation - en dessous du bouton */}
+      <div 
+        onClick={handleCardClick}
+        className="absolute inset-0 cursor-pointer z-0"
+      />
+      
       <div className="aspect-video relative overflow-hidden">
         {customPhoto ? (
           <>
             <img
               src={customPhoto}
               alt={name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/60 to-background/30" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/60 to-background/30 pointer-events-none" />
           </>
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-muted/30">
+          <div className="w-full h-full flex items-center justify-center bg-muted/30 pointer-events-none">
             <Home className="h-12 w-12 text-muted-foreground" />
           </div>
         )}
         
-        {/* Bouton pour ajouter/changer la photo */}
+        {/* Bouton pour ajouter/changer la photo - au-dessus de la zone cliquable */}
         <button
           type="button"
           onClick={handlePhotoClick}
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-          onTouchStart={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-          className="absolute top-2 right-2 p-3 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-200 opacity-0 group-hover:opacity-100 z-10 outline-none focus:outline-none"
+          className="absolute top-2 right-2 p-3 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-200 opacity-0 group-hover:opacity-100 z-20"
           aria-label="Changer la photo de la pièce"
         >
           <Camera className="h-5 w-5" />
@@ -81,7 +73,7 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
         />
       </div>
       
-      <div className="p-4 relative">
+      <div className="p-4 relative pointer-events-none">
         <h3 className="font-semibold text-lg mb-1">{name}</h3>
         <p className="text-sm text-muted-foreground">
           {deviceCount} {deviceCount === 1 ? "appareil" : "appareils"}
