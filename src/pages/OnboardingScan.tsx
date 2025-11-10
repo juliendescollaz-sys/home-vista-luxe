@@ -16,6 +16,7 @@ const OnboardingScan = () => {
   const [videoReady, setVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const processingRef = useRef(false);
   const navigate = useNavigate();
   const setConnection = useHAStore((state) => state.setConnection);
   const setConnected = useHAStore((state) => state.setConnected);
@@ -140,6 +141,10 @@ const OnboardingScan = () => {
   };
 
   const handleQRCode = async (qrText: string) => {
+    // Prevent multiple simultaneous processing
+    if (processingRef.current) return;
+    processingRef.current = true;
+
     stopScanning();
     setStatus("processing");
     setMessage("Vérification du code...");
@@ -187,6 +192,7 @@ const OnboardingScan = () => {
     } catch (error: any) {
       console.error("❌ Erreur de jumelage:", error);
       setStatus("error");
+      processingRef.current = false; // Reset flag on error
       
       // Map error messages to user-friendly French
       const errorMsg = error.message || "Erreur lors du jumelage";
