@@ -2,7 +2,7 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useHAStore } from "@/store/useHAStore";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, Repeat, Repeat1, Shuffle } from "lucide-react";
+import { ArrowLeft, Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, Repeat, Repeat1, Shuffle, Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHAClient } from "@/hooks/useHAClient";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import EntityControl from "@/components/EntityControl";
 import { MediaPlayerControls } from "@/components/MediaPlayerControls";
+import { cn } from "@/lib/utils";
 
 const MediaPlayerDetails = () => {
   const { entityId } = useParams<{ entityId: string }>();
@@ -168,6 +169,20 @@ const MediaPlayerDetails = () => {
     callService("repeat_set", { repeat: nextMode });
   }, [callService, entity]);
 
+  const handleSelectSource = useCallback(async (source: string) => {
+    if (!entity) return;
+    try {
+      await client.callService("media_player", "select_source", 
+        { source }, 
+        { entity_id: entity.entity_id }
+      );
+      toast.success("Favori sélectionné");
+    } catch (error) {
+      console.error("Erreur lors de la sélection du favori:", error);
+      toast.error("Erreur lors de la sélection du favori");
+    }
+  }, [client, entity]);
+
   // Réinitialiser les états pending quand l'entité change
   useEffect(() => {
     setPending({
@@ -301,6 +316,40 @@ const MediaPlayerDetails = () => {
               <span className="text-sm text-muted-foreground w-12 text-right">
                 {Math.round(volume)}%
               </span>
+            </div>
+          </Card>
+        )}
+
+        {/* Favoris Sonos */}
+        {entity?.attributes.source_list && entity.attributes.source_list.length > 0 && (
+          <Card className="p-4 mt-6">
+            <h3 className="text-sm font-medium mb-3">Favoris Sonos</h3>
+            <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
+              {entity.attributes.source_list.map((source: string) => (
+                <button
+                  key={source}
+                  onClick={() => handleSelectSource(source)}
+                  className={cn(
+                    "p-3 rounded-lg transition-all duration-200",
+                    "flex items-center gap-2 text-left",
+                    "hover:bg-accent active:scale-95",
+                    entity.attributes.source === source
+                      ? "bg-primary/10 border-2 border-primary"
+                      : "bg-card border border-border"
+                  )}
+                >
+                  <Music className={cn(
+                    "h-4 w-4 flex-shrink-0",
+                    entity.attributes.source === source ? "text-primary" : "text-muted-foreground"
+                  )} />
+                  <span className={cn(
+                    "text-sm truncate",
+                    entity.attributes.source === source ? "text-primary font-medium" : "text-foreground"
+                  )}>
+                    {source}
+                  </span>
+                </button>
+              ))}
             </div>
           </Card>
         )}
