@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import EntityControl from "@/components/EntityControl";
+import { MediaPlayerControls } from "@/components/MediaPlayerControls";
 
 const MediaPlayerDetails = () => {
   const { entityId } = useParams<{ entityId: string }>();
@@ -149,6 +150,28 @@ const MediaPlayerDetails = () => {
     callService("volume_mute", { is_volume_muted: !entityData.isMuted });
   }, [callService, entityData]);
 
+  const handlePrevious = useCallback(() => {
+    callService("media_previous_track");
+  }, [callService]);
+
+  const handleNext = useCallback(() => {
+    callService("media_next_track");
+  }, [callService]);
+
+  const handleShuffleToggle = useCallback(() => {
+    if (!entity) return;
+    callService("shuffle_set", { shuffle: !entity.attributes.shuffle });
+  }, [callService, entity]);
+
+  const handleRepeatCycle = useCallback(() => {
+    if (!entity) return;
+    const repeatModes: Array<"off" | "all" | "one"> = ["off", "all", "one"];
+    const currentMode = (entity.attributes.repeat as "off" | "all" | "one") || "off";
+    const currentIndex = repeatModes.indexOf(currentMode);
+    const nextMode = repeatModes[(currentIndex + 1) % repeatModes.length];
+    callService("repeat_set", { repeat: nextMode });
+  }, [callService, entity]);
+
   if (!entity || !entityData) {
     return (
       <div className="min-h-screen bg-background pb-24 pt-20">
@@ -205,75 +228,22 @@ const MediaPlayerDetails = () => {
         </Card>
 
         {/* Contrôles de lecture */}
-        <Card className="p-4 mb-4">
-          <div className="flex items-center justify-center gap-2">
-            {canShuffle && (
-              <Button
-                variant="ghost"
-                className="h-12 w-12 min-w-12 p-0 flex items-center justify-center aspect-square shrink-0"
-                onClick={() => callService("shuffle_set", { shuffle: !attributes.shuffle })}
-              >
-                <Shuffle className={`h-5 w-5 ${attributes.shuffle ? 'text-primary' : 'text-muted-foreground'}`} />
-              </Button>
-            )}
-            
-            {canPrevious && (
-              <Button
-                variant="ghost"
-                className="h-12 w-12 min-w-12 p-0 flex items-center justify-center aspect-square shrink-0"
-                onClick={() => callService("media_previous_track")}
-              >
-                <SkipBack className="h-5 w-5" />
-              </Button>
-            )}
-
-            <Button
-              variant="default"
-              className="h-14 w-14 min-w-14 p-0 flex items-center justify-center aspect-square shrink-0"
-              onClick={handlePlayPause}
-              disabled={!canPlay && !canPause}
-            >
-              {isPlaying ? (
-                <Pause className="h-9 w-9" />
-              ) : (
-                <Play className="h-9 w-9 ml-0.5" />
-              )}
-            </Button>
-
-            {canNext && (
-              <Button
-                variant="ghost"
-                className="h-12 w-12 min-w-12 p-0 flex items-center justify-center aspect-square shrink-0"
-                onClick={() => callService("media_next_track")}
-              >
-                <SkipForward className="h-5 w-5" />
-              </Button>
-            )}
-
-            {canRepeat && (
-              <Button
-                variant="ghost"
-                className="h-12 w-12 min-w-12 p-0 flex items-center justify-center aspect-square relative shrink-0"
-                onClick={() => {
-                  const repeatModes = ["off", "all", "one"];
-                  const currentMode = attributes.repeat || "off";
-                  const currentIndex = repeatModes.indexOf(currentMode);
-                  const nextMode = repeatModes[(currentIndex + 1) % repeatModes.length];
-                  callService("repeat_set", { repeat: nextMode });
-                }}
-              >
-                {attributes.repeat === "one" ? (
-                  <Repeat1 className={`h-6 w-6 ${attributes.repeat !== "off" ? 'text-primary' : 'text-muted-foreground'}`} />
-                ) : (
-                  <Repeat className={`h-5 w-5 ${attributes.repeat !== "off" ? 'text-primary' : 'text-muted-foreground'}`} />
-                )}
-                {attributes.repeat && attributes.repeat !== "off" && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
-                )}
-              </Button>
-            )}
-          </div>
-        </Card>
+        <MediaPlayerControls
+          isPlaying={isPlaying}
+          shuffle={attributes.shuffle || false}
+          repeat={(attributes.repeat as "off" | "all" | "one") || "off"}
+          canPlay={canPlay}
+          canPause={canPause}
+          canPrevious={canPrevious}
+          canNext={canNext}
+          canShuffle={canShuffle}
+          canRepeat={canRepeat}
+          onPlayPause={handlePlayPause}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onShuffleToggle={handleShuffleToggle}
+          onRepeatCycle={handleRepeatCycle}
+        />
 
         {/* Contrôle du volume */}
         {canSetVolume && (
