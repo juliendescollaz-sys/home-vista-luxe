@@ -15,9 +15,12 @@ import { useState, useEffect } from "react";
 import { HAEntity } from "@/types/homeassistant";
 
 // Composant pour contrôler une entité associée
-const EntityControl = ({ entity, client }: { entity: HAEntity; client: any }) => {
+const EntityControl = ({ entity, client, mediaPlayerName }: { entity: HAEntity; client: any; mediaPlayerName: string }) => {
   const [localValue, setLocalValue] = useState<number>(0);
   const domain = entity.entity_id.split(".")[0];
+
+  // Nettoyer le nom en retirant le nom de la pièce
+  const cleanName = entity.attributes.friendly_name?.replace(mediaPlayerName, "").trim() || entity.attributes.friendly_name;
 
   useEffect(() => {
     // Initialiser la valeur pour les sliders de type number
@@ -69,10 +72,7 @@ const EntityControl = ({ entity, client }: { entity: HAEntity; client: any }) =>
     return (
       <Card className="p-4">
         <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label className="text-base">{entity.attributes.friendly_name}</Label>
-            <p className="text-xs text-muted-foreground">{entity.entity_id}</p>
-          </div>
+          <Label className="text-base">{cleanName}</Label>
           <Switch
             checked={entity.state === "on"}
             onCheckedChange={handleSwitchToggle}
@@ -88,10 +88,7 @@ const EntityControl = ({ entity, client }: { entity: HAEntity; client: any }) =>
     return (
       <Card className="p-4">
         <div className="space-y-2">
-          <div>
-            <Label className="text-base">{entity.attributes.friendly_name}</Label>
-            <p className="text-xs text-muted-foreground">{entity.entity_id}</p>
-          </div>
+          <Label className="text-base">{cleanName}</Label>
           <Select value={entity.state} onValueChange={handleSelectChange}>
             <SelectTrigger>
               <SelectValue />
@@ -119,10 +116,7 @@ const EntityControl = ({ entity, client }: { entity: HAEntity; client: any }) =>
       <Card className="p-4">
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label className="text-base">{entity.attributes.friendly_name}</Label>
-              <p className="text-xs text-muted-foreground">{entity.entity_id}</p>
-            </div>
+            <Label className="text-base">{cleanName}</Label>
             <span className="text-sm font-medium">{localValue}</span>
           </div>
           <Slider
@@ -143,10 +137,7 @@ const EntityControl = ({ entity, client }: { entity: HAEntity; client: any }) =>
     return (
       <Card className="p-4">
         <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label className="text-base">{entity.attributes.friendly_name}</Label>
-            <p className="text-xs text-muted-foreground">{entity.entity_id}</p>
-          </div>
+          <Label className="text-base">{cleanName}</Label>
           <Button onClick={handleButtonPress} size="sm">
             Activer
           </Button>
@@ -159,10 +150,7 @@ const EntityControl = ({ entity, client }: { entity: HAEntity; client: any }) =>
   return (
     <Card className="p-4">
       <div className="flex items-center justify-between">
-        <div className="space-y-0.5">
-          <Label className="text-base">{entity.attributes.friendly_name}</Label>
-          <p className="text-xs text-muted-foreground">{entity.entity_id}</p>
-        </div>
+        <Label className="text-base">{cleanName}</Label>
         <div className="text-right">
           <p className="text-sm font-medium">
             {entity.state} {entity.attributes.unit_of_measurement || ""}
@@ -432,6 +420,7 @@ const MediaPlayerDetails = () => {
                   key={relatedEntity.entity_id} 
                   entity={relatedEntity} 
                   client={client}
+                  mediaPlayerName={entity.attributes.friendly_name}
                 />
               ))}
             </div>
