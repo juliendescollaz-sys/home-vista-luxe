@@ -59,27 +59,54 @@ export function useSonosBrowser(client: HAClient | null, entityId: string) {
     console.log("⏳ Chargement depuis HA...");
     setPage(p => ({ ...p, loading: true, error: undefined }));
 
+    const timeoutId = setTimeout(() => {
+      setPage(p => ({ ...p, loading: false, error: "Aucune réponse de Home Assistant (timeout)" }));
+      toast.error("Timeout - Home Assistant ne répond pas");
+    }, 8000);
+
     try {
       const result = await client.browseMedia(entityId, mediaContentId, mediaContentType);
+      clearTimeout(timeoutId);
       console.log("📦 Résultat HA:", result);
       console.log("📦 Children brut:", result.children);
       
-      const items: BrowseNode[] = (result.children || []).map((c: any) => {
-        console.log("🔍 Child brut:", c);
-        return {
-          title: c.title || "Sans titre",
-          canPlay: !!c.can_play,
-          canExpand: !!c.can_expand,
-          mediaContentId: c.media_content_id,
-          mediaContentType: c.media_content_type,
-          thumbnail: c.thumbnail || c.thumbnail_url,
-        };
-      });
+      let items: BrowseNode[] = (result.children || []).map((c: any) => ({
+        title: c.title || "Sans titre",
+        canPlay: !!c.can_play,
+        canExpand: !!c.can_expand,
+        mediaContentId: c.media_content_id,
+        mediaContentType: c.media_content_type,
+        thumbnail: c.thumbnail || c.thumbnail_url,
+      }));
+
+      // Filtrage intelligent à la racine uniquement
+      const isRoot = !mediaContentId && !mediaContentType;
+      if (isRoot) {
+        const allowedTitles = ["Favorites", "Radio Browser", "My media"];
+        const blockedTypes = ["image", "tts", "camera", "upload"];
+        const blockedTitles = ["Camera", "Image Upload", "Text-to-speech", "Upload", "Upload Files", "Local Media"];
+        
+        items = items.filter(item => {
+          // Bloquer par titre
+          if (blockedTitles.some(blocked => item.title.toLowerCase().includes(blocked.toLowerCase()))) {
+            return false;
+          }
+          // Bloquer par type de contenu
+          if (item.mediaContentType && blockedTypes.some(blocked => item.mediaContentType?.toLowerCase().includes(blocked))) {
+            return false;
+          }
+          // Garder uniquement les sources autorisées
+          return allowedTitles.some(allowed => item.title.toLowerCase().includes(allowed.toLowerCase()));
+        });
+        
+        console.log("✨ Items filtrés (racine):", items.length, items.map(i => i.title));
+      }
 
       cache.current.set(cacheKey, items);
       console.log("✅ Items chargés:", items.length, items);
       setPage(p => ({ ...p, items, loading: false, error: undefined }));
     } catch (error: any) {
+      clearTimeout(timeoutId);
       const errorMsg = error.message || "Contenu indisponible";
       setPage(p => ({ ...p, loading: false, error: errorMsg }));
       toast.error(errorMsg);
