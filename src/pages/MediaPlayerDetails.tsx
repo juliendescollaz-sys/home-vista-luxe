@@ -8,7 +8,170 @@ import { useHAClient } from "@/hooks/useHAClient";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useState, useEffect } from "react";
+import { HAEntity } from "@/types/homeassistant";
+
+// Composant pour contrôler une entité associée
+const EntityControl = ({ entity, client }: { entity: HAEntity; client: any }) => {
+  const [localValue, setLocalValue] = useState<number>(0);
+  const domain = entity.entity_id.split(".")[0];
+
+  useEffect(() => {
+    // Initialiser la valeur pour les sliders de type number
+    if (domain === "number" && entity.state) {
+      const numValue = parseFloat(entity.state);
+      if (!isNaN(numValue)) {
+        setLocalValue(numValue);
+      }
+    }
+  }, [entity.state, domain]);
+
+  const callEntityService = async (service: string, data?: any) => {
+    if (!client) {
+      toast.error("Client non connecté");
+      return;
+    }
+
+    try {
+      await client.callService(domain, service, data, { entity_id: entity.entity_id });
+      toast.success("Commande envoyée");
+    } catch (error) {
+      console.error("Erreur lors du contrôle:", error);
+      toast.error("Erreur lors du contrôle");
+    }
+  };
+
+  const handleSwitchToggle = (checked: boolean) => {
+    callEntityService(checked ? "turn_on" : "turn_off");
+  };
+
+  const handleSelectChange = (value: string) => {
+    callEntityService("select_option", { option: value });
+  };
+
+  const handleNumberChange = (value: number[]) => {
+    setLocalValue(value[0]);
+  };
+
+  const handleNumberChangeEnd = (value: number[]) => {
+    callEntityService("set_value", { value: value[0] });
+  };
+
+  const handleButtonPress = () => {
+    callEntityService("press");
+  };
+
+  // Switch (toggle on/off)
+  if (domain === "switch") {
+    return (
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label className="text-base">{entity.attributes.friendly_name}</Label>
+            <p className="text-xs text-muted-foreground">{entity.entity_id}</p>
+          </div>
+          <Switch
+            checked={entity.state === "on"}
+            onCheckedChange={handleSwitchToggle}
+          />
+        </div>
+      </Card>
+    );
+  }
+
+  // Select (dropdown)
+  if (domain === "select") {
+    const options = entity.attributes.options || [];
+    return (
+      <Card className="p-4">
+        <div className="space-y-2">
+          <div>
+            <Label className="text-base">{entity.attributes.friendly_name}</Label>
+            <p className="text-xs text-muted-foreground">{entity.entity_id}</p>
+          </div>
+          <Select value={entity.state} onValueChange={handleSelectChange}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((option: string) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </Card>
+    );
+  }
+
+  // Number (slider)
+  if (domain === "number") {
+    const min = entity.attributes.min ?? 0;
+    const max = entity.attributes.max ?? 100;
+    const step = entity.attributes.step ?? 1;
+    
+    return (
+      <Card className="p-4">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="text-base">{entity.attributes.friendly_name}</Label>
+              <p className="text-xs text-muted-foreground">{entity.entity_id}</p>
+            </div>
+            <span className="text-sm font-medium">{localValue}</span>
+          </div>
+          <Slider
+            value={[localValue]}
+            onValueChange={handleNumberChange}
+            onValueCommit={handleNumberChangeEnd}
+            min={min}
+            max={max}
+            step={step}
+          />
+        </div>
+      </Card>
+    );
+  }
+
+  // Button (press action)
+  if (domain === "button") {
+    return (
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label className="text-base">{entity.attributes.friendly_name}</Label>
+            <p className="text-xs text-muted-foreground">{entity.entity_id}</p>
+          </div>
+          <Button onClick={handleButtonPress} size="sm">
+            Activer
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
+  // Sensor ou autre (read-only)
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between">
+        <div className="space-y-0.5">
+          <Label className="text-base">{entity.attributes.friendly_name}</Label>
+          <p className="text-xs text-muted-foreground">{entity.entity_id}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-medium">
+            {entity.state} {entity.attributes.unit_of_measurement || ""}
+          </p>
+        </div>
+      </div>
+    </Card>
+  );
+};
 
 const MediaPlayerDetails = () => {
   const { entityId } = useParams<{ entityId: string }>();
@@ -261,17 +424,11 @@ const MediaPlayerDetails = () => {
             <h2 className="text-lg font-semibold mb-3">Contrôles associés</h2>
             <div className="space-y-3">
               {relatedEntities.map((relatedEntity) => (
-                <Card key={relatedEntity.entity_id} className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{relatedEntity.attributes.friendly_name}</p>
-                      <p className="text-sm text-muted-foreground">{relatedEntity.entity_id}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">{relatedEntity.state}</p>
-                    </div>
-                  </div>
-                </Card>
+                <EntityControl 
+                  key={relatedEntity.entity_id} 
+                  entity={relatedEntity} 
+                  client={client}
+                />
               ))}
             </div>
           </div>
