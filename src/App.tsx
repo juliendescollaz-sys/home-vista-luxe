@@ -11,6 +11,7 @@ import Onboarding from "./pages/Onboarding";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
 import Rooms from "./pages/Rooms";
+import RoomDetails from "./pages/RoomDetails";
 import Favorites from "./pages/Favorites";
 import Scenes from "./pages/Scenes";
 import Activity from "./pages/Activity";
@@ -114,6 +115,14 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <Rooms />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/rooms/:areaId"
+              element={
+                <PrivateRoute>
+                  <RoomDetails />
                 </PrivateRoute>
               }
             />

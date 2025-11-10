@@ -43,6 +43,7 @@ const Rooms = () => {
             {areas.map((area) => (
               <RoomCard
                 key={area.area_id}
+                areaId={area.area_id}
                 name={area.name}
                 deviceCount={getDeviceCount(area.area_id)}
                 customPhoto={areaPhotos[area.area_id]}

@@ -1,0 +1,122 @@
+import { TopBar } from "@/components/TopBar";
+import { BottomNav } from "@/components/BottomNav";
+import { useHAStore } from "@/store/useHAStore";
+import { useParams, useNavigate } from "react-router-dom";
+import { DeviceCard } from "@/components/DeviceCard";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useHAClient } from "@/hooks/useHAClient";
+import { toast } from "sonner";
+
+const RoomDetails = () => {
+  const { areaId } = useParams<{ areaId: string }>();
+  const navigate = useNavigate();
+  const { client } = useHAClient();
+  
+  const areas = useHAStore((state) => state.areas);
+  const entities = useHAStore((state) => state.entities);
+  const areaPhotos = useHAStore((state) => state.areaPhotos);
+  
+  const area = areas.find((a) => a.area_id === areaId);
+  
+  // Filtrer les entités qui appartiennent à cette pièce
+  const roomEntities = entities.filter((entity) => {
+    return entity.attributes.area_id === areaId;
+  });
+
+  const handleToggle = async (entityId: string) => {
+    if (!client) {
+      toast.error("Client non connecté");
+      return;
+    }
+
+    const entity = entities.find((e) => e.entity_id === entityId);
+    if (!entity) return;
+
+    const domain = entityId.split(".")[0];
+    const isOn = entity.state === "on";
+    const service = isOn ? "turn_off" : "turn_on";
+
+    try {
+      await client.callService(domain, service, {}, { entity_id: entityId });
+      toast.success(isOn ? "Éteint" : "Allumé");
+    } catch (error) {
+      console.error("Erreur lors du contrôle:", error);
+      toast.error("Erreur lors du contrôle de l'appareil");
+    }
+  };
+
+  if (!area) {
+    return (
+      <div className="min-h-screen bg-background pb-24 pt-20">
+        <TopBar />
+        <div className="max-w-screen-xl mx-auto px-4 py-8">
+          <p className="text-muted-foreground">Pièce introuvable</p>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  const customPhoto = areaPhotos[areaId];
+
+  return (
+    <div className="min-h-screen bg-background pb-24 pt-20">
+      <TopBar />
+      
+      {/* Header avec photo de fond */}
+      <div className="relative h-48 overflow-hidden">
+        {customPhoto ? (
+          <>
+            <img
+              src={customPhoto}
+              alt={area.name}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/70 to-background" />
+          </>
+        ) : (
+          <div className="w-full h-full bg-gradient-to-b from-muted/30 to-background" />
+        )}
+        
+        <div className="absolute bottom-0 left-0 right-0 p-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/rooms")}
+            className="mb-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Retour
+          </Button>
+          <h1 className="text-3xl font-bold">{area.name}</h1>
+          <p className="text-muted-foreground">
+            {roomEntities.length} {roomEntities.length === 1 ? "appareil" : "appareils"}
+          </p>
+        </div>
+      </div>
+
+      <div className="max-w-screen-xl mx-auto px-4 py-8">
+        {roomEntities.length === 0 ? (
+          <p className="text-center text-muted-foreground">
+            Aucun appareil dans cette pièce
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {roomEntities.map((entity) => (
+              <DeviceCard
+                key={entity.entity_id}
+                entity={entity}
+                onToggle={handleToggle}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      
+      <BottomNav />
+    </div>
+  );
+};
+
+export default RoomDetails;

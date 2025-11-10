@@ -1,18 +1,22 @@
 import { Card } from "@/components/ui/card";
 import { Home, Camera } from "lucide-react";
 import { useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface RoomCardProps {
   name: string;
   deviceCount: number;
   customPhoto?: string;
   onPhotoChange: (file: File) => void;
+  areaId: string;
 }
 
-export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange }: RoomCardProps) => {
+export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId }: RoomCardProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
-  const handlePhotoClick = () => {
+  const handlePhotoClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     fileInputRef.current?.click();
   };
 
@@ -23,8 +27,15 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange }: Room
     }
   };
 
+  const handleCardClick = () => {
+    navigate(`/rooms/${areaId}`);
+  };
+
   return (
-    <Card className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 cursor-pointer">
+    <Card 
+      onClick={handleCardClick}
+      className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 cursor-pointer"
+    >
       <div className="aspect-video relative overflow-hidden">
         {customPhoto ? (
           <>
