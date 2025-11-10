@@ -240,9 +240,9 @@ const MediaPlayerDetails = () => {
         </Button>
 
         {/* Favoris Sonos */}
-        {entity?.attributes.source_list && entity.attributes.source_list.length > 0 && (
-          <Card className="p-4 mb-6">
-            <h3 className="text-sm font-medium mb-3">Favoris Sonos</h3>
+        <Card className="p-4 mb-6">
+          <h3 className="text-sm font-medium mb-3">Favoris Sonos</h3>
+          {entity?.attributes.source_list && entity.attributes.source_list.length > 0 ? (
             <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
               {entity.attributes.source_list.map((source: string) => (
                 <button
@@ -270,8 +270,21 @@ const MediaPlayerDetails = () => {
                 </button>
               ))}
             </div>
-          </Card>
-        )}
+          ) : (
+            <p className="text-sm text-muted-foreground">Aucun favori disponible</p>
+          )}
+          <details className="mt-2">
+            <summary className="text-xs text-muted-foreground cursor-pointer">Debug info</summary>
+            <pre className="text-xs mt-2 p-2 bg-muted rounded overflow-auto max-h-40">
+              {JSON.stringify({
+                has_source_list: !!entity?.attributes.source_list,
+                source_list_length: entity?.attributes.source_list?.length,
+                source_list: entity?.attributes.source_list,
+                current_source: entity?.attributes.source,
+              }, null, 2)}
+            </pre>
+          </details>
+        </Card>
 
         {/* Jaquette et infos */}
         <Card className="overflow-hidden mb-6">
