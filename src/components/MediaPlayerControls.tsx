@@ -1,4 +1,4 @@
-import { Play, Pause, SkipForward, SkipBack, Repeat, Repeat1, Shuffle } from "lucide-react";
+import { Play, Pause, SkipForward, SkipBack, Repeat, Repeat1, Shuffle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -17,6 +17,13 @@ interface MediaPlayerControlsProps {
   onNext: () => void;
   onShuffleToggle: () => void;
   onRepeatCycle: () => void;
+  pending?: {
+    playPause?: boolean;
+    previous?: boolean;
+    next?: boolean;
+    shuffle?: boolean;
+    repeat?: boolean;
+  };
 }
 
 export const MediaPlayerControls = ({
@@ -34,6 +41,7 @@ export const MediaPlayerControls = ({
   onNext,
   onShuffleToggle,
   onRepeatCycle,
+  pending = {},
 }: MediaPlayerControlsProps) => {
   return (
     <Card className="p-6">
@@ -43,16 +51,21 @@ export const MediaPlayerControls = ({
           <Button
             variant="ghost"
             size="icon"
-            className="h-11 w-11 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
+            className="h-11 w-11 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
             onClick={onShuffleToggle}
+            disabled={pending.shuffle}
           >
-            <Shuffle 
-              className={`h-5 w-5 transition-colors ${
-                shuffle 
-                  ? 'text-primary' 
-                  : 'text-muted-foreground'
-              }`}
-            />
+            {pending.shuffle ? (
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            ) : (
+              <Shuffle 
+                className={`h-5 w-5 transition-colors ${
+                  shuffle 
+                    ? 'text-primary' 
+                    : 'text-muted-foreground'
+                }`}
+              />
+            )}
           </Button>
         )}
 
@@ -61,10 +74,15 @@ export const MediaPlayerControls = ({
           <Button
             variant="ghost"
             size="icon"
-            className="h-12 w-12 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
+            className="h-12 w-12 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
             onClick={onPrevious}
+            disabled={pending.previous}
           >
-            <SkipBack className="h-6 w-6 text-foreground" />
+            {pending.previous ? (
+              <Loader2 className="h-6 w-6 animate-spin text-foreground" />
+            ) : (
+              <SkipBack className="h-6 w-6 text-foreground" />
+            )}
           </Button>
         )}
 
@@ -72,11 +90,13 @@ export const MediaPlayerControls = ({
         <Button
           variant="default"
           size="icon"
-          className="h-16 w-16 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+          className="h-16 w-16 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg disabled:opacity-50"
           onClick={onPlayPause}
-          disabled={!canPlay && !canPause}
+          disabled={(!canPlay && !canPause) || pending.playPause}
         >
-          {isPlaying ? (
+          {pending.playPause ? (
+            <Loader2 className="h-8 w-8 animate-spin" />
+          ) : isPlaying ? (
             <Pause className="h-8 w-8" />
           ) : (
             <Play className="h-8 w-8 ml-1" />
@@ -88,10 +108,15 @@ export const MediaPlayerControls = ({
           <Button
             variant="ghost"
             size="icon"
-            className="h-12 w-12 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
+            className="h-12 w-12 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
             onClick={onNext}
+            disabled={pending.next}
           >
-            <SkipForward className="h-6 w-6 text-foreground" />
+            {pending.next ? (
+              <Loader2 className="h-6 w-6 animate-spin text-foreground" />
+            ) : (
+              <SkipForward className="h-6 w-6 text-foreground" />
+            )}
           </Button>
         )}
 
@@ -100,10 +125,13 @@ export const MediaPlayerControls = ({
           <Button
             variant="ghost"
             size="icon"
-            className="h-11 w-11 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 relative"
+            className="h-11 w-11 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 relative disabled:opacity-50"
             onClick={onRepeatCycle}
+            disabled={pending.repeat}
           >
-            {repeat === "one" ? (
+            {pending.repeat ? (
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            ) : repeat === "one" ? (
               <Repeat1 
                 className={`h-5 w-5 transition-colors ${
                   repeat === "one" 
@@ -120,7 +148,7 @@ export const MediaPlayerControls = ({
                 }`}
               />
             )}
-            {repeat !== "off" && (
+            {repeat !== "off" && !pending.repeat && (
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
             )}
           </Button>

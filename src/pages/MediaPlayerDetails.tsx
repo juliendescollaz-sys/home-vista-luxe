@@ -46,6 +46,13 @@ const MediaPlayerDetails = () => {
   }, [deviceId, entity, entities, entityRegistry]);
 
   const [volume, setVolume] = useState(0);
+  const [pending, setPending] = useState({
+    playPause: false,
+    previous: false,
+    next: false,
+    shuffle: false,
+    repeat: false,
+  });
 
   // Tous les calculs dérivés doivent être mémoïsés AVANT le early return
   const entityData = useMemo(() => {
@@ -128,6 +135,7 @@ const MediaPlayerDetails = () => {
 
   const handlePlayPause = useCallback(() => {
     if (!entityData) return;
+    setPending(p => ({ ...p, playPause: true }));
     if (entityData.isPlaying && entityData.canPause) {
       callService("media_pause");
     } else if (entityData.canPlay) {
@@ -151,26 +159,41 @@ const MediaPlayerDetails = () => {
   }, [callService, entityData]);
 
   const handlePrevious = useCallback(() => {
+    setPending(p => ({ ...p, previous: true }));
     callService("media_previous_track");
   }, [callService]);
 
   const handleNext = useCallback(() => {
+    setPending(p => ({ ...p, next: true }));
     callService("media_next_track");
   }, [callService]);
 
   const handleShuffleToggle = useCallback(() => {
     if (!entity) return;
+    setPending(p => ({ ...p, shuffle: true }));
     callService("shuffle_set", { shuffle: !entity.attributes.shuffle });
   }, [callService, entity]);
 
   const handleRepeatCycle = useCallback(() => {
     if (!entity) return;
+    setPending(p => ({ ...p, repeat: true }));
     const repeatModes: Array<"off" | "all" | "one"> = ["off", "all", "one"];
     const currentMode = (entity.attributes.repeat as "off" | "all" | "one") || "off";
     const currentIndex = repeatModes.indexOf(currentMode);
     const nextMode = repeatModes[(currentIndex + 1) % repeatModes.length];
     callService("repeat_set", { repeat: nextMode });
   }, [callService, entity]);
+
+  // Réinitialiser les états pending quand l'entité change (mise à jour de Home Assistant)
+  useEffect(() => {
+    setPending({
+      playPause: false,
+      previous: false,
+      next: false,
+      shuffle: false,
+      repeat: false,
+    });
+  }, [entity?.state, entity?.attributes.shuffle, entity?.attributes.repeat]);
 
   if (!entity || !entityData) {
     return (
@@ -243,6 +266,7 @@ const MediaPlayerDetails = () => {
           onNext={handleNext}
           onShuffleToggle={handleShuffleToggle}
           onRepeatCycle={handleRepeatCycle}
+          pending={pending}
         />
 
         {/* Contrôle du volume */}
