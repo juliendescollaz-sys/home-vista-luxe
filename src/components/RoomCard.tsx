@@ -31,11 +31,16 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
   };
 
   return (
-    <Card className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300">
+    <Card className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 [&]:select-none [&]:outline-none [&]:focus-visible:outline-none [&]:active:outline-none" style={{ WebkitTapHighlightColor: 'transparent' }}>
       {/* Zone cliquable pour la navigation - en dessous du bouton */}
       <div 
         onClick={handleCardClick}
-        className="absolute inset-0 cursor-pointer z-0"
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          handleCardClick();
+        }}
+        className="absolute inset-0 cursor-pointer z-0 select-none touch-manipulation"
+        style={{ WebkitTapHighlightColor: 'transparent' }}
       />
       
       <div className="aspect-video relative overflow-hidden">
