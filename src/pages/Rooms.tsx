@@ -19,21 +19,65 @@ const Rooms = () => {
     return devices.filter((device) => device.area_id === areaId && !device.disabled_by).length;
   };
 
-  const handlePhotoChange = (areaId: string, file: File) => {
-    console.log('📸 Photo change for areaId:', areaId);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      console.log('📸 DataURL created for areaId:', areaId, 'Length:', dataUrl?.length);
-      setAreaPhoto(areaId, dataUrl);
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          // Limiter la taille max à 800px pour économiser l'espace
+          const maxSize = 800;
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > height && width > maxSize) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          } else if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Compression JPEG à 0.7 pour réduire la taille
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          console.log('📸 Original size:', (e.target?.result as string)?.length, 'Compressed:', compressedDataUrl.length);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = reject;
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handlePhotoChange = async (areaId: string, file: File) => {
+    try {
+      console.log('📸 Photo change for areaId:', areaId);
+      const compressedDataUrl = await compressImage(file);
+      console.log('📸 Compressed DataURL for areaId:', areaId, 'Length:', compressedDataUrl.length);
+      setAreaPhoto(areaId, compressedDataUrl);
       
-      // Vérifier immédiatement après l'enregistrement
+      // Vérifier la taille totale du localStorage
       setTimeout(() => {
         const stored = localStorage.getItem('ha-storage');
-        console.log('📸 LocalStorage after save:', stored ? JSON.parse(stored) : null);
+        if (stored) {
+          console.log('📸 LocalStorage total size:', (stored.length / 1024).toFixed(2), 'KB');
+          const parsed = JSON.parse(stored);
+          console.log('📸 AreaPhotos keys:', Object.keys(parsed.state?.areaPhotos || {}));
+        }
       }, 100);
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('❌ Error compressing image:', error);
+    }
   };
 
   return (
