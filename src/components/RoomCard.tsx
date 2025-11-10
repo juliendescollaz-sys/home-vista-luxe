@@ -17,6 +17,7 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
 
   const handlePhotoClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     fileInputRef.current?.click();
   };
 
@@ -34,7 +35,14 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
   return (
     <Card 
       onClick={handleCardClick}
-      className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 cursor-pointer"
+      className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 cursor-pointer select-none"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleCardClick();
+        }
+      }}
     >
       <div className="aspect-video relative overflow-hidden">
         {customPhoto ? (
@@ -55,9 +63,12 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
         {/* Bouton pour ajouter/changer la photo */}
         <button
           onClick={handlePhotoClick}
-          className="absolute top-2 right-2 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-all duration-200 opacity-0 group-hover:opacity-100"
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          className="absolute top-2 right-2 p-3 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-200 opacity-0 group-hover:opacity-100 z-10"
+          aria-label="Changer la photo de la pièce"
         >
-          <Camera className="h-4 w-4" />
+          <Camera className="h-5 w-5" />
         </button>
         
         <input
