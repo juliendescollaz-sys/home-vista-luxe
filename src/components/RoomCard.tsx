@@ -15,9 +15,10 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
-  const handlePhotoClick = (e: React.MouseEvent) => {
+  const handlePhotoClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     e.preventDefault();
+    e.nativeEvent.stopImmediatePropagation();
     fileInputRef.current?.click();
   };
 
@@ -28,19 +29,14 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
     }
   };
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    // Ne pas naviguer si le clic provient du bouton photo ou de ses enfants
-    const target = e.target as HTMLElement;
-    if (target.closest('button[aria-label="Changer la photo de la pièce"]')) {
-      return;
-    }
+  const handleCardClick = () => {
     navigate(`/rooms/${areaId}`);
   };
 
   return (
     <Card 
       onClick={handleCardClick}
-      className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 cursor-pointer"
+      className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 cursor-pointer outline-none focus:outline-none focus-visible:outline-none"
     >
       <div className="aspect-video relative overflow-hidden">
         {customPhoto ? (
@@ -60,10 +56,17 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
         
         {/* Bouton pour ajouter/changer la photo */}
         <button
+          type="button"
           onClick={handlePhotoClick}
-          onMouseDown={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
-          className="absolute top-2 right-2 p-3 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-200 opacity-0 group-hover:opacity-100 z-10"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          className="absolute top-2 right-2 p-3 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-200 opacity-0 group-hover:opacity-100 z-10 outline-none focus:outline-none"
           aria-label="Changer la photo de la pièce"
         >
           <Camera className="h-5 w-5" />
