@@ -3,6 +3,7 @@ import { HAEntity } from "@/types/homeassistant";
 import { Music, Pause, Play } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
+import { useHAStore } from "@/store/useHAStore";
 
 interface MediaPlayerCardProps {
   entity: HAEntity;
@@ -10,12 +11,16 @@ interface MediaPlayerCardProps {
 
 export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
   const navigate = useNavigate();
+  const connection = useHAStore((state) => state.connection);
   const { state, attributes } = entity;
 
   const isPlaying = state === "playing";
   const mediaTitle = attributes.media_title || "Aucun média";
   const mediaArtist = attributes.media_artist || "";
-  const albumArt = attributes.entity_picture;
+  const entityPicture = attributes.entity_picture;
+  const albumArt = entityPicture && connection?.url 
+    ? `${connection.url}${entityPicture}` 
+    : entityPicture;
   const mediaPosition = attributes.media_position || 0;
   const mediaDuration = attributes.media_duration || 0;
   const progress = mediaDuration > 0 ? (mediaPosition / mediaDuration) * 100 : 0;

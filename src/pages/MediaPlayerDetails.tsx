@@ -201,13 +201,17 @@ const MediaPlayerDetails = () => {
     );
   }
 
+  const connection = useHAStore((state) => state.connection);
   const { state, attributes } = entity;
   const isPlaying = state === "playing";
   const isMuted = attributes.is_volume_muted;
   const mediaTitle = attributes.media_title || "Aucun média";
   const mediaArtist = attributes.media_artist || "";
   const mediaAlbum = attributes.media_album_name || "";
-  const albumArt = attributes.entity_picture;
+  const entityPicture = attributes.entity_picture;
+  const albumArt = entityPicture && connection?.url 
+    ? `${connection.url}${entityPicture}` 
+    : entityPicture;
   const supportedFeatures = attributes.supported_features || 0;
 
   // Vérifier les fonctionnalités supportées (bitwise flags)
