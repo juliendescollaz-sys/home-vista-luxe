@@ -28,7 +28,12 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
     }
   };
 
-  const handleCardClick = () => {
+  const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Ne pas naviguer si on clique sur le bouton photo ou l'input file
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input[type="file"]')) {
+      return;
+    }
     navigate(`/rooms/${areaId}`);
   };
 
