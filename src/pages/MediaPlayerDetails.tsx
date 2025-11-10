@@ -8,7 +8,7 @@ import { useHAClient } from "@/hooks/useHAClient";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import EntityControl from "@/components/EntityControl";
 
 const MediaPlayerDetails = () => {
@@ -18,18 +18,31 @@ const MediaPlayerDetails = () => {
   
   const entities = useHAStore((state) => state.entities);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
-  const devices = useHAStore((state) => state.devices);
-  const entity = entities.find((e) => e.entity_id === decodeURIComponent(entityId || ""));
+  const connection = useHAStore((state) => state.connection);
+  
+  const decodedEntityId = useMemo(() => decodeURIComponent(entityId || ""), [entityId]);
+  
+  const entity = useMemo(
+    () => entities.find((e) => e.entity_id === decodedEntityId),
+    [entities, decodedEntityId]
+  );
 
   // Récupérer toutes les entités associées (même device_id)
-  const entityReg = entity ? entityRegistry.find((r) => r.entity_id === entity.entity_id) : null;
+  const entityReg = useMemo(
+    () => entity ? entityRegistry.find((r) => r.entity_id === entity.entity_id) : null,
+    [entity, entityRegistry]
+  );
+  
   const deviceId = entityReg?.device_id;
   
-  const relatedEntities = deviceId ? entities.filter((e) => {
-    if (e.entity_id === entity?.entity_id) return false; // Exclure le media_player lui-même
-    const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
-    return reg?.device_id === deviceId;
-  }) : [];
+  const relatedEntities = useMemo(() => {
+    if (!deviceId || !entity) return [];
+    return entities.filter((e) => {
+      if (e.entity_id === entity.entity_id) return false;
+      const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
+      return reg?.device_id === deviceId;
+    });
+  }, [deviceId, entity, entities, entityRegistry]);
 
   const [volume, setVolume] = useState(0);
 
@@ -51,7 +64,6 @@ const MediaPlayerDetails = () => {
     );
   }
 
-  const connection = useHAStore((state) => state.connection);
   const { state, attributes } = entity;
   const isPlaying = state === "playing";
   const isMuted = attributes.is_volume_muted;
@@ -85,8 +97,8 @@ const MediaPlayerDetails = () => {
   const canShuffle = (supportedFeatures & SUPPORT_SHUFFLE_SET) !== 0;
   const canRepeat = (supportedFeatures & SUPPORT_REPEAT_SET) !== 0;
 
-  const callService = async (service: string, data?: any) => {
-    if (!client) {
+  const callService = useCallback(async (service: string, data?: any) => {
+    if (!client || !entity) {
       toast.error("Client non connecté");
       return;
     }
@@ -98,29 +110,29 @@ const MediaPlayerDetails = () => {
       console.error("Erreur lors du contrôle:", error);
       toast.error("Erreur lors du contrôle");
     }
-  };
+  }, [client, entity]);
 
-  const handlePlayPause = () => {
+  const handlePlayPause = useCallback(() => {
     if (isPlaying && canPause) {
       callService("media_pause");
     } else if (canPlay) {
       callService("media_play");
     }
-  };
+  }, [isPlaying, canPause, canPlay, callService]);
 
-  const handleVolumeChange = (value: number[]) => {
+  const handleVolumeChange = useCallback((value: number[]) => {
     const newVolume = value[0];
     setVolume(newVolume);
-  };
+  }, []);
 
-  const handleVolumeChangeEnd = (value: number[]) => {
+  const handleVolumeChangeEnd = useCallback((value: number[]) => {
     const volumeLevel = value[0] / 100;
     callService("volume_set", { volume_level: volumeLevel });
-  };
+  }, [callService]);
 
-  const handleMute = () => {
+  const handleMute = useCallback(() => {
     callService("volume_mute", { is_volume_muted: !isMuted });
-  };
+  }, [callService, isMuted]);
 
   return (
     <div className="min-h-screen bg-background pb-24 pt-20">
