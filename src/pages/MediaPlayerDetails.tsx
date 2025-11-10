@@ -2,7 +2,7 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useHAStore } from "@/store/useHAStore";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, Repeat, Shuffle } from "lucide-react";
+import { ArrowLeft, Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, Repeat, Repeat1, Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHAClient } from "@/hooks/useHAClient";
 import { toast } from "sonner";
@@ -362,7 +362,7 @@ const MediaPlayerDetails = () => {
 
             {canRepeat && (
               <Button
-                variant="ghost"
+                variant={attributes.repeat && attributes.repeat !== "off" ? "default" : "ghost"}
                 size="icon"
                 onClick={() => {
                   const repeatModes = ["off", "all", "one"];
@@ -371,8 +371,16 @@ const MediaPlayerDetails = () => {
                   const nextMode = repeatModes[(currentIndex + 1) % repeatModes.length];
                   callService("repeat_set", { repeat: nextMode });
                 }}
+                className="relative"
               >
-                <Repeat className="h-5 w-5" />
+                {attributes.repeat === "one" ? (
+                  <Repeat1 className="h-5 w-5" />
+                ) : (
+                  <Repeat className="h-5 w-5" />
+                )}
+                {attributes.repeat && attributes.repeat !== "off" && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+                )}
               </Button>
             )}
           </div>
