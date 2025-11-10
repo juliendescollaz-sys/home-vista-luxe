@@ -239,6 +239,14 @@ const MediaPlayerDetails = () => {
           Retour
         </Button>
 
+        {/* Debug - Afficher tous les attributs disponibles */}
+        <Card className="p-4 mb-6">
+          <h3 className="text-sm font-medium mb-3">Attributs du lecteur (Debug)</h3>
+          <pre className="text-xs p-2 bg-muted rounded overflow-auto max-h-[400px]">
+            {JSON.stringify(entity?.attributes, null, 2)}
+          </pre>
+        </Card>
+
         {/* Favoris Sonos */}
         {entity?.attributes.source_list && entity.attributes.source_list.length > 0 && (
           <Card className="p-4 mb-6">
