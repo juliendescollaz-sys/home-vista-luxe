@@ -206,19 +206,7 @@ const OnboardingScan = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <div className="w-full max-w-md space-y-6 animate-fade-up">
-        <div className="text-center space-y-2">
-          <div className="flex justify-center mb-4">
-            <div className="p-4 rounded-2xl bg-gradient-primary shadow-glow">
-              <QrCode className="h-10 w-10 text-primary-foreground" />
-            </div>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight">Scanner le QR Code</h1>
-          <p className="text-muted-foreground">
-            Scannez le QR code généré depuis votre admin
-          </p>
-        </div>
-
+      <div className="w-full max-w-md animate-fade-up">
         <Card className="overflow-hidden bg-gradient-card border-border/50">
           <div className="relative aspect-square bg-black">
             {scanning ? (
@@ -315,22 +303,6 @@ const OnboardingScan = () => {
                 Annuler
               </Button>
             )}
-          </div>
-        </Card>
-
-        <Card className="p-4 bg-muted/50 border-border/50">
-          <div className="space-y-2 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">💡 Comment générer un QR code ?</p>
-            <div className="space-y-2">
-              <p>Le QR code doit contenir vos identifiants Home Assistant au format JSON :</p>
-              <div className="bg-background/50 p-2 rounded text-xs font-mono">
-                {`{"ha_url": "https://....ui.nabu.casa",`}<br/>
-                {`"ha_token": "votre_token"}`}
-              </div>
-              <p className="text-xs">
-                Formats acceptés : <code className="text-foreground">ha_url/ha_token</code> ou <code className="text-foreground">url/access_token</code>
-              </p>
-            </div>
           </div>
         </Card>
       </div>
