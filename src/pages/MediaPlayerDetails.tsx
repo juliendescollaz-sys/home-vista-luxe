@@ -11,7 +11,6 @@ import { Card } from "@/components/ui/card";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import EntityControl from "@/components/EntityControl";
 import { MediaPlayerControls } from "@/components/MediaPlayerControls";
-import { useSonos } from "@/hooks/useSonos";
 
 const MediaPlayerDetails = () => {
   const { entityId } = useParams<{ entityId: string }>();
@@ -47,9 +46,13 @@ const MediaPlayerDetails = () => {
   }, [deviceId, entity, entities, entityRegistry]);
 
   const [volume, setVolume] = useState(0);
-
-  // Use Sonos hook for reliable state management
-  const sonos = useSonos(client?.getSocket() || null, decodedEntityId);
+  const [pending, setPending] = useState({
+    playPause: false,
+    previous: false,
+    next: false,
+    shuffle: false,
+    repeat: false,
+  });
 
   // Tous les calculs dérivés doivent être mémoïsés AVANT le early return
   const entityData = useMemo(() => {
@@ -123,12 +126,58 @@ const MediaPlayerDetails = () => {
 
     try {
       await client.callService("media_player", service, data, { entity_id: entity.entity_id });
-      toast.success("Commande envoyée");
     } catch (error) {
       console.error("Erreur lors du contrôle:", error);
       toast.error("Erreur lors du contrôle");
     }
   }, [client, entity]);
+
+  const handlePlayPause = useCallback(() => {
+    if (!entityData) return;
+    setPending(p => ({ ...p, playPause: true }));
+    if (entityData.isPlaying && entityData.canPause) {
+      callService("media_pause");
+    } else if (entityData.canPlay) {
+      callService("media_play");
+    }
+  }, [entityData, callService]);
+
+  const handlePrevious = useCallback(() => {
+    setPending(p => ({ ...p, previous: true }));
+    callService("media_previous_track");
+  }, [callService]);
+
+  const handleNext = useCallback(() => {
+    setPending(p => ({ ...p, next: true }));
+    callService("media_next_track");
+  }, [callService]);
+
+  const handleShuffleToggle = useCallback(() => {
+    if (!entity) return;
+    setPending(p => ({ ...p, shuffle: true }));
+    // Cast strict pour éviter le problème iOS
+    const newShuffle = entity.attributes.shuffle !== true;
+    callService("shuffle_set", { shuffle: newShuffle });
+  }, [callService, entity]);
+
+  const handleRepeatCycle = useCallback(() => {
+    if (!entity) return;
+    setPending(p => ({ ...p, repeat: true }));
+    const currentMode = (entity.attributes.repeat as "off" | "all" | "one") || "off";
+    const nextMode = currentMode === "off" ? "all" : currentMode === "all" ? "one" : "off";
+    callService("repeat_set", { repeat: nextMode });
+  }, [callService, entity]);
+
+  // Réinitialiser les états pending quand l'entité change
+  useEffect(() => {
+    setPending({
+      playPause: false,
+      previous: false,
+      next: false,
+      shuffle: false,
+      repeat: false,
+    });
+  }, [entity?.state, entity?.attributes.shuffle, entity?.attributes.repeat]);
 
   const handleVolumeChange = useCallback((value: number[]) => {
     const newVolume = value[0];
@@ -203,27 +252,21 @@ const MediaPlayerDetails = () => {
 
         {/* Contrôles de lecture */}
         <MediaPlayerControls
-          isPlaying={sonos.playing}
-          shuffle={sonos.shuffle}
-          repeat={sonos.repeat}
+          isPlaying={isPlaying}
+          shuffle={attributes.shuffle === true}
+          repeat={(attributes.repeat as "off" | "all" | "one") || "off"}
           canPlay={canPlay}
           canPause={canPause}
           canPrevious={canPrevious}
           canNext={canNext}
           canShuffle={canShuffle}
           canRepeat={canRepeat}
-          onPlayPause={sonos.actions.playPause}
-          onPrevious={sonos.actions.prev}
-          onNext={sonos.actions.next}
-          onShuffleToggle={sonos.actions.toggleShuffle}
-          onRepeatCycle={sonos.actions.cycleRepeat}
-          pending={{
-            playPause: sonos.pending.playpause,
-            previous: sonos.pending.prev,
-            next: sonos.pending.next,
-            shuffle: sonos.pending.shuffle,
-            repeat: sonos.pending.repeat,
-          }}
+          onPlayPause={handlePlayPause}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onShuffleToggle={handleShuffleToggle}
+          onRepeatCycle={handleRepeatCycle}
+          pending={pending}
         />
 
         {/* Contrôle du volume */}
