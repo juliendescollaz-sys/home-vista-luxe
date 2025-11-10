@@ -314,55 +314,55 @@ const MediaPlayerDetails = () => {
         </Card>
 
         {/* Contrôles de lecture */}
-        <Card className="p-6 mb-4">
-          <div className="flex items-center justify-center gap-4">
+        <Card className="p-4 mb-4">
+          <div className="flex items-center justify-center gap-2">
             {canShuffle && (
               <Button
                 variant={attributes.shuffle ? "default" : "ghost"}
-                className="h-14 w-14 min-w-14 p-0 flex items-center justify-center aspect-square"
+                className="h-12 w-12 min-w-12 p-0 flex items-center justify-center aspect-square shrink-0"
                 onClick={() => callService("shuffle_set", { shuffle: !attributes.shuffle })}
               >
-                <Shuffle className="h-6 w-6" />
+                <Shuffle className="h-5 w-5" />
               </Button>
             )}
             
             {canPrevious && (
               <Button
                 variant="ghost"
-                className="h-14 w-14 min-w-14 p-0 flex items-center justify-center aspect-square"
+                className="h-12 w-12 min-w-12 p-0 flex items-center justify-center aspect-square shrink-0"
                 onClick={() => callService("media_previous_track")}
               >
-                <SkipBack className="h-6 w-6" />
+                <SkipBack className="h-5 w-5" />
               </Button>
             )}
 
             <Button
               variant="default"
-              className="h-20 w-20 min-w-20 p-0 flex items-center justify-center aspect-square"
+              className="h-14 w-14 min-w-14 p-0 flex items-center justify-center aspect-square shrink-0"
               onClick={handlePlayPause}
               disabled={!canPlay && !canPause}
             >
               {isPlaying ? (
-                <Pause className="h-10 w-10" />
+                <Pause className="h-7 w-7" />
               ) : (
-                <Play className="h-10 w-10 ml-1" />
+                <Play className="h-7 w-7 ml-0.5" />
               )}
             </Button>
 
             {canNext && (
               <Button
                 variant="ghost"
-                className="h-14 w-14 min-w-14 p-0 flex items-center justify-center aspect-square"
+                className="h-12 w-12 min-w-12 p-0 flex items-center justify-center aspect-square shrink-0"
                 onClick={() => callService("media_next_track")}
               >
-                <SkipForward className="h-6 w-6" />
+                <SkipForward className="h-5 w-5" />
               </Button>
             )}
 
             {canRepeat && (
               <Button
                 variant={attributes.repeat && attributes.repeat !== "off" ? "default" : "ghost"}
-                className="h-14 w-14 min-w-14 p-0 flex items-center justify-center aspect-square relative"
+                className="h-12 w-12 min-w-12 p-0 flex items-center justify-center aspect-square relative shrink-0"
                 onClick={() => {
                   const repeatModes = ["off", "all", "one"];
                   const currentMode = attributes.repeat || "off";
@@ -372,12 +372,12 @@ const MediaPlayerDetails = () => {
                 }}
               >
                 {attributes.repeat === "one" ? (
-                  <Repeat1 className="h-6 w-6" />
+                  <Repeat1 className="h-5 w-5" />
                 ) : (
-                  <Repeat className="h-6 w-6" />
+                  <Repeat className="h-5 w-5" />
                 )}
                 {attributes.repeat && attributes.repeat !== "off" && (
-                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-background rounded-full border-2 border-primary" />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-background rounded-full border border-primary" />
                 )}
               </Button>
             )}
