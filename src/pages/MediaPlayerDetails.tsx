@@ -46,56 +46,69 @@ const MediaPlayerDetails = () => {
 
   const [volume, setVolume] = useState(0);
 
+  // Tous les calculs dérivés doivent être mémoïsés AVANT le early return
+  const entityData = useMemo(() => {
+    if (!entity) return null;
+    
+    const { state, attributes } = entity;
+    const isPlaying = state === "playing";
+    const isMuted = attributes.is_volume_muted;
+    const mediaTitle = attributes.media_title || "Aucun média";
+    const mediaArtist = attributes.media_artist || "";
+    const mediaAlbum = attributes.media_album_name || "";
+    const entityPicture = attributes.entity_picture;
+    const albumArt = entityPicture && connection?.url 
+      ? `${connection.url}${entityPicture}` 
+      : entityPicture;
+    const supportedFeatures = attributes.supported_features || 0;
+
+    // Vérifier les fonctionnalités supportées (bitwise flags)
+    const SUPPORT_PAUSE = 1;
+    const SUPPORT_SEEK = 2;
+    const SUPPORT_VOLUME_SET = 4;
+    const SUPPORT_VOLUME_MUTE = 8;
+    const SUPPORT_PREVIOUS_TRACK = 16;
+    const SUPPORT_NEXT_TRACK = 32;
+    const SUPPORT_PLAY = 16384;
+    const SUPPORT_SHUFFLE_SET = 32768;
+    const SUPPORT_REPEAT_SET = 262144;
+
+    const canPause = (supportedFeatures & SUPPORT_PAUSE) !== 0;
+    const canPlay = (supportedFeatures & SUPPORT_PLAY) !== 0;
+    const canSeek = (supportedFeatures & SUPPORT_SEEK) !== 0;
+    const canSetVolume = (supportedFeatures & SUPPORT_VOLUME_SET) !== 0;
+    const canMute = (supportedFeatures & SUPPORT_VOLUME_MUTE) !== 0;
+    const canPrevious = (supportedFeatures & SUPPORT_PREVIOUS_TRACK) !== 0;
+    const canNext = (supportedFeatures & SUPPORT_NEXT_TRACK) !== 0;
+    const canShuffle = (supportedFeatures & SUPPORT_SHUFFLE_SET) !== 0;
+    const canRepeat = (supportedFeatures & SUPPORT_REPEAT_SET) !== 0;
+
+    return {
+      state,
+      attributes,
+      isPlaying,
+      isMuted,
+      mediaTitle,
+      mediaArtist,
+      mediaAlbum,
+      albumArt,
+      canPause,
+      canPlay,
+      canSeek,
+      canSetVolume,
+      canMute,
+      canPrevious,
+      canNext,
+      canShuffle,
+      canRepeat,
+    };
+  }, [entity, connection]);
+
   useEffect(() => {
     if (entity?.attributes.volume_level !== undefined) {
       setVolume(entity.attributes.volume_level * 100);
     }
   }, [entity?.attributes.volume_level]);
-
-  if (!entity) {
-    return (
-      <div className="min-h-screen bg-background pb-24 pt-20">
-        <TopBar />
-        <div className="max-w-screen-xl mx-auto px-4 py-8">
-          <p className="text-muted-foreground">Appareil introuvable</p>
-        </div>
-        <BottomNav />
-      </div>
-    );
-  }
-
-  const { state, attributes } = entity;
-  const isPlaying = state === "playing";
-  const isMuted = attributes.is_volume_muted;
-  const mediaTitle = attributes.media_title || "Aucun média";
-  const mediaArtist = attributes.media_artist || "";
-  const mediaAlbum = attributes.media_album_name || "";
-  const entityPicture = attributes.entity_picture;
-  const albumArt = entityPicture && connection?.url 
-    ? `${connection.url}${entityPicture}` 
-    : entityPicture;
-  const supportedFeatures = attributes.supported_features || 0;
-
-  // Vérifier les fonctionnalités supportées (bitwise flags)
-  const SUPPORT_PAUSE = 1;
-  const SUPPORT_SEEK = 2;
-  const SUPPORT_VOLUME_SET = 4;
-  const SUPPORT_VOLUME_MUTE = 8;
-  const SUPPORT_PREVIOUS_TRACK = 16;
-  const SUPPORT_NEXT_TRACK = 32;
-  const SUPPORT_PLAY = 16384;
-  const SUPPORT_SHUFFLE_SET = 32768;
-  const SUPPORT_REPEAT_SET = 262144;
-
-  const canPause = (supportedFeatures & SUPPORT_PAUSE) !== 0;
-  const canPlay = (supportedFeatures & SUPPORT_PLAY) !== 0;
-  const canSeek = (supportedFeatures & SUPPORT_SEEK) !== 0;
-  const canSetVolume = (supportedFeatures & SUPPORT_VOLUME_SET) !== 0;
-  const canMute = (supportedFeatures & SUPPORT_VOLUME_MUTE) !== 0;
-  const canPrevious = (supportedFeatures & SUPPORT_PREVIOUS_TRACK) !== 0;
-  const canNext = (supportedFeatures & SUPPORT_NEXT_TRACK) !== 0;
-  const canShuffle = (supportedFeatures & SUPPORT_SHUFFLE_SET) !== 0;
-  const canRepeat = (supportedFeatures & SUPPORT_REPEAT_SET) !== 0;
 
   const callService = useCallback(async (service: string, data?: any) => {
     if (!client || !entity) {
@@ -113,12 +126,13 @@ const MediaPlayerDetails = () => {
   }, [client, entity]);
 
   const handlePlayPause = useCallback(() => {
-    if (isPlaying && canPause) {
+    if (!entityData) return;
+    if (entityData.isPlaying && entityData.canPause) {
       callService("media_pause");
-    } else if (canPlay) {
+    } else if (entityData.canPlay) {
       callService("media_play");
     }
-  }, [isPlaying, canPause, canPlay, callService]);
+  }, [entityData, callService]);
 
   const handleVolumeChange = useCallback((value: number[]) => {
     const newVolume = value[0];
@@ -131,8 +145,23 @@ const MediaPlayerDetails = () => {
   }, [callService]);
 
   const handleMute = useCallback(() => {
-    callService("volume_mute", { is_volume_muted: !isMuted });
-  }, [callService, isMuted]);
+    if (!entityData) return;
+    callService("volume_mute", { is_volume_muted: !entityData.isMuted });
+  }, [callService, entityData]);
+
+  if (!entity || !entityData) {
+    return (
+      <div className="min-h-screen bg-background pb-24 pt-20">
+        <TopBar />
+        <div className="max-w-screen-xl mx-auto px-4 py-8">
+          <p className="text-muted-foreground">Appareil introuvable</p>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  const { attributes, isPlaying, isMuted, mediaTitle, mediaArtist, mediaAlbum, albumArt, canPause, canPlay, canSetVolume, canMute, canPrevious, canNext, canShuffle, canRepeat } = entityData;
 
   return (
     <div className="min-h-screen bg-background pb-24 pt-20">
