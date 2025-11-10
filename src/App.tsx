@@ -31,15 +31,9 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const connection = useHAStore((state) => state.connection);
   const isConnected = useHAStore((state) => state.isConnected);
   
-  console.log("🔐 PrivateRoute - connection:", connection);
-  console.log("🔐 PrivateRoute - isConnected:", isConnected);
-  
-  // Check if we have valid connection data
   const hasValidConnection = connection && connection.url && connection.token;
   
-  // Si on a des credentials valides mais qu'on n'est pas encore connecté, afficher un loader
   if (hasValidConnection && !isConnected) {
-    console.log("⏳ En attente de connexion...");
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-2">
@@ -49,14 +43,10 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  // Si pas de credentials du tout, rediriger vers onboarding
   if (!hasValidConnection) {
-    console.log("❌ Pas de credentials, redirection vers onboarding");
     return <Navigate to="/onboarding" />;
   }
   
-  // Si connecté avec des credentials valides, afficher la page
-  console.log("✅ Accès autorisé");
   return <>{children}</>;
 };
 
