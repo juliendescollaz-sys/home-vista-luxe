@@ -102,8 +102,8 @@ export function useSonosBrowser(client: HAClient | null, entityId: string) {
 
   const navigateTo = useCallback((node: BrowseNode) => {
     console.log("🔍 navigateTo appelé", node);
-    if (!node.canExpand || !node.mediaContentId || !node.mediaContentType) {
-      console.log("❌ Navigation impossible", { canExpand: node.canExpand, hasIds: !!(node.mediaContentId && node.mediaContentType) });
+    if (!node.canExpand || node.mediaContentType === undefined) {
+      console.log("❌ Navigation impossible", { canExpand: node.canExpand, hasType: node.mediaContentType !== undefined });
       return;
     }
 
@@ -113,13 +113,13 @@ export function useSonosBrowser(client: HAClient | null, entityId: string) {
         ...p.path,
         {
           title: node.title,
-          mediaContentId: node.mediaContentId,
+          mediaContentId: node.mediaContentId ?? "",
           mediaContentType: node.mediaContentType,
         },
       ],
     }));
 
-    browseMedia(node.mediaContentId, node.mediaContentType);
+    browseMedia(node.mediaContentId ?? "", node.mediaContentType);
   }, [browseMedia]);
 
   const navigateBack = useCallback((index: number) => {
