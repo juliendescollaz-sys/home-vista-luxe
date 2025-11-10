@@ -39,7 +39,10 @@ export function useSonosBrowser(client: HAClient | null, entityId: string) {
   }, [entityId]);
 
   const browseMedia = useCallback(async (mediaContentId?: string, mediaContentType?: string) => {
+    console.log("🎵 browseMedia appelé", { entityId, mediaContentId, mediaContentType, clientConnected: !!client });
+    
     if (!client) {
+      console.error("❌ Client non connecté");
       toast.error("Non connecté à Home Assistant");
       return;
     }
@@ -48,14 +51,17 @@ export function useSonosBrowser(client: HAClient | null, entityId: string) {
     const cached = cache.current.get(cacheKey);
     
     if (cached) {
+      console.log("✅ Données en cache", cached);
       setPage(p => ({ ...p, items: cached, loading: false, error: undefined }));
       return;
     }
 
+    console.log("⏳ Chargement depuis HA...");
     setPage(p => ({ ...p, loading: true, error: undefined }));
 
     try {
       const result = await client.browseMedia(entityId, mediaContentId, mediaContentType);
+      console.log("📦 Résultat HA:", result);
       
       const items: BrowseNode[] = (result.children || []).map((c: any) => ({
         title: c.title || "Sans titre",
@@ -67,6 +73,7 @@ export function useSonosBrowser(client: HAClient | null, entityId: string) {
       }));
 
       cache.current.set(cacheKey, items);
+      console.log("✅ Items chargés:", items.length, items);
       setPage(p => ({ ...p, items, loading: false, error: undefined }));
     } catch (error: any) {
       const errorMsg = error.message || "Contenu indisponible";
@@ -90,7 +97,11 @@ export function useSonosBrowser(client: HAClient | null, entityId: string) {
   }, [client, entityId]);
 
   const navigateTo = useCallback((node: BrowseNode) => {
-    if (!node.canExpand || !node.mediaContentId || !node.mediaContentType) return;
+    console.log("🔍 navigateTo appelé", node);
+    if (!node.canExpand || !node.mediaContentId || !node.mediaContentType) {
+      console.log("❌ Navigation impossible", { canExpand: node.canExpand, hasIds: !!(node.mediaContentId && node.mediaContentType) });
+      return;
+    }
 
     setPage(p => ({
       ...p,

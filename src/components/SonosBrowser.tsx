@@ -39,9 +39,12 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
   };
 
   const handleNodeClick = (node: BrowseNode) => {
+    console.log("👆 Click sur node", node);
     if (node.canExpand) {
+      console.log("📂 Navigation vers dossier");
       navigateTo(node);
     } else if (node.canPlay) {
+      console.log("▶️ Lecture");
       playMedia(node);
     }
   };
