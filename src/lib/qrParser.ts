@@ -1,0 +1,179 @@
+/**
+ * QR Code parsing and validation for Home Assistant pairing
+ * Supports two JSON formats:
+ * - Variant A: { "ha_url": "...", "ha_token": "..." }
+ * - Variant B: { "url": "...", "access_token": "..." }
+ */
+
+export interface ParsedQRData {
+  baseUrl: string;
+  token: string;
+  wsUrl: string;
+}
+
+type QRPayloadA = { ha_url: string; ha_token: string };
+type QRPayloadB = { url: string; access_token: string };
+
+/**
+ * Normalize base URL by removing trailing slashes
+ */
+function normalizeBaseUrl(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
+/**
+ * Convert HTTP(S) URL to WebSocket endpoint
+ */
+function toWebSocketEndpoint(url: string): string {
+  const normalized = normalizeBaseUrl(url);
+  
+  // Validate URL scheme
+  if (!/^https?:\/\//i.test(normalized) && !/^wss?:\/\//i.test(normalized)) {
+    throw new Error("URL HA invalide : utilisez http(s):// ou ws(s)://");
+  }
+
+  // Check if it's a Nabu Casa domain
+  let hostname: string;
+  try {
+    const urlObj = new URL(normalized);
+    hostname = urlObj.hostname;
+  } catch {
+    throw new Error("URL HA invalide : format incorrect");
+  }
+
+  const isNabuCasa = /\.ui\.nabu\.casa$/i.test(hostname);
+
+  // If already a WebSocket URL
+  if (/^wss?:\/\//i.test(normalized)) {
+    // Nabu Casa must use secure WebSocket
+    if (isNabuCasa && !/^wss:\/\//i.test(normalized)) {
+      throw new Error("Nabu Casa requiert wss:// (sécurisé).");
+    }
+    return normalized; // Already WebSocket, return as-is
+  }
+
+  // Convert HTTP(S) to WS(S) + /api/websocket
+  const isHttps = /^https:\/\//i.test(normalized);
+  const scheme = isHttps ? "wss" : "ws";
+  const wsBase = normalized.replace(/^https?:\/\//i, `${scheme}://`);
+  
+  return `${wsBase}/api/websocket`;
+}
+
+/**
+ * Parse and validate QR code JSON data
+ * @throws Error with specific message if validation fails
+ */
+export function parseQRCode(rawQR: string): ParsedQRData {
+  // Parse JSON
+  let data: any;
+  try {
+    data = JSON.parse(rawQR);
+  } catch {
+    throw new Error("QR invalide : contenu non JSON.");
+  }
+
+  // Extract URL and token (support both variants)
+  const baseUrl = (data.ha_url ?? data.url)?.toString();
+  const token = (data.ha_token ?? data.access_token)?.toString();
+
+  // Validate required fields
+  if (!baseUrl || !token) {
+    throw new Error("QR incomplet : URL ou token manquant.");
+  }
+
+  // Validate token format (optional: basic JWT check)
+  if (!token.trim()) {
+    throw new Error("Token invalide : le token ne peut pas être vide.");
+  }
+
+  // Build WebSocket URL
+  const wsUrl = toWebSocketEndpoint(baseUrl);
+  
+  return {
+    baseUrl: normalizeBaseUrl(baseUrl),
+    token: token.trim(),
+    wsUrl,
+  };
+}
+
+/**
+ * Test Home Assistant connection via WebSocket
+ * @returns Promise that resolves on success or rejects with specific error message
+ */
+export async function testHAConnection(wsUrl: string, token: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    let ws: WebSocket | null = null;
+
+    const cleanup = () => {
+      if (ws) {
+        try {
+          ws.close();
+        } catch {}
+        ws = null;
+      }
+    };
+
+    const fail = (message: string) => {
+      cleanup();
+      reject(new Error(message));
+    };
+
+    // Timeout after 10 seconds
+    const timeout = setTimeout(() => {
+      fail("Serveur injoignable");
+    }, 10000);
+
+    try {
+      console.log("🔌 Test de connexion WebSocket:", wsUrl);
+      ws = new WebSocket(wsUrl);
+    } catch (error) {
+      clearTimeout(timeout);
+      fail("Impossible de créer la connexion WebSocket");
+      return;
+    }
+
+    ws.onopen = () => {
+      console.log("✅ WebSocket ouvert, attente de auth_required...");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        console.log("📨 Message reçu:", msg.type);
+
+        if (msg.type === "auth_required") {
+          console.log("🔐 Envoi du token d'authentification...");
+          ws?.send(JSON.stringify({ type: "auth", access_token: token }));
+        } else if (msg.type === "auth_ok") {
+          console.log("✅ Authentification réussie!");
+          clearTimeout(timeout);
+          cleanup();
+          resolve();
+        } else if (msg.type === "auth_invalid") {
+          console.error("❌ Token refusé");
+          clearTimeout(timeout);
+          fail("Token invalide");
+        }
+      } catch (error) {
+        console.error("❌ Erreur parsing message:", error);
+        // Ignore malformed messages, continue waiting
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error("❌ Erreur WebSocket:", error);
+      clearTimeout(timeout);
+      fail("Serveur injoignable");
+    };
+
+    ws.onclose = (event) => {
+      console.log("🔌 WebSocket fermé:", event.code, event.reason);
+      // Only fail if not already resolved/rejected
+      if (timeout) {
+        clearTimeout(timeout);
+        fail("Connexion fermée par le serveur");
+      }
+    };
+  });
+}

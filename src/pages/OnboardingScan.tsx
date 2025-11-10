@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AlertCircle, Camera, CheckCircle2, Loader2, QrCode } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { storeHACredentials } from "@/lib/crypto";
 import { useHAStore } from "@/store/useHAStore";
+import { parseQRCode, testHAConnection } from "@/lib/qrParser";
 
 const OnboardingScan = () => {
   const [scanning, setScanning] = useState(false);
@@ -145,39 +145,28 @@ const OnboardingScan = () => {
     setMessage("Vérification du code...");
 
     try {
-      // Validate QR format
-      if (!qrText.startsWith("ha-pair://v1?code=")) {
-        throw new Error("Format de QR code invalide");
-      }
+      console.log("📱 QR code scanné:", qrText.substring(0, 50) + "...");
 
-      const code = qrText.replace("ha-pair://v1?code=", "");
-      console.log("🔄 Redeeming code...");
+      // Parse and validate QR code
+      const { baseUrl, token, wsUrl } = parseQRCode(qrText);
+      console.log("✅ QR code valide:", { baseUrl, wsUrl });
 
-      // Call redeem API
-      const { data, error } = await supabase.functions.invoke('pair-redeem', {
-        body: { code },
-      });
+      setMessage("Connexion à Home Assistant...");
 
-      if (error) {
-        console.error("Redeem error:", error);
-        throw new Error(error.message || "Échec de l'échange du code");
-      }
-
-      if (!data?.ha_base_url || !data?.access_token) {
-        throw new Error("Réponse invalide du serveur");
-      }
-
-      console.log("✅ Code redeemed successfully");
+      // Test WebSocket connection with authentication
+      await testHAConnection(wsUrl, token);
+      
+      console.log("✅ Connexion Home Assistant réussie");
       setStatus("success");
       setMessage("Connexion établie !");
 
       // Store encrypted credentials locally
-      await storeHACredentials(data.ha_base_url, data.access_token);
+      await storeHACredentials(baseUrl, token);
 
       // Update Zustand store
       setConnection({
-        url: data.ha_base_url,
-        token: data.access_token,
+        url: baseUrl,
+        token: token,
         connected: true,
       });
       setConnected(true);
@@ -196,17 +185,11 @@ const OnboardingScan = () => {
       }, 1500);
 
     } catch (error: any) {
-      console.error("QR handling error:", error);
+      console.error("❌ Erreur de jumelage:", error);
       setStatus("error");
       
-      let errorMsg = "Erreur lors du jumelage";
-      if (error.message.includes("expired")) {
-        errorMsg = "Ce code a expiré. Générez-en un nouveau.";
-      } else if (error.message.includes("already used")) {
-        errorMsg = "Ce code a déjà été utilisé.";
-      } else if (error.message.includes("Rate limit")) {
-        errorMsg = "Trop de tentatives. Réessayez dans quelques instants.";
-      }
+      // Map error messages to user-friendly French
+      const errorMsg = error.message || "Erreur lors du jumelage";
       
       setMessage(errorMsg);
       toast.error("Échec du jumelage", {
@@ -332,12 +315,16 @@ const OnboardingScan = () => {
         <Card className="p-4 bg-muted/50 border-border/50">
           <div className="space-y-2 text-sm text-muted-foreground">
             <p className="font-medium text-foreground">💡 Comment générer un QR code ?</p>
-            <ol className="space-y-1 pl-4 list-decimal">
-              <li>Connectez-vous à votre interface admin</li>
-              <li>Allez dans <strong className="text-foreground">Paramètres</strong> → <strong className="text-foreground">Jumelage</strong></li>
-              <li>Cliquez sur "Générer un QR code"</li>
-              <li>Scannez le code affiché (valable 10 minutes)</li>
-            </ol>
+            <div className="space-y-2">
+              <p>Le QR code doit contenir vos identifiants Home Assistant au format JSON :</p>
+              <div className="bg-background/50 p-2 rounded text-xs font-mono">
+                {`{"ha_url": "https://....ui.nabu.casa",`}<br/>
+                {`"ha_token": "votre_token"}`}
+              </div>
+              <p className="text-xs">
+                Formats acceptés : <code className="text-foreground">ha_url/ha_token</code> ou <code className="text-foreground">url/access_token</code>
+              </p>
+            </div>
           </div>
         </Card>
       </div>
