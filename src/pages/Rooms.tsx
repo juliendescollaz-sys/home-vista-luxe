@@ -6,11 +6,22 @@ import { Home } from "lucide-react";
 
 const Rooms = () => {
   const areas = useHAStore((state) => state.areas);
-  const entities = useHAStore((state) => state.entities);
+  const devices = useHAStore((state) => state.devices);
+  const areaPhotos = useHAStore((state) => state.areaPhotos);
+  const setAreaPhoto = useHAStore((state) => state.setAreaPhoto);
 
-  // Compter les entités par pièce
+  // Compter les appareils par pièce
   const getDeviceCount = (areaId: string) => {
-    return entities.filter((entity) => entity.attributes.area_id === areaId).length;
+    return devices.filter((device) => device.area_id === areaId && !device.disabled_by).length;
+  };
+
+  const handlePhotoChange = (areaId: string, file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setAreaPhoto(areaId, dataUrl);
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -34,7 +45,8 @@ const Rooms = () => {
                 key={area.area_id}
                 name={area.name}
                 deviceCount={getDeviceCount(area.area_id)}
-                picture={area.picture}
+                customPhoto={areaPhotos[area.area_id]}
+                onPhotoChange={(file) => handlePhotoChange(area.area_id, file)}
               />
             ))}
           </div>

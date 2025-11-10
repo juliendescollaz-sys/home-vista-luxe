@@ -1,21 +1,25 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { HAConnection, HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
+import type { HAConnection, HAEntity, HAArea, HAFloor, HADevice } from "@/types/homeassistant";
 
 interface HAStore {
   connection: HAConnection | null;
   entities: HAEntity[];
   areas: HAArea[];
   floors: HAFloor[];
+  devices: HADevice[];
   favorites: string[];
   isConnected: boolean;
+  areaPhotos: Record<string, string>;
   
   setConnection: (connection: HAConnection) => void;
   setEntities: (entities: HAEntity[]) => void;
   setAreas: (areas: HAArea[]) => void;
   setFloors: (floors: HAFloor[]) => void;
+  setDevices: (devices: HADevice[]) => void;
   toggleFavorite: (entityId: string) => void;
   setConnected: (connected: boolean) => void;
+  setAreaPhoto: (areaId: string, photoUrl: string) => void;
   disconnect: () => void;
 }
 
@@ -26,13 +30,16 @@ export const useHAStore = create<HAStore>()(
       entities: [],
       areas: [],
       floors: [],
+      devices: [],
       favorites: [],
       isConnected: false,
+      areaPhotos: {},
 
       setConnection: (connection) => set({ connection }),
       setEntities: (entities) => set({ entities }),
       setAreas: (areas) => set({ areas }),
       setFloors: (floors) => set({ floors }),
+      setDevices: (devices) => set({ devices }),
       setConnected: (isConnected) => set({ isConnected }),
       
       toggleFavorite: (entityId) =>
@@ -40,6 +47,11 @@ export const useHAStore = create<HAStore>()(
           favorites: state.favorites.includes(entityId)
             ? state.favorites.filter((id) => id !== entityId)
             : [...state.favorites, entityId],
+        })),
+      
+      setAreaPhoto: (areaId, photoUrl) =>
+        set((state) => ({
+          areaPhotos: { ...state.areaPhotos, [areaId]: photoUrl },
         })),
       
       disconnect: () =>
@@ -52,10 +64,11 @@ export const useHAStore = create<HAStore>()(
     {
       name: "ha-storage",
       partialize: (state) => ({
-        // Ne persister que les favoris, pas la connexion (gérée par crypto)
+        // Persister les favoris et les photos des pièces
         favorites: state.favorites,
+        areaPhotos: state.areaPhotos,
       }),
-      version: 1,
+      version: 2,
     }
   )
 );

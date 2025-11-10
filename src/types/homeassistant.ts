@@ -28,8 +28,11 @@ export interface HAFloor {
 export interface HADevice {
   id: string;
   name: string;
+  name_by_user?: string;
   area_id?: string;
   model?: string;
+  manufacturer?: string;
+  disabled_by?: string | null;
 }
 
 export interface HAScene {
