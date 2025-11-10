@@ -180,11 +180,11 @@ const MediaPlayerDetails = () => {
           <div className="flex items-center justify-center gap-2">
             {canShuffle && (
               <Button
-                variant={attributes.shuffle ? "default" : "outline"}
+                variant="ghost"
                 className="h-12 w-12 min-w-12 p-0 flex items-center justify-center aspect-square shrink-0"
                 onClick={() => callService("shuffle_set", { shuffle: !attributes.shuffle })}
               >
-                <Shuffle className="h-5 w-5" />
+                <Shuffle className={`h-5 w-5 ${attributes.shuffle ? 'text-primary' : ''}`} />
               </Button>
             )}
             
@@ -223,7 +223,7 @@ const MediaPlayerDetails = () => {
 
             {canRepeat && (
               <Button
-                variant={attributes.repeat && attributes.repeat !== "off" ? "default" : "outline"}
+                variant="ghost"
                 className="h-12 w-12 min-w-12 p-0 flex items-center justify-center aspect-square relative shrink-0"
                 onClick={() => {
                   const repeatModes = ["off", "all", "one"];
@@ -234,12 +234,12 @@ const MediaPlayerDetails = () => {
                 }}
               >
                 {attributes.repeat === "one" ? (
-                  <Repeat1 className="h-6 w-6" />
+                  <Repeat1 className={`h-6 w-6 ${attributes.repeat !== "off" ? 'text-primary' : ''}`} />
                 ) : (
-                  <Repeat className="h-5 w-5" />
+                  <Repeat className={`h-5 w-5 ${attributes.repeat !== "off" ? 'text-primary' : ''}`} />
                 )}
                 {attributes.repeat && attributes.repeat !== "off" && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-background rounded-full border border-primary" />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
                 )}
               </Button>
             )}
