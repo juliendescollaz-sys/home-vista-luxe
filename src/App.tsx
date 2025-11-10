@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import Dev from "./pages/Dev";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./hooks/useAuth";
+import { useInitializeConnection } from "./hooks/useInitializeConnection";
 
 // Lazy load pages avec dependencies lourdes
 const OnboardingScan = lazy(() => import("./pages/OnboardingScan"));
@@ -50,7 +51,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => {
-  const isConnected = useHAStore((state) => state.isConnected);
+  useInitializeConnection();
 
   return (
     <ErrorBoundary>

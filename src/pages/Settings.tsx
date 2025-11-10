@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { LogOut, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
+import { clearHACredentials } from "@/lib/crypto";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -16,8 +17,10 @@ const Settings = () => {
 
   const handleDisconnect = () => {
     disconnect();
+    clearHACredentials();
     toast.success("Déconnecté de Home Assistant");
-    navigate("/onboarding");
+    // Utiliser window.location pour forcer un rechargement complet
+    window.location.href = "/onboarding";
   };
 
   return (
