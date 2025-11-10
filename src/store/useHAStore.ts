@@ -79,7 +79,7 @@ export const useHAStore = create<HAStore>()(
         favorites: state.favorites,
         areaPhotos: state.areaPhotos,
       }),
-      version: 2,
+      version: 3,
     }
   )
 );
