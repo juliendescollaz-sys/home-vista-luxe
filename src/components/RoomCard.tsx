@@ -15,7 +15,7 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
-  const handlePhotoClick = (e: React.MouseEvent | React.TouchEvent) => {
+  const handlePhotoClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     e.preventDefault();
     fileInputRef.current?.click();
@@ -59,11 +59,8 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
         <button
           type="button"
           onClick={handlePhotoClick}
-          onTouchStart={handlePhotoClick}
-          onMouseDown={(e) => e.stopPropagation()}
-          className="absolute top-2 right-2 p-3 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-200 md:opacity-0 md:group-hover:opacity-100 opacity-70 z-20 touch-manipulation"
+          className="absolute top-2 right-2 p-3 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-200 md:opacity-0 md:group-hover:opacity-100 opacity-70 z-20"
           aria-label="Changer la photo de la pièce"
-          style={{ WebkitTapHighlightColor: 'transparent' }}
         >
           <Camera className="h-5 w-5" />
         </button>
