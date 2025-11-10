@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { useHAStore } from "./store/useHAStore";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ThemeProvider } from "next-themes";
 import Onboarding from "./pages/Onboarding";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
@@ -54,10 +55,11 @@ const App = () => {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
             <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/onboarding" element={<Onboarding />} />
@@ -133,6 +135,7 @@ const App = () => {
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
+        </ThemeProvider>
     </QueryClientProvider>
     </ErrorBoundary>
   );

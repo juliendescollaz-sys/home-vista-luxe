@@ -6,11 +6,13 @@ import { useHAStore } from "@/store/useHAStore";
 import { useNavigate } from "react-router-dom";
 import { LogOut, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
+import { useTheme } from "next-themes";
 
 const Settings = () => {
   const navigate = useNavigate();
   const disconnect = useHAStore((state) => state.disconnect);
   const connection = useHAStore((state) => state.connection);
+  const { theme, setTheme } = useTheme();
 
   const handleDisconnect = () => {
     disconnect();
@@ -46,11 +48,19 @@ const Settings = () => {
           <Card className="p-6 bg-gradient-card border-border/50">
             <h3 className="text-lg font-semibold mb-4">Apparence</h3>
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1">
+              <Button 
+                variant={theme === "light" ? "default" : "outline"} 
+                className="flex-1"
+                onClick={() => setTheme("light")}
+              >
                 <Sun className="mr-2 h-4 w-4" />
                 Clair
               </Button>
-              <Button variant="default" className="flex-1">
+              <Button 
+                variant={theme === "dark" ? "default" : "outline"} 
+                className="flex-1"
+                onClick={() => setTheme("dark")}
+              >
                 <Moon className="mr-2 h-4 w-4" />
                 Sombre
               </Button>
