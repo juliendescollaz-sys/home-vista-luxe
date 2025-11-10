@@ -62,15 +62,19 @@ export function useSonosBrowser(client: HAClient | null, entityId: string) {
     try {
       const result = await client.browseMedia(entityId, mediaContentId, mediaContentType);
       console.log("📦 Résultat HA:", result);
+      console.log("📦 Children brut:", result.children);
       
-      const items: BrowseNode[] = (result.children || []).map((c: any) => ({
-        title: c.title || "Sans titre",
-        canPlay: !!c.can_play,
-        canExpand: !!c.can_expand,
-        mediaContentId: c.media_content_id,
-        mediaContentType: c.media_content_type,
-        thumbnail: c.thumbnail || c.thumbnail_url,
-      }));
+      const items: BrowseNode[] = (result.children || []).map((c: any) => {
+        console.log("🔍 Child brut:", c);
+        return {
+          title: c.title || "Sans titre",
+          canPlay: !!c.can_play,
+          canExpand: !!c.can_expand,
+          mediaContentId: c.media_content_id,
+          mediaContentType: c.media_content_type,
+          thumbnail: c.thumbnail || c.thumbnail_url,
+        };
+      });
 
       cache.current.set(cacheKey, items);
       console.log("✅ Items chargés:", items.length, items);
