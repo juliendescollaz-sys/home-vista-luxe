@@ -230,6 +230,27 @@ export class HAClient {
     };
   }
 
+  async browseMedia(entityId: string, mediaContentId?: string, mediaContentType?: string): Promise<any> {
+    console.log(`📂 Browse media pour ${entityId}`, { mediaContentId, mediaContentType });
+    
+    const data: any = { entity_id: entityId };
+    if (mediaContentId && mediaContentType) {
+      data.media_content_id = mediaContentId;
+      data.media_content_type = mediaContentType;
+    }
+
+    return this.sendWithResponse("media_player/browse_media", data);
+  }
+
+  async playMedia(entityId: string, mediaContentId: string, mediaContentType: string): Promise<void> {
+    console.log(`▶️ Play media pour ${entityId}`, { mediaContentId, mediaContentType });
+    
+    await this.callService("media_player", "play_media", {
+      media_content_id: mediaContentId,
+      media_content_type: mediaContentType,
+    }, { entity_id: entityId });
+  }
+
   private handleEvent(event: any) {
     const handlers = this.eventHandlers.get(event.event_type);
     if (handlers) {

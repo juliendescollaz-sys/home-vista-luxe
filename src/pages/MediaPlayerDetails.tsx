@@ -288,7 +288,7 @@ const MediaPlayerDetails = () => {
         {/* Bibliothèque Sonos (Browse Media) */}
         <div className="mb-6">
           <SonosBrowser 
-            ws={client?.getSocket() || null}
+            client={client}
             entityId={decodedEntityId}
             connectionUrl={connection?.url}
           />

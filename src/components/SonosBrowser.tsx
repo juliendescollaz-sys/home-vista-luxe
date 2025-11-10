@@ -4,15 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Music, ChevronRight, Play, Folder, Radio, Disc3, ListMusic } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { HAClient } from "@/lib/haClient";
 
 interface SonosBrowserProps {
-  ws: WebSocket | null;
+  client: HAClient | null;
   entityId: string;
   connectionUrl?: string;
 }
 
-export function SonosBrowser({ ws, entityId, connectionUrl }: SonosBrowserProps) {
-  const { page, loadRoot, navigateTo, navigateBack, playMedia } = useSonosBrowser(ws, entityId);
+export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserProps) {
+  const { page, loadRoot, navigateTo, navigateBack, playMedia } = useSonosBrowser(client, entityId);
 
   const getIconForNode = (node: BrowseNode) => {
     if (node.canPlay && !node.canExpand) return Play;
