@@ -10,16 +10,28 @@ const Rooms = () => {
   const areaPhotos = useHAStore((state) => state.areaPhotos);
   const setAreaPhoto = useHAStore((state) => state.setAreaPhoto);
 
+  // Log pour déboguer
+  console.log('🏠 Areas:', areas.map(a => ({ id: a.area_id, name: a.name })));
+  console.log('📸 AreaPhotos in state:', areaPhotos);
+
   // Compter les appareils par pièce
   const getDeviceCount = (areaId: string) => {
     return devices.filter((device) => device.area_id === areaId && !device.disabled_by).length;
   };
 
   const handlePhotoChange = (areaId: string, file: File) => {
+    console.log('📸 Photo change for areaId:', areaId);
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string;
+      console.log('📸 DataURL created for areaId:', areaId, 'Length:', dataUrl?.length);
       setAreaPhoto(areaId, dataUrl);
+      
+      // Vérifier immédiatement après l'enregistrement
+      setTimeout(() => {
+        const stored = localStorage.getItem('ha-storage');
+        console.log('📸 LocalStorage after save:', stored ? JSON.parse(stored) : null);
+      }, 100);
     };
     reader.readAsDataURL(file);
   };
