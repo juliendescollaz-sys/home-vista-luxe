@@ -2,9 +2,17 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { HAConnection, HAEntity, HAArea, HAFloor, HADevice } from "@/types/homeassistant";
 
+interface EntityRegistry {
+  entity_id: string;
+  device_id?: string;
+  area_id?: string;
+  platform: string;
+}
+
 interface HAStore {
   connection: HAConnection | null;
   entities: HAEntity[];
+  entityRegistry: EntityRegistry[];
   areas: HAArea[];
   floors: HAFloor[];
   devices: HADevice[];
@@ -14,6 +22,7 @@ interface HAStore {
   
   setConnection: (connection: HAConnection) => void;
   setEntities: (entities: HAEntity[]) => void;
+  setEntityRegistry: (registry: EntityRegistry[]) => void;
   setAreas: (areas: HAArea[]) => void;
   setFloors: (floors: HAFloor[]) => void;
   setDevices: (devices: HADevice[]) => void;
@@ -28,6 +37,7 @@ export const useHAStore = create<HAStore>()(
     (set) => ({
       connection: null,
       entities: [],
+      entityRegistry: [],
       areas: [],
       floors: [],
       devices: [],
@@ -37,6 +47,7 @@ export const useHAStore = create<HAStore>()(
 
       setConnection: (connection) => set({ connection }),
       setEntities: (entities) => set({ entities }),
+      setEntityRegistry: (registry) => set({ entityRegistry: registry }),
       setAreas: (areas) => set({ areas }),
       setFloors: (floors) => set({ floors }),
       setDevices: (devices) => set({ devices }),

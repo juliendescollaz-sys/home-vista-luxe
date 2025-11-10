@@ -10,6 +10,7 @@ export function useHAClient() {
   const setAreas = useHAStore((state) => state.setAreas);
   const setFloors = useHAStore((state) => state.setFloors);
   const setDevices = useHAStore((state) => state.setDevices);
+  const setEntityRegistry = useHAStore((state) => state.setEntityRegistry);
   
   const clientRef = useRef<HAClient | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -40,23 +41,26 @@ export function useHAClient() {
         console.log("🔄 Synchronisation des données...");
         
         // Charger toutes les données en parallèle
-        const [entities, areas, floors, devices] = await Promise.all([
+        const [entities, areas, floors, devices, entityRegistry] = await Promise.all([
           client.getStates(),
           client.listAreas(),
           client.listFloors().catch(() => [] as any[]), // Les floors peuvent ne pas exister
           client.listDevices().catch(() => [] as any[]), // Les devices peuvent ne pas être accessibles
+          client.listEntities().catch(() => [] as any[]), // Le registre des entités
         ]);
 
         setEntities(entities);
         setAreas(areas);
         setFloors(floors);
         setDevices(devices);
+        setEntityRegistry(entityRegistry);
 
         console.log("✅ Synchronisation terminée:", {
           entities: entities.length,
           areas: areas.length,
           floors: floors.length,
           devices: devices.length,
+          entityRegistry: entityRegistry.length,
         });
 
         // S'abonner aux changements d'état

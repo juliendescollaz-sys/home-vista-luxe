@@ -15,14 +15,32 @@ const RoomDetails = () => {
   
   const areas = useHAStore((state) => state.areas);
   const entities = useHAStore((state) => state.entities);
+  const devices = useHAStore((state) => state.devices);
+  const entityRegistry = useHAStore((state) => state.entityRegistry);
   const areaPhotos = useHAStore((state) => state.areaPhotos);
   
   const area = areas.find((a) => a.area_id === areaId);
   
   // Filtrer les entités qui appartiennent à cette pièce
-  const roomEntities = entities.filter((entity) => {
-    return entity.attributes.area_id === areaId;
-  });
+  // 1. Trouver les devices de cette pièce
+  const roomDeviceIds = devices
+    .filter((device) => device.area_id === areaId && !device.disabled_by)
+    .map((device) => device.id);
+  
+  // 2. Trouver les entités de ces devices OU directement liées à cette pièce
+  const roomEntityIds = new Set(
+    entityRegistry
+      .filter((reg) => 
+        (reg.device_id && roomDeviceIds.includes(reg.device_id)) || 
+        reg.area_id === areaId
+      )
+      .map((reg) => reg.entity_id)
+  );
+  
+  // 3. Filtrer les entités complètes
+  const roomEntities = entities.filter((entity) => 
+    roomEntityIds.has(entity.entity_id)
+  );
 
   const handleToggle = async (entityId: string) => {
     if (!client) {
