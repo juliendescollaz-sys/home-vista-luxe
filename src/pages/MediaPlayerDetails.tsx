@@ -320,10 +320,10 @@ const MediaPlayerDetails = () => {
               <Button
                 variant={attributes.shuffle ? "default" : "ghost"}
                 size="icon"
-                className="h-14 w-14"
+                className="h-16 w-16"
                 onClick={() => callService("shuffle_set", { shuffle: !attributes.shuffle })}
               >
-                <Shuffle className="h-7 w-7" />
+                <Shuffle className="h-8 w-8" />
               </Button>
             )}
             
@@ -331,24 +331,24 @@ const MediaPlayerDetails = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-14 w-14"
+                className="h-16 w-16"
                 onClick={() => callService("media_previous_track")}
               >
-                <SkipBack className="h-7 w-7" />
+                <SkipBack className="h-8 w-8" />
               </Button>
             )}
 
             <Button
               variant="default"
               size="icon"
-              className="h-20 w-20"
+              className="h-24 w-24"
               onClick={handlePlayPause}
               disabled={!canPlay && !canPause}
             >
               {isPlaying ? (
-                <Pause className="h-10 w-10" />
+                <Pause className="h-12 w-12" />
               ) : (
-                <Play className="h-10 w-10 ml-1" />
+                <Play className="h-12 w-12 ml-1" />
               )}
             </Button>
 
@@ -356,10 +356,10 @@ const MediaPlayerDetails = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-14 w-14"
+                className="h-16 w-16"
                 onClick={() => callService("media_next_track")}
               >
-                <SkipForward className="h-7 w-7" />
+                <SkipForward className="h-8 w-8" />
               </Button>
             )}
 
@@ -367,7 +367,7 @@ const MediaPlayerDetails = () => {
               <Button
                 variant={attributes.repeat && attributes.repeat !== "off" ? "default" : "ghost"}
                 size="icon"
-                className="h-14 w-14 relative"
+                className="h-16 w-16 relative"
                 onClick={() => {
                   const repeatModes = ["off", "all", "one"];
                   const currentMode = attributes.repeat || "off";
@@ -377,12 +377,12 @@ const MediaPlayerDetails = () => {
                 }}
               >
                 {attributes.repeat === "one" ? (
-                  <Repeat1 className="h-7 w-7" />
+                  <Repeat1 className="h-8 w-8" />
                 ) : (
-                  <Repeat className="h-7 w-7" />
+                  <Repeat className="h-8 w-8" />
                 )}
                 {attributes.repeat && attributes.repeat !== "off" && (
-                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-background rounded-full border-2 border-primary" />
+                  <span className="absolute top-2 right-2 w-3 h-3 bg-background rounded-full border-2 border-primary" />
                 )}
               </Button>
             )}
