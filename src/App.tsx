@@ -19,6 +19,7 @@ import Dev from "./pages/Dev";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./hooks/useAuth";
 import { useInitializeConnection } from "./hooks/useInitializeConnection";
+import { useHAClient } from "./hooks/useHAClient";
 
 // Lazy load pages avec dependencies lourdes
 const OnboardingScan = lazy(() => import("./pages/OnboardingScan"));
@@ -75,6 +76,9 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   const isInitialized = useInitializeConnection();
+  
+  // Établir la connexion WebSocket dès que les credentials sont restaurés
+  useHAClient();
 
   if (!isInitialized) {
     return (
