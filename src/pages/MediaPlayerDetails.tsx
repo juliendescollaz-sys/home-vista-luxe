@@ -12,6 +12,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import EntityControl from "@/components/EntityControl";
 import { MediaPlayerControls } from "@/components/MediaPlayerControls";
 import { cn } from "@/lib/utils";
+import { SonosBrowser } from "@/components/SonosBrowser";
 
 const MediaPlayerDetails = () => {
   const { entityId } = useParams<{ entityId: string }>();
@@ -283,6 +284,15 @@ const MediaPlayerDetails = () => {
           onRepeatCycle={handleRepeatCycle}
           pending={pending}
         />
+
+        {/* Bibliothèque Sonos (Browse Media) */}
+        <div className="mb-6">
+          <SonosBrowser 
+            ws={client?.getSocket() || null}
+            entityId={decodedEntityId}
+            connectionUrl={connection?.url}
+          />
+        </div>
 
         {/* Contrôle du volume */}
         {canSetVolume && (
