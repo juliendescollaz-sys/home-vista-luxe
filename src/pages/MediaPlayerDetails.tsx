@@ -16,7 +16,15 @@ const MediaPlayerDetails = () => {
   const { client } = useHAClient();
   
   const entities = useHAStore((state) => state.entities);
+  const entityRegistry = useHAStore((state) => state.entityRegistry);
+  const devices = useHAStore((state) => state.devices);
   const entity = entities.find((e) => e.entity_id === decodeURIComponent(entityId || ""));
+
+  // Récupérer toutes les entités associées (même friendly_name)
+  const relatedEntities = entity ? entities.filter((e) => 
+    e.attributes.friendly_name === entity.attributes.friendly_name &&
+    e.entity_id !== entity.entity_id
+  ) : [];
 
   const [volume, setVolume] = useState(0);
 
@@ -245,6 +253,28 @@ const MediaPlayerDetails = () => {
               </span>
             </div>
           </Card>
+        )}
+
+        {/* Entités associées */}
+        {relatedEntities.length > 0 && (
+          <div className="mt-6">
+            <h2 className="text-lg font-semibold mb-3">Contrôles associés</h2>
+            <div className="space-y-3">
+              {relatedEntities.map((relatedEntity) => (
+                <Card key={relatedEntity.entity_id} className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{relatedEntity.attributes.friendly_name}</p>
+                      <p className="text-sm text-muted-foreground">{relatedEntity.entity_id}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{relatedEntity.state}</p>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
         )}
       </div>
       

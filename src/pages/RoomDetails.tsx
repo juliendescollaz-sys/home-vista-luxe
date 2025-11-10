@@ -39,9 +39,31 @@ const RoomDetails = () => {
   );
   
   // 3. Filtrer les entités complètes
-  const roomEntities = entities.filter((entity) => 
+  const allRoomEntities = entities.filter((entity) => 
     roomEntityIds.has(entity.entity_id)
   );
+
+  // 4. Créer un Set des friendly_name des media_players
+  const mediaPlayerNames = new Set(
+    allRoomEntities
+      .filter((entity) => entity.entity_id.startsWith("media_player."))
+      .map((entity) => entity.attributes.friendly_name)
+  );
+
+  // 5. Filtrer pour cacher les entités non-media_player qui partagent le même nom qu'un media_player
+  const roomEntities = allRoomEntities.filter((entity) => {
+    const domain = entity.entity_id.split(".")[0];
+    const friendlyName = entity.attributes.friendly_name;
+    
+    // Si c'est un media_player, toujours l'afficher
+    if (domain === "media_player") return true;
+    
+    // Si une autre entité partage le nom d'un media_player, la cacher
+    if (mediaPlayerNames.has(friendlyName)) return false;
+    
+    // Sinon, l'afficher
+    return true;
+  });
 
   const handleToggle = async (entityId: string) => {
     if (!client) {
