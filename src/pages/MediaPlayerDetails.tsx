@@ -183,11 +183,15 @@ const MediaPlayerDetails = () => {
   const devices = useHAStore((state) => state.devices);
   const entity = entities.find((e) => e.entity_id === decodeURIComponent(entityId || ""));
 
-  // Récupérer toutes les entités associées (même friendly_name)
-  const relatedEntities = entity ? entities.filter((e) => 
-    e.attributes.friendly_name === entity.attributes.friendly_name &&
-    e.entity_id !== entity.entity_id
-  ) : [];
+  // Récupérer toutes les entités associées (même device_id)
+  const entityReg = entity ? entityRegistry.find((r) => r.entity_id === entity.entity_id) : null;
+  const deviceId = entityReg?.device_id;
+  
+  const relatedEntities = deviceId ? entities.filter((e) => {
+    if (e.entity_id === entity?.entity_id) return false; // Exclure le media_player lui-même
+    const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
+    return reg?.device_id === deviceId;
+  }) : [];
 
   const [volume, setVolume] = useState(0);
 
