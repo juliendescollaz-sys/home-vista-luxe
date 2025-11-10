@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useSonosBrowser, BrowseNode } from "@/hooks/useSonosBrowser";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,12 @@ interface SonosBrowserProps {
 
 export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserProps) {
   const { page, loadRoot, navigateTo, navigateBack, playMedia } = useSonosBrowser(client, entityId);
+
+  useEffect(() => {
+    if (client) {
+      loadRoot();
+    }
+  }, [client, loadRoot]);
 
   const getIconForNode = (node: BrowseNode) => {
     if (node.canPlay && !node.canExpand) return Play;
