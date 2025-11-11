@@ -38,32 +38,57 @@ interface HAConfig {
   };
 }
 
+// Enhanced keyword matching for FR/EN
+const kw = {
+  temp: ["temperature", "temp", "température", "outdoor", "exterior", "outside", "ext", "ambient"],
+  cond: ["condition", "summary", "symbol", "weather", "meteo", "météo", "sky", "state", "temps", "ciel"],
+  hum: ["humidity", "humidité"],
+  pres: ["pressure", "barometer", "pression"],
+  wspd: ["wind_speed", "wind", "gust", "vent", "rafale", "rafales"],
+  wdir: ["wind_bearing", "wind_direction", "bearing", "direction", "deg", "angle"],
+  rain: ["precipitation", "precip", "rain", "pluie"],
+};
+
+const deviceClassHints = {
+  temp: ["temperature"],
+  hum: ["humidity"],
+  pres: ["pressure"],
+};
+
+const unitHints = {
+  temp: ["°C", "°F", "C", "F"],
+  pres: ["hPa", "mbar", "bar"],
+  wspd: ["km/h", "m/s", "mph"],
+};
+
 const isValid = (v: any) =>
   !(v === undefined || v === null || v === "" || String(v).toLowerCase() === "unknown" || String(v).toLowerCase() === "unavailable");
 
 const mpsToKmh = (v: number | null) => (v == null ? null : v * 3.6);
 
-const scoreSensor = (e: HAEntity, keywords: string[]) => {
+const scoreBy = (e: HAEntity, keys: string[], dcHints?: string[], unitHintsArr?: string[]) => {
   const id = e.entity_id.toLowerCase();
   const name = (e.attributes.friendly_name || "").toLowerCase();
+  const attrs = JSON.stringify(e.attributes || {}).toLowerCase();
   let s = 0;
-  for (const k of keywords) {
+
+  for (const k of keys) {
     if (id.includes(k)) s += 2;
-    if (name.includes(k)) s += 1;
+    if (name.includes(k)) s += 1.5;
+    if (attrs.includes(k)) s += 1;
   }
-  if (e.last_changed) s += 0.1;
+  if (dcHints?.includes(e.attributes?.device_class)) s += 3;
+  if (unitHintsArr?.includes(e.attributes?.unit_of_measurement)) s += 1.5;
+  if (e.last_changed) s += 0.2;
+
   return s;
 };
 
-const pickBest = (entities: HAEntity[], keywords: string[], unitHint?: string) => {
-  let best: HAEntity | null = null;
-  let bestScore = -1;
+const pick = (entities: HAEntity[], keys: string[], dc?: string[], units?: string[]) => {
+  let best: HAEntity | null = null, bestScore = -1;
   for (const e of entities) {
-    const s = scoreSensor(e, keywords) + (e.attributes.unit_of_measurement === unitHint ? 0.5 : 0);
-    if (s > bestScore) {
-      best = e;
-      bestScore = s;
-    }
+    const sc = scoreBy(e, keys, dc, units);
+    if (sc > bestScore) { best = e; bestScore = sc; }
   }
   return best;
 };
@@ -74,8 +99,8 @@ export function useWeatherData() {
   const [error, setError] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<UnifiedWeather | null>(null);
   const configRef = useRef<HAConfig | null>(null);
-  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const hasInitializedRef = useRef(false);
 
   const toUnits = useCallback((cfg: HAConfig | null) => {
     const metric = !cfg || cfg.unit_system.temperature === "°C";
@@ -142,13 +167,23 @@ export function useWeatherData() {
     const sensors = entityList.filter(e => e.entity_id.startsWith("sensor."));
     if (!sensors.length) return null;
 
-    const temp = pickBest(sensors, ["temperature", "temp"], "°C");
-    const cond = pickBest(sensors, ["condition", "summary", "symbol", "weather"]);
-    const hum  = pickBest(sensors, ["humidity"]);
-    const pres = pickBest(sensors, ["pressure", "barometer"]);
-    const wspd = pickBest(sensors, ["wind_speed", "wind", "gust"]);
-    const wdir = pickBest(sensors, ["wind_bearing", "wind_direction", "bearing"]);
-    const rain = pickBest(sensors, ["precipitation", "rain", "precip"]);
+    const temp = pick(sensors, kw.temp, deviceClassHints.temp, unitHints.temp);
+    const cond = pick(sensors, kw.cond);
+    const hum = pick(sensors, kw.hum, deviceClassHints.hum);
+    const pres = pick(sensors, kw.pres, deviceClassHints.pres, unitHints.pres);
+    const wspd = pick(sensors, kw.wspd, undefined, unitHints.wspd);
+    const wdir = pick(sensors, kw.wdir);
+    const rain = pick(sensors, kw.rain);
+
+    console.log("🔎 Capteurs trouvés:", {
+      temp: temp?.entity_id,
+      cond: cond?.entity_id,
+      hum: hum?.entity_id,
+      pres: pres?.entity_id,
+      wspd: wspd?.entity_id,
+      wdir: wdir?.entity_id,
+      rain: rain?.entity_id,
+    });
 
     const u = toUnits(cfg);
     const conv = convert(u, {
@@ -176,17 +211,24 @@ export function useWeatherData() {
 
   const selectWeather = useCallback((entityList: HAEntity[], cfg: HAConfig | null): UnifiedWeather | null => {
     const weathers = entityList.filter(e => e.entity_id.startsWith("weather."));
-    let chosen: HAEntity | null = null;
-
+    
+    console.log("🔎 Entités weather.* trouvées:", weathers.map(w => w.entity_id));
+    
     if (weathers.length) {
-      const byHome = weathers.find(w => w.entity_id === "weather.home" || w.entity_id === "weather.maison");
-      chosen = byHome || weathers[0];
+      const home = weathers.find(w => ["weather.home", "weather.maison"].includes(w.entity_id));
+      const chosen = home || weathers[0];
+      console.log("✅ Utilisation de:", chosen.entity_id);
       return buildFromWeatherEntity(chosen, cfg);
     }
 
+    console.log("⚠️ Aucune entité weather.*, recherche dans les capteurs...");
     const built = buildFromSensors(entityList, cfg);
-    if (built) return built;
+    if (built) {
+      console.log("✅ Données météo construites depuis les capteurs");
+      return built;
+    }
 
+    console.warn("❌ Aucune source météo trouvée");
     return {
       source: "none",
       entity_id: null,
@@ -204,64 +246,80 @@ export function useWeatherData() {
   }, [buildFromSensors, buildFromWeatherEntity, toUnits]);
 
   const refresh = useCallback(async () => {
-    if (!client) return;
+    if (!client || !client.isConnected()) {
+      console.log("⏸️ Client non connecté, attente...");
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
+    
     try {
-      // Fetch config with error handling
+      console.log("🔄 Rafraîchissement des données météo...");
+      
+      // Fetch config via WebSocket
       try {
         const cfg = await client.getConfig();
+        console.log("✅ Config récupérée:", cfg?.unit_system);
         configRef.current = cfg;
       } catch (e) {
-        console.warn("Config fetch failed, using defaults:", e);
+        console.warn("⚠️ Config non disponible, utilisation des valeurs par défaut");
         configRef.current = null;
       }
+
+      // Debug entity counts
+      const weatherEntities = entities.filter(e => e.entity_id.startsWith("weather."));
+      const sensors = entities.filter(e => e.entity_id.startsWith("sensor."));
+      const tempSensors = sensors.filter(e =>
+        kw.temp.some(k => (e.entity_id + JSON.stringify(e.attributes || {})).toLowerCase().includes(k))
+        || e.attributes?.device_class === "temperature"
+      );
+      
+      console.log("📊 Entités disponibles:", {
+        total: entities.length,
+        "weather.*": weatherEntities.length,
+        "sensor.*": sensors.length,
+        "temp sensors": tempSensors.length,
+      });
 
       const unified = selectWeather(entities, configRef.current);
       setWeatherData(unified);
       setIsLoading(false);
+      
+      if (unified.source === "none") {
+        setError("Aucune source météo détectée. Activez une intégration météo dans Home Assistant.");
+      }
     } catch (e: any) {
+      console.error("❌ Erreur refresh:", e);
       setError(e.message || "Erreur de récupération météo");
       setIsLoading(false);
     }
   }, [client, entities, selectWeather]);
 
-  // Boot + backoff
-  const bootWithRetry = useCallback(async () => {
-    if (retryRef.current) clearTimeout(retryRef.current);
-    try {
-      await refresh();
-    } catch {
-      // handled by refresh
-    }
-    if (!weatherData || weatherData.source === "none") {
-      retryRef.current = setTimeout(bootWithRetry, 2000);
-    }
-  }, [refresh, weatherData]);
-
+  // Initial load only
   useEffect(() => {
-    bootWithRetry();
-    return () => {
-      if (retryRef.current) clearTimeout(retryRef.current);
-    };
-  }, []);
+    if (!client || !client.isConnected() || hasInitializedRef.current) return;
+    
+    hasInitializedRef.current = true;
+    console.log("🌤️ Initialisation météo...");
+    refresh();
+  }, [client, refresh]);
 
-  // WS subscription
+  // WS subscription for real-time updates
   useEffect(() => {
-    if (!client) return;
+    if (!client || !client.isConnected()) return;
 
     if (unsubscribeRef.current) {
       unsubscribeRef.current();
     }
 
     const unsub = client.subscribeStateChanges((data: any) => {
-      if (!data || data.event_type !== "state_changed") return;
-      const e = data.new_state as HAEntity | undefined;
-      if (!e) return;
+      const newState = data?.new_state as HAEntity | undefined;
+      if (!newState) return;
 
-      if (weatherData?.source === "weather" && weatherData.entity_id === e.entity_id) {
-        refresh();
-      } else if (weatherData?.source === "sensors" && e.entity_id.startsWith("sensor.")) {
+      // Only refresh for weather or sensor entities
+      if (newState.entity_id.startsWith("weather.") || newState.entity_id.startsWith("sensor.")) {
+        console.log("🔄 Mise à jour détectée:", newState.entity_id);
         refresh();
       }
     });
@@ -274,7 +332,7 @@ export function useWeatherData() {
         unsubscribeRef.current = null;
       }
     };
-  }, [client, weatherData, refresh]);
+  }, [client, refresh]);
 
   return { weatherData, isLoading, error, refresh };
 }

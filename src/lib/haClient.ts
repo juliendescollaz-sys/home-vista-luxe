@@ -305,14 +305,10 @@ export class HAClient {
     return this.ws;
   }
 
-  // REST API methods
+  // REST API methods (use WebSocket instead for Nabu Casa compatibility)
   async getConfig(): Promise<any> {
-    const url = `${this.config.baseUrl}/api/config`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${this.config.token}` },
-    });
-    if (!res.ok) throw new Error(`GET /api/config failed: ${res.status}`);
-    return res.json();
+    console.log("🔧 Récupération de la configuration via WebSocket...");
+    return this.sendWithResponse<any>("get_config");
   }
 
   async getStatesREST(): Promise<any[]> {
