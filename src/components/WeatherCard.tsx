@@ -169,7 +169,7 @@ export function WeatherCard() {
         </CardContent>
 
         <CardFooter className="text-xs text-muted-foreground border-t pt-3">
-          Source: {w.source === "weather" ? `weather.${w.entity_id?.split('.')[1] || 'unknown'}` : "Capteurs agrégés"}
+          Source: {w.entity_id ? `HA • ${w.entity_id}` : "Open-Meteo (lat/lon sélectionnés)"}
         </CardFooter>
       </Card>
 

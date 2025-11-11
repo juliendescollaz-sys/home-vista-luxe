@@ -2,6 +2,47 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import type { HAEntity } from "@/types/homeassistant";
 
+type OpenMeteoCurrent = {
+  temperature_2m: number;
+  wind_speed_10m: number;
+  wind_direction_10m: number;
+  relative_humidity_2m: number;
+  pressure_msl: number;
+};
+
+async function fetchOpenMeteo(lat: number, lon: number) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,pressure_msl&hourly=temperature_2m,precipitation,weather_code&forecast_days=5&timezone=auto`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`);
+  return res.json();
+}
+
+function mapOpenMeteoToUnified(json: any): UnifiedWeather {
+  const cur = json.current || {};
+  const u: UnifiedWeather["units"] = {
+    temperature: "°C",
+    wind_speed: "km/h",
+    pressure: "hPa",
+    visibility: undefined,
+    precipitation: "mm",
+  };
+  
+  return {
+    source: "sensors",
+    entity_id: null,
+    condition: null,
+    temperature: typeof cur.temperature_2m === "number" ? cur.temperature_2m : null,
+    humidity: typeof cur.relative_humidity_2m === "number" ? cur.relative_humidity_2m : null,
+    pressure: typeof cur.pressure_msl === "number" ? cur.pressure_msl : null,
+    wind_speed: typeof cur.wind_speed_10m === "number" ? cur.wind_speed_10m : null,
+    wind_bearing: typeof cur.wind_direction_10m === "number" ? cur.wind_direction_10m : null,
+    visibility: null,
+    precipitation: null,
+    forecast: [],
+    units: u,
+  };
+}
+
 export interface UnifiedWeather {
   source: 'weather' | 'sensors' | 'none';
   entity_id: string | null;
@@ -94,7 +135,7 @@ const pick = (entities: HAEntity[], keys: string[], dc?: string[], units?: strin
 };
 
 export function useWeatherData() {
-  const { client, entities, isConnected, weatherEntity } = useHAStore();
+  const { client, entities, isConnected, weatherEntity, selectedCity } = useHAStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<UnifiedWeather | null>(null);
@@ -276,6 +317,26 @@ export function useWeatherData() {
   }, [buildFromSensors, buildFromWeatherEntity, toUnits]);
 
   const refresh = useCallback(async () => {
+    // 1) Si une ville est sélectionnée → on utilise Open-Meteo
+    if (selectedCity) {
+      setIsLoading(true);
+      setError(null);
+      try {
+        console.log("🌍 Récupération météo Open-Meteo pour:", selectedCity.label);
+        const json = await fetchOpenMeteo(selectedCity.lat, selectedCity.lon);
+        const unified = mapOpenMeteoToUnified(json);
+        setWeatherData(unified);
+        setError(null);
+      } catch (e: any) {
+        console.error("❌ Erreur Open-Meteo:", e);
+        setError(e.message || "Erreur Open-Meteo");
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // 2) Sinon fallback sur HA
     if (!client || !isConnected) {
       console.log("⏸️ Client non connecté, attente...");
       return;
@@ -329,7 +390,7 @@ export function useWeatherData() {
     } finally {
       setIsLoading(false);
     }
-  }, [client, entities, isConnected, selectWeather, weatherEntity]);
+  }, [client, entities, isConnected, selectWeather, weatherEntity, selectedCity]);
 
   // Initial load - wait for entities to be populated
   useEffect(() => {

@@ -33,6 +33,7 @@ export const CityPicker = ({ onCitySaved }: CityPickerProps) => {
   const isConnected = useHAStore((state) => state.isConnected);
   const entities = useHAStore((state) => state.entities);
   const setWeatherEntity = useHAStore((state) => state.setWeatherEntity);
+  const setSelectedCityStore = useHAStore((state) => state.setSelectedCity);
 
   // Debounced search via Open-Meteo Geocoding API
   useEffect(() => {
@@ -103,6 +104,13 @@ export const CityPicker = ({ onCitySaved }: CityPickerProps) => {
         value: selectedCity.lon,
       }, {
         entity_id: HA_ENTITIES.lon,
+      });
+
+      // Mise à jour du store local
+      setSelectedCityStore({
+        label: selectedCity.label,
+        lat: selectedCity.lat,
+        lon: selectedCity.lon,
       });
 
       // Sélectionner automatiquement la meilleure entité météo
