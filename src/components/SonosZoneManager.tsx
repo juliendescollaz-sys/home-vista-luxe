@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,8 @@ import { Volume2, Users, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useHAStore } from "@/store/useHAStore";
 import type { HAEntity } from "@/types/homeassistant";
+
+type GroupingService = "media_player" | "sonos" | "none";
 
 interface SonosZoneManagerProps {
   entity: HAEntity;
@@ -23,6 +25,31 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState(false);
   const [volumeTimers, setVolumeTimers] = useState<Record<string, NodeJS.Timeout>>({});
+  const [groupingService, setGroupingService] = useState<GroupingService>("none");
+
+  // Détecter les services disponibles au démarrage
+  useEffect(() => {
+    const detectServices = async () => {
+      if (!client) return;
+      
+      try {
+        const services = await client.getServices();
+        
+        if (services?.media_player?.join) {
+          setGroupingService("media_player");
+        } else if (services?.sonos?.join) {
+          setGroupingService("sonos");
+        } else {
+          setGroupingService("none");
+        }
+      } catch (error) {
+        console.error("Error detecting services:", error);
+        setGroupingService("none");
+      }
+    };
+    
+    detectServices();
+  }, [client]);
 
   // Détecter tous les Sonos
   const sonosDevices = useMemo(() => {
@@ -106,14 +133,26 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
   }, [client, volumeTimers]);
 
   const handleCreateGroup = useCallback(async () => {
-    if (selectedMembers.size === 0 || !client) return;
+    if (selectedMembers.size === 0 || !client || groupingService === "none") return;
     
     setPending(true);
     try {
-      await client.callService("sonos", "join", {
-        master: entity.entity_id,
-        entity_id: Array.from(selectedMembers),
-      });
+      if (groupingService === "media_player") {
+        // Nouveau format: media_player.join
+        await client.callService(
+          "media_player",
+          "join",
+          { group_members: Array.from(selectedMembers) },
+          { entity_id: entity.entity_id }
+        );
+      } else {
+        // Fallback: sonos.join
+        await client.callService(
+          "sonos",
+          "join",
+          { master: entity.entity_id, entity_id: Array.from(selectedMembers) }
+        );
+      }
       
       setSelectedMembers(new Set());
       
@@ -126,16 +165,29 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
       setPending(false);
       toast.error(error instanceof Error ? error.message : "Erreur lors de la création du groupe");
     }
-  }, [client, entity.entity_id, selectedMembers, refreshStates]);
+  }, [client, entity.entity_id, selectedMembers, refreshStates, groupingService]);
 
   const handleUnjoinMember = useCallback(async (memberId: string) => {
-    if (!client) return;
+    if (!client || groupingService === "none") return;
     
     setPending(true);
     try {
-      await client.callService("sonos", "unjoin", {
-        entity_id: memberId,
-      });
+      if (groupingService === "media_player") {
+        // Nouveau format: media_player.unjoin
+        await client.callService(
+          "media_player",
+          "unjoin",
+          undefined,
+          { entity_id: memberId }
+        );
+      } else {
+        // Fallback: sonos.unjoin
+        await client.callService(
+          "sonos",
+          "unjoin",
+          { entity_id: memberId }
+        );
+      }
       
       setTimeout(async () => {
         await refreshStates();
@@ -146,20 +198,37 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
       setPending(false);
       toast.error(error instanceof Error ? error.message : "Erreur lors du retrait");
     }
-  }, [client, refreshStates]);
+  }, [client, refreshStates, groupingService]);
 
   const handleUnjoinAll = useCallback(async () => {
-    if (!client || !groupState.isInGroup) return;
+    if (!client || !groupState.isInGroup || groupingService === "none") return;
     
     setPending(true);
     try {
-      await Promise.all(
-        groupState.members.map((memberId) =>
-          client.callService("sonos", "unjoin", {
-            entity_id: memberId,
-          })
-        )
-      );
+      if (groupingService === "media_player") {
+        // Nouveau format: media_player.unjoin pour chaque membre
+        await Promise.all(
+          groupState.members.map((memberId) =>
+            client.callService(
+              "media_player",
+              "unjoin",
+              undefined,
+              { entity_id: memberId }
+            )
+          )
+        );
+      } else {
+        // Fallback: sonos.unjoin
+        await Promise.all(
+          groupState.members.map((memberId) =>
+            client.callService("sonos", "unjoin", {
+              entity_id: memberId,
+            })
+          )
+        );
+      }
+      
+      setSelectedMembers(new Set());
       
       setTimeout(async () => {
         await refreshStates();
@@ -170,7 +239,7 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
       setPending(false);
       toast.error(error instanceof Error ? error.message : "Erreur lors de la dissociation");
     }
-  }, [client, groupState, refreshStates]);
+  }, [client, groupState, refreshStates, groupingService]);
 
   const handleLeaveGroup = useCallback(async () => {
     await handleUnjoinMember(entity.entity_id);
@@ -321,7 +390,15 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
         )}
 
         {/* (C) Créer un groupe - Si SOLO */}
-        {groupState.isSolo && availableDevices.length > 0 && (
+        {groupingService === "none" && groupState.isSolo && (
+          <div className="pt-4 border-t">
+            <p className="text-sm text-muted-foreground text-center">
+              Le groupage n'est pas disponible (intégration non compatible)
+            </p>
+          </div>
+        )}
+        
+        {groupingService !== "none" && groupState.isSolo && availableDevices.length > 0 && (
           <div className="space-y-3 pt-4 border-t">
             <Label className="text-base font-semibold">Créer un groupe avec…</Label>
             
@@ -361,7 +438,7 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
         )}
 
         {/* Message si aucune autre enceinte disponible */}
-        {groupState.isSolo && availableDevices.length === 0 && (
+        {groupingService !== "none" && groupState.isSolo && availableDevices.length === 0 && (
           <div className="pt-4 border-t">
             <p className="text-sm text-muted-foreground text-center">
               Aucune autre enceinte Sonos disponible pour créer un groupe
