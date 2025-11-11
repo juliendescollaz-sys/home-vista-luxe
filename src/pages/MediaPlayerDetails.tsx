@@ -243,9 +243,28 @@ const MediaPlayerDetails = () => {
   };
 
   const handleCreateGroup = async () => {
+    if (!entity) return;
+    
+    // Utiliser l'entité actuelle comme coordinateur
+    setSelectedMaster(entity.entity_id);
+    
     try {
-      await createGroup();
-      toast.success("Groupe mis à jour");
+      await client?.callService(
+        "sonos",
+        "join",
+        { master: entity.entity_id },
+        { entity_id: Array.from(selectedMembers) }
+      );
+      
+      // Rafraîchir les états
+      setTimeout(async () => {
+        if (client) {
+          const newStates = await client.getStates();
+          useHAStore.getState().setEntities(newStates);
+        }
+      }, 500);
+      
+      toast.success("Groupe créé");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erreur lors de la création du groupe");
     }
@@ -374,7 +393,7 @@ const MediaPlayerDetails = () => {
           <Card className="mb-6">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
                   <Volume2 className="h-5 w-5" />
                   Volume & Zones
                 </CardTitle>
@@ -446,34 +465,12 @@ const MediaPlayerDetails = () => {
                     </div>
                   )}
 
-                  {/* Création de groupe */}
+                  {/* Grouper avec d'autres enceintes */}
                   <div className="space-y-3">
-                    <Label className="text-sm font-medium">Coordinateur</Label>
-                    <div className="space-y-1">
-                      {sonosDevices.slice(0, 3).map((device) => (
-                        <div key={`master-${device.entity_id}`} className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            id={`master-${device.entity_id}`}
-                            name="master"
-                            checked={selectedMaster === device.entity_id}
-                            onChange={() => setSelectedMaster(device.entity_id)}
-                            className="h-3 w-3"
-                          />
-                          <Label htmlFor={`master-${device.entity_id}`} className="text-xs">
-                            {device.friendly_name}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Membres</Label>
-                    <div className="space-y-1">
+                    <Label className="text-sm font-medium">Grouper avec</Label>
+                    <div className="space-y-2">
                       {sonosDevices
-                        .filter((d) => d.entity_id !== selectedMaster)
-                        .slice(0, 3)
+                        .filter((d) => d.entity_id !== decodedEntityId)
                         .map((device) => (
                           <div key={`member-${device.entity_id}`} className="flex items-center gap-2">
                             <Checkbox
@@ -483,7 +480,7 @@ const MediaPlayerDetails = () => {
                                 handleMemberToggle(device.entity_id, checked as boolean)
                               }
                             />
-                            <Label htmlFor={`member-${device.entity_id}`} className="text-xs">
+                            <Label htmlFor={`member-${device.entity_id}`} className="text-sm font-normal">
                               {device.friendly_name}
                             </Label>
                           </div>
@@ -494,14 +491,14 @@ const MediaPlayerDetails = () => {
                   <div className="flex gap-2">
                     <Button
                       onClick={handleCreateGroup}
-                      disabled={!selectedMaster || selectedMembers.size === 0 || zonesPending}
+                      disabled={selectedMembers.size === 0 || zonesPending}
                       size="sm"
                       className="flex-1"
                     >
-                      Créer groupe
+                      Grouper
                     </Button>
                     <Button onClick={handleUnjoinAll} disabled={zonesPending} variant="outline" size="sm">
-                      Dissocier
+                      Tout dissocier
                     </Button>
                   </div>
 

@@ -74,10 +74,12 @@ export function useSonosGroups() {
 
     setPending(true);
     try {
-      await client.callService("sonos", "join", {
-        master: selectedMaster,
-        entity_id: Array.from(selectedMembers),
-      });
+      await client.callService(
+        "sonos", 
+        "join", 
+        { master: selectedMaster },
+        { entity_id: Array.from(selectedMembers) }
+      );
 
       // Rafraîchir les états
       setTimeout(async () => {
@@ -99,9 +101,12 @@ export function useSonosGroups() {
 
     setPending(true);
     try {
-      await client.callService("sonos", "unjoin", {
-        entity_id: entityId,
-      });
+      await client.callService(
+        "sonos", 
+        "unjoin", 
+        {},
+        { entity_id: entityId }
+      );
 
       setTimeout(async () => {
         const newStates = await client.getStates();
@@ -124,9 +129,12 @@ export function useSonosGroups() {
     try {
       await Promise.all(
         sonosDevices.map((device) =>
-          client.callService("sonos", "unjoin", {
-            entity_id: device.entity_id,
-          })
+          client.callService(
+            "sonos", 
+            "unjoin", 
+            {},
+            { entity_id: device.entity_id }
+          )
         )
       );
 
@@ -147,10 +155,12 @@ export function useSonosGroups() {
   const setVolume = useCallback(async (entityId: string, volumeLevel: number) => {
     if (!client) return;
 
-    await client.callService("media_player", "volume_set", {
-      entity_id: entityId,
-      volume_level: volumeLevel,
-    });
+    await client.callService(
+      "media_player", 
+      "volume_set", 
+      { volume_level: volumeLevel },
+      { entity_id: entityId }
+    );
   }, [client]);
 
   // Lancer un preset
@@ -159,9 +169,12 @@ export function useSonosGroups() {
 
     setPending(true);
     try {
-      await client.callService("script", "turn_on", {
-        entity_id: scriptEntityId,
-      });
+      await client.callService(
+        "script", 
+        "turn_on", 
+        {},
+        { entity_id: scriptEntityId }
+      );
 
       setTimeout(async () => {
         const newStates = await client.getStates();
@@ -180,20 +193,24 @@ export function useSonosGroups() {
   const snapshot = useCallback(async (entityIds: string[]) => {
     if (!client) return;
 
-    await client.callService("sonos", "snapshot", {
-      entity_id: entityIds,
-      with_group: true,
-    });
+    await client.callService(
+      "sonos", 
+      "snapshot", 
+      { with_group: true },
+      { entity_id: entityIds }
+    );
   }, [client]);
 
   // Restore
   const restore = useCallback(async (entityIds: string[]) => {
     if (!client) return;
 
-    await client.callService("sonos", "restore", {
-      entity_id: entityIds,
-      with_group: true,
-    });
+    await client.callService(
+      "sonos", 
+      "restore", 
+      { with_group: true },
+      { entity_id: entityIds }
+    );
   }, [client]);
 
   return {
