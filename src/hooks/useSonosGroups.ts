@@ -78,7 +78,7 @@ export function useSonosGroups() {
         "sonos", 
         "join", 
         { 
-          master: selectedMaster,
+          main: selectedMaster,
           entity_id: Array.from(selectedMembers)
         }
       );
@@ -106,6 +106,7 @@ export function useSonosGroups() {
       await client.callService(
         "media_player", 
         "unjoin", 
+        undefined,
         { entity_id: entityId }
       );
 
@@ -133,6 +134,7 @@ export function useSonosGroups() {
           client.callService(
             "media_player", 
             "unjoin", 
+            undefined,
             { entity_id: device.entity_id }
           )
         )
@@ -172,6 +174,7 @@ export function useSonosGroups() {
       await client.callService(
         "script", 
         "turn_on", 
+        undefined,
         { entity_id: scriptEntityId }
       );
 
