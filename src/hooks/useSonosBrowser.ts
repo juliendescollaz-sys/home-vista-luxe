@@ -108,8 +108,22 @@ export function useSonosBrowser(client: HAClient | null, entityId: string) {
     } catch (error: any) {
       clearTimeout(timeoutId);
       const errorMsg = error.message || "Contenu indisponible";
-      setPage(p => ({ ...p, loading: false, error: errorMsg }));
-      toast.error(errorMsg);
+      
+      // Détecter si l'appareil est hors ligne
+      const isOffline = errorMsg.toLowerCase().includes("not found") || 
+                       errorMsg.toLowerCase().includes("unavailable") ||
+                       errorMsg.toLowerCase().includes("entity not found");
+      
+      const userMessage = isOffline 
+        ? "L'appareil semble hors ligne ou injoignable" 
+        : errorMsg;
+      
+      setPage(p => ({ ...p, loading: false, error: userMessage }));
+      
+      // Ne pas afficher de toast agressif pour les appareils hors ligne
+      if (!isOffline) {
+        toast.error(errorMsg);
+      }
     }
   }, [client, entityId, getCacheKey]);
 
