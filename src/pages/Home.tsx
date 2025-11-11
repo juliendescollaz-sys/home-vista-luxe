@@ -3,16 +3,14 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WeatherCard } from "@/components/WeatherCard";
-import { WeatherConfigDialog } from "@/components/WeatherConfigDialog";
+import { CityPicker } from "@/components/CityPicker";
 import { DeviceCard } from "@/components/DeviceCard";
 import { toast } from "sonner";
-import { useState } from "react";
 
 const Home = () => {
   const entities = useHAStore((state) => state.entities);
   const favorites = useHAStore((state) => state.favorites);
   const isConnected = useHAStore((state) => state.isConnected);
-  const [weatherConfigOpen, setWeatherConfigOpen] = useState(false);
 
   // Appareils actifs uniquement
   const activeDevices = entities?.filter(e => 
@@ -46,12 +44,11 @@ const Home = () => {
     <div className="min-h-screen bg-background pb-24 pt-20">
       <TopBar />
       
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
-        {/* Tuile météo centrée */}
-        <div className="flex justify-center animate-fade-in">
-          <div className="w-full max-w-xl">
-            <WeatherCard onConfigure={() => setWeatherConfigOpen(true)} />
-          </div>
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+        {/* Section météo */}
+        <div className="space-y-4 animate-fade-in">
+          <CityPicker />
+          <WeatherCard />
         </div>
 
         {/* État de la maison */}
@@ -98,11 +95,6 @@ const Home = () => {
           )}
         </div>
       </div>
-
-      <WeatherConfigDialog 
-        open={weatherConfigOpen} 
-        onOpenChange={setWeatherConfigOpen} 
-      />
 
       <BottomNav />
     </div>

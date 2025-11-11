@@ -1,12 +1,11 @@
 import { Card } from "@/components/ui/card";
-import { Cloud, CloudRain, Sun, Wind, Droplets, CloudFog, CloudSnow, CloudDrizzle, Settings } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Cloud, CloudRain, Sun, Wind, Droplets, CloudFog, CloudSnow, CloudDrizzle, WifiOff } from "lucide-react";
 import { useHAStore } from "@/store/useHAStore";
-import { useMemo } from "react";
+import { useState, useEffect } from "react";
+import type { HAEntity } from "@/types/homeassistant";
+import { Skeleton } from "@/components/ui/skeleton";
 
-interface WeatherCardProps {
-  onConfigure?: () => void;
-}
+const HA_WEATHER_ENTITY = "weather.city_forecast";
 
 const getWeatherIcon = (condition: string) => {
   const lower = condition.toLowerCase();
@@ -18,16 +17,70 @@ const getWeatherIcon = (condition: string) => {
   return Cloud;
 };
 
-export const WeatherCard = ({ onConfigure }: WeatherCardProps) => {
-  const entities = useHAStore((state) => state.entities);
-  const weatherEntityId = useHAStore((state) => state.weatherEntity);
-  
-  const weatherEntity = useMemo(
-    () => weatherEntityId ? entities.find((e) => e.entity_id === weatherEntityId) : null,
-    [entities, weatherEntityId]
-  );
+export const WeatherCard = () => {
+  const client = useHAStore((state) => state.client);
+  const isConnected = useHAStore((state) => state.isConnected);
+  const [weatherEntity, setWeatherEntity] = useState<HAEntity | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
 
-  // Si pas d'entité configurée, afficher la carte de configuration
+  // Récupération initiale et abonnement temps réel
+  useEffect(() => {
+    if (!client || !isConnected) {
+      setIsLoading(false);
+      return;
+    }
+
+    let unsubscribe: (() => void) | null = null;
+
+    const initWeather = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Récupération initiale
+        const states = await client.getStates();
+        const entity = states.find((e) => e.entity_id === HA_WEATHER_ENTITY);
+        
+        if (entity) {
+          setWeatherEntity(entity);
+          setIsOffline(false);
+        }
+
+        // Abonnement aux changements
+        unsubscribe = client.subscribeStateChanges((data: any) => {
+          if (data.entity_id === HA_WEATHER_ENTITY) {
+            setWeatherEntity(data.new_state);
+            setIsOffline(false);
+          }
+        });
+      } catch (error) {
+        console.error("Erreur récupération météo:", error);
+        setIsOffline(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initWeather();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [client, isConnected]);
+
+  if (isLoading) {
+    return (
+      <Card className="p-8 space-y-6">
+        <Skeleton className="h-6 w-32" />
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-24 w-32" />
+          <Skeleton className="h-24 w-24 rounded-full" />
+        </div>
+        <Skeleton className="h-20 w-full" />
+      </Card>
+    );
+  }
+
   if (!weatherEntity) {
     return (
       <Card className="relative overflow-hidden bg-gradient-to-br from-blue-500/10 via-background/50 to-purple-500/10 backdrop-blur-lg border-border/30">
@@ -36,15 +89,11 @@ export const WeatherCard = ({ onConfigure }: WeatherCardProps) => {
         <div className="relative p-8 text-center space-y-4">
           <Cloud className="h-16 w-16 mx-auto text-blue-400/30" />
           <div>
-            <h3 className="text-lg font-semibold mb-2">Météo non configurée</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              Configurez une entité météo pour afficher les informations
+            <h3 className="text-lg font-semibold mb-2">Entité météo introuvable</h3>
+            <p className="text-sm text-muted-foreground">
+              Configurez l'entité <code className="bg-muted px-2 py-1 rounded">{HA_WEATHER_ENTITY}</code> dans Home Assistant
             </p>
           </div>
-          <Button onClick={onConfigure} className="gap-2">
-            <Settings className="h-4 w-4" />
-            Configurer la météo
-          </Button>
         </div>
       </Card>
     );
@@ -69,15 +118,12 @@ export const WeatherCard = ({ onConfigure }: WeatherCardProps) => {
           <h3 className="text-lg font-medium text-muted-foreground">
             {attributes.friendly_name || "Météo"}
           </h3>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={onConfigure}
-            className="text-muted-foreground hover:text-foreground gap-2"
-          >
-            <Settings className="h-4 w-4" />
-            Configurer
-          </Button>
+          {isOffline && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <WifiOff className="h-4 w-4" />
+              Hors-ligne (REST)
+            </div>
+          )}
         </div>
 
         {/* Température principale */}
@@ -129,6 +175,13 @@ export const WeatherCard = ({ onConfigure }: WeatherCardProps) => {
             })}
           </div>
         )}
+
+        {/* Footer */}
+        <div className="pt-4 border-t border-border/30">
+          <p className="text-xs text-muted-foreground text-center">
+            Données via Home Assistant (MET Norway)
+          </p>
+        </div>
       </div>
     </Card>
   );
