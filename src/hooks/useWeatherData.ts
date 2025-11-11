@@ -392,6 +392,14 @@ export function useWeatherData() {
     }
   }, [client, entities, isConnected, selectWeather, weatherEntity, selectedCity]);
 
+  // Refresh when selectedCity changes
+  useEffect(() => {
+    if (selectedCity) {
+      console.log("🏙️ Ville sélectionnée changée, refresh...");
+      refresh();
+    }
+  }, [selectedCity, refresh]);
+
   // Initial load - wait for entities to be populated
   useEffect(() => {
     if (!client || !isConnected || !entities.length || hasInitializedRef.current) return;

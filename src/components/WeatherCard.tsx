@@ -1,10 +1,11 @@
-import { RefreshCw, AlertCircle, Settings, Cloud, Droplets, Wind, Gauge, Eye } from "lucide-react";
+import { RefreshCw, AlertCircle, Settings, Cloud, Droplets, Wind, Gauge, Eye, MapPin } from "lucide-react";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WeatherConfigDialog } from "./WeatherConfigDialog";
 import { useState } from "react";
+import { useHAStore } from "@/store/useHAStore";
 
 const getWeatherIcon = (condition: string | null) => {
   if (!condition) return Cloud;
@@ -17,6 +18,7 @@ const getWeatherIcon = (condition: string | null) => {
 
 export function WeatherCard() {
   const { weatherData, isLoading, error, refresh } = useWeatherData();
+  const selectedCity = useHAStore((state) => state.selectedCity);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
   const handleCitySaved = () => {
@@ -71,6 +73,12 @@ export function WeatherCard() {
             <div className="flex items-center gap-3">
               <WeatherIcon className="w-8 h-8 text-primary" />
               <div>
+                {selectedCity && (
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground mb-1">
+                    <MapPin className="w-3 h-3" />
+                    <span>{selectedCity.label}</span>
+                  </div>
+                )}
                 <p className="text-sm text-muted-foreground">Conditions actuelles</p>
                 <h3 className="text-2xl font-semibold">
                   {w.condition ?? "—"}
