@@ -104,7 +104,7 @@ export function useSonosGroups() {
     setPending(true);
     try {
       await client.callService(
-        "sonos", 
+        "media_player", 
         "unjoin", 
         { entity_id: entityId }
       );
@@ -131,7 +131,7 @@ export function useSonosGroups() {
       await Promise.all(
         sonosDevices.map((device) =>
           client.callService(
-            "sonos", 
+            "media_player", 
             "unjoin", 
             { entity_id: device.entity_id }
           )

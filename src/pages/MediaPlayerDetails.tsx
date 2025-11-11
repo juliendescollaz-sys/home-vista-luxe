@@ -250,6 +250,15 @@ const MediaPlayerDetails = () => {
     
     try {
       await createGroup();
+      
+      // Rafraîchir les états immédiatement
+      setTimeout(async () => {
+        if (client) {
+          const newStates = await client.getStates();
+          useHAStore.getState().setEntities(newStates);
+        }
+      }, 800);
+      
       toast.success("Groupe créé");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erreur lors de la création du groupe");
@@ -259,6 +268,15 @@ const MediaPlayerDetails = () => {
   const handleUnjoin = async (entityId: string) => {
     try {
       await unjoinDevice(entityId);
+      
+      // Rafraîchir les états
+      setTimeout(async () => {
+        if (client) {
+          const newStates = await client.getStates();
+          useHAStore.getState().setEntities(newStates);
+        }
+      }, 800);
+      
       toast.success("Enceinte retirée");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erreur lors du retrait");
@@ -268,6 +286,15 @@ const MediaPlayerDetails = () => {
   const handleUnjoinAll = async () => {
     try {
       await unjoinAll();
+      
+      // Rafraîchir les états
+      setTimeout(async () => {
+        if (client) {
+          const newStates = await client.getStates();
+          useHAStore.getState().setEntities(newStates);
+        }
+      }, 800);
+      
       toast.success("Toutes les enceintes dissociées");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erreur lors de la dissociation");
