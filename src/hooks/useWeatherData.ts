@@ -94,7 +94,7 @@ const pick = (entities: HAEntity[], keys: string[], dc?: string[], units?: strin
 };
 
 export function useWeatherData() {
-  const { client, entities } = useHAStore();
+  const { client, entities, isConnected } = useHAStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<UnifiedWeather | null>(null);
@@ -246,7 +246,7 @@ export function useWeatherData() {
   }, [buildFromSensors, buildFromWeatherEntity, toUnits]);
 
   const refresh = useCallback(async () => {
-    if (!client || !client.isConnected()) {
+    if (!client || !isConnected) {
       console.log("⏸️ Client non connecté, attente...");
       return;
     }
@@ -298,16 +298,16 @@ export function useWeatherData() {
 
   // Initial load only
   useEffect(() => {
-    if (!client || !client.isConnected() || hasInitializedRef.current) return;
+    if (!client || !isConnected || hasInitializedRef.current) return;
     
     hasInitializedRef.current = true;
     console.log("🌤️ Initialisation météo...");
     refresh();
-  }, [client, refresh]);
+  }, [client, isConnected, refresh]);
 
   // WS subscription for real-time updates
   useEffect(() => {
-    if (!client || !client.isConnected()) return;
+    if (!client || !isConnected) return;
 
     if (unsubscribeRef.current) {
       unsubscribeRef.current();
