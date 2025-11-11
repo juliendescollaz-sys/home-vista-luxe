@@ -26,6 +26,11 @@ const MediaPlayerDetails = () => {
   const connection = useHAStore((state) => state.connection);
   
   const decodedEntityId = useMemo(() => decodeURIComponent(entityId || ""), [entityId]);
+
+  // Scroll to top lors de la navigation
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [decodedEntityId]);
   
   const entity = useMemo(
     () => entities.find((e) => e.entity_id === decodedEntityId),

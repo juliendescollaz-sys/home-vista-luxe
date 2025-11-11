@@ -6,12 +6,18 @@ import { DeviceCard } from "@/components/DeviceCard";
 import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
 
 import { toast } from "sonner";
 
 const RoomDetails = () => {
   const { areaId } = useParams<{ areaId: string }>();
   const navigate = useNavigate();
+
+  // Scroll to top lors de la navigation
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [areaId]);
   
   const client = useHAStore((state) => state.client);
   const areas = useHAStore((state) => state.areas);
