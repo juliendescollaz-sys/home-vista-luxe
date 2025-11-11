@@ -13,10 +13,7 @@ import EntityControl from "@/components/EntityControl";
 import { MediaPlayerControls } from "@/components/MediaPlayerControls";
 import { cn } from "@/lib/utils";
 import { SonosBrowser } from "@/components/SonosBrowser";
-import { useSonosGroups } from "@/hooks/useSonosGroups";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Users } from "lucide-react";
+import { SonosZoneManager } from "@/components/SonosZoneManager";
 
 const MediaPlayerDetails = () => {
   const { entityId } = useParams<{ entityId: string }>();
@@ -60,23 +57,6 @@ const MediaPlayerDetails = () => {
     repeat: false,
   });
   
-  const [volumeTimers, setVolumeTimers] = useState<Record<string, NodeJS.Timeout>>({});
-  const [showZones, setShowZones] = useState(false);
-  
-  const {
-    sonosDevices,
-    zonePresets,
-    selectedMaster,
-    setSelectedMaster,
-    selectedMembers,
-    setSelectedMembers,
-    pending: zonesPending,
-    createGroup,
-    unjoinDevice,
-    unjoinAll,
-    setVolume: setSonosVolume,
-    applyPreset,
-  } = useSonosGroups();
 
   // Tous les calculs dérivés doivent être mémoïsés AVANT le early return
   const entityData = useMemo(() => {
@@ -232,105 +212,9 @@ const MediaPlayerDetails = () => {
     callService("volume_mute", { is_volume_muted: !entityData.isMuted });
   }, [callService, entityData]);
 
-  const handleMemberToggle = (entityId: string, checked: boolean) => {
-    const newMembers = new Set(selectedMembers);
-    if (checked) {
-      newMembers.add(entityId);
-    } else {
-      newMembers.delete(entityId);
-    }
-    setSelectedMembers(newMembers);
-  };
-
-  const handleCreateGroup = async () => {
-    if (!entity) return;
-    
-    // Utiliser l'entité actuelle comme coordinateur
-    setSelectedMaster(entity.entity_id);
-    
-    try {
-      await createGroup();
-      
-      // Réinitialiser les sélections
-      setSelectedMembers(new Set());
-      
-      // Rafraîchir les états immédiatement
-      setTimeout(async () => {
-        if (client) {
-          const newStates = await client.getStates();
-          useHAStore.getState().setEntities(newStates);
-        }
-      }, 1000);
-      
-      toast.success("Groupe créé");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erreur lors de la création du groupe");
-    }
-  };
-
-  const handleUnjoin = async (entityId: string) => {
-    try {
-      await unjoinDevice(entityId);
-      
-      // Rafraîchir les états
-      setTimeout(async () => {
-        if (client) {
-          const newStates = await client.getStates();
-          useHAStore.getState().setEntities(newStates);
-        }
-      }, 800);
-      
-      toast.success("Enceinte retirée");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erreur lors du retrait");
-    }
-  };
-
-  const handleUnjoinAll = async () => {
-    try {
-      await unjoinAll();
-      
-      // Réinitialiser les sélections
-      setSelectedMembers(new Set());
-      
-      // Rafraîchir les états
-      setTimeout(async () => {
-        if (client) {
-          const newStates = await client.getStates();
-          useHAStore.getState().setEntities(newStates);
-        }
-      }, 800);
-      
-      toast.success("Toutes les enceintes dissociées");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erreur lors de la dissociation");
-    }
-  };
-
-  const handleSonosVolumeChange = (entityId: string, value: number[]) => {
-    if (volumeTimers[entityId]) {
-      clearTimeout(volumeTimers[entityId]);
-    }
-
-    const timer = setTimeout(async () => {
-      try {
-        await setSonosVolume(entityId, value[0] / 100);
-      } catch (error) {
-        toast.error("Erreur lors du changement de volume");
-      }
-    }, 150);
-
-    setVolumeTimers({ ...volumeTimers, [entityId]: timer });
-  };
-
-  const handleApplyPreset = async (scriptEntityId: string) => {
-    try {
-      await applyPreset(scriptEntityId);
-      toast.success("Preset appliqué");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erreur lors de l'application du preset");
-    }
-  };
+  const handleNavigateToMaster = useCallback((masterEntityId: string) => {
+    navigate(`/media-player/${encodeURIComponent(masterEntityId)}`);
+  }, [navigate]);
 
 
   if (!entity || !entityData) {
@@ -407,168 +291,14 @@ const MediaPlayerDetails = () => {
           pending={pending}
         />
 
-        {/* Contrôle du volume et Zones Sonos */}
-        {canSetVolume && (
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <Volume2 className="h-5 w-5" />
-                  Volume & Zones
-                </CardTitle>
-                {sonosDevices.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowZones(!showZones)}
-                  >
-                    <Users className="h-4 w-4 mr-2" />
-                    {showZones ? "Masquer" : "Zones"}
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Volume principal */}
-              <div className="flex items-center gap-4">
-                {canMute && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleMute}
-                  >
-                    {isMuted ? (
-                      <VolumeX className="h-5 w-5" />
-                    ) : (
-                      <Volume2 className="h-5 w-5" />
-                    )}
-                  </Button>
-                )}
-                
-                <div className="flex-1">
-                  <Slider
-                    value={[volume]}
-                    onValueChange={handleVolumeChange}
-                    onValueCommit={handleVolumeChangeEnd}
-                    max={100}
-                    step={1}
-                    disabled={isMuted}
-                  />
-                </div>
-                
-                <span className="text-sm text-muted-foreground w-12 text-right">
-                  {Math.round(volume)}%
-                </span>
-              </div>
-
-              {/* Gestion des zones Sonos */}
-              {showZones && sonosDevices.length > 0 && (
-                <div className="space-y-4 pt-4 border-t">
-                  {/* Presets de zones */}
-                  {zonePresets.length > 0 && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Presets de zones</Label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {zonePresets.map((preset) => (
-                          <Button
-                            key={preset.entity_id}
-                            onClick={() => handleApplyPreset(preset.entity_id)}
-                            disabled={zonesPending}
-                            variant="outline"
-                            size="sm"
-                          >
-                            {preset.friendly_name}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Grouper avec d'autres enceintes */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Grouper avec</Label>
-                    <div className="space-y-3">
-                      {sonosDevices
-                        .filter((d) => d.entity_id !== decodedEntityId)
-                        .map((device) => (
-                          <div key={`member-${device.entity_id}`} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => handleMemberToggle(device.entity_id, !selectedMembers.has(device.entity_id))}>
-                            <Checkbox
-                              id={`member-${device.entity_id}`}
-                              checked={selectedMembers.has(device.entity_id)}
-                              onCheckedChange={(checked) =>
-                                handleMemberToggle(device.entity_id, checked as boolean)
-                              }
-                              className="h-5 w-5"
-                            />
-                            <Label htmlFor={`member-${device.entity_id}`} className="text-base font-normal flex-1 cursor-pointer">
-                              {device.friendly_name}
-                            </Label>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleCreateGroup}
-                      disabled={selectedMembers.size === 0 || zonesPending}
-                      size="sm"
-                      className="flex-1"
-                    >
-                      Grouper
-                    </Button>
-                    <Button onClick={handleUnjoinAll} disabled={zonesPending} variant="outline" size="sm">
-                      Tout dissocier
-                    </Button>
-                  </div>
-
-                  {/* Volumes individuels - afficher uniquement si un groupe existe */}
-                  {entity && entity.attributes.group_members && Array.isArray(entity.attributes.group_members) && entity.attributes.group_members.length > 1 && (
-                    <div className="space-y-3 pt-4 border-t">
-                      <Label className="text-sm font-medium">Volumes individuels du groupe</Label>
-                      {entity.attributes.group_members.map((memberId: string) => {
-                        const memberEntity = entities.find(e => e.entity_id === memberId);
-                        if (!memberEntity) return null;
-                        
-                        const friendlyName = memberEntity.attributes.friendly_name || memberId;
-                        const volumeLevel = memberEntity.attributes.volume_level || 0;
-                        
-                        return (
-                          <div key={`vol-${memberId}`} className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <Label className="text-sm font-medium">{friendlyName}</Label>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleUnjoin(memberId)}
-                                disabled={zonesPending}
-                                className="h-7 text-xs"
-                              >
-                                Retirer
-                              </Button>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <Slider
-                                value={[Math.round(volumeLevel * 100)]}
-                                onValueChange={(value) => handleSonosVolumeChange(memberId, value)}
-                                max={100}
-                                step={1}
-                                className="flex-1"
-                              />
-                              <span className="text-xs text-muted-foreground w-12 text-right">
-                                {Math.round(volumeLevel * 100)}%
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        {/* Volume & Zones Sonos */}
+        <div className="mb-6">
+          <SonosZoneManager 
+            entity={entity}
+            client={client}
+            onNavigateToMaster={handleNavigateToMaster}
+          />
+        </div>
 
         {/* Bibliothèque Sonos (Browse Media) */}
         <div className="mb-6">
