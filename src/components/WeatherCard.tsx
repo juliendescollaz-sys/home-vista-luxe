@@ -1,8 +1,11 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Cloud, CloudRain, Sun, Wind, Droplets, CloudFog, CloudSnow, CloudDrizzle, AlertCircle, RefreshCw } from "lucide-react";
+import { Cloud, CloudRain, Sun, Wind, Droplets, CloudFog, CloudSnow, CloudDrizzle, AlertCircle, RefreshCw, Settings } from "lucide-react";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WeatherConfigDialog } from "@/components/WeatherConfigDialog";
+import { useHAStore } from "@/store/useHAStore";
+import { useState, useEffect } from "react";
 
 const getWeatherIcon = (condition: string) => {
   const lower = condition.toLowerCase();
@@ -17,6 +20,28 @@ const getWeatherIcon = (condition: string) => {
 
 export const WeatherCard = () => {
   const { weatherData, isLoading, error, refresh } = useWeatherData();
+  const entities = useHAStore((state) => state.entities);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [cityName, setCityName] = useState<string | null>(null);
+
+  // Récupérer le nom de la ville depuis input_text.ville_meteo
+  useEffect(() => {
+    const cityEntity = entities.find(e => e.entity_id === 'input_text.ville_meteo');
+    if (cityEntity && cityEntity.state && cityEntity.state !== 'unknown' && cityEntity.state !== 'unavailable') {
+      setCityName(cityEntity.state);
+    } else if (weatherData?.entity_id) {
+      // Fallback sur le friendly_name de l'entité météo
+      const weatherEntity = entities.find(e => e.entity_id === weatherData.entity_id);
+      setCityName(weatherEntity?.attributes?.friendly_name || null);
+    } else {
+      setCityName(null);
+    }
+  }, [entities, weatherData]);
+
+  const handleCitySaved = () => {
+    setIsConfigOpen(false);
+    setTimeout(() => refresh(), 1000);
+  };
 
   if (isLoading) {
     return (
@@ -69,13 +94,29 @@ export const WeatherCard = () => {
       <div className="absolute inset-0 bg-gradient-primary opacity-5" />
       
       <div className="relative p-8 space-y-6">
-        {/* En-tête */}
+        {/* En-tête avec ville et bouton configuration */}
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-muted-foreground">Météo</h3>
-          <div className="text-xs text-muted-foreground capitalize">
-            {weatherData.source === 'weather' ? 'Intégration' : 'Capteurs'}
+          <div>
+            <h3 className="text-lg font-medium text-muted-foreground">Météo</h3>
+            {cityName && (
+              <p className="text-sm text-muted-foreground/70 mt-0.5">{cityName}</p>
+            )}
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsConfigOpen(true)}
+            className="h-8 w-8 p-0"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
         </div>
+
+        <WeatherConfigDialog 
+          open={isConfigOpen} 
+          onOpenChange={setIsConfigOpen}
+          onCitySaved={handleCitySaved}
+        />
 
         {/* Température principale */}
         <div className="flex items-center justify-between">
