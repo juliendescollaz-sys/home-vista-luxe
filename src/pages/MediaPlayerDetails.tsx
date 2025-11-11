@@ -254,12 +254,12 @@ const MediaPlayerDetails = () => {
     <div className="min-h-screen bg-background pb-24 pt-20">
       <TopBar />
       
-      <div className="max-w-screen-xl mx-auto px-4 py-8">
+      <div className="max-w-screen-xl mx-auto px-4 pt-6 pb-8">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => navigate(-1)}
-          className="mb-4"
+          className="mb-6"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Retour
