@@ -240,14 +240,20 @@ export class HAClient {
     
     const data: any = { entity_id: entityId };
     
-    // Ne pas envoyer les paramètres optionnels s'ils sont undefined
-    if (mediaContentId !== undefined && mediaContentId !== "") {
-      data.media_content_id = mediaContentId;
-    }
+    // HA exige que media_content_type et media_content_id soient fournis ensemble
+    // Si l'un est défini, l'autre doit l'être aussi (même si c'est une chaîne vide)
+    const hasContentId = mediaContentId !== undefined;
+    const hasContentType = mediaContentType !== undefined;
     
-    if (mediaContentType !== undefined && mediaContentType !== "") {
+    if (hasContentId && hasContentType) {
+      data.media_content_id = mediaContentId;
       data.media_content_type = mediaContentType;
+    } else if (hasContentId || hasContentType) {
+      // Si un seul est défini, envoyer les deux avec l'autre vide
+      data.media_content_id = mediaContentId || "";
+      data.media_content_type = mediaContentType || "";
     }
+    // Sinon (aucun défini), ne rien ajouter = navigation racine
 
     console.log("📤 Payload browseMedia:", JSON.stringify(data));
     return this.sendWithResponse("media_player/browse_media", data);
