@@ -5,24 +5,41 @@ import { useState, useEffect } from "react";
 import type { HAEntity } from "@/types/homeassistant";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const HA_WEATHER_ENTITY = "weather.city_forecast";
+// Entités Home Assistant pour la météo
+const HA_ENTITIES = {
+  temp: "sensor.city_weather_temperature",
+  hum: "sensor.city_weather_humidity",
+  wind: "sensor.city_weather_wind_speed",
+  cond: "sensor.city_weather_condition",
+  fcj: "sensor.city_weather_forecast_json",
+};
 
 const getWeatherIcon = (condition: string) => {
   const lower = condition.toLowerCase();
-  if (lower.includes("rain") || lower.includes("rainy")) return CloudRain;
+  if (lower.includes("rain") || lower.includes("rainy") || lower.includes("pouring")) return CloudRain;
   if (lower.includes("snow")) return CloudSnow;
   if (lower.includes("fog") || lower.includes("mist")) return CloudFog;
   if (lower.includes("drizzle")) return CloudDrizzle;
   if (lower.includes("clear") || lower.includes("sunny")) return Sun;
+  if (lower.includes("wind")) return Wind;
   return Cloud;
 };
+
+interface WeatherData {
+  temperature: number;
+  humidity: number;
+  windSpeed: number;
+  condition: string;
+  forecast: any[];
+}
 
 export const WeatherCard = () => {
   const client = useHAStore((state) => state.client);
   const isConnected = useHAStore((state) => state.isConnected);
-  const [weatherEntity, setWeatherEntity] = useState<HAEntity | null>(null);
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
+  const [missingEntities, setMissingEntities] = useState<string[]>([]);
 
   // Récupération initiale et abonnement temps réel
   useEffect(() => {
@@ -32,6 +49,45 @@ export const WeatherCard = () => {
     }
 
     let unsubscribe: (() => void) | null = null;
+    let restFallbackInterval: NodeJS.Timeout | null = null;
+
+    const fetchWeatherData = async (states?: HAEntity[]): Promise<void> => {
+      try {
+        const allStates = states || await client.getStates();
+        
+        const tempEntity = allStates.find((e) => e.entity_id === HA_ENTITIES.temp);
+        const humEntity = allStates.find((e) => e.entity_id === HA_ENTITIES.hum);
+        const windEntity = allStates.find((e) => e.entity_id === HA_ENTITIES.wind);
+        const condEntity = allStates.find((e) => e.entity_id === HA_ENTITIES.cond);
+        const fcjEntity = allStates.find((e) => e.entity_id === HA_ENTITIES.fcj);
+
+        // Vérifier les entités manquantes
+        const missing: string[] = [];
+        if (!tempEntity) missing.push(HA_ENTITIES.temp);
+        if (!humEntity) missing.push(HA_ENTITIES.hum);
+        if (!windEntity) missing.push(HA_ENTITIES.wind);
+        if (!condEntity) missing.push(HA_ENTITIES.cond);
+        if (!fcjEntity) missing.push(HA_ENTITIES.fcj);
+
+        if (missing.length > 0) {
+          setMissingEntities(missing);
+          return;
+        }
+
+        setMissingEntities([]);
+        setWeatherData({
+          temperature: parseFloat(tempEntity?.state || "0"),
+          humidity: parseFloat(humEntity?.state || "0"),
+          windSpeed: parseFloat(windEntity?.state || "0"),
+          condition: condEntity?.state || "unknown",
+          forecast: fcjEntity?.attributes?.forecast || [],
+        });
+        setIsOffline(false);
+      } catch (error) {
+        console.error("Erreur récupération météo:", error);
+        setIsOffline(true);
+      }
+    };
 
     const initWeather = async () => {
       try {
@@ -39,22 +95,26 @@ export const WeatherCard = () => {
         
         // Récupération initiale
         const states = await client.getStates();
-        const entity = states.find((e) => e.entity_id === HA_WEATHER_ENTITY);
-        
-        if (entity) {
-          setWeatherEntity(entity);
-          setIsOffline(false);
-        }
+        await fetchWeatherData(states);
 
-        // Abonnement aux changements
+        // Abonnement aux changements d'état via WebSocket
         unsubscribe = client.subscribeStateChanges((data: any) => {
-          if (data.entity_id === HA_WEATHER_ENTITY) {
-            setWeatherEntity(data.new_state);
-            setIsOffline(false);
+          const entityIds = Object.values(HA_ENTITIES);
+          if (entityIds.includes(data.entity_id)) {
+            // Re-fetch toutes les données quand une entité change
+            fetchWeatherData();
           }
         });
+
+        // Fallback REST toutes les 5 minutes si WS disponible mais en backup
+        restFallbackInterval = setInterval(() => {
+          if (!client.isConnected()) {
+            setIsOffline(true);
+            fetchWeatherData();
+          }
+        }, 5 * 60 * 1000);
       } catch (error) {
-        console.error("Erreur récupération météo:", error);
+        console.error("Erreur initialisation météo:", error);
         setIsOffline(true);
       } finally {
         setIsLoading(false);
@@ -65,6 +125,7 @@ export const WeatherCard = () => {
 
     return () => {
       if (unsubscribe) unsubscribe();
+      if (restFallbackInterval) clearInterval(restFallbackInterval);
     };
   }, [client, isConnected]);
 
@@ -81,7 +142,7 @@ export const WeatherCard = () => {
     );
   }
 
-  if (!weatherEntity) {
+  if (missingEntities.length > 0) {
     return (
       <Card className="relative overflow-hidden bg-gradient-to-br from-blue-500/10 via-background/50 to-purple-500/10 backdrop-blur-lg border-border/30">
         <div className="absolute inset-0 bg-gradient-primary opacity-5" />
@@ -89,24 +150,27 @@ export const WeatherCard = () => {
         <div className="relative p-8 text-center space-y-4">
           <Cloud className="h-16 w-16 mx-auto text-blue-400/30" />
           <div>
-            <h3 className="text-lg font-semibold mb-2">Entité météo introuvable</h3>
-            <p className="text-sm text-muted-foreground">
-              Configurez l'entité <code className="bg-muted px-2 py-1 rounded">{HA_WEATHER_ENTITY}</code> dans Home Assistant
+            <h3 className="text-lg font-semibold mb-2">Entités météo introuvables</h3>
+            <p className="text-sm text-muted-foreground mb-3">
+              Configurez ces entités dans Home Assistant :
             </p>
+            <div className="space-y-1 text-xs">
+              {missingEntities.map((entity) => (
+                <code key={entity} className="block bg-muted px-2 py-1 rounded">{entity}</code>
+              ))}
+            </div>
           </div>
         </div>
       </Card>
     );
   }
 
-  const { attributes } = weatherEntity;
-  const temperature = attributes.temperature || 0;
-  const condition = attributes.friendly_name || weatherEntity.state;
-  const humidity = attributes.humidity || 0;
-  const windSpeed = attributes.wind_speed || 0;
-  const forecast = attributes.forecast || [];
+  if (!weatherData) {
+    return null;
+  }
 
-  const WeatherIcon = getWeatherIcon(weatherEntity.state);
+  const { temperature, humidity, windSpeed, condition, forecast } = weatherData;
+  const WeatherIcon = getWeatherIcon(condition);
 
   return (
     <Card className="relative overflow-hidden bg-gradient-to-br from-blue-500/10 via-background/50 to-purple-500/10 backdrop-blur-lg border-border/30">
@@ -115,12 +179,10 @@ export const WeatherCard = () => {
       <div className="relative p-8 space-y-6">
         {/* Localisation */}
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-muted-foreground">
-            {attributes.friendly_name || "Météo"}
-          </h3>
+          <h3 className="text-lg font-medium text-muted-foreground">Météo</h3>
           {isOffline && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <WifiOff className="h-4 w-4" />
+            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
+              <WifiOff className="h-3 w-3" />
               Hors-ligne (REST)
             </div>
           )}
@@ -152,7 +214,7 @@ export const WeatherCard = () => {
                 <Wind className="h-5 w-5 text-blue-400" />
                 <div>
                   <p className="text-sm text-muted-foreground">Vent</p>
-                  <p className="font-semibold">{Math.round(windSpeed)} km/h</p>
+                  <p className="font-semibold">{windSpeed.toFixed(1)} m/s</p>
                 </div>
               </div>
             )}
