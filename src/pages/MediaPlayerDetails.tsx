@@ -249,21 +249,7 @@ const MediaPlayerDetails = () => {
     setSelectedMaster(entity.entity_id);
     
     try {
-      await client?.callService(
-        "sonos",
-        "join",
-        { master: entity.entity_id },
-        { entity_id: Array.from(selectedMembers) }
-      );
-      
-      // Rafraîchir les états
-      setTimeout(async () => {
-        if (client) {
-          const newStates = await client.getStates();
-          useHAStore.getState().setEntities(newStates);
-        }
-      }, 500);
-      
+      await createGroup();
       toast.success("Groupe créé");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erreur lors de la création du groupe");
@@ -468,19 +454,20 @@ const MediaPlayerDetails = () => {
                   {/* Grouper avec d'autres enceintes */}
                   <div className="space-y-3">
                     <Label className="text-sm font-medium">Grouper avec</Label>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {sonosDevices
                         .filter((d) => d.entity_id !== decodedEntityId)
                         .map((device) => (
-                          <div key={`member-${device.entity_id}`} className="flex items-center gap-2">
+                          <div key={`member-${device.entity_id}`} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => handleMemberToggle(device.entity_id, !selectedMembers.has(device.entity_id))}>
                             <Checkbox
                               id={`member-${device.entity_id}`}
                               checked={selectedMembers.has(device.entity_id)}
                               onCheckedChange={(checked) =>
                                 handleMemberToggle(device.entity_id, checked as boolean)
                               }
+                              className="h-5 w-5"
                             />
-                            <Label htmlFor={`member-${device.entity_id}`} className="text-sm font-normal">
+                            <Label htmlFor={`member-${device.entity_id}`} className="text-base font-normal flex-1 cursor-pointer">
                               {device.friendly_name}
                             </Label>
                           </div>
@@ -502,32 +489,38 @@ const MediaPlayerDetails = () => {
                     </Button>
                   </div>
 
-                  {/* Volumes individuels */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Volumes individuels</Label>
-                    {sonosDevices.map((device) => (
-                      <div key={`vol-${device.entity_id}`} className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-xs">{device.friendly_name}</Label>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleUnjoin(device.entity_id)}
-                            disabled={zonesPending}
-                            className="h-6 text-xs"
-                          >
-                            Retirer
-                          </Button>
-                        </div>
-                        <Slider
-                          value={[Math.round((device.volume_level || 0) * 100)]}
-                          onValueChange={(value) => handleSonosVolumeChange(device.entity_id, value)}
-                          max={100}
-                          step={1}
-                        />
-                      </div>
-                    ))}
-                  </div>
+                  {/* Volumes individuels - afficher uniquement si un groupe existe */}
+                  {entity && entity.attributes.group_members && entity.attributes.group_members.length > 1 && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Volumes individuels</Label>
+                      {entity.attributes.group_members.map((memberId: string) => {
+                        const device = sonosDevices.find(d => d.entity_id === memberId);
+                        if (!device) return null;
+                        return (
+                          <div key={`vol-${device.entity_id}`} className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs">{device.friendly_name}</Label>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleUnjoin(device.entity_id)}
+                                disabled={zonesPending}
+                                className="h-6 text-xs"
+                              >
+                                Retirer
+                              </Button>
+                            </div>
+                            <Slider
+                              value={[Math.round((device.volume_level || 0) * 100)]}
+                              onValueChange={(value) => handleSonosVolumeChange(device.entity_id, value)}
+                              max={100}
+                              step={1}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
