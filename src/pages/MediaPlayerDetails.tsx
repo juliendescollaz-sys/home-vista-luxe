@@ -251,13 +251,16 @@ const MediaPlayerDetails = () => {
     try {
       await createGroup();
       
+      // Réinitialiser les sélections
+      setSelectedMembers(new Set());
+      
       // Rafraîchir les états immédiatement
       setTimeout(async () => {
         if (client) {
           const newStates = await client.getStates();
           useHAStore.getState().setEntities(newStates);
         }
-      }, 800);
+      }, 1000);
       
       toast.success("Groupe créé");
     } catch (error) {
@@ -286,6 +289,9 @@ const MediaPlayerDetails = () => {
   const handleUnjoinAll = async () => {
     try {
       await unjoinAll();
+      
+      // Réinitialiser les sélections
+      setSelectedMembers(new Set());
       
       // Rafraîchir les états
       setTimeout(async () => {
@@ -517,32 +523,42 @@ const MediaPlayerDetails = () => {
                   </div>
 
                   {/* Volumes individuels - afficher uniquement si un groupe existe */}
-                  {entity && entity.attributes.group_members && entity.attributes.group_members.length > 1 && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Volumes individuels</Label>
+                  {entity && entity.attributes.group_members && Array.isArray(entity.attributes.group_members) && entity.attributes.group_members.length > 1 && (
+                    <div className="space-y-3 pt-4 border-t">
+                      <Label className="text-sm font-medium">Volumes individuels du groupe</Label>
                       {entity.attributes.group_members.map((memberId: string) => {
-                        const device = sonosDevices.find(d => d.entity_id === memberId);
-                        if (!device) return null;
+                        const memberEntity = entities.find(e => e.entity_id === memberId);
+                        if (!memberEntity) return null;
+                        
+                        const friendlyName = memberEntity.attributes.friendly_name || memberId;
+                        const volumeLevel = memberEntity.attributes.volume_level || 0;
+                        
                         return (
-                          <div key={`vol-${device.entity_id}`} className="space-y-1">
+                          <div key={`vol-${memberId}`} className="space-y-2">
                             <div className="flex items-center justify-between">
-                              <Label className="text-xs">{device.friendly_name}</Label>
+                              <Label className="text-sm font-medium">{friendlyName}</Label>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleUnjoin(device.entity_id)}
+                                onClick={() => handleUnjoin(memberId)}
                                 disabled={zonesPending}
-                                className="h-6 text-xs"
+                                className="h-7 text-xs"
                               >
                                 Retirer
                               </Button>
                             </div>
-                            <Slider
-                              value={[Math.round((device.volume_level || 0) * 100)]}
-                              onValueChange={(value) => handleSonosVolumeChange(device.entity_id, value)}
-                              max={100}
-                              step={1}
-                            />
+                            <div className="flex items-center gap-3">
+                              <Slider
+                                value={[Math.round(volumeLevel * 100)]}
+                                onValueChange={(value) => handleSonosVolumeChange(memberId, value)}
+                                max={100}
+                                step={1}
+                                className="flex-1"
+                              />
+                              <span className="text-xs text-muted-foreground w-12 text-right">
+                                {Math.round(volumeLevel * 100)}%
+                              </span>
+                            </div>
                           </div>
                         );
                       })}
