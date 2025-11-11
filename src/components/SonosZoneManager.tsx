@@ -2,12 +2,12 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Volume2, Users, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useHAStore } from "@/store/useHAStore";
 import type { HAEntity } from "@/types/homeassistant";
+import { VolumeSlider } from "@/components/VolumeSlider";
 
 type GroupingService = "media_player" | "sonos" | "none";
 
@@ -24,7 +24,6 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
   
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState(false);
-  const [volumeTimers, setVolumeTimers] = useState<Record<string, NodeJS.Timeout>>({});
   const [groupingService, setGroupingService] = useState<GroupingService>("none");
 
   // Détecter les services disponibles au démarrage
@@ -112,25 +111,17 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
     }
   }, [client]);
 
-  const handleVolumeChange = useCallback((entityId: string, value: number[]) => {
-    if (volumeTimers[entityId]) {
-      clearTimeout(volumeTimers[entityId]);
+  const handleVolumeChange = useCallback(async (entityId: string, volumeLevel: number) => {
+    try {
+      await client.callService("media_player", "volume_set", {
+        volume_level: volumeLevel,
+      }, {
+        entity_id: entityId,
+      });
+    } catch (error) {
+      toast.error("Erreur lors du changement de volume");
     }
-
-    const timer = setTimeout(async () => {
-      try {
-        await client.callService("media_player", "volume_set", {
-          volume_level: value[0] / 100,
-        }, {
-          entity_id: entityId,
-        });
-      } catch (error) {
-        toast.error("Erreur lors du changement de volume");
-      }
-    }, 150);
-
-    setVolumeTimers({ ...volumeTimers, [entityId]: timer });
-  }, [client, volumeTimers]);
+  }, [client]);
 
   const handleCreateGroup = useCallback(async () => {
     if (selectedMembers.size === 0 || !client || groupingService === "none") return;
@@ -284,11 +275,10 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
           </div>
           
           <div className="flex items-center gap-3">
-            <Slider
-              value={[Math.round((entity.attributes.volume_level || 0) * 100)]}
-              onValueChange={(value) => handleVolumeChange(entity.entity_id, value)}
-              max={100}
-              step={1}
+            <VolumeSlider
+              entityId={entity.entity_id}
+              volumeLevel={entity.attributes.volume_level || 0}
+              onVolumeChange={handleVolumeChange}
               className="flex-1"
             />
             <span className="text-sm text-muted-foreground w-12 text-right">
@@ -332,11 +322,10 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <Slider
-                      value={[Math.round(volumeLevel * 100)]}
-                      onValueChange={(value) => handleVolumeChange(memberId, value)}
-                      max={100}
-                      step={1}
+                    <VolumeSlider
+                      entityId={memberId}
+                      volumeLevel={volumeLevel}
+                      onVolumeChange={handleVolumeChange}
                       className="flex-1"
                     />
                     <span className="text-xs text-muted-foreground w-12 text-right">
