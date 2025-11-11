@@ -119,8 +119,16 @@ export const useWeatherData = () => {
   };
 
   const discoverWeatherSource = useCallback(async (): Promise<UnifiedWeather> => {
-    const config = await fetchConfig();
     const allStates = entities;
+
+    // Skip config fetch if it fails (CORS issue with Nabu Casa)
+    let config: HAConfig | null = null;
+    try {
+      config = await fetchConfig();
+    } catch (err) {
+      // Continue without config, use defaults
+      console.warn("Config fetch failed, using defaults");
+    }
 
     // 1. Try to find weather.* entity
     const weatherEntities = allStates.filter(e => e.entity_id.startsWith('weather.'));
@@ -228,7 +236,7 @@ export const useWeatherData = () => {
         precipitation: 'mm',
       },
     };
-  }, [client, entities]);
+  }, [entities]);
 
   const refresh = useCallback(async () => {
     if (!client || !isConnected) {
@@ -247,45 +255,46 @@ export const useWeatherData = () => {
     } catch (err: any) {
       console.error("Weather discovery error:", err);
       setError(err.message || "Erreur de découverte");
-      
-      // Exponential backoff retry
-      const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
-      setRetryCount(prev => prev + 1);
-      
-      retryTimeoutRef.current = setTimeout(() => {
-        refresh();
-      }, delay);
     } finally {
       setIsLoading(false);
     }
-  }, [client, isConnected, discoverWeatherSource, retryCount]);
+  }, [client, isConnected, discoverWeatherSource]);
 
   // Initial fetch and real-time subscription
   useEffect(() => {
-    if (!client || !isConnected) {
+    if (!client || !isConnected || entities.length === 0) {
       setIsLoading(false);
       return;
     }
 
-    refresh();
+    // Debounce pour éviter les appels multiples
+    const timer = setTimeout(() => {
+      refresh();
+    }, 100);
 
-    // Subscribe to state changes
-    unsubscribeRef.current = client.subscribeStateChanges((data: any) => {
-      // Refresh if any weather or sensor entity changes
-      if (data.entity_id?.startsWith('weather.') || data.entity_id?.startsWith('sensor.')) {
-        refresh();
-      }
-    });
+    // Subscribe to state changes only once
+    if (!unsubscribeRef.current) {
+      unsubscribeRef.current = client.subscribeStateChanges((data: any) => {
+        // Refresh if weather/sensor/input entities change
+        if (
+          data.entity_id?.startsWith('weather.') || 
+          data.entity_id?.startsWith('sensor.') ||
+          data.entity_id?.startsWith('input_text.ville_meteo') ||
+          data.entity_id?.startsWith('input_number.weather_')
+        ) {
+          // Debounce WebSocket updates
+          setTimeout(() => refresh(), 500);
+        }
+      });
+    }
 
     return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-      }
+      clearTimeout(timer);
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
       }
     };
-  }, [client, isConnected, refresh]);
+  }, [client, isConnected, entities.length, refresh]);
 
   return {
     weatherData,

@@ -40,7 +40,7 @@ export const WeatherCard = () => {
 
   const handleCitySaved = () => {
     setIsConfigOpen(false);
-    setTimeout(() => refresh(), 1000);
+    // Le WebSocket va automatiquement refresh les données, pas besoin de forcer
   };
 
   if (isLoading) {
