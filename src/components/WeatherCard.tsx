@@ -35,6 +35,13 @@ interface WeatherData {
   forecast: any[];
 }
 
+// Vérifier si une valeur est valide
+const isValid = (value: any): boolean => {
+  if (value === undefined || value === null || value === '') return false;
+  const str = String(value).toLowerCase();
+  return str !== 'unknown' && str !== 'unavailable' && str !== 'none';
+};
+
 export const WeatherCard = () => {
   const client = useHAStore((state) => state.client);
   const isConnected = useHAStore((state) => state.isConnected);
@@ -85,11 +92,18 @@ export const WeatherCard = () => {
         }
 
         setMissingEntities([]);
+        
+        // Parser avec protection contre les valeurs invalides
+        const temp = isValid(tempEntity?.state) ? parseFloat(tempEntity.state) : NaN;
+        const hum = isValid(humEntity?.state) ? parseFloat(humEntity.state) : NaN;
+        const wind = isValid(windEntity?.state) ? parseFloat(windEntity.state) : NaN;
+        const cond = isValid(condEntity?.state) ? String(condEntity.state) : "cloudy";
+        
         setWeatherData({
-          temperature: parseFloat(tempEntity?.state || "0"),
-          humidity: parseFloat(humEntity?.state || "0"),
-          windSpeed: parseFloat(windEntity?.state || "0"),
-          condition: condEntity?.state || "unknown",
+          temperature: temp,
+          humidity: hum,
+          windSpeed: wind,
+          condition: cond,
           forecast: fcjEntity?.attributes?.forecast || [],
         });
         setIsOffline(false);
@@ -181,6 +195,12 @@ export const WeatherCard = () => {
 
   const { temperature, humidity, windSpeed, condition, forecast } = weatherData;
   const WeatherIcon = getWeatherIcon(condition);
+  
+  // Gérer l'affichage avec fallbacks
+  const tempDisplay = Number.isFinite(temperature) ? `${Math.round(temperature)}°` : '—°';
+  const humDisplay = Number.isFinite(humidity) ? `${humidity}%` : '—';
+  const windDisplay = Number.isFinite(windSpeed) ? `${windSpeed.toFixed(1)} m/s` : '—';
+  const isDataLoading = !Number.isFinite(temperature);
 
   return (
     <Card className="relative overflow-hidden bg-gradient-to-br from-blue-500/10 via-background/50 to-purple-500/10 backdrop-blur-lg border-border/30">
@@ -217,30 +237,34 @@ export const WeatherCard = () => {
         {/* Température principale */}
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-6xl font-bold">{Math.round(temperature)}°</div>
-            <p className="text-xl text-muted-foreground mt-2 capitalize">{condition}</p>
+            <div className="text-6xl font-bold">{tempDisplay}</div>
+            {isDataLoading ? (
+              <p className="text-sm text-muted-foreground mt-2">Mise à jour en cours...</p>
+            ) : (
+              <p className="text-xl text-muted-foreground mt-2 capitalize">{condition}</p>
+            )}
           </div>
           <WeatherIcon className="h-24 w-24 text-blue-400/50" />
         </div>
 
         {/* Détails météo */}
-        {(humidity > 0 || windSpeed > 0) && (
+        {!isDataLoading && (Number.isFinite(humidity) || Number.isFinite(windSpeed)) && (
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/30">
-            {humidity > 0 && (
+            {Number.isFinite(humidity) && (
               <div className="flex items-center gap-3">
                 <Droplets className="h-5 w-5 text-blue-400" />
                 <div>
                   <p className="text-sm text-muted-foreground">Humidité</p>
-                  <p className="font-semibold">{humidity}%</p>
+                  <p className="font-semibold">{humDisplay}</p>
                 </div>
               </div>
             )}
-            {windSpeed > 0 && (
+            {Number.isFinite(windSpeed) && (
               <div className="flex items-center gap-3">
                 <Wind className="h-5 w-5 text-blue-400" />
                 <div>
                   <p className="text-sm text-muted-foreground">Vent</p>
-                  <p className="font-semibold">{windSpeed.toFixed(1)} m/s</p>
+                  <p className="font-semibold">{windDisplay}</p>
                 </div>
               </div>
             )}

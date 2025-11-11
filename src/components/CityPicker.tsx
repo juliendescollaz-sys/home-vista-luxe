@@ -13,6 +13,39 @@ const HA_ENTITIES = {
   lon: "input_number.weather_lon",
 };
 
+// Polling pour attendre que les données deviennent valides
+const waitForValidData = async (entityId: string, timeoutMs: number): Promise<boolean> => {
+  const start = Date.now();
+  const connection = useHAStore.getState().connection;
+  
+  if (!connection) return false;
+
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const response = await fetch(`${connection.url}/api/states/${entityId}`, {
+        headers: { 
+          Authorization: `Bearer ${connection.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const value = parseFloat(data.state);
+        if (Number.isFinite(value) && value !== 0) {
+          return true;
+        }
+      }
+    } catch (error) {
+      console.warn("Polling error:", error);
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 800));
+  }
+  
+  return false;
+};
+
 interface CityResult {
   label: string;
   lat: number;
@@ -84,35 +117,51 @@ export const CityPicker = ({ onCitySaved }: CityPickerProps) => {
 
     setIsLoading(true);
     try {
-      // Mise à jour de la ville (input_text)
+      // Mise à jour de la ville, lat, lon dans l'ordre
       await client.callService("input_text", "set_value", {
         value: selectedCity.label,
       }, {
         entity_id: HA_ENTITIES.city,
       });
 
-      // Mise à jour de la latitude (input_number)
       await client.callService("input_number", "set_value", {
         value: selectedCity.lat,
       }, {
         entity_id: HA_ENTITIES.lat,
       });
 
-      // Mise à jour de la longitude (input_number)
       await client.callService("input_number", "set_value", {
         value: selectedCity.lon,
       }, {
         entity_id: HA_ENTITIES.lon,
       });
 
-      toast.success("Ville mise à jour dans Home Assistant");
+      // Forcer la mise à jour immédiate du capteur REST
+      try {
+        await client.callService("homeassistant", "update_entity", {}, {
+          entity_id: "sensor.metno_brut",
+        });
+      } catch (updateError) {
+        console.warn("Impossible de forcer update_entity:", updateError);
+      }
+
+      // Attendre que les données météo deviennent valides (polling 8s max)
+      toast.loading("Mise à jour de la météo...");
+      const tempValid = await waitForValidData("sensor.city_weather_temperature", 8000);
+      
+      if (tempValid) {
+        toast.success("Ville mise à jour dans Home Assistant");
+      } else {
+        toast.success("Ville enregistrée (données en cours de chargement)");
+      }
+
       setSearch("");
       setSelectedCity(null);
       setCities([]);
       
       // Notifier le parent pour rafraîchir les données météo
       if (onCitySaved) {
-        setTimeout(() => onCitySaved(), 1000); // Délai pour laisser HA traiter
+        onCitySaved();
       }
     } catch (error: any) {
       console.error("Erreur lors de la mise à jour de la ville:", error);
