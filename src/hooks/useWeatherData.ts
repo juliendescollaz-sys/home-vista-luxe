@@ -392,13 +392,17 @@ export function useWeatherData() {
     }
   }, [client, entities, isConnected, selectWeather, weatherEntity, selectedCity]);
 
-  // Refresh when selectedCity changes
+  // Refresh when selectedCity changes (avec debounce pour éviter les sauts)
   useEffect(() => {
-    if (selectedCity) {
+    if (!selectedCity) return;
+    
+    const timer = setTimeout(() => {
       console.log("🏙️ Ville sélectionnée changée, refresh...");
       refresh();
-    }
-  }, [selectedCity, refresh]);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [selectedCity]); // Pas besoin de refresh dans les deps, on l'appelle directement
 
   // Initial load - wait for entities to be populated
   useEffect(() => {

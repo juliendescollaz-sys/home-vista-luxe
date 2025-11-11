@@ -134,9 +134,9 @@ export const CityPicker = ({ onCitySaved }: CityPickerProps) => {
       setSelectedCity(null);
       setCities([]);
       
-      toast.success("Ville mise à jour dans Home Assistant");
+      toast.success("Ville enregistrée");
       
-      // Fermer le dialog immédiatement
+      // Fermer le dialog immédiatement via callback
       if (onCitySaved) {
         onCitySaved();
       }

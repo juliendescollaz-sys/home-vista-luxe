@@ -14,16 +14,23 @@ interface WeatherConfigDialogProps {
 }
 
 export const WeatherConfigDialog = ({ open, onOpenChange, onCitySaved }: WeatherConfigDialogProps) => {
+  const handleCitySaved = () => {
+    // Fermer immédiatement et proprement
+    if (onCitySaved) {
+      onCitySaved();
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md top-[10%] translate-y-0">
         <DialogHeader>
           <DialogTitle>Configuration Météo</DialogTitle>
           <DialogDescription>
             Sélectionnez une ville pour afficher la météo
           </DialogDescription>
         </DialogHeader>
-        <CityPicker onCitySaved={onCitySaved} />
+        <CityPicker onCitySaved={handleCitySaved} />
       </DialogContent>
     </Dialog>
   );
