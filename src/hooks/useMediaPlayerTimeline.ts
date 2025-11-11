@@ -65,7 +65,8 @@ export function useMediaPlayerTimeline(
     isDragging,
   ]);
 
-  // Animation de la timeline (1s interval)
+  // Timer pour forcer un re-render toutes les secondes (animation visuelle)
+  const [, forceUpdate] = useState(0);
   useEffect(() => {
     if (timeline.state !== "playing") {
       if (timerRef.current) {
@@ -75,20 +76,12 @@ export function useMediaPlayerTimeline(
       return;
     }
 
-    const tick = () => {
+    // Forcer un re-render toutes les secondes pour animer la timeline
+    timerRef.current = window.setInterval(() => {
       if (!isDragging && suppressRef.current !== entity.entity_id) {
-        setTimeline((prev) => ({
-          ...prev,
-          position: computePositionNow(prev, Date.now()),
-        }));
+        forceUpdate(Date.now());
       }
-    };
-
-    // Premier tick immédiat
-    tick();
-
-    // Puis toutes les secondes
-    timerRef.current = window.setInterval(tick, 1000);
+    }, 1000);
 
     return () => {
       if (timerRef.current) {
@@ -96,7 +89,7 @@ export function useMediaPlayerTimeline(
         timerRef.current = null;
       }
     };
-  }, [timeline.state, timeline.positionUpdatedAt, isDragging, entity.entity_id, computePositionNow]);
+  }, [timeline.state, isDragging, entity.entity_id]);
 
   // Contrôles
   const handlePlayPause = useCallback(async () => {
@@ -150,7 +143,10 @@ export function useMediaPlayerTimeline(
     }, 400);
   }, [client, entity.entity_id, localPosition]);
 
-  const currentPosition = isDragging ? localPosition : timeline.position;
+  // Calculer la position courante de façon absolue (pas incrémentale)
+  const currentPosition = isDragging 
+    ? localPosition 
+    : computePositionNow(timeline, Date.now());
   const currentDuration = timeline.duration;
 
   return {

@@ -1,11 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { HAEntity } from "@/types/homeassistant";
-import { Music, Pause, Play, Loader2, SkipBack, SkipForward } from "lucide-react";
+import { Music, Pause, Play, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
 import { useHAStore } from "@/store/useHAStore";
 import { useMediaPlayerTimeline } from "@/hooks/useMediaPlayerTimeline";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface MediaPlayerCardProps {
@@ -23,7 +22,6 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
     duration,
     state: playerState,
     isDragging,
-    handlePlayPause,
     handleSeekStart,
     handleSeekChange,
     handleSeekEnd,
@@ -54,27 +52,6 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
     navigate(`/media-player/${encodeURIComponent(entity.entity_id)}`);
   };
 
-  const handlePrevious = async () => {
-    if (!client) return;
-    try {
-      await client.callService("media_player", "media_previous_track", undefined, {
-        entity_id: entity.entity_id,
-      });
-    } catch (error) {
-      console.error("Erreur previous:", error);
-    }
-  };
-
-  const handleNext = async () => {
-    if (!client) return;
-    try {
-      await client.callService("media_player", "media_next_track", undefined, {
-        entity_id: entity.entity_id,
-      });
-    } catch (error) {
-      console.error("Erreur next:", error);
-    }
-  };
 
   return (
     <Card
@@ -155,44 +132,6 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
           </div>
         )}
 
-        {/* Contrôles */}
-        <div className="flex items-center justify-center gap-2" data-control>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={handlePrevious}
-            disabled={isBuffering}
-          >
-            <SkipBack className="h-4 w-4" />
-          </Button>
-
-          <Button
-            variant="default"
-            size="icon"
-            className="h-10 w-10"
-            onClick={handlePlayPause}
-            disabled={isBuffering}
-          >
-            {isBuffering ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : isPlaying ? (
-              <Pause className="h-5 w-5" />
-            ) : (
-              <Play className="h-5 w-5" />
-            )}
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={handleNext}
-            disabled={isBuffering}
-          >
-            <SkipForward className="h-4 w-4" />
-          </Button>
-        </div>
       </div>
     </Card>
   );
