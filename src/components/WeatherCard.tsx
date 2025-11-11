@@ -22,7 +22,12 @@ export function WeatherCard() {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
   const handleCitySaved = () => {
+    // Fermer immédiatement le dialog sans attendre le refresh
     setIsConfigOpen(false);
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    setIsConfigOpen(open);
   };
 
   if (isLoading) {
@@ -183,7 +188,7 @@ export function WeatherCard() {
 
       <WeatherConfigDialog 
         open={isConfigOpen} 
-        onOpenChange={setIsConfigOpen} 
+        onOpenChange={handleOpenChange} 
         onCitySaved={handleCitySaved}
       />
     </>

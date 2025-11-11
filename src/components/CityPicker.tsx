@@ -129,13 +129,14 @@ export const CityPicker = ({ onCitySaved }: CityPickerProps) => {
         }
       }
 
-      toast.success("Ville mise à jour dans Home Assistant");
-
+      // Nettoyer les champs
       setSearch("");
       setSelectedCity(null);
       setCities([]);
       
-      // Notifier le parent pour rafraîchir les données météo
+      toast.success("Ville mise à jour dans Home Assistant");
+      
+      // Fermer le dialog immédiatement
       if (onCitySaved) {
         onCitySaved();
       }
