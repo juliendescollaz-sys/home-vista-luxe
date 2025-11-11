@@ -1,9 +1,11 @@
 import { Card } from "@/components/ui/card";
-import { Cloud, CloudRain, Sun, Wind, Droplets, CloudFog, CloudSnow, CloudDrizzle, WifiOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Cloud, CloudRain, Sun, Wind, Droplets, CloudFog, CloudSnow, CloudDrizzle, WifiOff, Settings } from "lucide-react";
 import { useHAStore } from "@/store/useHAStore";
 import { useState, useEffect } from "react";
 import type { HAEntity } from "@/types/homeassistant";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WeatherConfigDialog } from "@/components/WeatherConfigDialog";
 
 // Entités Home Assistant pour la météo
 const HA_ENTITIES = {
@@ -40,6 +42,7 @@ export const WeatherCard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
   const [missingEntities, setMissingEntities] = useState<string[]>([]);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
 
   // Récupération initiale et abonnement temps réel
   useEffect(() => {
@@ -177,16 +180,31 @@ export const WeatherCard = () => {
       <div className="absolute inset-0 bg-gradient-primary opacity-5" />
       
       <div className="relative p-8 space-y-6">
-        {/* Localisation */}
+        {/* En-tête avec bouton configurer */}
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-muted-foreground">Météo</h3>
-          {isOffline && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
-              <WifiOff className="h-3 w-3" />
-              Hors-ligne (REST)
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-medium text-muted-foreground">Météo</h3>
+            {isOffline && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
+                <WifiOff className="h-3 w-3" />
+                Hors-ligne (REST)
+              </div>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsConfigOpen(true)}
+            className="h-8 w-8 p-0"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
         </div>
+        
+        <WeatherConfigDialog 
+          open={isConfigOpen} 
+          onOpenChange={setIsConfigOpen} 
+        />
 
         {/* Température principale */}
         <div className="flex items-center justify-between">
