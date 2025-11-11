@@ -17,13 +17,13 @@ interface PendingSeek {
 
 export function useMediaPlayerTimeline(
   client: HAClient | null,
-  entity: HAEntity
+  entity: HAEntity | undefined
 ) {
   const [timeline, setTimeline] = useState<TimelineState>({
-    position: entity.attributes.media_position || 0,
-    duration: entity.attributes.media_duration || 0,
-    state: entity.state as any,
-    positionUpdatedAt: entity.attributes.media_position_updated_at,
+    position: entity?.attributes?.media_position || 0,
+    duration: entity?.attributes?.media_duration || 0,
+    state: (entity?.state as any) || "idle",
+    positionUpdatedAt: entity?.attributes?.media_position_updated_at,
   });
 
   const [isDragging, setIsDragging] = useState(false);
@@ -55,14 +55,14 @@ export function useMediaPlayerTimeline(
 
   // Mise à jour depuis l'entité HA (avec gestion pendingSeek)
   useEffect(() => {
-    if (isDragging) return;
+    if (!entity || isDragging) return;
     
     const isSuppress = suppressRef.current === entity.entity_id;
     const pending = pendingSeekRef.current;
 
     // Si on attend la confirmation du seek
     if (isSuppress && pending) {
-      const haPos = entity.attributes.media_position || 0;
+      const haPos = entity.attributes?.media_position || 0;
       const positionConfirmed = Math.abs(haPos - pending.pos) <= 1.5;
       const timedOut = Date.now() > pending.deadline;
 
@@ -81,24 +81,25 @@ export function useMediaPlayerTimeline(
 
     // Mise à jour normale depuis HA
     setTimeline({
-      position: entity.attributes.media_position || 0,
-      duration: entity.attributes.media_duration || 0,
+      position: entity.attributes?.media_position || 0,
+      duration: entity.attributes?.media_duration || 0,
       state: entity.state as any,
-      positionUpdatedAt: entity.attributes.media_position_updated_at,
+      positionUpdatedAt: entity.attributes?.media_position_updated_at,
     });
   }, [
-    entity.attributes.media_position,
-    entity.attributes.media_duration,
-    entity.attributes.media_position_updated_at,
-    entity.state,
-    entity.entity_id,
+    entity,
+    entity?.attributes?.media_position,
+    entity?.attributes?.media_duration,
+    entity?.attributes?.media_position_updated_at,
+    entity?.state,
+    entity?.entity_id,
     isDragging,
   ]);
 
   // Timer pour forcer un re-render toutes les secondes (animation visuelle)
   const [, forceUpdate] = useState(0);
   useEffect(() => {
-    if (timeline.state !== "playing") {
+    if (!entity || timeline.state !== "playing") {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -119,11 +120,11 @@ export function useMediaPlayerTimeline(
         timerRef.current = null;
       }
     };
-  }, [timeline.state, isDragging, entity.entity_id]);
+  }, [entity, timeline.state, isDragging]);
 
   // Contrôles
   const handlePlayPause = useCallback(async () => {
-    if (!client) return;
+    if (!client || !entity) return;
 
     try {
       if (timeline.state === "playing") {
@@ -138,20 +139,22 @@ export function useMediaPlayerTimeline(
     } catch (error) {
       console.error("Erreur play/pause:", error);
     }
-  }, [client, entity.entity_id, timeline.state]);
+  }, [client, entity, timeline.state]);
 
   // Seek handlers
   const handleSeekStart = useCallback(() => {
+    if (!entity) return;
     setIsDragging(true);
     suppressRef.current = entity.entity_id;
     setLocalPosition(timeline.position);
-  }, [entity.entity_id, timeline.position]);
+  }, [entity, timeline.position]);
 
   const handleSeekChange = useCallback((value: number) => {
     setLocalPosition(value);
   }, []);
 
   const handleSeekEnd = useCallback(async () => {
+    if (!entity) return;
     const wasPlaying = timeline.state === "playing";
     
     setIsDragging(false);
@@ -189,7 +192,7 @@ export function useMediaPlayerTimeline(
       suppressRef.current = null;
       pendingSeekRef.current = null;
     }
-  }, [client, entity.entity_id, localPosition, timeline.state]);
+  }, [client, entity, localPosition, timeline.state]);
 
   // Calculer la position courante de façon absolue (pas incrémentale)
   const currentPosition = isDragging 
