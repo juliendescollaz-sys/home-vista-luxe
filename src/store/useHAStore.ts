@@ -21,6 +21,7 @@ interface HAStore {
   favorites: string[];
   isConnected: boolean;
   areaPhotos: Record<string, string>;
+  weatherEntity: string | null;
   
   setConnection: (connection: HAConnection) => void;
   setClient: (client: HAClient | null) => void;
@@ -32,6 +33,7 @@ interface HAStore {
   toggleFavorite: (entityId: string) => void;
   setConnected: (connected: boolean) => void;
   setAreaPhoto: (areaId: string, photoUrl: string) => void;
+  setWeatherEntity: (entityId: string | null) => void;
   disconnect: () => void;
 }
 
@@ -48,6 +50,7 @@ export const useHAStore = create<HAStore>()(
       favorites: [],
       isConnected: false,
       areaPhotos: {},
+      weatherEntity: null,
 
       setConnection: (connection) => set({ connection }),
       setClient: (client) => set({ client }),
@@ -69,6 +72,8 @@ export const useHAStore = create<HAStore>()(
         set((state) => ({
           areaPhotos: { ...state.areaPhotos, [areaId]: photoUrl },
         })),
+
+      setWeatherEntity: (entityId) => set({ weatherEntity: entityId }),
       
       disconnect: () =>
         set({
@@ -80,11 +85,12 @@ export const useHAStore = create<HAStore>()(
     {
       name: "ha-storage",
       partialize: (state) => ({
-        // Persister les favoris et les photos des pièces
+        // Persister les favoris, les photos des pièces et l'entité météo
         favorites: state.favorites,
         areaPhotos: state.areaPhotos,
+        weatherEntity: state.weatherEntity,
       }),
-      version: 3,
+      version: 4,
     }
   )
 );

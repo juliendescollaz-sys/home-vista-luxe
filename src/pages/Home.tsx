@@ -3,13 +3,16 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WeatherCard } from "@/components/WeatherCard";
+import { WeatherConfigDialog } from "@/components/WeatherConfigDialog";
 import { DeviceCard } from "@/components/DeviceCard";
 import { toast } from "sonner";
+import { useState } from "react";
 
 const Home = () => {
   const entities = useHAStore((state) => state.entities);
   const favorites = useHAStore((state) => state.favorites);
   const isConnected = useHAStore((state) => state.isConnected);
+  const [weatherConfigOpen, setWeatherConfigOpen] = useState(false);
 
   // Appareils actifs uniquement
   const activeDevices = entities?.filter(e => 
@@ -25,10 +28,6 @@ const Home = () => {
   const handleDeviceToggle = (entityId: string) => {
     // TODO: Implémenter le toggle via HA
     toast.info("Contrôle de l'appareil à venir");
-  };
-
-  const handleWeatherConfigure = () => {
-    toast.info("Configuration météo à venir");
   };
 
   if (!isConnected) {
@@ -51,7 +50,7 @@ const Home = () => {
         {/* Tuile météo centrée */}
         <div className="flex justify-center animate-fade-in">
           <div className="w-full max-w-xl">
-            <WeatherCard onConfigure={handleWeatherConfigure} />
+            <WeatherCard onConfigure={() => setWeatherConfigOpen(true)} />
           </div>
         </div>
 
@@ -99,6 +98,11 @@ const Home = () => {
           )}
         </div>
       </div>
+
+      <WeatherConfigDialog 
+        open={weatherConfigOpen} 
+        onOpenChange={setWeatherConfigOpen} 
+      />
 
       <BottomNav />
     </div>
