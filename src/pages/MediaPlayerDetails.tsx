@@ -118,10 +118,10 @@ const MediaPlayerDetails = () => {
   }, [entity, connection]);
 
   useEffect(() => {
-    if (entity?.attributes.volume_level !== undefined) {
+    if (entity?.attributes?.volume_level !== undefined) {
       setVolume(entity.attributes.volume_level * 100);
     }
-  }, [entity?.attributes.volume_level]);
+  }, [entity]);
 
   const callService = useCallback(async (service: string, data?: any) => {
     if (!client || !entity) {
