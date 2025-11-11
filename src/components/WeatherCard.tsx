@@ -17,7 +17,7 @@ const getWeatherIcon = (condition: string | null) => {
 };
 
 export function WeatherCard() {
-  const { weatherData, isLoading, error, refresh } = useWeatherData();
+  const { weatherData, isLoading, error, refresh, forecastMode, setForecastMode } = useWeatherData();
   const selectedCity = useHAStore((state) => state.selectedCity);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
@@ -146,36 +146,56 @@ export function WeatherCard() {
 
           {/* Forecast */}
           {Array.isArray(w.forecast) && w.forecast.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm text-muted-foreground">Prévisions</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {w.forecast.slice(0, 4).map((f, i) => (
-                  <div key={i} className="border rounded-lg p-3 space-y-1">
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(f.datetime).toLocaleDateString('fr-FR', { 
-                        weekday: 'short', 
-                        day: 'numeric' 
-                      })}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-sm text-muted-foreground">Prévisions</h4>
+                <div className="flex gap-2">
+                  <Button 
+                    variant={forecastMode === "daily" ? "default" : "outline"} 
+                    size="sm" 
+                    onClick={() => setForecastMode("daily")}
+                  >
+                    Quotidien
+                  </Button>
+                  <Button 
+                    variant={forecastMode === "hourly" ? "default" : "outline"} 
+                    size="sm" 
+                    onClick={() => setForecastMode("hourly")}
+                  >
+                    Horaire
+                  </Button>
+                </div>
+              </div>
+              <div className={`grid gap-2 ${forecastMode === "daily" ? "grid-cols-2 md:grid-cols-5" : "grid-cols-2 md:grid-cols-6"}`}>
+                {w.forecast.slice(0, forecastMode === "daily" ? 7 : 24).map((f, i) => {
+                  const d = new Date(f.datetime);
+                  const label = forecastMode === "daily"
+                    ? d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit' })
+                    : d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                  
+                  return (
+                    <div key={i} className="border rounded-xl p-2 space-y-1">
+                      <div className="text-xs opacity-70">{label}</div>
+                      <div className="text-sm font-medium">{f.condition ?? "—"}</div>
+                      <div className="text-sm font-semibold">
+                        {f.temperature != null ? Math.round(f.temperature) + w.units.temperature : "—"}
+                        {forecastMode === "daily" && f.templow != null ? ` / ${Math.round(f.templow)}${w.units.temperature}` : ""}
+                      </div>
+                      {typeof f.precipitation === "number" && f.precipitation > 0 && (
+                        <div className="text-xs opacity-80 flex items-center gap-1">
+                          <Droplets className="w-3 h-3" />
+                          {f.precipitation}{w.units.precipitation}
+                        </div>
+                      )}
+                      {typeof f.wind_speed === "number" && (
+                        <div className="text-xs opacity-80 flex items-center gap-1">
+                          <Wind className="w-3 h-3" />
+                          {Math.round(f.wind_speed)} {w.units.wind_speed}
+                        </div>
+                      )}
                     </div>
-                    <div className="text-sm font-medium">{f.condition ?? "—"}</div>
-                    {f.temperature != null && (
-                      <div className="text-lg font-semibold">
-                        {Math.round(f.temperature)}{w.units.temperature}
-                      </div>
-                    )}
-                    {f.templow != null && (
-                      <div className="text-xs text-muted-foreground">
-                        Min: {Math.round(f.templow)}{w.units.temperature}
-                      </div>
-                    )}
-                    {f.precipitation != null && f.precipitation > 0 && (
-                      <div className="text-xs flex items-center gap-1">
-                        <Droplets className="w-3 h-3" />
-                        {f.precipitation} {w.units.precipitation}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

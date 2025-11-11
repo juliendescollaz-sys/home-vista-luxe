@@ -2,35 +2,115 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import type { HAEntity } from "@/types/homeassistant";
 
+type OpenMeteoDaily = {
+  time: string[];
+  weather_code: number[];
+  temperature_2m_max: number[];
+  temperature_2m_min: number[];
+  precipitation_sum: number[];
+  wind_speed_10m_max: number[];
+  wind_direction_10m_dominant: number[];
+};
+
 type OpenMeteoCurrent = {
+  time: string;
   temperature_2m: number;
   wind_speed_10m: number;
   wind_direction_10m: number;
   relative_humidity_2m: number;
   pressure_msl: number;
+  weather_code?: number;
 };
 
+type OpenMeteoHourly = {
+  time: string[];
+  temperature_2m?: number[];
+  precipitation?: number[];
+  wind_speed_10m?: number[];
+  wind_direction_10m?: number[];
+  weather_code?: number[];
+};
+
+const _omCache = new Map<string, { ts: number; data: any }>();
+const CACHE_MS = 60_000; // 1 minute
+
+function weatherCodeToCondition(code?: number | null): string | null {
+  if (code == null) return null;
+  if ([0].includes(code)) return "clear";
+  if ([1, 2, 3].includes(code)) return "partlycloudy";
+  if ([45, 48].includes(code)) return "fog";
+  if ([51, 53, 55, 56, 57].includes(code)) return "drizzle";
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "rainy";
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return "snowy";
+  if ([95, 96, 99].includes(code)) return "thunderstorm";
+  return "cloudy";
+}
+
 async function fetchOpenMeteo(lat: number, lon: number) {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,pressure_msl&hourly=temperature_2m,precipitation,weather_code&forecast_days=5&timezone=auto`;
+  const url =
+    `https://api.open-meteo.com/v1/forecast` +
+    `?latitude=${lat}&longitude=${lon}` +
+    `&timezone=auto` +
+    `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,pressure_msl,weather_code` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,wind_direction_10m_dominant` +
+    `&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m` +
+    `&forecast_days=7` +
+    `&windspeed_unit=kmh&precipitation_unit=mm`;
+
+  const key = `${lat.toFixed(3)}:${lon.toFixed(3)}`;
+  const now = Date.now();
+  const cached = _omCache.get(key);
+  if (cached && (now - cached.ts) < CACHE_MS) return cached.data;
+
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`);
-  return res.json();
+  const json = await res.json();
+  _omCache.set(key, { ts: now, data: json });
+  return json;
+}
+
+function mapOpenMeteoHourly(json: any): UnifiedWeather["forecast"] {
+  const h: Partial<OpenMeteoHourly> = json.hourly || {};
+  if (!Array.isArray(h.time)) return [];
+  return h.time.slice(0, 24).map((iso: string, i: number) => ({
+    datetime: new Date(iso).toISOString(),
+    temperature: typeof h.temperature_2m?.[i] === "number" ? h.temperature_2m[i] : null,
+    templow: null,
+    condition: weatherCodeToCondition(h.weather_code?.[i]),
+    precipitation: typeof h.precipitation?.[i] === "number" ? h.precipitation[i] : null,
+    wind_speed: typeof h.wind_speed_10m?.[i] === "number" ? h.wind_speed_10m[i] : null,
+    wind_bearing: typeof h.wind_direction_10m?.[i] === "number" ? h.wind_direction_10m[i] : null,
+  }));
 }
 
 function mapOpenMeteoToUnified(json: any): UnifiedWeather {
-  const cur = json.current || {};
-  const u: UnifiedWeather["units"] = {
+  const cur: Partial<OpenMeteoCurrent> = json.current || {};
+  const daily: Partial<OpenMeteoDaily> = json.daily || {};
+
+  const units: UnifiedWeather["units"] = {
     temperature: "°C",
     wind_speed: "km/h",
     pressure: "hPa",
     visibility: undefined,
     precipitation: "mm",
   };
-  
+
+  const days = Array.isArray(daily.time)
+    ? daily.time.map((iso: string, i: number) => ({
+        datetime: new Date(iso).toISOString(),
+        temperature: typeof daily.temperature_2m_max?.[i] === "number" ? daily.temperature_2m_max[i] : null,
+        templow: typeof daily.temperature_2m_min?.[i] === "number" ? daily.temperature_2m_min[i] : null,
+        condition: weatherCodeToCondition(daily.weather_code?.[i]),
+        precipitation: typeof daily.precipitation_sum?.[i] === "number" ? daily.precipitation_sum[i] : null,
+        wind_speed: typeof daily.wind_speed_10m_max?.[i] === "number" ? daily.wind_speed_10m_max[i] : null,
+        wind_bearing: typeof daily.wind_direction_10m_dominant?.[i] === "number" ? daily.wind_direction_10m_dominant[i] : null,
+      }))
+    : [];
+
   return {
     source: "sensors",
     entity_id: null,
-    condition: null,
+    condition: weatherCodeToCondition(cur.weather_code),
     temperature: typeof cur.temperature_2m === "number" ? cur.temperature_2m : null,
     humidity: typeof cur.relative_humidity_2m === "number" ? cur.relative_humidity_2m : null,
     pressure: typeof cur.pressure_msl === "number" ? cur.pressure_msl : null,
@@ -38,8 +118,8 @@ function mapOpenMeteoToUnified(json: any): UnifiedWeather {
     wind_bearing: typeof cur.wind_direction_10m === "number" ? cur.wind_direction_10m : null,
     visibility: null,
     precipitation: null,
-    forecast: [],
-    units: u,
+    forecast: days,
+    units: units,
   };
 }
 
@@ -139,6 +219,7 @@ export function useWeatherData() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<UnifiedWeather | null>(null);
+  const [forecastMode, setForecastMode] = useState<"daily" | "hourly">("daily");
   const configRef = useRef<HAConfig | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const hasInitializedRef = useRef(false);
@@ -324,7 +405,10 @@ export function useWeatherData() {
       try {
         console.log("🌍 Récupération météo Open-Meteo pour:", selectedCity.label);
         const json = await fetchOpenMeteo(selectedCity.lat, selectedCity.lon);
-        const unified = mapOpenMeteoToUnified(json);
+        let unified = mapOpenMeteoToUnified(json);
+        if (forecastMode === "hourly") {
+          unified = { ...unified, forecast: mapOpenMeteoHourly(json) };
+        }
         setWeatherData(unified);
         setError(null);
       } catch (e: any) {
@@ -390,7 +474,7 @@ export function useWeatherData() {
     } finally {
       setIsLoading(false);
     }
-  }, [client, entities, isConnected, selectWeather, weatherEntity, selectedCity]);
+  }, [client, entities, isConnected, selectWeather, weatherEntity, selectedCity, forecastMode]);
 
   // Refresh when selectedCity changes (avec debounce pour éviter les sauts)
   useEffect(() => {
@@ -425,5 +509,5 @@ export function useWeatherData() {
     }
   }, [entities, weatherEntity, client, isConnected, selectWeather]);
 
-  return { weatherData, isLoading, error, refresh };
+  return { weatherData, isLoading, error, refresh, forecastMode, setForecastMode };
 }
