@@ -19,6 +19,7 @@ import Activity from "./pages/Activity";
 import Settings from "./pages/Settings";
 import Dev from "./pages/Dev";
 import NotFound from "./pages/NotFound";
+import SonosZones from "./pages/SonosZones";
 import { useAuth } from "./hooks/useAuth";
 import { useInitializeConnection } from "./hooks/useInitializeConnection";
 import { useHAClient } from "./hooks/useHAClient";
@@ -172,6 +173,14 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <Dev />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/sonos-zones"
+              element={
+                <PrivateRoute>
+                  <SonosZones />
                 </PrivateRoute>
               }
             />

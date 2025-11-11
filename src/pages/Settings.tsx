@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useHAStore } from "@/store/useHAStore";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Moon, Sun } from "lucide-react";
+import { LogOut, Moon, Sun, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { clearHACredentials } from "@/lib/crypto";
@@ -68,6 +68,18 @@ const Settings = () => {
                 Sombre
               </Button>
             </div>
+          </Card>
+
+          <Card className="p-6 bg-gradient-card border-border/50">
+            <h3 className="text-lg font-semibold mb-4">Sonos</h3>
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => navigate("/sonos-zones")}
+            >
+              <Users className="mr-2 h-4 w-4" />
+              Gérer les zones Sonos
+            </Button>
           </Card>
 
           <Card className="p-6 bg-gradient-card border-border/50">
