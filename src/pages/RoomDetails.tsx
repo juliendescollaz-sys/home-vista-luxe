@@ -6,14 +6,14 @@ import { DeviceCard } from "@/components/DeviceCard";
 import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useHAClient } from "@/hooks/useHAClient";
+
 import { toast } from "sonner";
 
 const RoomDetails = () => {
   const { areaId } = useParams<{ areaId: string }>();
   const navigate = useNavigate();
-  const { client } = useHAClient();
   
+  const client = useHAStore((state) => state.client);
   const areas = useHAStore((state) => state.areas);
   const entities = useHAStore((state) => state.entities);
   const devices = useHAStore((state) => state.devices);

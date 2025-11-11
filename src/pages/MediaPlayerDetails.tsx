@@ -4,7 +4,7 @@ import { useHAStore } from "@/store/useHAStore";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, Repeat, Repeat1, Shuffle, Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useHAClient } from "@/hooks/useHAClient";
+
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
@@ -17,8 +17,8 @@ import { SonosBrowser } from "@/components/SonosBrowser";
 const MediaPlayerDetails = () => {
   const { entityId } = useParams<{ entityId: string }>();
   const navigate = useNavigate();
-  const { client } = useHAClient();
   
+  const client = useHAStore((state) => state.client);
   const entities = useHAStore((state) => state.entities);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const connection = useHAStore((state) => state.connection);

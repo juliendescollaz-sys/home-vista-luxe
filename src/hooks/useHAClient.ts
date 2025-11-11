@@ -36,6 +36,7 @@ export function useHAClient() {
 
         await client.connect();
         clientRef.current = client;
+        useHAStore.getState().setClient(client);
         setConnected(true);
 
         console.log("🔄 Synchronisation des données...");
@@ -98,6 +99,7 @@ export function useHAClient() {
         console.log("🔌 Nettoyage de la connexion...");
         clientRef.current.disconnect();
         clientRef.current = null;
+        useHAStore.getState().setClient(null);
       }
     };
   }, [connection?.url, connection?.token]);
