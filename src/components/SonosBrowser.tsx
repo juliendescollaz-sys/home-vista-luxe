@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useSonosBrowser, BrowseNode } from "@/hooks/useSonosBrowser";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Music, ChevronRight, Play, Folder, Radio, Disc3, ListMusic } from "lucide-react";
+import { Music, ChevronRight, Play, Folder, Radio, Disc3, ListMusic, Heart } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { HAClient } from "@/lib/haClient";
@@ -23,13 +23,32 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
     }
   }, [client, loadRoot, page.items.length, page.loading, page.path.length]);
 
+  const translateTitle = (title: string): string => {
+    const translations: Record<string, string> = {
+      "Favorites": "Favoris",
+      "My media": "Ma musique",
+      "Radio Browser": "Navigateur Radio",
+    };
+    return translations[title] || title;
+  };
+
   const getIconForNode = (node: BrowseNode) => {
+    // Icônes spécifiques pour les catégories principales
+    if (node.title === "Favorites") return Heart;
+    if (node.title === "My media") return Music;
+    if (node.title === "Radio Browser") return Radio;
+    
+    // Icônes génériques
     if (node.canPlay && !node.canExpand) return Play;
     if (node.title.toLowerCase().includes("playlist")) return ListMusic;
     if (node.title.toLowerCase().includes("album")) return Disc3;
     if (node.title.toLowerCase().includes("radio")) return Radio;
     if (node.canExpand) return Folder;
     return Music;
+  };
+
+  const shouldForceIcon = (node: BrowseNode): boolean => {
+    return ["Favorites", "My media", "Radio Browser"].includes(node.title);
   };
 
   const getThumbnailUrl = (thumbnail?: string) => {
@@ -124,6 +143,8 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
             {page.items.map((node, index) => {
               const Icon = getIconForNode(node);
               const thumbnailUrl = getThumbnailUrl(node.thumbnail);
+              const forceIcon = shouldForceIcon(node);
+              const displayTitle = translateTitle(node.title);
 
               return (
                 <button
@@ -138,10 +159,10 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
                 >
                   {/* Thumbnail compact */}
                   <div className="flex-shrink-0 w-12 h-12 rounded bg-muted flex items-center justify-center overflow-hidden">
-                    {thumbnailUrl ? (
+                    {!forceIcon && thumbnailUrl ? (
                       <img
                         src={thumbnailUrl}
-                        alt={node.title}
+                        alt={displayTitle}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           const target = e.currentTarget;
@@ -162,7 +183,7 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
                   {/* Contenu texte */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium line-clamp-1 mb-0.5">
-                      {node.title}
+                      {displayTitle}
                     </p>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       {node.canPlay && (
