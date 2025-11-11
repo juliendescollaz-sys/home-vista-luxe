@@ -7,9 +7,29 @@ export interface HAConnection {
 export interface HAEntity {
   entity_id: string;
   state: string;
-  attributes: Record<string, any>;
-  last_changed: string;
-  last_updated: string;
+  last_changed?: string;
+  last_updated?: string;
+  attributes: {
+    friendly_name?: string;
+    device_class?: string;
+    unit_of_measurement?: string;
+    icon?: string;
+    // weather.* specific attributes
+    temperature?: number;
+    humidity?: number;
+    pressure?: number;
+    wind_speed?: number;
+    wind_bearing?: number;
+    visibility?: number;
+    forecast?: Array<any>;
+    precipitation?: number;
+    // media_player attributes
+    media_position?: number;
+    media_duration?: number;
+    media_position_updated_at?: string;
+    // allow any other attributes
+    [k: string]: any;
+  };
 }
 
 export interface HAArea {

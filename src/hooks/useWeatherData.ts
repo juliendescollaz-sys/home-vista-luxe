@@ -38,268 +38,243 @@ interface HAConfig {
   };
 }
 
-const isValid = (value: any): boolean => {
-  if (value === undefined || value === null || value === '') return false;
-  const str = String(value).toLowerCase();
-  return str !== 'unknown' && str !== 'unavailable' && str !== 'none';
+const isValid = (v: any) =>
+  !(v === undefined || v === null || v === "" || String(v).toLowerCase() === "unknown" || String(v).toLowerCase() === "unavailable");
+
+const mpsToKmh = (v: number | null) => (v == null ? null : v * 3.6);
+
+const scoreSensor = (e: HAEntity, keywords: string[]) => {
+  const id = e.entity_id.toLowerCase();
+  const name = (e.attributes.friendly_name || "").toLowerCase();
+  let s = 0;
+  for (const k of keywords) {
+    if (id.includes(k)) s += 2;
+    if (name.includes(k)) s += 1;
+  }
+  if (e.last_changed) s += 0.1;
+  return s;
 };
 
-const scoreMatch = (text: string, keywords: string[]): number => {
-  const lower = text.toLowerCase();
-  return keywords.reduce((score, kw) => {
-    if (lower.includes(kw.toLowerCase())) return score + 1;
-    return score;
-  }, 0);
+const pickBest = (entities: HAEntity[], keywords: string[], unitHint?: string) => {
+  let best: HAEntity | null = null;
+  let bestScore = -1;
+  for (const e of entities) {
+    const s = scoreSensor(e, keywords) + (e.attributes.unit_of_measurement === unitHint ? 0.5 : 0);
+    if (s > bestScore) {
+      best = e;
+      bestScore = s;
+    }
+  }
+  return best;
 };
 
-const findBestSensor = (entities: HAEntity[], keywords: string[]): HAEntity | null => {
-  const candidates = entities
-    .filter(e => e.entity_id.startsWith('sensor.'))
-    .map(e => ({
-      entity: e,
-      score: scoreMatch(e.entity_id, keywords) + scoreMatch(e.attributes?.friendly_name || '', keywords)
-    }))
-    .filter(c => c.score > 0)
-    .sort((a, b) => b.score - a.score);
-
-  return candidates.length > 0 ? candidates[0].entity : null;
-};
-
-export const useWeatherData = () => {
-  const client = useHAStore((state) => state.client);
-  const isConnected = useHAStore((state) => state.isConnected);
-  const entities = useHAStore((state) => state.entities);
-  
-  const [weatherData, setWeatherData] = useState<UnifiedWeather | null>(null);
+export function useWeatherData() {
+  const { client, entities } = useHAStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-  
+  const [weatherData, setWeatherData] = useState<UnifiedWeather | null>(null);
+  const configRef = useRef<HAConfig | null>(null);
+  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchConfig = async (): Promise<HAConfig | null> => {
-    const connection = useHAStore.getState().connection;
-    if (!connection) return null;
-    
-    try {
-      const response = await fetch(`${connection.url}/api/config`, {
-        headers: {
-          Authorization: `Bearer ${connection.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const config = await response.json();
-      return config as HAConfig;
-    } catch (err) {
-      console.warn("Failed to fetch HA config:", err);
-      return null;
+  const toUnits = useCallback((cfg: HAConfig | null) => {
+    const metric = !cfg || cfg.unit_system.temperature === "°C";
+    return {
+      temperature: metric ? "°C" : "°F",
+      wind_speed: metric ? "km/h" : "m/s",
+      pressure: "hPa",
+      visibility: metric ? "km" : "mi",
+      precipitation: "mm",
+    } as UnifiedWeather["units"];
+  }, []);
+
+  const convert = useCallback((u: UnifiedWeather["units"], raw: {
+    temperature?: number | null;
+    wind_speed?: number | null;
+    pressure?: number | null;
+    visibility?: number | null;
+  }) => {
+    let t = raw.temperature ?? null;
+    let w = raw.wind_speed ?? null;
+    let p = raw.pressure ?? null;
+    let vis = raw.visibility ?? null;
+
+    if (u.wind_speed === "km/h" && w != null && w < 50) {
+      w = mpsToKmh(w);
     }
-  };
+    return { temperature: t, wind_speed: w, pressure: p, visibility: vis };
+  }, []);
 
-  const convertUnits = (value: number | null, fromUnit: string, config: HAConfig | null): number | null => {
-    if (value === null || !config) return value;
-    
-    // Temperature conversion
-    if (fromUnit === '°C' && config.unit_system.temperature === 'F') {
-      return (value * 9/5) + 32;
-    }
-    
-    // Wind speed m/s to km/h
-    if (fromUnit === 'm/s' && config.unit_system.length === 'km') {
-      return value * 3.6;
-    }
-    
-    return value;
-  };
+  const buildFromWeatherEntity = useCallback((e: HAEntity, cfg: HAConfig | null): UnifiedWeather => {
+    const u = toUnits(cfg);
+    const attrs = e.attributes || {};
+    const conv = convert(u, {
+      temperature: attrs.temperature ? Number(attrs.temperature) : null,
+      wind_speed: attrs.wind_speed ? Number(attrs.wind_speed) : null,
+      pressure: attrs.pressure ? Number(attrs.pressure) : null,
+      visibility: attrs.visibility ? Number(attrs.visibility) : null,
+    });
+    return {
+      source: "weather",
+      entity_id: e.entity_id,
+      condition: isValid(e.state) ? String(e.state) : null,
+      temperature: conv.temperature ?? null,
+      humidity: attrs.humidity ? Number(attrs.humidity) : null,
+      pressure: conv.pressure ?? null,
+      wind_speed: conv.wind_speed ?? null,
+      wind_bearing: attrs.wind_bearing ? Number(attrs.wind_bearing) : null,
+      visibility: conv.visibility ?? null,
+      precipitation: attrs.precipitation ? Number(attrs.precipitation) : null,
+      forecast: Array.isArray(attrs.forecast) ? attrs.forecast.map((f: any) => ({
+        datetime: f.datetime || f.datetime_iso || new Date().toISOString(),
+        temperature: f.temperature ?? null,
+        templow: f.templow ?? null,
+        condition: f.condition ?? null,
+        precipitation: f.precipitation ?? null,
+        wind_speed: f.wind_speed ?? null,
+        wind_bearing: f.wind_bearing ?? null,
+      })) : [],
+      units: u,
+    };
+  }, [convert, toUnits]);
 
-  const discoverWeatherSource = useCallback(async (): Promise<UnifiedWeather> => {
-    const allStates = entities;
+  const buildFromSensors = useCallback((entityList: HAEntity[], cfg: HAConfig | null): UnifiedWeather | null => {
+    const sensors = entityList.filter(e => e.entity_id.startsWith("sensor."));
+    if (!sensors.length) return null;
 
-    // Skip config fetch if it fails (CORS issue with Nabu Casa)
-    let config: HAConfig | null = null;
-    try {
-      config = await fetchConfig();
-    } catch (err) {
-      // Continue without config, use defaults
-      console.warn("Config fetch failed, using defaults");
-    }
+    const temp = pickBest(sensors, ["temperature", "temp"], "°C");
+    const cond = pickBest(sensors, ["condition", "summary", "symbol", "weather"]);
+    const hum  = pickBest(sensors, ["humidity"]);
+    const pres = pickBest(sensors, ["pressure", "barometer"]);
+    const wspd = pickBest(sensors, ["wind_speed", "wind", "gust"]);
+    const wdir = pickBest(sensors, ["wind_bearing", "wind_direction", "bearing"]);
+    const rain = pickBest(sensors, ["precipitation", "rain", "precip"]);
 
-    // 1. Try to find weather.* entity
-    const weatherEntities = allStates.filter(e => e.entity_id.startsWith('weather.'));
-    
-    if (weatherEntities.length > 0) {
-      // Prioritize weather.home or weather.maison
-      let chosen = weatherEntities.find(e => 
-        e.entity_id === 'weather.home' || e.entity_id === 'weather.maison'
-      ) || weatherEntities[0];
-
-      const attrs = chosen.attributes;
-      const forecast = attrs?.forecast || [];
-
-      return {
-        source: 'weather',
-        entity_id: chosen.entity_id,
-        condition: isValid(chosen.state) ? String(chosen.state) : null,
-        temperature: isValid(attrs?.temperature) ? parseFloat(attrs.temperature) : null,
-        humidity: isValid(attrs?.humidity) ? parseFloat(attrs.humidity) : null,
-        pressure: isValid(attrs?.pressure) ? parseFloat(attrs.pressure) : null,
-        wind_speed: isValid(attrs?.wind_speed) ? parseFloat(attrs.wind_speed) : null,
-        wind_bearing: isValid(attrs?.wind_bearing) ? parseFloat(attrs.wind_bearing) : null,
-        visibility: isValid(attrs?.visibility) ? parseFloat(attrs.visibility) : null,
-        precipitation: null,
-        forecast: forecast.map((f: any) => ({
-          datetime: f.datetime,
-          temperature: isValid(f.temperature) ? parseFloat(f.temperature) : null,
-          templow: isValid(f.templow) ? parseFloat(f.templow) : null,
-          condition: isValid(f.condition) ? String(f.condition) : null,
-          precipitation: isValid(f.precipitation) ? parseFloat(f.precipitation) : null,
-          wind_speed: isValid(f.wind_speed) ? parseFloat(f.wind_speed) : null,
-          wind_bearing: isValid(f.wind_bearing) ? parseFloat(f.wind_bearing) : null,
-        })),
-        units: {
-          temperature: config?.unit_system?.temperature === 'F' ? '°F' : '°C',
-          wind_speed: 'km/h',
-          pressure: 'hPa',
-          visibility: config?.unit_system?.length === 'mi' ? 'mi' : 'km',
-          precipitation: 'mm',
-        },
-      };
-    }
-
-    // 2. Fallback to sensor aggregation
-    const tempSensor = findBestSensor(allStates, ['temperature', 'temp']);
-    const condSensor = findBestSensor(allStates, ['condition', 'summary', 'symbol', 'weather']);
-    const humSensor = findBestSensor(allStates, ['humidity']);
-    const pressSensor = findBestSensor(allStates, ['pressure', 'barometer', 'barometric']);
-    const windSpeedSensor = findBestSensor(allStates, ['wind_speed', 'wind', 'gust']);
-    const windBearingSensor = findBestSensor(allStates, ['wind_bearing', 'wind_direction', 'bearing']);
-    const precipSensor = findBestSensor(allStates, ['precipitation', 'rain', 'precip']);
-
-    if (!tempSensor && !condSensor) {
-      return {
-        source: 'none',
-        entity_id: null,
-        condition: null,
-        temperature: null,
-        humidity: null,
-        pressure: null,
-        wind_speed: null,
-        wind_bearing: null,
-        visibility: null,
-        precipitation: null,
-        forecast: [],
-        units: {
-          temperature: '°C',
-          wind_speed: 'km/h',
-          pressure: 'hPa',
-        },
-      };
-    }
-
-    // Try to find forecast attribute from any sensor
-    let forecast: any[] = [];
-    const forecastSensor = allStates.find(e => e.attributes?.forecast);
-    if (forecastSensor) {
-      forecast = forecastSensor.attributes.forecast || [];
-    }
+    const u = toUnits(cfg);
+    const conv = convert(u, {
+      temperature: temp && isValid(temp.state) ? Number(temp.state) : null,
+      wind_speed: wspd && isValid(wspd.state) ? Number(wspd.state) : null,
+      pressure: pres && isValid(pres.state) ? Number(pres.state) : null,
+      visibility: null,
+    });
 
     return {
-      source: 'sensors',
+      source: "sensors",
       entity_id: null,
-      condition: condSensor && isValid(condSensor.state) ? String(condSensor.state) : null,
-      temperature: tempSensor && isValid(tempSensor.state) ? parseFloat(tempSensor.state) : null,
-      humidity: humSensor && isValid(humSensor.state) ? parseFloat(humSensor.state) : null,
-      pressure: pressSensor && isValid(pressSensor.state) ? parseFloat(pressSensor.state) : null,
-      wind_speed: windSpeedSensor && isValid(windSpeedSensor.state) ? parseFloat(windSpeedSensor.state) : null,
-      wind_bearing: windBearingSensor && isValid(windBearingSensor.state) ? parseFloat(windBearingSensor.state) : null,
+      condition: cond && isValid(cond.state) ? String(cond.state) : null,
+      temperature: conv.temperature,
+      humidity: hum && isValid(hum.state) ? Number(hum.state) : null,
+      pressure: conv.pressure,
+      wind_speed: conv.wind_speed,
+      wind_bearing: wdir && isValid(wdir.state) ? Number(wdir.state) : null,
       visibility: null,
-      precipitation: precipSensor && isValid(precipSensor.state) ? parseFloat(precipSensor.state) : null,
-      forecast: forecast.map((f: any) => ({
-        datetime: f.datetime,
-        temperature: isValid(f.temperature) ? parseFloat(f.temperature) : null,
-        templow: isValid(f.templow) ? parseFloat(f.templow) : null,
-        condition: isValid(f.condition) ? String(f.condition) : null,
-        precipitation: isValid(f.precipitation) ? parseFloat(f.precipitation) : null,
-        wind_speed: isValid(f.wind_speed) ? parseFloat(f.wind_speed) : null,
-        wind_bearing: isValid(f.wind_bearing) ? parseFloat(f.wind_bearing) : null,
-      })),
-      units: {
-        temperature: config?.unit_system?.temperature === 'F' ? '°F' : '°C',
-        wind_speed: 'km/h',
-        pressure: 'hPa',
-        precipitation: 'mm',
-      },
+      precipitation: rain && isValid(rain.state) ? Number(rain.state) : null,
+      forecast: [],
+      units: u,
     };
-  }, [entities]);
+  }, [convert, toUnits]);
+
+  const selectWeather = useCallback((entityList: HAEntity[], cfg: HAConfig | null): UnifiedWeather | null => {
+    const weathers = entityList.filter(e => e.entity_id.startsWith("weather."));
+    let chosen: HAEntity | null = null;
+
+    if (weathers.length) {
+      const byHome = weathers.find(w => w.entity_id === "weather.home" || w.entity_id === "weather.maison");
+      chosen = byHome || weathers[0];
+      return buildFromWeatherEntity(chosen, cfg);
+    }
+
+    const built = buildFromSensors(entityList, cfg);
+    if (built) return built;
+
+    return {
+      source: "none",
+      entity_id: null,
+      condition: null,
+      temperature: null,
+      humidity: null,
+      pressure: null,
+      wind_speed: null,
+      wind_bearing: null,
+      visibility: null,
+      precipitation: null,
+      forecast: [],
+      units: toUnits(cfg),
+    };
+  }, [buildFromSensors, buildFromWeatherEntity, toUnits]);
 
   const refresh = useCallback(async () => {
-    if (!client || !isConnected) {
-      setIsLoading(false);
-      setError("Non connecté");
-      return;
-    }
-
+    if (!client) return;
+    setIsLoading(true);
+    setError(null);
     try {
-      setIsLoading(true);
-      setError(null);
-      
-      const data = await discoverWeatherSource();
-      setWeatherData(data);
-      setRetryCount(0);
-    } catch (err: any) {
-      console.error("Weather discovery error:", err);
-      setError(err.message || "Erreur de découverte");
-    } finally {
+      // Fetch config with error handling
+      try {
+        const cfg = await client.getConfig();
+        configRef.current = cfg;
+      } catch (e) {
+        console.warn("Config fetch failed, using defaults:", e);
+        configRef.current = null;
+      }
+
+      const unified = selectWeather(entities, configRef.current);
+      setWeatherData(unified);
+      setIsLoading(false);
+    } catch (e: any) {
+      setError(e.message || "Erreur de récupération météo");
       setIsLoading(false);
     }
-  }, [client, isConnected, discoverWeatherSource]);
+  }, [client, entities, selectWeather]);
 
-  // Initial fetch and real-time subscription
+  // Boot + backoff
+  const bootWithRetry = useCallback(async () => {
+    if (retryRef.current) clearTimeout(retryRef.current);
+    try {
+      await refresh();
+    } catch {
+      // handled by refresh
+    }
+    if (!weatherData || weatherData.source === "none") {
+      retryRef.current = setTimeout(bootWithRetry, 2000);
+    }
+  }, [refresh, weatherData]);
+
   useEffect(() => {
-    if (!client || !isConnected || entities.length === 0) {
-      setIsLoading(false);
-      return;
+    bootWithRetry();
+    return () => {
+      if (retryRef.current) clearTimeout(retryRef.current);
+    };
+  }, []);
+
+  // WS subscription
+  useEffect(() => {
+    if (!client) return;
+
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
     }
 
-    // Debounce pour éviter les appels multiples
-    const timer = setTimeout(() => {
-      refresh();
-    }, 100);
+    const unsub = client.subscribeStateChanges((data: any) => {
+      if (!data || data.event_type !== "state_changed") return;
+      const e = data.new_state as HAEntity | undefined;
+      if (!e) return;
 
-    // Subscribe to state changes only once
-    if (!unsubscribeRef.current) {
-      unsubscribeRef.current = client.subscribeStateChanges((data: any) => {
-        // Refresh if weather/sensor/input entities change
-        if (
-          data.entity_id?.startsWith('weather.') || 
-          data.entity_id?.startsWith('sensor.') ||
-          data.entity_id?.startsWith('input_text.ville_meteo') ||
-          data.entity_id?.startsWith('input_number.weather_')
-        ) {
-          // Debounce WebSocket updates
-          setTimeout(() => refresh(), 500);
-        }
-      });
-    }
+      if (weatherData?.source === "weather" && weatherData.entity_id === e.entity_id) {
+        refresh();
+      } else if (weatherData?.source === "sensors" && e.entity_id.startsWith("sensor.")) {
+        refresh();
+      }
+    });
+
+    unsubscribeRef.current = unsub;
 
     return () => {
-      clearTimeout(timer);
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
       }
     };
-  }, [client, isConnected, entities.length, refresh]);
+  }, [client, weatherData, refresh]);
 
-  return {
-    weatherData,
-    isLoading,
-    error,
-    refresh,
-  };
-};
+  return { weatherData, isLoading, error, refresh };
+}

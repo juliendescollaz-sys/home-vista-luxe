@@ -304,6 +304,34 @@ export class HAClient {
   getSocket(): WebSocket | null {
     return this.ws;
   }
+
+  // REST API methods
+  async getConfig(): Promise<any> {
+    const url = `${this.config.baseUrl}/api/config`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${this.config.token}` },
+    });
+    if (!res.ok) throw new Error(`GET /api/config failed: ${res.status}`);
+    return res.json();
+  }
+
+  async getStatesREST(): Promise<any[]> {
+    const url = `${this.config.baseUrl}/api/states`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${this.config.token}` },
+    });
+    if (!res.ok) throw new Error(`GET /api/states failed: ${res.status}`);
+    return res.json();
+  }
+
+  async getState(entityId: string): Promise<any> {
+    const url = `${this.config.baseUrl}/api/states/${entityId}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${this.config.token}` },
+    });
+    if (!res.ok) throw new Error(`GET /api/states/${entityId} failed: ${res.status}`);
+    return res.json();
+  }
 }
 
 // Helper pour tester la connexion

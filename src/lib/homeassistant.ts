@@ -5,6 +5,9 @@ export class HomeAssistantAPI {
   private messageId = 1;
   private pendingMessages = new Map<number, (response: any) => void>();
   private eventHandlers = new Map<string, Set<(data: any) => void>>();
+  private subscribed = false;
+  private backoffMs = 1000;
+  private onEvent: ((event: any) => void) | null = null;
 
   constructor(private connection: HAConnection) {}
 
@@ -15,6 +18,8 @@ export class HomeAssistantAPI {
 
       this.ws.onopen = () => {
         console.log("WebSocket connected to Home Assistant");
+        this.backoffMs = 1000; // Reset backoff on successful connection
+        this.subscribed = false;
       };
 
       this.ws.onmessage = (event) => {
@@ -24,6 +29,7 @@ export class HomeAssistantAPI {
           this.send({ type: "auth", access_token: this.connection.token });
         } else if (message.type === "auth_ok") {
           console.log("Authenticated with Home Assistant");
+          this.subscribeStateChanged();
           resolve(true);
         } else if (message.type === "auth_invalid") {
           console.error("Authentication failed");
@@ -31,8 +37,14 @@ export class HomeAssistantAPI {
         } else if (message.id && this.pendingMessages.has(message.id)) {
           const handler = this.pendingMessages.get(message.id);
           this.pendingMessages.delete(message.id);
+          if (message.id && !this.subscribed && message.success) {
+            this.subscribed = true;
+          }
           handler?.(message);
         } else if (message.type === "event") {
+          if (this.onEvent) {
+            this.onEvent(message.event);
+          }
           this.handleEvent(message.event);
         }
       };
@@ -42,9 +54,15 @@ export class HomeAssistantAPI {
         reject(error);
       };
 
-      this.ws.onclose = () => {
+      this.ws.onclose = (event) => {
         console.log("WebSocket disconnected");
         this.ws = null;
+        this.subscribed = false;
+        
+        // Reconnect with exponential backoff
+        if (event.code !== 1000) {
+          this.scheduleReconnect();
+        }
       };
     });
   }
@@ -107,11 +125,32 @@ export class HomeAssistantAPI {
     handlers?.forEach((handler) => handler(event.data));
   }
 
+  private subscribeStateChanged() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.subscribed) return;
+    const msg = { id: this.messageId++, type: "subscribe_events", event_type: "state_changed" };
+    this.pendingMessages.set(msg.id, () => { this.subscribed = true; });
+    this.send(msg);
+  }
+
+  private scheduleReconnect() {
+    const ms = Math.min(this.backoffMs, 30000);
+    setTimeout(() => {
+      this.connect().catch(console.error);
+      this.backoffMs = Math.min(this.backoffMs * 2, 30000);
+    }, ms);
+  }
+
+  setOnEvent(callback: (event: any) => void) {
+    this.onEvent = callback;
+  }
+
   disconnect() {
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
+    this.subscribed = false;
+    this.onEvent = null;
   }
 }
 
