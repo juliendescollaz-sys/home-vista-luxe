@@ -319,7 +319,6 @@ export function useWeatherData() {
 
       const unified = selectWeather(entities, configRef.current, null, weatherEntity);
       setWeatherData(unified);
-      setIsLoading(false);
       
       if (unified.source === "none") {
         setError("Aucune source météo détectée. Activez une intégration météo dans Home Assistant.");
@@ -327,9 +326,10 @@ export function useWeatherData() {
     } catch (e: any) {
       console.error("❌ Erreur refresh:", e);
       setError(e.message || "Erreur de récupération météo");
+    } finally {
       setIsLoading(false);
     }
-  }, [client, entities, isConnected, selectWeather]);
+  }, [client, entities, isConnected, selectWeather, weatherEntity]);
 
   // Initial load - wait for entities to be populated
   useEffect(() => {
