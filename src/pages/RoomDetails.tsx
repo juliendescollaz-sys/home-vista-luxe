@@ -127,16 +127,21 @@ const RoomDetails = () => {
           <div className="w-full h-full bg-gradient-to-b from-muted/30 to-background" />
         )}
         
+        <div className="absolute top-0 left-0 right-0">
+          <div className="max-w-screen-xl mx-auto px-6 pt-6">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/rooms")}
+              className="mb-6"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Retour
+            </Button>
+          </div>
+        </div>
+
         <div className="absolute bottom-0 left-0 right-0 p-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/rooms")}
-            className="mb-6"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Retour
-          </Button>
           <h1 className="text-3xl font-bold">{area.name}</h1>
           <p className="text-muted-foreground">
             {roomEntities.length} {roomEntities.length === 1 ? "appareil" : "appareils"}

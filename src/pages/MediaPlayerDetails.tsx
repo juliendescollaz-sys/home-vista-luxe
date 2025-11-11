@@ -254,7 +254,7 @@ const MediaPlayerDetails = () => {
     <div className="min-h-screen bg-background pb-24 pt-20">
       <TopBar />
       
-      <div className="max-w-screen-xl mx-auto px-4 pt-6 pb-8">
+      <div className="max-w-screen-xl mx-auto px-6 pt-6">
         <Button
           variant="ghost"
           size="sm"
@@ -264,6 +264,9 @@ const MediaPlayerDetails = () => {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Retour
         </Button>
+      </div>
+
+      <div className="max-w-screen-xl mx-auto px-4 pb-8">
 
         {/* Jaquette et infos */}
         <Card className="overflow-hidden mb-6">
