@@ -208,10 +208,13 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
     
     setPending(true);
     try {
+      // Filtrer pour ne retirer que les membres, pas le maître
+      const membersToUnjoin = groupState.members.filter((memberId) => memberId !== entity.entity_id);
+      
       if (groupingService === "media_player") {
-        // Nouveau format: media_player.unjoin pour chaque membre
+        // Format standard HA: media_player.unjoin pour chaque membre (pas le maître)
         await Promise.all(
-          groupState.members.map((memberId) =>
+          membersToUnjoin.map((memberId) =>
             client.callService(
               "media_player",
               "unjoin",
@@ -223,7 +226,7 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
       } else {
         // Fallback: sonos.unjoin
         await Promise.all(
-          groupState.members.map((memberId) =>
+          membersToUnjoin.map((memberId) =>
             client.callService("sonos", "unjoin", {
               entity_id: memberId,
             })
@@ -242,7 +245,7 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
       setPending(false);
       toast.error(error instanceof Error ? error.message : "Erreur lors de la dissociation");
     }
-  }, [client, groupState, refreshStates, groupingService]);
+  }, [client, groupState, entity.entity_id, refreshStates, groupingService]);
 
   const handleLeaveGroup = useCallback(async () => {
     await handleUnjoinMember(entity.entity_id);
