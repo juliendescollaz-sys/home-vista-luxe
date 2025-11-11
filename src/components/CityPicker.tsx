@@ -13,39 +13,6 @@ const HA_ENTITIES = {
   lon: "input_number.weather_lon",
 };
 
-// Polling pour attendre que les données deviennent valides
-const waitForValidData = async (entityId: string, timeoutMs: number): Promise<boolean> => {
-  const start = Date.now();
-  const connection = useHAStore.getState().connection;
-  
-  if (!connection) return false;
-
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const response = await fetch(`${connection.url}/api/states/${entityId}`, {
-        headers: { 
-          Authorization: `Bearer ${connection.token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const value = parseFloat(data.state);
-        if (Number.isFinite(value) && value !== 0) {
-          return true;
-        }
-      }
-    } catch (error) {
-      console.warn("Polling error:", error);
-    }
-    
-    await new Promise(resolve => setTimeout(resolve, 800));
-  }
-  
-  return false;
-};
-
 interface CityResult {
   label: string;
   lat: number;
@@ -154,15 +121,7 @@ export const CityPicker = ({ onCitySaved }: CityPickerProps) => {
         }
       }
 
-      // Attendre que les données météo deviennent valides (polling 8s max)
-      toast.loading("Mise à jour de la météo...");
-      const tempValid = await waitForValidData("sensor.city_weather_temperature", 8000);
-      
-      if (tempValid) {
-        toast.success("Ville mise à jour dans Home Assistant");
-      } else {
-        toast.success("Ville enregistrée (données en cours de chargement)");
-      }
+      toast.success("Ville mise à jour dans Home Assistant");
 
       setSearch("");
       setSelectedCity(null);
