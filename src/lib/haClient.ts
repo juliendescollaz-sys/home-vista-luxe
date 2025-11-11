@@ -238,19 +238,11 @@ export class HAClient {
   async browseMedia(entityId: string, mediaContentId?: string, mediaContentType?: string): Promise<any> {
     console.log(`📂 Browse media pour ${entityId}`, { mediaContentId, mediaContentType });
     
-    const data: any = { entity_id: entityId };
-    
-    // Toujours envoyer le type s'il est défini
-    if (mediaContentType !== undefined) {
-      data.media_content_type = mediaContentType;
-    }
-    
-    // Envoyer l'ID même si c'est une chaîne vide, mais pas s'il est undefined
-    if (mediaContentId !== undefined) {
-      data.media_content_id = mediaContentId;
-    }
-
-    return this.sendWithResponse("media_player/browse_media", data);
+    return this.sendWithResponse("media_player/browse_media", {
+      entity_id: entityId,
+      media_content_id: mediaContentId || "",
+      media_content_type: mediaContentType || "",
+    });
   }
 
   async playMedia(entityId: string, mediaContentId: string, mediaContentType: string): Promise<void> {
