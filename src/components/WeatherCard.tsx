@@ -43,6 +43,12 @@ export const WeatherCard = () => {
   const [isOffline, setIsOffline] = useState(false);
   const [missingEntities, setMissingEntities] = useState<string[]>([]);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const handleCitySaved = () => {
+    // Déclencher un refresh après la sélection de ville
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   // Récupération initiale et abonnement temps réel
   useEffect(() => {
@@ -130,7 +136,7 @@ export const WeatherCard = () => {
       if (unsubscribe) unsubscribe();
       if (restFallbackInterval) clearInterval(restFallbackInterval);
     };
-  }, [client, isConnected]);
+  }, [client, isConnected, refreshTrigger]);
 
   if (isLoading) {
     return (
@@ -203,7 +209,8 @@ export const WeatherCard = () => {
         
         <WeatherConfigDialog 
           open={isConfigOpen} 
-          onOpenChange={setIsConfigOpen} 
+          onOpenChange={setIsConfigOpen}
+          onCitySaved={handleCitySaved}
         />
 
         {/* Température principale */}

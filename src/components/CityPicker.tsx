@@ -19,7 +19,11 @@ interface CityResult {
   lon: number;
 }
 
-export const CityPicker = () => {
+interface CityPickerProps {
+  onCitySaved?: () => void;
+}
+
+export const CityPicker = ({ onCitySaved }: CityPickerProps) => {
   const [search, setSearch] = useState("");
   const [cities, setCities] = useState<CityResult[]>([]);
   const [selectedCity, setSelectedCity] = useState<CityResult | null>(null);
@@ -105,6 +109,11 @@ export const CityPicker = () => {
       setSearch("");
       setSelectedCity(null);
       setCities([]);
+      
+      // Notifier le parent pour rafraîchir les données météo
+      if (onCitySaved) {
+        setTimeout(() => onCitySaved(), 1000); // Délai pour laisser HA traiter
+      }
     } catch (error: any) {
       console.error("Erreur lors de la mise à jour de la ville:", error);
       

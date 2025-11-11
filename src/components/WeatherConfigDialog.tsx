@@ -10,9 +10,10 @@ import { CityPicker } from "@/components/CityPicker";
 interface WeatherConfigDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCitySaved?: () => void;
 }
 
-export const WeatherConfigDialog = ({ open, onOpenChange }: WeatherConfigDialogProps) => {
+export const WeatherConfigDialog = ({ open, onOpenChange, onCitySaved }: WeatherConfigDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -22,7 +23,7 @@ export const WeatherConfigDialog = ({ open, onOpenChange }: WeatherConfigDialogP
             Sélectionnez une ville pour afficher la météo
           </DialogDescription>
         </DialogHeader>
-        <CityPicker />
+        <CityPicker onCitySaved={onCitySaved} />
       </DialogContent>
     </Dialog>
   );
