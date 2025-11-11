@@ -94,7 +94,7 @@ const pick = (entities: HAEntity[], keys: string[], dc?: string[], units?: strin
 };
 
 export function useWeatherData() {
-  const { client, entities, isConnected } = useHAStore();
+  const { client, entities, isConnected, weatherEntity } = useHAStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<UnifiedWeather | null>(null);
@@ -215,6 +215,16 @@ export function useWeatherData() {
     console.log("🔎 Entités weather.* trouvées:", weathers.map(w => w.entity_id));
     
     if (weathers.length) {
+      // Si une entité est forcée dans le store, l'utiliser en priorité
+      if (weatherEntity) {
+        const forced = weathers.find(w => w.entity_id === weatherEntity);
+        if (forced) {
+          console.log("✅ Utilisation de l'entité forcée:", forced.entity_id);
+          return buildFromWeatherEntity(forced, cfg);
+        }
+      }
+      
+      // Sinon, heuristique classique
       const home = weathers.find(w => ["weather.home", "weather.maison"].includes(w.entity_id));
       const chosen = home || weathers[0];
       console.log("✅ Utilisation de:", chosen.entity_id);

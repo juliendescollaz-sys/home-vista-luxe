@@ -64,6 +64,8 @@ export const CityPicker = ({ onCitySaved }: CityPickerProps) => {
   const [isSearching, setIsSearching] = useState(false);
   const client = useHAStore((state) => state.client);
   const isConnected = useHAStore((state) => state.isConnected);
+  const entities = useHAStore((state) => state.entities);
+  const setWeatherEntity = useHAStore((state) => state.setWeatherEntity);
 
   // Debounced search via Open-Meteo Geocoding API
   useEffect(() => {
@@ -136,13 +138,20 @@ export const CityPicker = ({ onCitySaved }: CityPickerProps) => {
         entity_id: HA_ENTITIES.lon,
       });
 
-      // Forcer la mise à jour immédiate du capteur REST
-      try {
-        await client.callService("homeassistant", "update_entity", {}, {
-          entity_id: "sensor.metno_brut",
-        });
-      } catch (updateError) {
-        console.warn("Impossible de forcer update_entity:", updateError);
+      // Sélectionner automatiquement la meilleure entité météo
+      if (entities && entities.length) {
+        const weathers = entities.filter(e => e.entity_id.startsWith("weather."));
+        if (weathers.length) {
+          const lc = selectedCity.label.toLowerCase();
+          const best =
+            weathers.find(w => (w.attributes.friendly_name || "").toLowerCase().includes(lc))
+            || weathers[0];
+          setWeatherEntity(best.entity_id);
+          console.log("✅ Entité météo sélectionnée:", best.entity_id);
+        } else {
+          setWeatherEntity(null);
+          console.log("ℹ️ Aucune entité weather.*, utilisation des capteurs");
+        }
       }
 
       // Attendre que les données météo deviennent valides (polling 8s max)
