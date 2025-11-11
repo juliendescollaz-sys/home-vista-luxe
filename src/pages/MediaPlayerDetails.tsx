@@ -14,6 +14,7 @@ import { MediaPlayerControls } from "@/components/MediaPlayerControls";
 import { cn } from "@/lib/utils";
 import { SonosBrowser } from "@/components/SonosBrowser";
 import { SonosZoneManager } from "@/components/SonosZoneManager";
+import { useMediaPlayerTimeline } from "@/hooks/useMediaPlayerTimeline";
 
 const MediaPlayerDetails = () => {
   const { entityId } = useParams<{ entityId: string }>();
@@ -216,6 +217,24 @@ const MediaPlayerDetails = () => {
     navigate(`/media-player/${encodeURIComponent(masterEntityId)}`);
   }, [navigate]);
 
+  // Timeline hook pour la barre de progression
+  const {
+    position,
+    duration,
+    state: playerState,
+    isDragging,
+    handleSeekStart,
+    handleSeekChange,
+    handleSeekEnd,
+  } = useMediaPlayerTimeline(client, entity);
+
+  const formatTime = (seconds: number) => {
+    if (!seconds || seconds < 0) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
 
   if (!entity || !entityData) {
     return (
@@ -257,6 +276,30 @@ const MediaPlayerDetails = () => {
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+                
+                {/* Timeline overlay */}
+                {duration > 0 && (
+                  <div className="absolute bottom-0 left-0 right-0 px-6 pb-4 space-y-1.5">
+                    <Slider
+                      value={[position]}
+                      max={duration}
+                      step={1}
+                      onPointerDown={handleSeekStart}
+                      onValueChange={(values) => handleSeekChange(values[0])}
+                      onPointerUp={handleSeekEnd}
+                      disabled={playerState === "buffering"}
+                      className={cn(
+                        "cursor-pointer",
+                        isDragging && "cursor-grabbing"
+                      )}
+                      style={{ touchAction: "none" }}
+                    />
+                    <div className="flex justify-between text-xs text-white/90 font-medium">
+                      <span>{formatTime(position)}</span>
+                      <span>{formatTime(duration)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             
