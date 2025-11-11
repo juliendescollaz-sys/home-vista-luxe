@@ -180,6 +180,11 @@ export class HAClient {
     return this.sendWithResponse<any[]>("config/entity_registry/list");
   }
 
+  async getServices(): Promise<any> {
+    console.log("🔧 Récupération des services disponibles...");
+    return this.sendWithResponse<any>("get_services");
+  }
+
   async callService(
     domain: string,
     service: string,

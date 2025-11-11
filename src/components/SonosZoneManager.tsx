@@ -138,7 +138,7 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
     setPending(true);
     try {
       if (groupingService === "media_player") {
-        // Nouveau format: media_player.join
+        // Format standard HA: target = maître, data = membres
         await client.callService(
           "media_player",
           "join",
@@ -146,11 +146,14 @@ export function SonosZoneManager({ entity, client, onNavigateToMaster }: SonosZo
           { entity_id: entity.entity_id }
         );
       } else {
-        // Fallback: sonos.join
+        // Fallback legacy: sonos.join
         await client.callService(
           "sonos",
           "join",
-          { master: entity.entity_id, entity_id: Array.from(selectedMembers) }
+          { 
+            master: entity.entity_id,
+            entity_id: Array.from(selectedMembers)
+          }
         );
       }
       
