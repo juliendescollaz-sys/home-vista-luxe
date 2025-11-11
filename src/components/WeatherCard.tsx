@@ -46,7 +46,8 @@ export const WeatherCard = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleCitySaved = () => {
-    // Déclencher un refresh après la sélection de ville
+    // Fermer le dialog et déclencher un refresh après la sélection de ville
+    setIsConfigOpen(false);
     setRefreshTrigger(prev => prev + 1);
   };
 
