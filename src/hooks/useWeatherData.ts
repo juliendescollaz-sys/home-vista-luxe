@@ -209,28 +209,47 @@ export function useWeatherData() {
     };
   }, [convert, toUnits]);
 
-  const selectWeather = useCallback((entityList: HAEntity[], cfg: HAConfig | null): UnifiedWeather | null => {
+  const selectWeather = useCallback((
+    entityList: HAEntity[],
+    cfg: HAConfig | null,
+    city?: string | null,
+    forcedEntityId?: string | null
+  ): UnifiedWeather | null => {
+    // 0) Entité forcée par l'utilisateur
+    if (forcedEntityId) {
+      const forced = entityList.find(e => e.entity_id === forcedEntityId);
+      if (forced && forced.entity_id.startsWith("weather.")) {
+        console.log("✅ Utilisation de l'entité forcée:", forcedEntityId);
+        return buildFromWeatherEntity(forced, cfg);
+      }
+    }
+
+    // 1) weather.* si dispo
     const weathers = entityList.filter(e => e.entity_id.startsWith("weather."));
     
     console.log("🔎 Entités weather.* trouvées:", weathers.map(w => w.entity_id));
     
     if (weathers.length) {
-      // Si une entité est forcée dans le store, l'utiliser en priorité
-      if (weatherEntity) {
-        const forced = weathers.find(w => w.entity_id === weatherEntity);
-        if (forced) {
-          console.log("✅ Utilisation de l'entité forcée:", forced.entity_id);
-          return buildFromWeatherEntity(forced, cfg);
+      const home = weathers.find(w => ["weather.home", "weather.maison"].includes(w.entity_id));
+      if (home) {
+        console.log("✅ Utilisation de weather.home/maison:", home.entity_id);
+        return buildFromWeatherEntity(home, cfg);
+      }
+
+      if (city && city.trim()) {
+        const lc = city.toLowerCase();
+        const byCity = weathers.find(w => (w.attributes.friendly_name || "").toLowerCase().includes(lc));
+        if (byCity) {
+          console.log("✅ Utilisation de l'entité correspondant à la ville:", byCity.entity_id);
+          return buildFromWeatherEntity(byCity, cfg);
         }
       }
       
-      // Sinon, heuristique classique
-      const home = weathers.find(w => ["weather.home", "weather.maison"].includes(w.entity_id));
-      const chosen = home || weathers[0];
-      console.log("✅ Utilisation de:", chosen.entity_id);
-      return buildFromWeatherEntity(chosen, cfg);
+      console.log("✅ Utilisation de la première entité weather.*:", weathers[0].entity_id);
+      return buildFromWeatherEntity(weathers[0], cfg);
     }
 
+    // 2) Fallback capteurs génériques
     console.log("⚠️ Aucune entité weather.*, recherche dans les capteurs...");
     const built = buildFromSensors(entityList, cfg);
     if (built) {
@@ -238,6 +257,7 @@ export function useWeatherData() {
       return built;
     }
 
+    // 3) Rien trouvé
     console.warn("❌ Aucune source météo trouvée");
     return {
       source: "none",
@@ -297,7 +317,7 @@ export function useWeatherData() {
         "temp sensors": tempSensors.length,
       });
 
-      const unified = selectWeather(entities, configRef.current);
+      const unified = selectWeather(entities, configRef.current, null, weatherEntity);
       setWeatherData(unified);
       setIsLoading(false);
       
@@ -320,17 +340,17 @@ export function useWeatherData() {
     refresh();
   }, [client, isConnected, entities.length, refresh]);
 
-  // Real-time updates handled by store, just refresh when entities change
+  // Real-time updates handled by store, just refresh when entities or weatherEntity change
   useEffect(() => {
     if (!client || !isConnected || !entities.length || !hasInitializedRef.current) return;
     
-    // Refresh weather data when entities update
+    // Refresh weather data when entities update or forced entity changes
     const weatherEntities = entities.filter(e => e.entity_id.startsWith("weather."));
     if (weatherEntities.length > 0 || entities.some(e => e.entity_id.startsWith("sensor."))) {
-      const unified = selectWeather(entities, configRef.current);
+      const unified = selectWeather(entities, configRef.current, null, weatherEntity);
       setWeatherData(unified);
     }
-  }, [entities, client, isConnected, selectWeather]);
+  }, [entities, weatherEntity, client, isConnected, selectWeather]);
 
   return { weatherData, isLoading, error, refresh };
 }
