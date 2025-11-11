@@ -153,19 +153,32 @@ export const WeatherCard = () => {
 
         {/* Prévisions (si disponibles) */}
         {forecast && forecast.length > 0 && (
-          <div className="grid grid-cols-4 gap-3 pt-4 border-t border-border/30">
-            {forecast.slice(0, 4).map((day, i: number) => {
-              const DayIcon = getWeatherIcon(day.condition || 'cloudy');
-              const dayName = new Date(day.datetime).toLocaleDateString("fr-FR", { weekday: "short" });
-              const temp = day.temperature !== null ? Math.round(day.temperature) : '—';
-              return (
-                <div key={i} className="text-center space-y-2">
-                  <p className="text-sm text-muted-foreground capitalize">{dayName}</p>
-                  <DayIcon className="h-6 w-6 mx-auto text-blue-400" />
-                  <p className="font-semibold">{temp}{units.temperature}</p>
-                </div>
-              );
-            })}
+          <div className="pt-4 border-t border-border/30">
+            <div className="flex overflow-x-auto gap-3 pb-2 -mx-2 px-2 scrollbar-hide">
+              {forecast.map((day, i: number) => {
+                const DayIcon = getWeatherIcon(day.condition || 'cloudy');
+                const date = new Date(day.datetime);
+                const dayName = date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+                const temp = day.temperature !== null ? Math.round(day.temperature) : '—';
+                const tempLow = day.templow !== null ? Math.round(day.templow) : null;
+                
+                return (
+                  <div key={i} className="flex-shrink-0 text-center space-y-2 min-w-[80px] p-3 rounded-lg bg-muted/30">
+                    <p className="text-xs text-muted-foreground capitalize whitespace-nowrap">{dayName}</p>
+                    <DayIcon className="h-8 w-8 mx-auto text-blue-400" />
+                    <div className="space-y-0.5">
+                      <p className="font-semibold text-lg">{temp}{units.temperature}</p>
+                      {tempLow !== null && (
+                        <p className="text-xs text-muted-foreground">{tempLow}{units.temperature}</p>
+                      )}
+                    </div>
+                    {day.precipitation !== null && day.precipitation > 0 && (
+                      <p className="text-xs text-blue-400">{day.precipitation} mm</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
