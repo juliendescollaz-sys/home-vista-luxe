@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,53 +7,64 @@ import { useHAStore } from "@/store/useHAStore";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// Liste statique de villes CH/FR populaires
-const CITIES = [
-  // Suisse
-  { name: "Genève", country: "CH" },
-  { name: "Lausanne", country: "CH" },
-  { name: "Zurich", country: "CH" },
-  { name: "Berne", country: "CH" },
-  { name: "Bâle", country: "CH" },
-  { name: "Lucerne", country: "CH" },
-  { name: "Neuchâtel", country: "CH" },
-  { name: "Fribourg", country: "CH" },
-  { name: "Montreux", country: "CH" },
-  { name: "Sion", country: "CH" },
-  { name: "Lugano", country: "CH" },
-  { name: "St-Gall", country: "CH" },
-  // France
-  { name: "Paris", country: "FR" },
-  { name: "Lyon", country: "FR" },
-  { name: "Marseille", country: "FR" },
-  { name: "Toulouse", country: "FR" },
-  { name: "Nice", country: "FR" },
-  { name: "Nantes", country: "FR" },
-  { name: "Strasbourg", country: "FR" },
-  { name: "Montpellier", country: "FR" },
-  { name: "Bordeaux", country: "FR" },
-  { name: "Lille", country: "FR" },
-  { name: "Rennes", country: "FR" },
-  { name: "Annecy", country: "FR" },
-  { name: "Grenoble", country: "FR" },
-  { name: "Dijon", country: "FR" },
-];
+const HA_ENTITIES = {
+  city: "input_text.ville_meteo",
+  lat: "input_number.weather_lat",
+  lon: "input_number.weather_lon",
+};
 
-const HA_INPUT_TEXT = "input_text.ville_meteo";
+interface CityResult {
+  label: string;
+  lat: number;
+  lon: number;
+}
 
 export const CityPicker = () => {
   const [search, setSearch] = useState("");
-  const [selectedCity, setSelectedCity] = useState("");
+  const [cities, setCities] = useState<CityResult[]>([]);
+  const [selectedCity, setSelectedCity] = useState<CityResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const client = useHAStore((state) => state.client);
   const isConnected = useHAStore((state) => state.isConnected);
 
-  const filteredCities = useMemo(() => {
-    if (!search) return CITIES;
-    const lower = search.toLowerCase();
-    return CITIES.filter((city) =>
-      city.name.toLowerCase().includes(lower)
-    );
+  // Debounced search via Open-Meteo Geocoding API
+  useEffect(() => {
+    if (!search || search.length < 2) {
+      setCities([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+          search
+        )}&count=10&language=fr&format=json`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.results && data.results.length > 0) {
+          const formatted: CityResult[] = data.results.map((r: any) => ({
+            label: `${r.name}${r.admin1 ? `, ${r.admin1}` : ""}${r.country ? `, ${r.country}` : ""}`,
+            lat: r.latitude,
+            lon: r.longitude,
+          }));
+          setCities(formatted);
+        } else {
+          setCities([]);
+        }
+      } catch (error) {
+        console.error("Erreur recherche ville:", error);
+        toast.error("Erreur lors de la recherche");
+        setCities([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
   }, [search]);
 
   const handleSaveCity = async () => {
@@ -69,19 +80,36 @@ export const CityPicker = () => {
 
     setIsLoading(true);
     try {
+      // Mise à jour de la ville (input_text)
       await client.callService("input_text", "set_value", {
-        value: selectedCity,
+        value: selectedCity.label,
       }, {
-        entity_id: HA_INPUT_TEXT,
+        entity_id: HA_ENTITIES.city,
+      });
+
+      // Mise à jour de la latitude (input_number)
+      await client.callService("input_number", "set_value", {
+        value: selectedCity.lat,
+      }, {
+        entity_id: HA_ENTITIES.lat,
+      });
+
+      // Mise à jour de la longitude (input_number)
+      await client.callService("input_number", "set_value", {
+        value: selectedCity.lon,
+      }, {
+        entity_id: HA_ENTITIES.lon,
       });
 
       toast.success("Ville mise à jour dans Home Assistant");
       setSearch("");
+      setSelectedCity(null);
+      setCities([]);
     } catch (error: any) {
       console.error("Erreur lors de la mise à jour de la ville:", error);
       
       if (error.message?.includes("not found") || error.message?.includes("does not exist")) {
-        toast.error("Configurez l'input_text dans Home Assistant");
+        toast.error("Configurez les entités météo dans Home Assistant");
       } else {
         toast.error("Erreur lors de la mise à jour de la ville");
       }
@@ -111,7 +139,7 @@ export const CityPicker = () => {
 
       {selectedCity && (
         <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
-          <span className="font-medium">{selectedCity}</span>
+          <span className="font-medium text-sm">{selectedCity.label}</span>
           <Button
             onClick={handleSaveCity}
             disabled={isLoading || !isConnected}
@@ -125,24 +153,26 @@ export const CityPicker = () => {
       {search && (
         <ScrollArea className="h-48">
           <div className="space-y-1">
-            {filteredCities.length === 0 ? (
+            {isSearching ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Recherche...
+              </p>
+            ) : cities.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 Aucune ville trouvée
               </p>
             ) : (
-              filteredCities.map((city) => (
+              cities.map((city, idx) => (
                 <button
-                  key={`${city.name}-${city.country}`}
+                  key={`${city.label}-${idx}`}
                   onClick={() => {
-                    setSelectedCity(city.name);
+                    setSelectedCity(city);
                     setSearch("");
+                    setCities([]);
                   }}
                   className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent transition-colors"
                 >
-                  <span className="font-medium">{city.name}</span>
-                  <span className="text-sm text-muted-foreground ml-2">
-                    ({city.country})
-                  </span>
+                  <span className="font-medium text-sm">{city.label}</span>
                 </button>
               ))
             )}
