@@ -9,6 +9,12 @@ interface TimelineState {
   positionUpdatedAt?: string;
 }
 
+interface PendingSeek {
+  pos: number;
+  wasPlaying: boolean;
+  deadline: number;
+}
+
 export function useMediaPlayerTimeline(
   client: HAClient | null,
   entity: HAEntity
@@ -23,6 +29,7 @@ export function useMediaPlayerTimeline(
   const [isDragging, setIsDragging] = useState(false);
   const [localPosition, setLocalPosition] = useState(0);
   const suppressRef = useRef<string | null>(null);
+  const pendingSeekRef = useRef<PendingSeek | null>(null);
   const timerRef = useRef<number | null>(null);
   const animationRef = useRef<number | null>(null);
 
@@ -46,10 +53,33 @@ export function useMediaPlayerTimeline(
     }
   }, []);
 
-  // Mise à jour depuis l'entité HA (si pas en train de drag)
+  // Mise à jour depuis l'entité HA (avec gestion pendingSeek)
   useEffect(() => {
-    if (isDragging || suppressRef.current === entity.entity_id) return;
+    if (isDragging) return;
+    
+    const isSuppress = suppressRef.current === entity.entity_id;
+    const pending = pendingSeekRef.current;
 
+    // Si on attend la confirmation du seek
+    if (isSuppress && pending) {
+      const haPos = entity.attributes.media_position || 0;
+      const positionConfirmed = Math.abs(haPos - pending.pos) <= 1.5;
+      const timedOut = Date.now() > pending.deadline;
+
+      if (positionConfirmed || timedOut) {
+        // Confirmation reçue ou timeout : lever le verrou
+        suppressRef.current = null;
+        pendingSeekRef.current = null;
+      } else {
+        // Toujours en attente : ignorer cet event
+        return;
+      }
+    } else if (isSuppress) {
+      // Suppress actif sans pending (cas legacy) : ignorer
+      return;
+    }
+
+    // Mise à jour normale depuis HA
     setTimeline({
       position: entity.attributes.media_position || 0,
       duration: entity.attributes.media_duration || 0,
@@ -122,9 +152,29 @@ export function useMediaPlayerTimeline(
   }, []);
 
   const handleSeekEnd = useCallback(async () => {
+    const wasPlaying = timeline.state === "playing";
+    
     setIsDragging(false);
 
     if (!client) return;
+
+    // Optimisme : mise à jour immédiate du modèle local
+    const now = new Date().toISOString();
+    setTimeline(prev => ({
+      ...prev,
+      position: localPosition,
+      positionUpdatedAt: now,
+      state: wasPlaying ? "playing" : "paused",
+    }));
+
+    // Créer le verrou optimiste
+    pendingSeekRef.current = {
+      pos: localPosition,
+      wasPlaying,
+      deadline: Date.now() + 2500, // 2.5s de fenêtre
+    };
+
+    suppressRef.current = entity.entity_id;
 
     try {
       await client.callService(
@@ -135,13 +185,11 @@ export function useMediaPlayerTimeline(
       );
     } catch (error) {
       console.error("Erreur seek:", error);
-    }
-
-    // Lever le suppress après 400ms
-    setTimeout(() => {
+      // En cas d'erreur, lever immédiatement le verrou
       suppressRef.current = null;
-    }, 400);
-  }, [client, entity.entity_id, localPosition]);
+      pendingSeekRef.current = null;
+    }
+  }, [client, entity.entity_id, localPosition, timeline.state]);
 
   // Calculer la position courante de façon absolue (pas incrémentale)
   const currentPosition = isDragging 
