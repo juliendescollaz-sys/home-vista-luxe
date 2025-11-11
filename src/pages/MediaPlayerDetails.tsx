@@ -273,23 +273,25 @@ const MediaPlayerDetails = () => {
         </Card>
 
         {/* Contrôles de lecture */}
-        <MediaPlayerControls
-          isPlaying={isPlaying}
-          shuffle={attributes.shuffle === true}
-          repeat={(attributes.repeat as "off" | "all" | "one") || "off"}
-          canPlay={canPlay}
-          canPause={canPause}
-          canPrevious={canPrevious}
-          canNext={canNext}
-          canShuffle={canShuffle}
-          canRepeat={canRepeat}
-          onPlayPause={handlePlayPause}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
-          onShuffleToggle={handleShuffleToggle}
-          onRepeatCycle={handleRepeatCycle}
-          pending={pending}
-        />
+        <div className="mb-6">
+          <MediaPlayerControls
+            isPlaying={isPlaying}
+            shuffle={attributes.shuffle === true}
+            repeat={(attributes.repeat as "off" | "all" | "one") || "off"}
+            canPlay={canPlay}
+            canPause={canPause}
+            canPrevious={canPrevious}
+            canNext={canNext}
+            canShuffle={canShuffle}
+            canRepeat={canRepeat}
+            onPlayPause={handlePlayPause}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            onShuffleToggle={handleShuffleToggle}
+            onRepeatCycle={handleRepeatCycle}
+            pending={pending}
+          />
+        </div>
 
         {/* Volume & Zones Sonos */}
         <div className="mb-6">
