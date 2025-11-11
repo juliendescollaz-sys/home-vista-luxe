@@ -251,6 +251,11 @@ export function useWeatherData() {
       return;
     }
     
+    if (!entities || entities.length === 0) {
+      console.log("⏸️ Entités non encore chargées, attente...");
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     
@@ -294,45 +299,28 @@ export function useWeatherData() {
       setError(e.message || "Erreur de récupération météo");
       setIsLoading(false);
     }
-  }, [client, entities, selectWeather]);
+  }, [client, entities, isConnected, selectWeather]);
 
-  // Initial load only
+  // Initial load - wait for entities to be populated
   useEffect(() => {
-    if (!client || !isConnected || hasInitializedRef.current) return;
+    if (!client || !isConnected || !entities.length || hasInitializedRef.current) return;
     
     hasInitializedRef.current = true;
     console.log("🌤️ Initialisation météo...");
     refresh();
-  }, [client, isConnected, refresh]);
+  }, [client, isConnected, entities.length, refresh]);
 
-  // WS subscription for real-time updates
+  // Real-time updates handled by store, just refresh when entities change
   useEffect(() => {
-    if (!client || !isConnected) return;
-
-    if (unsubscribeRef.current) {
-      unsubscribeRef.current();
+    if (!client || !isConnected || !entities.length || !hasInitializedRef.current) return;
+    
+    // Refresh weather data when entities update
+    const weatherEntities = entities.filter(e => e.entity_id.startsWith("weather."));
+    if (weatherEntities.length > 0 || entities.some(e => e.entity_id.startsWith("sensor."))) {
+      const unified = selectWeather(entities, configRef.current);
+      setWeatherData(unified);
     }
-
-    const unsub = client.subscribeStateChanges((data: any) => {
-      const newState = data?.new_state as HAEntity | undefined;
-      if (!newState) return;
-
-      // Only refresh for weather or sensor entities
-      if (newState.entity_id.startsWith("weather.") || newState.entity_id.startsWith("sensor.")) {
-        console.log("🔄 Mise à jour détectée:", newState.entity_id);
-        refresh();
-      }
-    });
-
-    unsubscribeRef.current = unsub;
-
-    return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
-    };
-  }, [client, refresh]);
+  }, [entities, client, isConnected, selectWeather]);
 
   return { weatherData, isLoading, error, refresh };
 }
