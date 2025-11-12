@@ -107,6 +107,8 @@ function mapOpenMeteoToUnified(json: any): UnifiedWeather {
       }))
     : [];
 
+  const hourly = mapOpenMeteoHourly(json.hourly);
+
   return {
     source: "sensors",
     entity_id: null,
@@ -119,6 +121,7 @@ function mapOpenMeteoToUnified(json: any): UnifiedWeather {
     visibility: null,
     precipitation: null,
     forecast: days,
+    hourlyForecast: hourly,
     units: units,
   };
 }
@@ -138,6 +141,14 @@ export interface UnifiedWeather {
     datetime: string;
     temperature?: number | null;
     templow?: number | null;
+    condition?: string | null;
+    precipitation?: number | null;
+    wind_speed?: number | null;
+    wind_bearing?: number | null;
+  }>;
+  hourlyForecast?: Array<{
+    datetime: string;
+    temperature?: number | null;
     condition?: string | null;
     precipitation?: number | null;
     wind_speed?: number | null;
