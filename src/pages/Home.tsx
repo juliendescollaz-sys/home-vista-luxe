@@ -2,7 +2,7 @@ import { useHAStore } from "@/store/useHAStore";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
-import { WeatherCard } from "@/components/WeatherCard";
+import { AnimatedWeatherTile } from "@/components/weather/AnimatedWeatherTile";
 import { DeviceCard } from "@/components/DeviceCard";
 import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { toast } from "sonner";
@@ -87,7 +87,7 @@ const Home = () => {
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
         {/* Section météo */}
         <div className="animate-fade-in">
-          <WeatherCard />
+          <AnimatedWeatherTile />
         </div>
 
         {/* Équipements actifs */}

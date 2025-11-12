@@ -1,0 +1,128 @@
+/* Animations météo performantes (GPU-friendly) */
+
+@keyframes float-clouds {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(30px);
+  }
+}
+
+@keyframes float-clouds-slow {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(20px);
+  }
+}
+
+@keyframes rain-fall {
+  0% {
+    transform: translateY(-100%) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) translateX(10px);
+    opacity: 0;
+  }
+}
+
+@keyframes snow-fall {
+  0% {
+    transform: translateY(-100%) translateX(0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) translateX(30px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes lightning-flash {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes sun-glow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes fog-drift {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-20px);
+  }
+}
+
+/* Classes d'animation */
+.weather-cloud {
+  animation: float-clouds 20s ease-in-out infinite;
+  will-change: transform;
+}
+
+.weather-cloud-slow {
+  animation: float-clouds-slow 30s ease-in-out infinite;
+  will-change: transform;
+}
+
+.weather-rain-drop {
+  animation: rain-fall 1s linear infinite;
+  will-change: transform, opacity;
+}
+
+.weather-snow-flake {
+  animation: snow-fall 3s linear infinite;
+  will-change: transform, opacity;
+}
+
+.weather-lightning {
+  animation: lightning-flash 0.15s ease-in-out;
+  will-change: opacity;
+}
+
+.weather-sun-glow {
+  animation: sun-glow 4s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+.weather-fog {
+  animation: fog-drift 15s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Transitions fluides */
+.weather-transition {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.weather-expand {
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.25s ease;
+}
