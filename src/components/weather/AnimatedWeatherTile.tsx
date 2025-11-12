@@ -109,12 +109,14 @@ export function AnimatedWeatherTile() {
           background: "rgba(0, 0, 0, 0.15)"
         }}
       >
-        {/* Tendance du jour en fond */}
-        <TrendBackdrop
-          dominantCondition={dominant}
-          opacity={trendOpacity}
-          isNight={isNight}
-        />
+        {/* Tendance du jour en fond - hauteur fixe pour éviter le déplacement */}
+        <div className="absolute inset-x-0 top-0 h-[200px] overflow-hidden rounded-3xl pointer-events-none">
+          <TrendBackdrop
+            dominantCondition={dominant}
+            opacity={trendOpacity}
+            isNight={isNight}
+          />
+        </div>
 
         {/* Couche d'animation de fond */}
         <div className="absolute inset-0 -z-10 opacity-85">

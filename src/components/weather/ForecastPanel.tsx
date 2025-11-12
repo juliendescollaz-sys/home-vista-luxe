@@ -64,6 +64,24 @@ export function ForecastPanel({
     }
   };
 
+  const translateCondition = (condition?: string) => {
+    if (!condition) return "Nuageux";
+    const cond = condition.toLowerCase();
+    
+    if (cond.includes("sunny") || cond.includes("clear")) return "Ensoleillé";
+    if (cond.includes("partlycloudy") || cond.includes("partly")) return "Partiellement nuageux";
+    if (cond.includes("cloudy") || cond.includes("overcast")) return "Nuageux";
+    if (cond.includes("pouring")) return "Pluie forte";
+    if (cond.includes("rain")) return "Pluvieux";
+    if (cond.includes("snow")) return "Neigeux";
+    if (cond.includes("thunderstorm") || cond.includes("thunder")) return "Orageux";
+    if (cond.includes("fog") || cond.includes("mist")) return "Brumeux";
+    if (cond.includes("hail")) return "Grêle";
+    if (cond.includes("wind")) return "Venteux";
+    
+    return condition;
+  };
+
   const getConditionIcon = (condition?: string) => {
     const iconSize = 20;
     const iconClass = "opacity-90";
@@ -135,8 +153,8 @@ export function ForecastPanel({
                 <div className="flex items-center justify-center w-6">
                   {getConditionIcon(item.condition)}
                 </div>
-                <span className="text-xs opacity-70 flex-1 capitalize">
-                  {item.condition || ""}
+                <span className="text-xs opacity-70 flex-1">
+                  {translateCondition(item.condition)}
                 </span>
               </div>
               <div className="flex items-center gap-3">
