@@ -7,7 +7,7 @@ type TrendBackdropProps = {
   isNight?: boolean;
 };
 
-const iconSize = 56;
+const iconSize = 96;
 
 export function TrendBackdrop({ dominantCondition, opacity = 0.22, isNight = false }: TrendBackdropProps) {
   const cond = (dominantCondition || "").toLowerCase();
