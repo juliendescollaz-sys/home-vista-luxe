@@ -14,6 +14,7 @@ export function AnimatedWeatherTile() {
   const [showConfig, setShowConfig] = useState(false);
   const isNight = useSunState();
   const { weatherData, isLoading, error } = useWeatherData();
+  const { entities, selectedCity } = useHAStore();
 
   if (isLoading) {
     return (
@@ -55,7 +56,6 @@ export function AnimatedWeatherTile() {
   const temperature = weatherData.temperature;
   
   // Récupérer le nom depuis l'entité HA si dispo
-  const { entities, selectedCity } = useHAStore();
   const weatherEntityData = weatherData.entity_id 
     ? entities?.find(e => e.entity_id === weatherData.entity_id)
     : null;
