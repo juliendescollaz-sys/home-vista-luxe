@@ -107,7 +107,7 @@ function mapOpenMeteoToUnified(json: any): UnifiedWeather {
       }))
     : [];
 
-  const hourly = mapOpenMeteoHourly(json.hourly);
+  const hourly = mapOpenMeteoHourly(json);
 
   return {
     source: "sensors",
