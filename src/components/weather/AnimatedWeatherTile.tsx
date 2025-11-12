@@ -68,22 +68,25 @@ export function AnimatedWeatherTile() {
   return (
     <>
       <div 
-        className={`relative rounded-3xl p-6 cursor-pointer overflow-hidden backdrop-blur-sm weather-transition shadow-lg ${
+        className={`relative rounded-3xl p-6 cursor-pointer overflow-hidden weather-transition ${
           isExpanded ? "min-h-[500px]" : "min-h-[200px]"
         }`}
         onClick={handleToggleExpand}
         style={{ 
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.15)",
-          border: "1px solid rgba(255, 255, 255, 0.15)"
+          boxShadow: "0 12px 40px rgba(0, 0, 0, 0.4)",
+          border: "2px solid rgba(255, 255, 255, 0.25)",
+          background: "rgba(0, 0, 0, 0.15)"
         }}
       >
         {/* Couche d'animation de fond */}
-        <WeatherAnimationLayer
-          condition={condition}
-          isNight={isNight}
-          windSpeed={weatherData.wind_speed}
-          animationsEnabled={true}
-        />
+        <div className="absolute inset-0 -z-10 opacity-70">
+          <WeatherAnimationLayer
+            condition={condition}
+            isNight={isNight}
+            windSpeed={weatherData.wind_speed}
+            animationsEnabled={true}
+          />
+        </div>
 
         {/* Contenu */}
         <div className="relative z-10 space-y-4">
@@ -91,13 +94,13 @@ export function AnimatedWeatherTile() {
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold text-white drop-shadow-lg">{location}</h3>
-                <span className="text-xs text-white/90 drop-shadow">
+                <h3 className="text-lg font-bold text-white" style={{ textShadow: "0 2px 8px rgba(0,0,0,0.8)" }}>{location}</h3>
+                <span className="text-xs font-semibold text-white/95" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.7)" }}>
                   {new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                 </span>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-bold text-white drop-shadow-lg">
+                <span className="text-5xl font-bold text-white" style={{ textShadow: "0 3px 12px rgba(0,0,0,0.9)" }}>
                   {temperature !== undefined && temperature !== null ? Math.round(temperature) : "—"}°
                 </span>
               </div>
@@ -106,7 +109,7 @@ export function AnimatedWeatherTile() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/20 drop-shadow"
+              className="text-white hover:bg-white/30 bg-black/20 border border-white/20"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowConfig(true);

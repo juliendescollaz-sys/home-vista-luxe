@@ -94,7 +94,7 @@ export function WeatherAnimationLayer({
   }
 
   const renderMainIcon = () => {
-    const iconClass = "absolute top-4 right-4 opacity-25";
+    const iconClass = "absolute top-4 right-4 opacity-40";
     const size = 120;
 
     if (condition.includes("sunny") || condition.includes("clear")) {
@@ -131,15 +131,15 @@ export function WeatherAnimationLayer({
       {(condition.includes("cloudy") || condition.includes("partlycloudy")) && (
         <>
           <Cloud 
-            className="absolute top-8 left-10 opacity-15 weather-cloud" 
+            className="absolute top-8 left-10 opacity-25 weather-cloud" 
             size={80} 
           />
           <Cloud 
-            className="absolute top-16 left-32 opacity-10 weather-cloud-slow" 
+            className="absolute top-16 left-32 opacity-20 weather-cloud-slow" 
             size={60} 
           />
           <Cloud 
-            className="absolute top-24 right-20 opacity-12 weather-cloud" 
+            className="absolute top-24 right-20 opacity-22 weather-cloud" 
             size={70} 
           />
         </>
@@ -177,13 +177,11 @@ export function WeatherAnimationLayer({
       {(condition.includes("fog") || condition.includes("mist")) && (
         <>
           <div
-            className="absolute inset-0 bg-white/30 weather-fog"
-            style={{ filter: "blur(20px)" }}
+            className="absolute inset-0 bg-white/20 weather-fog"
           />
           <div
-            className="absolute inset-0 bg-white/20 weather-fog"
+            className="absolute inset-0 bg-white/15 weather-fog"
             style={{ 
-              filter: "blur(30px)",
               animationDelay: "5s" 
             }}
           />
