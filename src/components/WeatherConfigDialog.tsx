@@ -15,7 +15,9 @@ interface WeatherConfigDialogProps {
 
 export const WeatherConfigDialog = ({ open, onOpenChange, onCitySaved }: WeatherConfigDialogProps) => {
   const handleCitySaved = () => {
-    // Fermer immédiatement et proprement
+    // Fermer le dialog immédiatement
+    onOpenChange(false);
+    // Appeler le callback optionnel
     if (onCitySaved) {
       onCitySaved();
     }
