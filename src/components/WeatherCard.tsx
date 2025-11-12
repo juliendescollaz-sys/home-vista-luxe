@@ -30,6 +30,23 @@ export function WeatherCard() {
     setIsConfigOpen(open);
   };
 
+  // Gestionnaires pour iOS - forcer le blur immédiat
+  const handleRefreshClick = () => {
+    refresh();
+    // Forcer le blur sur iOS
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  };
+
+  const handleConfigClick = () => {
+    setIsConfigOpen(true);
+    // Forcer le blur sur iOS
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  };
+
   if (isLoading) {
     return (
       <Card className="w-full">
@@ -89,16 +106,18 @@ export function WeatherCard() {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                onClick={refresh}
-                className="active:bg-accent/50 active:scale-95 transition-all"
+                onClick={handleRefreshClick}
+                className="transition-transform active:scale-95"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 <RefreshCw className="w-4 h-4" />
               </Button>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                onClick={() => setIsConfigOpen(true)}
-                className="active:bg-accent/50 active:scale-95 transition-all"
+                onClick={handleConfigClick}
+                className="transition-transform active:scale-95"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 <Settings className="w-4 h-4" />
               </Button>
