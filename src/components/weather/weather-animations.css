@@ -126,3 +126,60 @@
   transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
               opacity 0.25s ease;
 }
+
+/* === Trend backdrop animations (discrètes) === */
+@keyframes driftX {
+  0% { transform: translateX(0px); }
+  50% { transform: translateX(12px); }
+  100% { transform: translateX(0px); }
+}
+
+@keyframes driftXS {
+  0% { transform: translateX(0px); }
+  50% { transform: translateX(8px); }
+  100% { transform: translateX(0px); }
+}
+
+@keyframes swayY {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(10px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes floatY {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(6px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes flashOnce {
+  0%, 92% { opacity: 0.25; filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+  95% { opacity: 0.9; filter: drop-shadow(0 0 16px rgba(255,255,255,0.85)); }
+  100% { opacity: 0.25; filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+}
+
+.trend-cloud { opacity: 0.45; }
+.trend-rain  { opacity: 0.40; }
+.trend-snow  { opacity: 0.42; }
+.trend-fog   { opacity: 0.38; }
+.trend-sun   { opacity: 0.40; }
+.trend-thunder { opacity: 0.40; }
+
+.drift { animation: driftX 14s ease-in-out infinite; }
+.drift-slow { animation: driftXS 20s ease-in-out infinite; }
+.sway { animation: swayY 9s ease-in-out infinite; }
+.sway-slow { animation: swayY 13s ease-in-out infinite; }
+.float { animation: floatY 11s ease-in-out infinite; }
+.float-slow { animation: floatY 16s ease-in-out infinite; }
+.flash { animation: flashOnce 7.5s ease-in-out infinite; }
+
+.fog-slide { animation: driftXS 18s linear infinite; }
+.fog-slide-delayed { animation: driftXS 22s linear infinite; animation-delay: 4s; }
+
+.glow { animation: pulse 6s ease-in-out infinite; }
+.glow-slow { animation: pulse 10s ease-in-out infinite; }
+
+@keyframes pulse {
+  0%,100% { filter: drop-shadow(0 0 0px rgba(255,255,200,0.0)); }
+  50% { filter: drop-shadow(0 0 12px rgba(255,255,200,0.35)); }
+}
