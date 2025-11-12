@@ -90,8 +90,7 @@ export function WeatherCard() {
                 variant="ghost" 
                 size="icon" 
                 onClick={refresh}
-                className="hover:bg-accent active:scale-95 transition-transform"
-                onMouseDown={(e) => e.currentTarget.blur()}
+                className="active:bg-accent/50 active:scale-95 transition-all"
               >
                 <RefreshCw className="w-4 h-4" />
               </Button>
@@ -99,8 +98,7 @@ export function WeatherCard() {
                 variant="ghost" 
                 size="icon" 
                 onClick={() => setIsConfigOpen(true)}
-                className="hover:bg-accent active:scale-95 transition-transform"
-                onMouseDown={(e) => e.currentTarget.blur()}
+                className="active:bg-accent/50 active:scale-95 transition-all"
               >
                 <Settings className="w-4 h-4" />
               </Button>
