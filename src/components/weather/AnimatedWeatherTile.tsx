@@ -177,7 +177,7 @@ export function AnimatedWeatherTile() {
               onClick={(e) => e.stopPropagation()}
             >
               <ForecastPanel
-                hourlyForecast={weatherData.forecast}
+                hourlyForecast={weatherData.hourlyForecast || []}
                 dailyForecast={weatherData.forecast}
                 tempUnit={weatherData.units?.temperature || "°C"}
               />
