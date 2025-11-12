@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { 
+  Sun, 
+  Cloud, 
+  CloudRain, 
+  Snowflake, 
+  CloudLightning, 
+  CloudFog 
+} from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface ForecastItem {
@@ -57,15 +64,18 @@ export function ForecastPanel({
     }
   };
 
-  const getConditionEmoji = (condition?: string) => {
-    if (!condition) return "☁️";
-    if (condition.includes("sunny") || condition.includes("clear")) return "☀️";
-    if (condition.includes("rain") || condition.includes("pouring")) return "🌧️";
-    if (condition.includes("snow")) return "❄️";
-    if (condition.includes("thunderstorm")) return "⛈️";
-    if (condition.includes("cloudy")) return "☁️";
-    if (condition.includes("fog")) return "🌫️";
-    return "☁️";
+  const getConditionIcon = (condition?: string) => {
+    const iconSize = 20;
+    const iconClass = "opacity-90";
+    
+    if (!condition) return <Cloud size={iconSize} className={iconClass} />;
+    if (condition.includes("sunny") || condition.includes("clear")) return <Sun size={iconSize} className={iconClass} />;
+    if (condition.includes("rain") || condition.includes("pouring")) return <CloudRain size={iconSize} className={iconClass} />;
+    if (condition.includes("snow")) return <Snowflake size={iconSize} className={iconClass} />;
+    if (condition.includes("thunderstorm")) return <CloudLightning size={iconSize} className={iconClass} />;
+    if (condition.includes("cloudy")) return <Cloud size={iconSize} className={iconClass} />;
+    if (condition.includes("fog")) return <CloudFog size={iconSize} className={iconClass} />;
+    return <Cloud size={iconSize} className={iconClass} />;
   };
 
   if (futureHourly.length === 0 && dailyForecast.length === 0) {
@@ -102,7 +112,9 @@ export function ForecastPanel({
               className="flex flex-col items-center gap-2 min-w-[70px] px-4 py-3 rounded-xl bg-background/20 border border-border/20 snap-start backdrop-blur-sm"
             >
               <span className="text-sm font-medium opacity-90">{formatHour(item.datetime)}</span>
-              <span className="text-2xl">{getConditionEmoji(item.condition)}</span>
+              <div className="flex items-center justify-center w-8 h-8">
+                {getConditionIcon(item.condition)}
+              </div>
               <span className="text-sm font-semibold">
                 {item.temperature !== undefined ? `${Math.round(item.temperature)}${tempUnit}` : "—"}
               </span>
@@ -120,17 +132,18 @@ export function ForecastPanel({
             >
               <div className="flex items-center gap-3 flex-1">
                 <span className="text-sm font-medium w-12">{formatDay(item.datetime)}</span>
-                <span className="text-2xl">{getConditionEmoji(item.condition)}</span>
+                <div className="flex items-center justify-center w-6">
+                  {getConditionIcon(item.condition)}
+                </div>
                 <span className="text-xs opacity-70 flex-1 capitalize">
                   {item.condition || ""}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm opacity-70">
+              <div className="flex items-center gap-3">
+                <span className="text-sm opacity-70 w-8 text-right">
                   {item.templow !== undefined ? `${Math.round(item.templow)}°` : "—"}
                 </span>
-                <ChevronRight size={12} className="opacity-50" />
-                <span className="text-sm font-semibold">
+                <span className="text-sm font-semibold w-8 text-right">
                   {item.temperature !== undefined ? `${Math.round(item.temperature)}°` : "—"}
                 </span>
               </div>
