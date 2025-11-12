@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Settings } from "lucide-react";
+import { Settings, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WeatherAnimationLayer } from "./WeatherAnimationLayer";
 import { WeatherStatsRow } from "./WeatherStatsRow";
@@ -42,7 +42,7 @@ export function AnimatedWeatherTile() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const isNight = useSunState();
-  const { weatherData, isLoading, error } = useWeatherData();
+  const { weatherData, isLoading, error, refresh } = useWeatherData();
   const { entities, selectedCity } = useHAStore();
 
   if (isLoading) {
@@ -145,17 +145,31 @@ export function AnimatedWeatherTile() {
               </div>
             </div>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-white/30 bg-black/20"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowConfig(true);
-              }}
-            >
-              <Settings size={20} />
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/30 bg-black/20"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  refresh();
+                }}
+                disabled={isLoading}
+              >
+                <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/30 bg-black/20"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowConfig(true);
+                }}
+              >
+                <Settings size={20} />
+              </Button>
+            </div>
           </div>
 
           {/* Stats */}
