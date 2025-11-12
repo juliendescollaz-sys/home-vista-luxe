@@ -78,9 +78,9 @@ export function WeatherCard() {
   return (
     <>
       <Card className="w-full">
-        <CardHeader className="pb-4">
+        <CardHeader className="pb-2">
           {/* Ville + Actions */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-primary" />
               <span className="font-medium">{selectedCity?.label ?? "—"}</span>
@@ -96,49 +96,49 @@ export function WeatherCard() {
           </div>
 
           {/* Prévisions Matin / Après-midi en grand */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-2">
             {/* Matin */}
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl border bg-muted/30">
+            <div className="flex flex-col items-center gap-1 p-3 rounded-xl border bg-muted/30">
               <div className="text-xs opacity-70 uppercase tracking-wider">Matin</div>
-              <WeatherIcon className="w-12 h-12 text-primary" />
+              <WeatherIcon className="w-10 h-10 text-primary" />
               {morningTemp != null && (
-                <div className="text-3xl font-bold">{Math.round(morningTemp)}{w.units.temperature}</div>
+                <div className="text-2xl font-bold">{Math.round(morningTemp)}{w.units.temperature}</div>
               )}
             </div>
 
             {/* Après-midi */}
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl border bg-muted/30">
+            <div className="flex flex-col items-center gap-1 p-3 rounded-xl border bg-muted/30">
               <div className="text-xs opacity-70 uppercase tracking-wider">Après-midi</div>
-              <WeatherIcon className="w-12 h-12 text-primary" />
+              <WeatherIcon className="w-10 h-10 text-primary" />
               {afternoonTemp != null && (
-                <div className="text-3xl font-bold">{Math.round(afternoonTemp)}{w.units.temperature}</div>
+                <div className="text-2xl font-bold">{Math.round(afternoonTemp)}{w.units.temperature}</div>
               )}
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 pt-3">
           {/* Infos essentielles */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             {w.humidity != null && (
-              <div className="flex flex-col items-center gap-1 p-3 rounded-lg border">
-                <Droplets className="w-5 h-5 text-blue-500" />
+              <div className="flex flex-col items-center gap-0.5 p-2 rounded-lg border">
+                <Droplets className="w-4 h-4 text-blue-500" />
                 <span className="text-xs text-muted-foreground">Humidité</span>
-                <span className="font-semibold">{w.humidity}%</span>
+                <span className="text-sm font-semibold">{w.humidity}%</span>
               </div>
             )}
             {w.wind_speed != null && (
-              <div className="flex flex-col items-center gap-1 p-3 rounded-lg border">
-                <Wind className="w-5 h-5 text-cyan-500" />
+              <div className="flex flex-col items-center gap-0.5 p-2 rounded-lg border">
+                <Wind className="w-4 h-4 text-cyan-500" />
                 <span className="text-xs text-muted-foreground">Vent</span>
-                <span className="font-semibold">{Math.round(w.wind_speed)} {w.units.wind_speed}</span>
+                <span className="text-sm font-semibold">{Math.round(w.wind_speed)} {w.units.wind_speed}</span>
               </div>
             )}
             {w.pressure != null && (
-              <div className="flex flex-col items-center gap-1 p-3 rounded-lg border">
-                <Gauge className="w-5 h-5 text-orange-500" />
+              <div className="flex flex-col items-center gap-0.5 p-2 rounded-lg border">
+                <Gauge className="w-4 h-4 text-orange-500" />
                 <span className="text-xs text-muted-foreground">Pression</span>
-                <span className="font-semibold">{Math.round(w.pressure)} {w.units.pressure}</span>
+                <span className="text-sm font-semibold whitespace-nowrap">{Math.round(w.pressure)} {w.units.pressure}</span>
               </div>
             )}
           </div>
@@ -154,10 +154,10 @@ export function WeatherCard() {
                   const ForecastIcon = getWeatherIcon(f.condition);
                   
                   return (
-                    <div key={i} className="flex flex-col items-center gap-1 p-3 rounded-lg border">
+                    <div key={i} className="flex flex-col items-center gap-1 p-2 rounded-lg border">
                       <div className="text-xs opacity-70">{label}</div>
-                      <ForecastIcon className="w-6 h-6 text-primary" />
-                      <div className="text-sm font-semibold">
+                      <ForecastIcon className="w-5 h-5 text-primary" />
+                      <div className="text-xs font-semibold">
                         {f.templow != null ? Math.round(f.templow) : "—"}{w.units.temperature}
                         {" / "}
                         {f.temperature != null ? Math.round(f.temperature) : "—"}{w.units.temperature}
