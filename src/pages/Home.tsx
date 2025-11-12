@@ -4,6 +4,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WeatherCard } from "@/components/WeatherCard";
 import { DeviceCard } from "@/components/DeviceCard";
+import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { toast } from "sonner";
 
 const Home = () => {
@@ -11,13 +12,16 @@ const Home = () => {
   const favorites = useHAStore((state) => state.favorites);
   const isConnected = useHAStore((state) => state.isConnected);
 
-  // Appareils actifs uniquement
-  const activeDevices = entities?.filter(e => 
-    e.state === "on" && 
-    (e.entity_id.startsWith("light.") || 
-     e.entity_id.startsWith("switch.") ||
-     e.entity_id.startsWith("media_player."))
-  ) || [];
+  // Appareils actifs uniquement (lumières, switches actifs + media_player en lecture)
+  const activeDevices = entities?.filter(e => {
+    if (e.entity_id.startsWith("light.") || e.entity_id.startsWith("switch.")) {
+      return e.state === "on";
+    }
+    if (e.entity_id.startsWith("media_player.")) {
+      return e.state === "playing";
+    }
+    return false;
+  }) || [];
 
   // Raccourcis (favoris)
   const shortcuts = entities?.filter(e => favorites.includes(e.entity_id)) || [];
@@ -49,9 +53,9 @@ const Home = () => {
           <WeatherCard />
         </div>
 
-        {/* État de la maison */}
+        {/* Équipements actifs */}
         <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-          <h2 className="text-2xl font-bold">État de la maison</h2>
+          <h2 className="text-2xl font-bold">Équipements actifs</h2>
           
           {activeDevices.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
@@ -59,13 +63,21 @@ const Home = () => {
             </p>
           ) : (
             <div className="space-y-3">
-              {activeDevices.map((device) => (
-                <DeviceCard
-                  key={device.entity_id}
-                  entity={device}
-                  onToggle={handleDeviceToggle}
-                />
-              ))}
+              {activeDevices.map((device) => {
+                const isMediaPlayer = device.entity_id.startsWith("media_player.");
+                return isMediaPlayer ? (
+                  <MediaPlayerCard
+                    key={device.entity_id}
+                    entity={device}
+                  />
+                ) : (
+                  <DeviceCard
+                    key={device.entity_id}
+                    entity={device}
+                    onToggle={handleDeviceToggle}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
@@ -82,13 +94,21 @@ const Home = () => {
             </p>
           ) : (
             <div className="space-y-3">
-              {shortcuts.map((device) => (
-                <DeviceCard
-                  key={device.entity_id}
-                  entity={device}
-                  onToggle={handleDeviceToggle}
-                />
-              ))}
+              {shortcuts.map((device) => {
+                const isMediaPlayer = device.entity_id.startsWith("media_player.");
+                return isMediaPlayer ? (
+                  <MediaPlayerCard
+                    key={device.entity_id}
+                    entity={device}
+                  />
+                ) : (
+                  <DeviceCard
+                    key={device.entity_id}
+                    entity={device}
+                    onToggle={handleDeviceToggle}
+                  />
+                );
+              })}
             </div>
           )}
         </div>

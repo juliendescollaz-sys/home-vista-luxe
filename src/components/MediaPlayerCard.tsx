@@ -1,11 +1,12 @@
 import { Card } from "@/components/ui/card";
 import { HAEntity } from "@/types/homeassistant";
-import { Music, Pause, Play, Loader2 } from "lucide-react";
+import { Music, Pause, Play, Loader2, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
 import { useHAStore } from "@/store/useHAStore";
 import { useMediaPlayerTimeline } from "@/hooks/useMediaPlayerTimeline";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface MediaPlayerCardProps {
   entity: HAEntity;
@@ -16,6 +17,15 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
   const connection = useHAStore((state) => state.connection);
   const client = useHAStore((state) => state.client);
   const { state, attributes } = entity;
+  
+  const favorites = useHAStore((state) => state.favorites);
+  const toggleFavorite = useHAStore((state) => state.toggleFavorite);
+  const isFavorite = favorites.includes(entity.entity_id);
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleFavorite(entity.entity_id);
+  };
 
   const {
     position,
@@ -71,7 +81,7 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
       )}
 
       <div className="relative p-4 space-y-3">
-        {/* Header: Jaquette + Titre/Artiste */}
+        {/* Header: Jaquette + Titre/Artiste + Favoris */}
         <div className="flex items-center gap-4">
           {/* Jaquette */}
           <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-muted/50 backdrop-blur-sm border border-border/50">
@@ -106,6 +116,17 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
               </p>
             )}
           </div>
+
+          {/* Favoris */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            onClick={handleFavoriteClick}
+            data-control
+          >
+            <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+          </Button>
         </div>
 
         {/* Timeline interactive */}
