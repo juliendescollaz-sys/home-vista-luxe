@@ -143,19 +143,6 @@ const MediaPlayerDetails = () => {
     }
   }, [client, entity]);
 
-  const handlePlayPause = useCallback(async () => {
-    if (!entityData) return;
-    
-    // Optimistic update immédiat
-    if (entityData.isPlaying && entityData.canPause) {
-      optimisticPause();
-      await pause();
-    } else if (entityData.canPlay) {
-      optimisticPlay();
-      await play();
-    }
-  }, [entityData, optimisticPause, optimisticPlay, pause, play]);
-
   const handlePrevious = useCallback(() => {
     setPending(p => ({ ...p, previous: true }));
     callService("media_previous_track");
@@ -249,6 +236,20 @@ const MediaPlayerDetails = () => {
     decodedEntityId,
     (entity?.state as any) || "idle"
   );
+
+  // Handler play/pause avec optimistic updates
+  const handlePlayPause = useCallback(async () => {
+    if (!entityData) return;
+    
+    // Optimistic update immédiat
+    if (entityData.isPlaying && entityData.canPause) {
+      optimisticPause();
+      await pause();
+    } else if (entityData.canPlay) {
+      optimisticPlay();
+      await play();
+    }
+  }, [entityData, optimisticPause, optimisticPlay, pause, play]);
 
   const formatTime = (seconds: number) => {
     if (!seconds || seconds < 0) return "0:00";
