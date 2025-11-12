@@ -7,6 +7,9 @@ interface TimelineState {
   duration: number;
   state: "playing" | "paused" | "idle" | "off" | "unavailable" | "buffering";
   positionUpdatedAt?: string;
+  repeat?: "off" | "all" | "one";
+  media_content_id?: string;
+  media_title?: string;
 }
 
 interface PendingSeek {
@@ -14,6 +17,9 @@ interface PendingSeek {
   wasPlaying: boolean;
   deadline: number;
 }
+
+const LOOP_EPSILON_SEC = 0.75;
+const SMOOTHING_DURATION_MS = 200;
 
 export function useMediaPlayerTimeline(
   client: HAClient | null,
@@ -24,41 +30,45 @@ export function useMediaPlayerTimeline(
     duration: entity?.attributes?.media_duration || 0,
     state: (entity?.state as any) || "idle",
     positionUpdatedAt: entity?.attributes?.media_position_updated_at,
+    repeat: entity?.attributes?.repeat || "off",
+    media_content_id: entity?.attributes?.media_content_id,
+    media_title: entity?.attributes?.media_title,
   });
 
   const [isDragging, setIsDragging] = useState(false);
   const [localPosition, setLocalPosition] = useState(0);
+  const [lastVisualPos, setLastVisualPos] = useState(0);
   const [, forceUpdate] = useState(0);
   const suppressRef = useRef<string | null>(null);
   const pendingSeekRef = useRef<PendingSeek | null>(null);
   const timerRef = useRef<number | null>(null);
   const animationRef = useRef<number | null>(null);
+  const lastTrackRef = useRef<string | undefined>(undefined);
 
-  // Calcul de la position actuelle (avec animation pour playing)
-  const computePositionNow = useCallback((state: TimelineState, nowMs: number): number => {
-    const dur = state.duration || 0;
-    const base = state.position || 0;
+  // Calcul de la position actuelle (avec animation pour playing et gestion repeat)
+  const computePositionNow = useCallback((state: TimelineState, nowMs: number, lastVisual: number): number => {
+    const dur = Number(state.duration) || 0;
+    const base = Number(state.position) || 0;
     
-    if (state.state !== "playing" || !state.positionUpdatedAt) {
-      return Math.min(base, dur);
+    if (state.state !== "playing") return Math.min(base, dur);
+    if (dur <= 0) return 0;
+
+    const updatedAt = Date.parse(state.positionUpdatedAt || "");
+    const elapsed = isNaN(updatedAt) ? 0 : Math.max(0, (nowMs - updatedAt) / 1000);
+    const computed = base + elapsed;
+
+    // Gestion du repeat
+    if (state.repeat === "one" || state.repeat === "all") {
+      if (computed >= dur - LOOP_EPSILON_SEC) {
+        const wrapped = computed % dur;
+        const delta = (nowMs % SMOOTHING_DURATION_MS) / SMOOTHING_DURATION_MS;
+        return lastVisual * (1 - delta) + wrapped * delta;
+      }
+      return Math.min(computed, dur);
     }
 
-    try {
-      const t0 = Date.parse(state.positionUpdatedAt);
-      if (isNaN(t0)) return Math.min(base, dur);
-      
-      const elapsed = Math.max(0, (nowMs - t0) / 1000);
-      const computed = base + elapsed;
-      
-      // Si on dépasse la durée, rester à la fin jusqu'à ce que HA envoie la nouvelle position
-      if (computed > dur && dur > 0) {
-        return dur;
-      }
-      
-      return Math.min(computed, dur);
-    } catch {
-      return Math.min(base, dur);
-    }
+    // Sans repeat
+    return Math.min(computed, dur);
   }, []);
 
   // Mise à jour depuis l'entité HA (avec gestion pendingSeek)
@@ -91,22 +101,41 @@ export function useMediaPlayerTimeline(
     const newDuration = entity.attributes?.media_duration || 0;
     const newState = entity.state as any;
     const newPositionUpdatedAt = entity.attributes?.media_position_updated_at;
+    const newRepeat = entity.attributes?.repeat || "off";
+    const newMediaContentId = entity.attributes?.media_content_id;
+    const newMediaTitle = entity.attributes?.media_title;
 
-    // Détecter un changement de piste (reset de position en boucle par exemple)
-    const positionJumped = Math.abs((timeline.position || 0) - newPosition) > 5;
+    // Détecter un changement de piste
+    const trackKey = `${newMediaContentId ?? ""}::${newMediaTitle ?? ""}`;
+    const trackChanged = lastTrackRef.current !== undefined && lastTrackRef.current !== trackKey;
+    
+    if (trackChanged) {
+      lastTrackRef.current = trackKey;
+      setLastVisualPos(0);
+      setTimeline({
+        position: 0,
+        duration: newDuration,
+        state: newState,
+        positionUpdatedAt: new Date().toISOString(),
+        repeat: newRepeat,
+        media_content_id: newMediaContentId,
+        media_title: newMediaTitle,
+      });
+      forceUpdate(Date.now());
+      return;
+    }
     
     // Mise à jour normale depuis HA
+    lastTrackRef.current = trackKey;
     setTimeline({
       position: newPosition,
       duration: newDuration,
       state: newState,
       positionUpdatedAt: newPositionUpdatedAt,
+      repeat: newRepeat,
+      media_content_id: newMediaContentId,
+      media_title: newMediaTitle,
     });
-
-    // Si la position a sauté (nouvelle piste ou loop), forcer un re-render
-    if (positionJumped) {
-      forceUpdate(Date.now());
-    }
   }, [
     entity,
     entity?.attributes?.media_position,
@@ -190,6 +219,8 @@ export function useMediaPlayerTimeline(
       positionUpdatedAt: now,
       state: wasPlaying ? "playing" : "paused",
     }));
+    
+    setLastVisualPos(localPosition);
 
     // Créer le verrou optimiste
     pendingSeekRef.current = {
@@ -218,8 +249,15 @@ export function useMediaPlayerTimeline(
   // Calculer la position courante de façon absolue (pas incrémentale)
   const currentPosition = isDragging 
     ? localPosition 
-    : computePositionNow(timeline, Date.now());
+    : computePositionNow(timeline, Date.now(), lastVisualPos);
   const currentDuration = timeline.duration;
+  
+  // Mettre à jour lastVisualPos pour le smoothing
+  useEffect(() => {
+    if (!isDragging) {
+      setLastVisualPos(currentPosition);
+    }
+  }, [currentPosition, isDragging]);
 
   return {
     position: currentPosition,
