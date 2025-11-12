@@ -106,28 +106,28 @@ export function ForecastPanel({
 
   return (
     <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "hourly" | "daily")} className="w-full">
-      <TabsList className="grid w-full grid-cols-2 bg-white/40 dark:bg-background/20 border border-slate-300/30 dark:border-border/20">
+      <TabsList className="grid w-full grid-cols-2 bg-background/20 border border-border/20">
         <TabsTrigger 
           value="hourly" 
           disabled={futureHourly.length === 0}
-          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          className="data-[state=active]:bg-primary/90 data-[state=active]:text-primary-foreground"
         >
           Heure par heure
         </TabsTrigger>
         <TabsTrigger 
           value="daily"
-          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          className="data-[state=active]:bg-primary/90 data-[state=active]:text-primary-foreground"
         >
           Plusieurs jours
         </TabsTrigger>
       </TabsList>
 
       <TabsContent value="hourly" className="mt-4">
-        <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-slate-400/40 dark:scrollbar-thumb-white/20 scrollbar-track-transparent">
+        <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
           {futureHourly.map((item, index) => (
             <div 
               key={index}
-              className="flex flex-col items-center gap-2 min-w-[70px] px-4 py-3 rounded-xl bg-white/40 dark:bg-background/20 border border-slate-300/30 dark:border-border/20 snap-start backdrop-blur-sm"
+              className="flex flex-col items-center gap-2 min-w-[70px] px-4 py-3 rounded-xl bg-background/20 border border-border/20 snap-start backdrop-blur-sm"
             >
               <span className="text-sm font-medium opacity-90">{formatHour(item.datetime)}</span>
               <div className="flex items-center justify-center w-8 h-8">
@@ -146,7 +146,7 @@ export function ForecastPanel({
           {dailyForecast.slice(0, 7).map((item, index) => (
             <div 
               key={index}
-              className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/40 dark:bg-background/20 border border-slate-300/30 dark:border-border/20 hover:bg-white/60 dark:hover:bg-background/30 transition-colors backdrop-blur-sm"
+              className="flex items-center justify-between px-4 py-3 rounded-xl bg-background/20 border border-border/20 hover:bg-background/30 transition-colors backdrop-blur-sm"
             >
               <div className="flex items-center gap-3 flex-1">
                 <span className="text-sm font-medium w-12">{formatDay(item.datetime)}</span>

@@ -99,10 +99,15 @@ export function AnimatedWeatherTile() {
   return (
     <>
       <div 
-        className={`relative rounded-3xl p-6 cursor-pointer overflow-hidden weather-transition border-2 shadow-2xl ${
+        className={`relative rounded-3xl p-6 cursor-pointer overflow-hidden weather-transition ${
           isExpanded ? "min-h-[500px]" : "min-h-[200px]"
-        } bg-gradient-to-br from-sky-100/90 to-sky-200/90 border-sky-300/50 dark:from-slate-900/90 dark:to-slate-800/90 dark:border-white/25`}
+        }`}
         onClick={handleToggleExpand}
+        style={{ 
+          boxShadow: "0 12px 40px rgba(0, 0, 0, 0.4)",
+          border: "2px solid rgba(255, 255, 255, 0.25)",
+          background: "rgba(0, 0, 0, 0.15)"
+        }}
       >
         {/* Tendance du jour en fond - hauteur fixe pour éviter le déplacement */}
         <div className="absolute inset-x-0 top-0 h-[200px] overflow-hidden rounded-3xl pointer-events-none">
@@ -129,12 +134,12 @@ export function AnimatedWeatherTile() {
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white drop-shadow-lg">
+                <h3 className="text-lg font-bold text-slate-700 dark:text-white drop-shadow-lg">
                   {location.split(',')[0].trim()}
                 </h3>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-bold text-slate-900 dark:text-white drop-shadow-xl">
+                <span className="text-5xl font-bold text-slate-800 dark:text-white drop-shadow-xl">
                   {temperature !== undefined && temperature !== null ? Math.round(temperature) : "—"}°
                 </span>
               </div>
@@ -144,7 +149,7 @@ export function AnimatedWeatherTile() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-slate-900 hover:bg-slate-200/50 bg-white/50 dark:text-white dark:hover:bg-white/30 dark:bg-black/20"
+                className="text-slate-700 hover:bg-white/30 bg-white/20 dark:text-white dark:hover:bg-white/30 dark:bg-black/20"
                 onClick={(e) => {
                   e.stopPropagation();
                   refresh();
@@ -156,7 +161,7 @@ export function AnimatedWeatherTile() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-slate-900 hover:bg-slate-200/50 bg-white/50 dark:text-white dark:hover:bg-white/30 dark:bg-black/20"
+                className="text-slate-700 hover:bg-white/30 bg-white/20 dark:text-white dark:hover:bg-white/30 dark:bg-black/20"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowConfig(true);
@@ -168,7 +173,7 @@ export function AnimatedWeatherTile() {
           </div>
 
           {/* Stats */}
-          <div className="text-slate-900 dark:text-white">
+          <div className="text-slate-700 dark:text-white">
             <WeatherStatsRow
               windSpeed={weatherData.wind_speed}
               humidity={weatherData.humidity}
@@ -182,7 +187,7 @@ export function AnimatedWeatherTile() {
           {/* Panneau étendu (prévisions) */}
           {isExpanded && (
             <div 
-              className="mt-6 weather-expand text-slate-900 dark:text-white"
+              className="mt-6 weather-expand text-slate-700 dark:text-white"
               onClick={(e) => e.stopPropagation()}
             >
               <ForecastPanel
@@ -195,7 +200,7 @@ export function AnimatedWeatherTile() {
 
           {/* Indicateur d'expansion */}
           <div className="flex justify-center pt-2">
-            <div className={`w-12 h-1 rounded-full bg-slate-900/40 dark:bg-white/40 weather-transition ${
+            <div className={`w-12 h-1 rounded-full bg-slate-700/40 dark:bg-white/40 weather-transition ${
               isExpanded ? "rotate-180" : ""
             }`} />
           </div>

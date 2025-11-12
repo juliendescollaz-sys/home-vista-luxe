@@ -45,14 +45,14 @@ export function WeatherStatsRow({
       {availableStats.map((stat, index) => (
         <div 
           key={index}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/40 dark:bg-background/20 border border-slate-300/30 dark:border-border/20 backdrop-blur-sm"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-background/20 border border-border/20 backdrop-blur-sm"
         >
           <stat.icon size={16} className="opacity-80" />
           <span className="text-sm font-medium">{stat.value}</span>
         </div>
       ))}
       {precipitation !== undefined && precipitation > 0 && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/40 dark:bg-background/20 border border-slate-300/30 dark:border-border/20 backdrop-blur-sm">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-background/20 border border-border/20 backdrop-blur-sm">
           <Droplets size={16} className="opacity-80" />
           <span className="text-sm font-medium">{precipitation.toFixed(1)} {precipUnit}</span>
         </div>
