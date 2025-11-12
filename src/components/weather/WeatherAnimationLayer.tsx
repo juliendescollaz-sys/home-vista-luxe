@@ -94,8 +94,8 @@ export function WeatherAnimationLayer({
   }
 
   const renderMainIcon = () => {
-    const iconClass = "absolute top-4 right-4 opacity-40";
-    const size = 120;
+    const iconClass = "absolute top-4 right-4 opacity-50";
+    const size = 140;
 
     if (condition.includes("sunny") || condition.includes("clear")) {
       return isNight ? (
@@ -131,16 +131,16 @@ export function WeatherAnimationLayer({
       {(condition.includes("cloudy") || condition.includes("partlycloudy")) && (
         <>
           <Cloud 
-            className="absolute top-8 left-10 opacity-25 weather-cloud" 
-            size={80} 
+            className="absolute top-8 left-10 opacity-35 weather-cloud" 
+            size={90} 
           />
           <Cloud 
-            className="absolute top-16 left-32 opacity-20 weather-cloud-slow" 
-            size={60} 
-          />
-          <Cloud 
-            className="absolute top-24 right-20 opacity-22 weather-cloud" 
+            className="absolute top-16 left-32 opacity-30 weather-cloud-slow" 
             size={70} 
+          />
+          <Cloud 
+            className="absolute top-24 right-20 opacity-32 weather-cloud" 
+            size={80} 
           />
         </>
       )}
@@ -169,7 +169,10 @@ export function WeatherAnimationLayer({
       {showLightning && (
         <div
           className="absolute inset-0 bg-white weather-lightning"
-          style={{ mixBlendMode: "screen" }}
+          style={{ 
+            mixBlendMode: "screen",
+            opacity: 0.6
+          }}
         />
       )}
 
@@ -177,10 +180,10 @@ export function WeatherAnimationLayer({
       {(condition.includes("fog") || condition.includes("mist")) && (
         <>
           <div
-            className="absolute inset-0 bg-white/20 weather-fog"
+            className="absolute inset-0 bg-white/30 weather-fog"
           />
           <div
-            className="absolute inset-0 bg-white/15 weather-fog"
+            className="absolute inset-0 bg-white/25 weather-fog"
             style={{ 
               animationDelay: "5s" 
             }}
