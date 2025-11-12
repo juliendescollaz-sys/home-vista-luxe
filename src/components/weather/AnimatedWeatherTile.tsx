@@ -68,13 +68,13 @@ export function AnimatedWeatherTile() {
   return (
     <>
       <div 
-        className={`relative rounded-3xl p-6 text-white cursor-pointer overflow-hidden backdrop-blur-sm weather-transition ${
+        className={`relative rounded-3xl p-6 cursor-pointer overflow-hidden backdrop-blur-sm weather-transition shadow-lg ${
           isExpanded ? "min-h-[500px]" : "min-h-[200px]"
         }`}
         onClick={handleToggleExpand}
         style={{ 
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-          border: "1px solid rgba(255, 255, 255, 0.1)"
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.15)",
+          border: "1px solid rgba(255, 255, 255, 0.15)"
         }}
       >
         {/* Couche d'animation de fond */}
@@ -91,13 +91,13 @@ export function AnimatedWeatherTile() {
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold">{location}</h3>
-                <span className="text-xs opacity-70">
+                <h3 className="text-lg font-semibold text-white drop-shadow-lg">{location}</h3>
+                <span className="text-xs text-white/90 drop-shadow">
                   {new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                 </span>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-bold">
+                <span className="text-5xl font-bold text-white drop-shadow-lg">
                   {temperature !== undefined && temperature !== null ? Math.round(temperature) : "—"}°
                 </span>
               </div>
@@ -106,7 +106,7 @@ export function AnimatedWeatherTile() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/20"
+              className="text-white hover:bg-white/20 drop-shadow"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowConfig(true);
@@ -117,19 +117,21 @@ export function AnimatedWeatherTile() {
           </div>
 
           {/* Stats */}
-          <WeatherStatsRow
-            windSpeed={weatherData.wind_speed}
-            humidity={weatherData.humidity}
-            pressure={weatherData.pressure}
-            precipitation={weatherData.precipitation}
-            windUnit={weatherData.units?.wind_speed || "km/h"}
-            precipUnit={weatherData.units?.precipitation || "mm"}
-          />
+          <div className="text-white">
+            <WeatherStatsRow
+              windSpeed={weatherData.wind_speed}
+              humidity={weatherData.humidity}
+              pressure={weatherData.pressure}
+              precipitation={weatherData.precipitation}
+              windUnit={weatherData.units?.wind_speed || "km/h"}
+              precipUnit={weatherData.units?.precipitation || "mm"}
+            />
+          </div>
 
           {/* Panneau étendu (prévisions) */}
           {isExpanded && (
             <div 
-              className="mt-6 weather-expand"
+              className="mt-6 weather-expand text-white"
               onClick={(e) => e.stopPropagation()}
             >
               <ForecastPanel
@@ -142,7 +144,7 @@ export function AnimatedWeatherTile() {
 
           {/* Indicateur d'expansion */}
           <div className="flex justify-center pt-2">
-            <div className={`w-12 h-1 rounded-full bg-white/30 weather-transition ${
+            <div className={`w-12 h-1 rounded-full bg-white/40 weather-transition ${
               isExpanded ? "rotate-180" : ""
             }`} />
           </div>

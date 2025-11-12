@@ -58,30 +58,30 @@ export function WeatherAnimationLayer({
   const getBackgroundGradient = () => {
     if (isNight) {
       if (condition.includes("clear")) {
-        return "linear-gradient(to bottom, hsl(230, 45%, 15%), hsl(250, 40%, 25%))";
+        return "linear-gradient(to bottom, hsl(230, 50%, 20%), hsl(250, 45%, 30%))";
       }
       if (condition.includes("rain") || condition.includes("thunderstorm")) {
-        return "linear-gradient(to bottom, hsl(220, 30%, 20%), hsl(230, 35%, 30%))";
+        return "linear-gradient(to bottom, hsl(220, 35%, 25%), hsl(230, 40%, 35%))";
       }
-      return "linear-gradient(to bottom, hsl(220, 35%, 25%), hsl(230, 30%, 35%))";
+      return "linear-gradient(to bottom, hsl(220, 40%, 30%), hsl(230, 35%, 40%))";
     }
 
     if (condition.includes("sunny") || condition.includes("clear")) {
-      return "linear-gradient(to bottom, hsl(200, 80%, 70%), hsl(190, 70%, 80%))";
+      return "linear-gradient(to bottom, hsl(200, 85%, 65%), hsl(210, 75%, 75%))";
     }
     if (condition.includes("rain") || condition.includes("pouring")) {
-      return "linear-gradient(to bottom, hsl(200, 40%, 60%), hsl(210, 35%, 70%))";
+      return "linear-gradient(to bottom, hsl(210, 45%, 55%), hsl(220, 40%, 65%))";
     }
     if (condition.includes("snow")) {
-      return "linear-gradient(to bottom, hsl(200, 50%, 85%), hsl(210, 45%, 90%))";
+      return "linear-gradient(to bottom, hsl(200, 55%, 80%), hsl(210, 50%, 88%))";
     }
     if (condition.includes("cloudy")) {
-      return "linear-gradient(to bottom, hsl(200, 35%, 75%), hsl(210, 30%, 82%))";
+      return "linear-gradient(to bottom, hsl(210, 40%, 70%), hsl(220, 35%, 78%))";
     }
     if (condition.includes("fog")) {
-      return "linear-gradient(to bottom, hsl(0, 0%, 85%), hsl(0, 0%, 90%))";
+      return "linear-gradient(to bottom, hsl(0, 0%, 80%), hsl(0, 0%, 88%))";
     }
-    return "linear-gradient(to bottom, hsl(200, 60%, 75%), hsl(210, 55%, 85%))";
+    return "linear-gradient(to bottom, hsl(210, 65%, 70%), hsl(220, 60%, 80%))";
   };
 
   if (!animationsEnabled) {
@@ -94,14 +94,14 @@ export function WeatherAnimationLayer({
   }
 
   const renderMainIcon = () => {
-    const iconClass = "absolute top-4 right-4 opacity-20";
+    const iconClass = "absolute top-4 right-4 opacity-25";
     const size = 120;
 
     if (condition.includes("sunny") || condition.includes("clear")) {
       return isNight ? (
-        <Moon className={`${iconClass} weather-sun-glow`} size={size} />
+        <Moon className={`${iconClass}`} size={size} />
       ) : (
-        <Sun className={`${iconClass} weather-sun-glow`} size={size} />
+        <Sun className={`${iconClass}`} size={size} />
       );
     }
     if (condition.includes("thunderstorm")) {

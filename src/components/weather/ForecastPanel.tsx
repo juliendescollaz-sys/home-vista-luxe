@@ -25,9 +25,10 @@ export function ForecastPanel({
   const formatHour = (datetime: string) => {
     try {
       const date = new Date(datetime);
-      return date.getHours() + "h";
+      const hours = date.getHours();
+      return `${hours}h`;
     } catch {
-      return datetime;
+      return "—";
     }
   };
 
@@ -37,7 +38,7 @@ export function ForecastPanel({
       const days = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
       return days[date.getDay()];
     } catch {
-      return datetime;
+      return "—";
     }
   };
 

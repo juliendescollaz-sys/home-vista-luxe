@@ -63,12 +63,12 @@
 
 @keyframes sun-glow {
   0%, 100% {
-    opacity: 0.6;
+    opacity: 0.3;
     transform: scale(1);
   }
   50% {
-    opacity: 0.8;
-    transform: scale(1.05);
+    opacity: 0.3;
+    transform: scale(1);
   }
 }
 
@@ -108,8 +108,8 @@
 }
 
 .weather-sun-glow {
-  animation: sun-glow 4s ease-in-out infinite;
-  will-change: opacity, transform;
+  /* Pas d'animation */
+  opacity: 0.3;
 }
 
 .weather-fog {
