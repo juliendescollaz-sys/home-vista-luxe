@@ -46,9 +46,6 @@ const Home = () => {
     return false;
   }) || [];
 
-  // Raccourcis (favoris)
-  const shortcuts = entities?.filter(e => favorites.includes(e.entity_id)) || [];
-
   const handleDeviceToggle = async (entityId: string) => {
     if (!client) {
       toast.error("Client non connecté");
@@ -122,36 +119,6 @@ const Home = () => {
           )}
         </div>
 
-        {/* Raccourcis */}
-        <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-          <h2 className="text-2xl font-bold">Raccourcis</h2>
-          
-          {shortcuts.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              Aucun raccourci configuré
-              <br />
-              <span className="text-sm">Ajoutez des favoris depuis les autres pages</span>
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {shortcuts.map((device) => {
-                const isMediaPlayer = device.entity_id.startsWith("media_player.");
-                return isMediaPlayer ? (
-                  <MediaPlayerCard
-                    key={device.entity_id}
-                    entity={device}
-                  />
-                ) : (
-                  <DeviceCard
-                    key={device.entity_id}
-                    entity={device}
-                    onToggle={handleDeviceToggle}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </div>
       </div>
 
       <BottomNav />

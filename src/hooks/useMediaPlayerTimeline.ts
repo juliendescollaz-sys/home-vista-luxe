@@ -28,6 +28,7 @@ export function useMediaPlayerTimeline(
 
   const [isDragging, setIsDragging] = useState(false);
   const [localPosition, setLocalPosition] = useState(0);
+  const [, forceUpdate] = useState(0);
   const suppressRef = useRef<string | null>(null);
   const pendingSeekRef = useRef<PendingSeek | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -47,7 +48,14 @@ export function useMediaPlayerTimeline(
       if (isNaN(t0)) return Math.min(base, dur);
       
       const elapsed = Math.max(0, (nowMs - t0) / 1000);
-      return Math.min(base + elapsed, dur);
+      const computed = base + elapsed;
+      
+      // Si on dépasse la durée, revenir à la position de base (HA aura mis à jour avec la nouvelle piste/loop)
+      if (computed > dur && dur > 0) {
+        return base;
+      }
+      
+      return Math.min(computed, dur);
     } catch {
       return Math.min(base, dur);
     }
@@ -79,13 +87,26 @@ export function useMediaPlayerTimeline(
       return;
     }
 
+    const newPosition = entity.attributes?.media_position || 0;
+    const newDuration = entity.attributes?.media_duration || 0;
+    const newState = entity.state as any;
+    const newPositionUpdatedAt = entity.attributes?.media_position_updated_at;
+
+    // Détecter un changement de piste (reset de position en boucle par exemple)
+    const positionJumped = Math.abs((timeline.position || 0) - newPosition) > 5;
+    
     // Mise à jour normale depuis HA
     setTimeline({
-      position: entity.attributes?.media_position || 0,
-      duration: entity.attributes?.media_duration || 0,
-      state: entity.state as any,
-      positionUpdatedAt: entity.attributes?.media_position_updated_at,
+      position: newPosition,
+      duration: newDuration,
+      state: newState,
+      positionUpdatedAt: newPositionUpdatedAt,
     });
+
+    // Si la position a sauté (nouvelle piste ou loop), forcer un re-render
+    if (positionJumped) {
+      forceUpdate(Date.now());
+    }
   }, [
     entity,
     entity?.attributes?.media_position,
@@ -94,10 +115,10 @@ export function useMediaPlayerTimeline(
     entity?.state,
     entity?.entity_id,
     isDragging,
+    timeline.position,
   ]);
 
   // Timer pour forcer un re-render toutes les secondes (animation visuelle)
-  const [, forceUpdate] = useState(0);
   useEffect(() => {
     if (!entity || timeline.state !== "playing") {
       if (timerRef.current) {
