@@ -259,6 +259,27 @@ export function useMediaPlayerTimeline(
     }
   }, [currentPosition, isDragging]);
 
+  // Optimistic updates pour play/pause
+  const optimisticPause = useCallback(() => {
+    const now = Date.now();
+    const currentPos = computePositionNow(timeline, now, lastVisualPos);
+    setTimeline(prev => ({
+      ...prev,
+      state: "paused",
+      position: currentPos,
+      positionUpdatedAt: new Date().toISOString(),
+    }));
+    setLastVisualPos(currentPos);
+  }, [timeline, lastVisualPos, computePositionNow]);
+
+  const optimisticPlay = useCallback(() => {
+    setTimeline(prev => ({
+      ...prev,
+      state: "playing",
+      positionUpdatedAt: new Date().toISOString(),
+    }));
+  }, []);
+
   return {
     position: currentPosition,
     duration: currentDuration,
@@ -268,5 +289,7 @@ export function useMediaPlayerTimeline(
     handleSeekStart,
     handleSeekChange,
     handleSeekEnd,
+    optimisticPause,
+    optimisticPlay,
   };
 }
