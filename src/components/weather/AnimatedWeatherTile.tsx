@@ -4,10 +4,39 @@ import { Button } from "@/components/ui/button";
 import { WeatherAnimationLayer } from "./WeatherAnimationLayer";
 import { WeatherStatsRow } from "./WeatherStatsRow";
 import { ForecastPanel } from "./ForecastPanel";
+import { TrendBackdrop } from "./TrendBackdrop";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { useSunState } from "@/hooks/useSunState";
 import { WeatherConfigDialog } from "../WeatherConfigDialog";
 import { useHAStore } from "@/store/useHAStore";
+
+function pickDominantCondition(weatherData: any): string {
+  const current = (weatherData?.condition || "").toLowerCase();
+
+  if (Array.isArray(weatherData?.forecastDaily) && weatherData.forecastDaily.length > 0) {
+    const today = weatherData.forecastDaily[0];
+    if (today?.condition) return String(today.condition).toLowerCase();
+  }
+
+  if (Array.isArray(weatherData?.forecast) && weatherData.forecast.length > 0) {
+    const now = Date.now();
+    const next24h = weatherData.forecast.filter((f: any) => {
+      const t = new Date(f.datetime).getTime();
+      return t >= now && t <= now + 24 * 3600 * 1000;
+    });
+    const counts = new Map<string, number>();
+    for (const f of (next24h.length ? next24h : weatherData.forecast)) {
+      const c = String(f?.condition || "").toLowerCase();
+      if (!c) continue;
+      counts.set(c, (counts.get(c) || 0) + 1);
+    }
+    if (counts.size) {
+      return Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0][0];
+    }
+  }
+
+  return current || "partlycloudy";
+}
 
 export function AnimatedWeatherTile() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -54,6 +83,8 @@ export function AnimatedWeatherTile() {
 
   const condition = weatherData.condition || "cloudy";
   const temperature = weatherData.temperature;
+  const dominant = pickDominantCondition(weatherData);
+  const trendOpacity = 0.22;
   
   // Récupérer le nom depuis l'entité HA si dispo
   const weatherEntityData = weatherData.entity_id 
@@ -78,6 +109,13 @@ export function AnimatedWeatherTile() {
           background: "rgba(0, 0, 0, 0.15)"
         }}
       >
+        {/* Tendance du jour en fond */}
+        <TrendBackdrop
+          dominantCondition={dominant}
+          opacity={trendOpacity}
+          isNight={isNight}
+        />
+
         {/* Couche d'animation de fond */}
         <div className="absolute inset-0 -z-10 opacity-85">
           <WeatherAnimationLayer
