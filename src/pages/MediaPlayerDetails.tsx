@@ -321,7 +321,7 @@ const MediaPlayerDetails = () => {
                       )}
                       style={{ touchAction: "none" }}
                     />
-                    <div className="flex justify-between text-xs text-white/90 font-medium">
+                    <div className="flex justify-between text-xs text-slate-700 dark:text-white/90 font-medium">
                       <span>{formatTime(position)}</span>
                       <span>{formatTime(duration)}</span>
                     </div>

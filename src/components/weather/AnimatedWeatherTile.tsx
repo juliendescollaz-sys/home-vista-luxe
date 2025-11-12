@@ -48,17 +48,12 @@ export function AnimatedWeatherTile() {
   if (isLoading && !weatherData) {
     return (
       <div 
-        className="relative rounded-3xl p-6 min-h-[200px] animate-pulse"
-        style={{ 
-          boxShadow: "0 12px 40px rgba(0, 0, 0, 0.4)",
-          border: "2px solid rgba(255, 255, 255, 0.25)",
-          background: "rgba(0, 0, 0, 0.15)"
-        }}
+        className="relative rounded-3xl p-6 min-h-[200px] animate-pulse border-2 bg-card border-border/50 shadow-lg"
       >
         <div className="space-y-3">
-          <div className="h-6 w-32 bg-white/20 rounded" />
-          <div className="h-8 w-24 bg-white/20 rounded" />
-          <div className="h-4 w-48 bg-white/20 rounded" />
+          <div className="h-6 w-32 bg-muted/50 rounded" />
+          <div className="h-8 w-24 bg-muted/50 rounded" />
+          <div className="h-4 w-48 bg-muted/50 rounded" />
         </div>
       </div>
     );
@@ -66,9 +61,9 @@ export function AnimatedWeatherTile() {
 
   if (error || !weatherData || weatherData.source === "none") {
     return (
-      <div className="relative rounded-3xl p-6 min-h-[200px] bg-gradient-to-br from-gray-400 to-gray-500 text-white">
+      <div className="relative rounded-3xl p-6 min-h-[200px] bg-card border-2 border-border/50 shadow-lg">
         <div className="space-y-4">
-          <p className="text-sm opacity-90">
+          <p className="text-sm text-muted-foreground">
             {error || "Configuration météo requise"}
           </p>
           <Button
@@ -106,15 +101,10 @@ export function AnimatedWeatherTile() {
   return (
     <>
       <div 
-        className={`relative rounded-3xl p-6 cursor-pointer overflow-hidden weather-transition ${
+        className={`relative rounded-3xl p-6 cursor-pointer overflow-hidden weather-transition border-2 ${
           isExpanded ? "min-h-[500px]" : "min-h-[200px]"
-        }`}
+        } bg-card border-border/50 shadow-lg`}
         onClick={handleToggleExpand}
-        style={{ 
-          boxShadow: "0 12px 40px rgba(0, 0, 0, 0.4)",
-          border: "2px solid rgba(255, 255, 255, 0.25)",
-          background: "rgba(0, 0, 0, 0.15)"
-        }}
       >
         {/* Tendance du jour en fond - hauteur fixe pour éviter le déplacement */}
         <div className="absolute inset-x-0 top-0 h-[200px] overflow-hidden rounded-3xl pointer-events-none">
