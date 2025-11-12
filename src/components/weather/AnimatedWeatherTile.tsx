@@ -45,7 +45,7 @@ export function AnimatedWeatherTile() {
   const { weatherData, isLoading, error, refresh } = useWeatherData();
   const { entities, selectedCity } = useHAStore();
 
-  if (isLoading) {
+  if (isLoading && !weatherData) {
     return (
       <div 
         className="relative rounded-3xl p-6 min-h-[200px] animate-pulse"
