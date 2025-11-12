@@ -38,10 +38,6 @@ export const DeviceCard = ({ entity, onToggle }: DeviceCardProps) => {
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     toggleFavorite(entity.entity_id);
-    // Forcer le blur immédiat sur iOS
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
   };
 
   return (
@@ -65,9 +61,8 @@ export const DeviceCard = ({ entity, onToggle }: DeviceCardProps) => {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 transition-transform active:scale-95"
+            className="h-8 w-8 active:bg-accent/50 active:scale-95 transition-all"
             onClick={handleFavoriteClick}
-            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
             <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
           </Button>

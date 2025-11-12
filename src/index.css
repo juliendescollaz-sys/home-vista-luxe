@@ -145,21 +145,6 @@ All colors MUST be HSL.
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif;
   }
 
-  /* iOS: Désactiver le highlight bleu au tap */
-  button, a {
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
-  }
-
-  /* Désactiver hover sur les appareils tactiles */
-  @media (hover: none) and (pointer: coarse) {
-    button:hover {
-      background-color: transparent !important;
-    }
-  }
-
   .app-safe {
     padding-top: var(--safe-top);
     padding-right: var(--safe-right);
