@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { HAEntity } from "@/types/homeassistant";
 import { HAClient } from "@/lib/haClient";
 
+type PlaybackPhase = "idle" | "pending_play" | "buffering" | "playing" | "pending_pause" | "paused";
+
 interface TimelineState {
   position: number;
   duration: number;
@@ -20,6 +22,9 @@ interface PendingSeek {
 
 const LOOP_EPSILON_SEC = 0.75;
 const SMOOTHING_DURATION_MS = 200;
+const START_CONFIRM_DELTA_SEC = 0.4;
+const PLAY_CONFIRM_TIMEOUT_MS = 3500;
+const PAUSE_CONFIRM_TIMEOUT_MS = 1800;
 
 export function useMediaPlayerTimeline(
   client: HAClient | null,
@@ -35,6 +40,7 @@ export function useMediaPlayerTimeline(
     media_title: entity?.attributes?.media_title,
   });
 
+  const [phase, setPhase] = useState<PlaybackPhase>("idle");
   const [isDragging, setIsDragging] = useState(false);
   const [localPosition, setLocalPosition] = useState(0);
   const [lastVisualPos, setLastVisualPos] = useState(0);
@@ -44,14 +50,31 @@ export function useMediaPlayerTimeline(
   const timerRef = useRef<number | null>(null);
   const animationRef = useRef<number | null>(null);
   const lastTrackRef = useRef<string | undefined>(undefined);
+  const playConfirmTimer = useRef<number | null>(null);
+  const pauseConfirmTimer = useRef<number | null>(null);
 
   // Calcul de la position actuelle (avec animation pour playing et gestion repeat)
-  const computePositionNow = useCallback((state: TimelineState, nowMs: number, lastVisual: number): number => {
+  const computePositionNow = useCallback((
+    state: TimelineState, 
+    nowMs: number, 
+    lastVisual: number, 
+    currentPhase: PlaybackPhase
+  ): number => {
     const dur = Number(state.duration) || 0;
     const base = Number(state.position) || 0;
     
-    if (state.state !== "playing") return Math.min(base, dur);
     if (dur <= 0) return 0;
+
+    // Phases gelées: on n'avance pas la timeline
+    if (currentPhase === "pending_play" || currentPhase === "buffering" || 
+        currentPhase === "pending_pause" || currentPhase === "paused") {
+      return Math.min(base, dur);
+    }
+
+    // Seulement en vraie lecture confirmée
+    if (currentPhase !== "playing" || state.state !== "playing") {
+      return Math.min(base, dur);
+    }
 
     const updatedAt = Date.parse(state.positionUpdatedAt || "");
     const elapsed = isNaN(updatedAt) ? 0 : Math.max(0, (nowMs - updatedAt) / 1000);
@@ -136,6 +159,33 @@ export function useMediaPlayerTimeline(
       media_content_id: newMediaContentId,
       media_title: newMediaTitle,
     });
+
+    // Validation de la phase selon l'état HA
+    const updatedAt = Date.parse(newPositionUpdatedAt || "");
+    const movedRecently = !isNaN(updatedAt) && (Date.now() - updatedAt) < 1500;
+
+    if (newState === "buffering") {
+      setPhase("buffering");
+    } else if (newState === "playing") {
+      // Confirme lecture seulement si on voit la position bouger
+      if (movedRecently && newPosition > 0 && newDuration > 0) {
+        setPhase("playing");
+        if (playConfirmTimer.current) {
+          clearTimeout(playConfirmTimer.current);
+          playConfirmTimer.current = null;
+        }
+      } else if (phase === "pending_play" || phase === "buffering") {
+        setPhase("buffering");
+      } else {
+        setPhase("playing");
+      }
+    } else if (newState === "paused" || newState === "idle" || newState === "off") {
+      setPhase("paused");
+      if (pauseConfirmTimer.current) {
+        clearTimeout(pauseConfirmTimer.current);
+        pauseConfirmTimer.current = null;
+      }
+    }
   }, [
     entity,
     entity?.attributes?.media_position,
@@ -145,11 +195,12 @@ export function useMediaPlayerTimeline(
     entity?.entity_id,
     isDragging,
     timeline.position,
+    phase,
   ]);
 
   // Timer pour forcer un re-render toutes les secondes (animation visuelle)
   useEffect(() => {
-    if (!entity || timeline.state !== "playing") {
+    if (!entity || phase !== "playing") {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -170,7 +221,7 @@ export function useMediaPlayerTimeline(
         timerRef.current = null;
       }
     };
-  }, [entity, timeline.state, isDragging]);
+  }, [entity, phase, isDragging]);
 
   // Contrôles
   const handlePlayPause = useCallback(async () => {
@@ -249,7 +300,7 @@ export function useMediaPlayerTimeline(
   // Calculer la position courante de façon absolue (pas incrémentale)
   const currentPosition = isDragging 
     ? localPosition 
-    : computePositionNow(timeline, Date.now(), lastVisualPos);
+    : computePositionNow(timeline, Date.now(), lastVisualPos, phase);
   const currentDuration = timeline.duration;
   
   // Mettre à jour lastVisualPos pour le smoothing
@@ -259,37 +310,38 @@ export function useMediaPlayerTimeline(
     }
   }, [currentPosition, isDragging]);
 
-  // Optimistic updates pour play/pause
-  const optimisticPause = useCallback(() => {
-    const now = Date.now();
-    const currentPos = computePositionNow(timeline, now, lastVisualPos);
-    setTimeline(prev => ({
-      ...prev,
-      state: "paused",
-      position: currentPos,
-      positionUpdatedAt: new Date().toISOString(),
-    }));
-    setLastVisualPos(currentPos);
-  }, [timeline, lastVisualPos, computePositionNow]);
+  // Contrôles de phase
+  const beginPendingPlay = useCallback(() => {
+    setPhase("pending_play");
+    if (playConfirmTimer.current) {
+      clearTimeout(playConfirmTimer.current);
+    }
+    playConfirmTimer.current = window.setTimeout(() => {
+      // Timeout: ne pas rollback, laisser HA décider
+    }, PLAY_CONFIRM_TIMEOUT_MS) as unknown as number;
+  }, []);
 
-  const optimisticPlay = useCallback(() => {
-    setTimeline(prev => ({
-      ...prev,
-      state: "playing",
-      positionUpdatedAt: new Date().toISOString(),
-    }));
+  const beginPendingPause = useCallback(() => {
+    setPhase("pending_pause");
+    if (pauseConfirmTimer.current) {
+      clearTimeout(pauseConfirmTimer.current);
+    }
+    pauseConfirmTimer.current = window.setTimeout(() => {
+      // Timeout: rester gelé
+    }, PAUSE_CONFIRM_TIMEOUT_MS) as unknown as number;
   }, []);
 
   return {
     position: currentPosition,
     duration: currentDuration,
     state: timeline.state,
+    phase,
     isDragging,
     handlePlayPause,
     handleSeekStart,
     handleSeekChange,
     handleSeekEnd,
-    optimisticPause,
-    optimisticPlay,
+    beginPendingPlay,
+    beginPendingPause,
   };
 }
