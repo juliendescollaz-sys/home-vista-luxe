@@ -183,17 +183,6 @@ const MediaPlayerDetails = () => {
     }
   }, [client, entity]);
 
-  // Réinitialiser les états pending quand l'entité change
-  useEffect(() => {
-    setPending({
-      playPause: playPauseInFlight, // Piloté par le hook de contrôle
-      previous: false,
-      next: false,
-      shuffle: false,
-      repeat: false,
-    });
-  }, [entity?.state, entity?.attributes.shuffle, entity?.attributes.repeat, playPauseInFlight]);
-
   const handleVolumeChange = useCallback((value: number[]) => {
     const newVolume = value[0];
     setVolume(newVolume);
@@ -250,6 +239,17 @@ const MediaPlayerDetails = () => {
       await play();
     }
   }, [entityData, optimisticPause, optimisticPlay, pause, play]);
+
+  // Réinitialiser les états pending quand l'entité change
+  useEffect(() => {
+    setPending({
+      playPause: playPauseInFlight, // Piloté par le hook de contrôle
+      previous: false,
+      next: false,
+      shuffle: false,
+      repeat: false,
+    });
+  }, [entity?.state, entity?.attributes.shuffle, entity?.attributes.repeat, playPauseInFlight]);
 
   const formatTime = (seconds: number) => {
     if (!seconds || seconds < 0) return "0:00";
