@@ -25,6 +25,7 @@ const SMOOTHING_DURATION_MS = 200;
 const START_CONFIRM_DELTA_SEC = 0.4;
 const PLAY_CONFIRM_TIMEOUT_MS = 3500;
 const PAUSE_CONFIRM_TIMEOUT_MS = 1800;
+const SNAPSHOT_EPSILON_SEC = 0.5; // marge anti-jitter
 
 export function useMediaPlayerTimeline(
   client: HAClient | null,
@@ -52,6 +53,17 @@ export function useMediaPlayerTimeline(
   const lastTrackRef = useRef<string | undefined>(undefined);
   const playConfirmTimer = useRef<number | null>(null);
   const pauseConfirmTimer = useRef<number | null>(null);
+  const lastVisualPosRef = useRef(0); // position visuelle en continu
+
+  // Mettre à jour la position visuelle
+  const updateLastVisualPos = useCallback((p: number) => {
+    lastVisualPosRef.current = Math.max(0, p);
+  }, []);
+
+  // Récupérer la dernière position visuelle
+  const getLastVisualPos = useCallback(() => {
+    return lastVisualPosRef.current || 0;
+  }, []);
 
   // Calcul de la position actuelle (avec animation pour playing et gestion repeat)
   const computePositionNow = useCallback((
@@ -148,6 +160,31 @@ export function useMediaPlayerTimeline(
       return;
     }
     
+    // Empêcher le rollback lors d'un pause (HA peut renvoyer une position en retard)
+    if (newState === "paused" || newState === "idle" || newState === "off" || newState === "standby") {
+      const incoming = Number(newPosition) || 0;
+      const snap = getLastVisualPos();
+      const fixed = Math.max(incoming, snap - SNAPSHOT_EPSILON_SEC);
+
+      lastTrackRef.current = trackKey;
+      setTimeline({
+        position: fixed,
+        duration: newDuration,
+        state: newState,
+        positionUpdatedAt: fixed > incoming ? new Date().toISOString() : newPositionUpdatedAt,
+        repeat: newRepeat,
+        media_content_id: newMediaContentId,
+        media_title: newMediaTitle,
+      });
+
+      setPhase("paused");
+      if (pauseConfirmTimer.current) {
+        clearTimeout(pauseConfirmTimer.current);
+        pauseConfirmTimer.current = null;
+      }
+      return;
+    }
+
     // Mise à jour normale depuis HA
     lastTrackRef.current = trackKey;
     setTimeline({
@@ -178,12 +215,6 @@ export function useMediaPlayerTimeline(
         setPhase("buffering");
       } else {
         setPhase("playing");
-      }
-    } else if (newState === "paused" || newState === "idle" || newState === "off") {
-      setPhase("paused");
-      if (pauseConfirmTimer.current) {
-        clearTimeout(pauseConfirmTimer.current);
-        pauseConfirmTimer.current = null;
       }
     }
   }, [
@@ -303,16 +334,18 @@ export function useMediaPlayerTimeline(
     : computePositionNow(timeline, Date.now(), lastVisualPos, phase);
   const currentDuration = timeline.duration;
   
-  // Mettre à jour lastVisualPos pour le smoothing
+  // Mettre à jour lastVisualPos pour le smoothing ET le ref pour les snapshots
   useEffect(() => {
     if (!isDragging) {
       setLastVisualPos(currentPosition);
+      updateLastVisualPos(currentPosition);
     }
-  }, [currentPosition, isDragging]);
+  }, [currentPosition, isDragging, updateLastVisualPos]);
 
   // Contrôles de phase
   const beginPendingPlay = useCallback(() => {
     setPhase("pending_play");
+    // Ne pas modifier la position, reprise exacte depuis le snapshot pause
     if (playConfirmTimer.current) {
       clearTimeout(playConfirmTimer.current);
     }
@@ -322,14 +355,24 @@ export function useMediaPlayerTimeline(
   }, []);
 
   const beginPendingPause = useCallback(() => {
+    const snap = getLastVisualPos();
     setPhase("pending_pause");
+    
+    // Snapshot visuel : figer exactement à la valeur affichée
+    setTimeline(prev => ({
+      ...prev,
+      state: "paused", // visuel gelé immédiatement
+      position: snap,
+      positionUpdatedAt: new Date().toISOString(),
+    }));
+    
     if (pauseConfirmTimer.current) {
       clearTimeout(pauseConfirmTimer.current);
     }
     pauseConfirmTimer.current = window.setTimeout(() => {
-      // Timeout: rester gelé
+      // Timeout: rester gelé sur le snapshot, pas de rollback
     }, PAUSE_CONFIRM_TIMEOUT_MS) as unknown as number;
-  }, []);
+  }, [getLastVisualPos]);
 
   return {
     position: currentPosition,
