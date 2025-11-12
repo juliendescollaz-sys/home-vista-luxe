@@ -70,25 +70,20 @@ export function WeatherCard() {
   const w = weatherData;
   const WeatherIcon = getWeatherIcon(w.condition);
 
+  // Obtenir les prévisions du jour (matin/après-midi)
+  const todayForecast = Array.isArray(w.forecast) && w.forecast.length > 0 ? w.forecast[0] : null;
+  const morningTemp = todayForecast?.templow ?? todayForecast?.temperature;
+  const afternoonTemp = todayForecast?.temperature;
+
   return (
     <>
       <Card className="w-full">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <WeatherIcon className="w-8 h-8 text-primary" />
-              <div>
-                {selectedCity && (
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground mb-1">
-                    <MapPin className="w-3 h-3" />
-                    <span>{selectedCity.label}</span>
-                  </div>
-                )}
-                <p className="text-sm text-muted-foreground">Conditions actuelles</p>
-                <h3 className="text-2xl font-semibold">
-                  {w.condition ?? "—"}
-                </h3>
-              </div>
+        <CardHeader className="pb-4">
+          {/* Ville + Actions */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-primary" />
+              <span className="font-medium">{selectedCity?.label ?? "—"}</span>
             </div>
             <div className="flex gap-2">
               <Button variant="ghost" size="icon" onClick={refresh}>
@@ -99,100 +94,74 @@ export function WeatherCard() {
               </Button>
             </div>
           </div>
+
+          {/* Prévisions Matin / Après-midi en grand */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Matin */}
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl border bg-muted/30">
+              <div className="text-xs opacity-70 uppercase tracking-wider">Matin</div>
+              <WeatherIcon className="w-12 h-12 text-primary" />
+              {morningTemp != null && (
+                <div className="text-3xl font-bold">{Math.round(morningTemp)}{w.units.temperature}</div>
+              )}
+            </div>
+
+            {/* Après-midi */}
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl border bg-muted/30">
+              <div className="text-xs opacity-70 uppercase tracking-wider">Après-midi</div>
+              <WeatherIcon className="w-12 h-12 text-primary" />
+              {afternoonTemp != null && (
+                <div className="text-3xl font-bold">{Math.round(afternoonTemp)}{w.units.temperature}</div>
+              )}
+            </div>
+          </div>
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* Temperature */}
-          {w.temperature != null && (
-            <div className="text-4xl font-bold">
-              {Math.round(w.temperature)}{w.units.temperature}
-            </div>
-          )}
-
-          {/* Additional info */}
-          <div className="grid grid-cols-2 gap-3 text-sm">
+          {/* Infos essentielles */}
+          <div className="grid grid-cols-3 gap-3">
             {w.humidity != null && (
-              <div className="flex items-center gap-2">
-                <Droplets className="w-4 h-4 text-blue-500" />
-                <span className="text-muted-foreground">Humidité:</span>
-                <span className="font-medium">{w.humidity}%</span>
+              <div className="flex flex-col items-center gap-1 p-3 rounded-lg border">
+                <Droplets className="w-5 h-5 text-blue-500" />
+                <span className="text-xs text-muted-foreground">Humidité</span>
+                <span className="font-semibold">{w.humidity}%</span>
               </div>
             )}
             {w.wind_speed != null && (
-              <div className="flex items-center gap-2">
-                <Wind className="w-4 h-4 text-cyan-500" />
-                <span className="text-muted-foreground">Vent:</span>
-                <span className="font-medium">
-                  {Math.round(w.wind_speed)} {w.units.wind_speed}
-                  {w.wind_bearing != null && ` ${Math.round(w.wind_bearing)}°`}
-                </span>
+              <div className="flex flex-col items-center gap-1 p-3 rounded-lg border">
+                <Wind className="w-5 h-5 text-cyan-500" />
+                <span className="text-xs text-muted-foreground">Vent</span>
+                <span className="font-semibold">{Math.round(w.wind_speed)} {w.units.wind_speed}</span>
               </div>
             )}
             {w.pressure != null && (
-              <div className="flex items-center gap-2">
-                <Gauge className="w-4 h-4 text-orange-500" />
-                <span className="text-muted-foreground">Pression:</span>
-                <span className="font-medium">{Math.round(w.pressure)} {w.units.pressure}</span>
-              </div>
-            )}
-            {w.visibility != null && (
-              <div className="flex items-center gap-2">
-                <Eye className="w-4 h-4 text-purple-500" />
-                <span className="text-muted-foreground">Visibilité:</span>
-                <span className="font-medium">{w.visibility} {w.units.visibility}</span>
+              <div className="flex flex-col items-center gap-1 p-3 rounded-lg border">
+                <Gauge className="w-5 h-5 text-orange-500" />
+                <span className="text-xs text-muted-foreground">Pression</span>
+                <span className="font-semibold">{Math.round(w.pressure)} {w.units.pressure}</span>
               </div>
             )}
           </div>
 
-          {/* Forecast */}
-          {Array.isArray(w.forecast) && w.forecast.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium text-sm text-muted-foreground">Prévisions</h4>
-                <div className="flex gap-2">
-                  <Button 
-                    variant={forecastMode === "daily" ? "default" : "outline"} 
-                    size="sm" 
-                    onClick={() => setForecastMode("daily")}
-                  >
-                    Quotidien
-                  </Button>
-                  <Button 
-                    variant={forecastMode === "hourly" ? "default" : "outline"} 
-                    size="sm" 
-                    onClick={() => setForecastMode("hourly")}
-                  >
-                    Horaire
-                  </Button>
-                </div>
-              </div>
-              <div className={`grid gap-2 ${forecastMode === "daily" ? "grid-cols-2 md:grid-cols-5" : "grid-cols-2 md:grid-cols-6"}`}>
-                {w.forecast.slice(0, forecastMode === "daily" ? 7 : 24).map((f, i) => {
+          {/* Prévisions quotidiennes */}
+          {Array.isArray(w.forecast) && w.forecast.length > 1 && (
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm">Prévisions</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {w.forecast.slice(1, 8).map((f, i) => {
                   const d = new Date(f.datetime);
-                  const label = forecastMode === "daily"
-                    ? d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit' })
-                    : d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                  const label = d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit' });
+                  const ForecastIcon = getWeatherIcon(f.condition);
                   
                   return (
-                    <div key={i} className="border rounded-xl p-2 space-y-1">
+                    <div key={i} className="flex flex-col items-center gap-1 p-3 rounded-lg border">
                       <div className="text-xs opacity-70">{label}</div>
-                      <div className="text-sm font-medium">{f.condition ?? "—"}</div>
+                      <ForecastIcon className="w-6 h-6 text-primary" />
                       <div className="text-sm font-semibold">
-                        {f.temperature != null ? Math.round(f.temperature) + w.units.temperature : "—"}
-                        {forecastMode === "daily" && f.templow != null ? ` / ${Math.round(f.templow)}${w.units.temperature}` : ""}
+                        {f.templow != null ? Math.round(f.templow) : "—"}{w.units.temperature}
+                        {" / "}
+                        {f.temperature != null ? Math.round(f.temperature) : "—"}{w.units.temperature}
                       </div>
-                      {typeof f.precipitation === "number" && f.precipitation > 0 && (
-                        <div className="text-xs opacity-80 flex items-center gap-1">
-                          <Droplets className="w-3 h-3" />
-                          {f.precipitation}{w.units.precipitation}
-                        </div>
-                      )}
-                      {typeof f.wind_speed === "number" && (
-                        <div className="text-xs opacity-80 flex items-center gap-1">
-                          <Wind className="w-3 h-3" />
-                          {Math.round(f.wind_speed)} {w.units.wind_speed}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -200,10 +169,6 @@ export function WeatherCard() {
             </div>
           )}
         </CardContent>
-
-        <CardFooter className="text-xs text-muted-foreground border-t pt-3">
-          Source: {w.entity_id ? `HA • ${w.entity_id}` : "Open-Meteo (lat/lon sélectionnés)"}
-        </CardFooter>
       </Card>
 
       <WeatherConfigDialog 
