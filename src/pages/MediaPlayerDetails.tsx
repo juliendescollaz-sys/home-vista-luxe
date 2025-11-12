@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { SonosBrowser } from "@/components/SonosBrowser";
 import { SonosZoneManager } from "@/components/SonosZoneManager";
 import { useMediaPlayerTimeline } from "@/hooks/useMediaPlayerTimeline";
+import { useMediaPlayerControls } from "@/hooks/useMediaPlayerControls";
 
 const MediaPlayerDetails = () => {
   const { entityId } = useParams<{ entityId: string }>();
@@ -142,15 +143,18 @@ const MediaPlayerDetails = () => {
     }
   }, [client, entity]);
 
-  const handlePlayPause = useCallback(() => {
+  const handlePlayPause = useCallback(async () => {
     if (!entityData) return;
-    setPending(p => ({ ...p, playPause: true }));
+    
+    // Optimistic update immédiat
     if (entityData.isPlaying && entityData.canPause) {
-      callService("media_pause");
+      optimisticPause();
+      await pause();
     } else if (entityData.canPlay) {
-      callService("media_play");
+      optimisticPlay();
+      await play();
     }
-  }, [entityData, callService]);
+  }, [entityData, optimisticPause, optimisticPlay, pause, play]);
 
   const handlePrevious = useCallback(() => {
     setPending(p => ({ ...p, previous: true }));
@@ -195,13 +199,13 @@ const MediaPlayerDetails = () => {
   // Réinitialiser les états pending quand l'entité change
   useEffect(() => {
     setPending({
-      playPause: false,
+      playPause: playPauseInFlight, // Piloté par le hook de contrôle
       previous: false,
       next: false,
       shuffle: false,
       repeat: false,
     });
-  }, [entity?.state, entity?.attributes.shuffle, entity?.attributes.repeat]);
+  }, [entity?.state, entity?.attributes.shuffle, entity?.attributes.repeat, playPauseInFlight]);
 
   const handleVolumeChange = useCallback((value: number[]) => {
     const newVolume = value[0];
@@ -231,7 +235,20 @@ const MediaPlayerDetails = () => {
     handleSeekStart,
     handleSeekChange,
     handleSeekEnd,
+    optimisticPause,
+    optimisticPlay,
   } = useMediaPlayerTimeline(client, entity);
+
+  // Hook de contrôle fiable pour play/pause
+  const {
+    play,
+    pause,
+    inFlight: playPauseInFlight,
+  } = useMediaPlayerControls(
+    client,
+    decodedEntityId,
+    (entity?.state as any) || "idle"
+  );
 
   const formatTime = (seconds: number) => {
     if (!seconds || seconds < 0) return "0:00";
