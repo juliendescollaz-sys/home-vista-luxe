@@ -281,6 +281,24 @@ export class HAClient {
     }
   }
 
+  // Méthode publique pour s'abonner aux événements (conserve handlers entre reconnexions)
+  on(eventType: string, callback: EventCallback): () => void {
+    if (!this.eventHandlers.has(eventType)) {
+      this.eventHandlers.set(eventType, new Set());
+    }
+    this.eventHandlers.get(eventType)!.add(callback);
+    
+    // Si déjà connecté, s'abonner immédiatement
+    if (this.isAuthenticated) {
+      this.sendWithResponse("subscribe_events", { event_type: eventType })
+        .catch(console.error);
+    }
+    
+    return () => {
+      this.eventHandlers.get(eventType)?.delete(callback);
+    };
+  }
+
   disconnect() {
     console.log("🔌 Déconnexion...");
     if (this.reconnectTimeout) {

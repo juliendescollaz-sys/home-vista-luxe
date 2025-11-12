@@ -13,8 +13,60 @@ export function useHAClient() {
   const setEntityRegistry = useHAStore((state) => state.setEntityRegistry);
   
   const clientRef = useRef<HAClient | null>(null);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fonction de synchronisation complète
+  const fullSync = async (client: HAClient) => {
+    console.log("🔄 Synchronisation complète avec HA...");
+    try {
+      const [entities, areas, floors, devices, entityRegistry] = await Promise.all([
+        client.getStates(),
+        client.listAreas(),
+        client.listFloors().catch(() => [] as any[]),
+        client.listDevices().catch(() => [] as any[]),
+        client.listEntities().catch(() => [] as any[]),
+      ]);
+
+      setEntities(entities);
+      setAreas(areas);
+      setFloors(floors);
+      setDevices(devices);
+      setEntityRegistry(entityRegistry);
+
+      console.log("✅ Synchronisation terminée:", {
+        entities: entities.length,
+        areas: areas.length,
+        floors: floors.length,
+        devices: devices.length,
+        entityRegistry: entityRegistry.length,
+      });
+
+      // Nettoyer ancien abonnement et en créer un nouveau
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+
+      unsubscribeRef.current = client.on("state_changed", (data: any) => {
+        if (data?.new_state) {
+          const currentEntities = useHAStore.getState().entities;
+          const index = currentEntities.findIndex((e: HAEntity) => e.entity_id === data.new_state.entity_id);
+          if (index >= 0) {
+            const newEntities = [...currentEntities];
+            newEntities[index] = data.new_state;
+            setEntities(newEntities);
+          } else {
+            setEntities([...currentEntities, data.new_state]);
+          }
+        }
+      });
+    } catch (error) {
+      console.error("❌ Erreur lors de la synchronisation:", error);
+      throw error;
+    }
+  };
 
   useEffect(() => {
     if (!connection || !connection.url || !connection.token) {
@@ -23,7 +75,9 @@ export function useHAClient() {
       return;
     }
 
-    const connectAndSync = async () => {
+    let cancelled = false;
+
+    const boot = async () => {
       setIsConnecting(true);
       setError(null);
 
@@ -35,53 +89,49 @@ export function useHAClient() {
         });
 
         await client.connect();
+        if (cancelled) return;
+
         clientRef.current = client;
         useHAStore.getState().setClient(client);
         setConnected(true);
 
-        console.log("🔄 Synchronisation des données...");
-        
-        // Charger toutes les données en parallèle
-        const [entities, areas, floors, devices, entityRegistry] = await Promise.all([
-          client.getStates(),
-          client.listAreas(),
-          client.listFloors().catch(() => [] as any[]), // Les floors peuvent ne pas exister
-          client.listDevices().catch(() => [] as any[]), // Les devices peuvent ne pas être accessibles
-          client.listEntities().catch(() => [] as any[]), // Le registre des entités
-        ]);
+        // Synchronisation initiale
+        await fullSync(client);
 
-        setEntities(entities);
-        setAreas(areas);
-        setFloors(floors);
-        setDevices(devices);
-        setEntityRegistry(entityRegistry);
-
-        console.log("✅ Synchronisation terminée:", {
-          entities: entities.length,
-          areas: areas.length,
-          floors: floors.length,
-          devices: devices.length,
-          entityRegistry: entityRegistry.length,
-        });
-
-        // S'abonner aux changements d'état
-        const unsubscribe = client.subscribeStateChanges((data) => {
-          if (data.new_state) {
-            // Mettre à jour l'entité dans le store
-            const currentEntities = useHAStore.getState().entities;
-            const index = currentEntities.findIndex((e: HAEntity) => e.entity_id === data.new_state.entity_id);
-            if (index >= 0) {
-              const newEntities = [...currentEntities];
-              newEntities[index] = data.new_state;
-              setEntities(newEntities);
-            } else {
-              setEntities([...currentEntities, data.new_state]);
+        // Resync au retour au premier plan
+        const onVisible = async () => {
+          if (document.visibilityState !== "visible") return;
+          console.log("👁️ App au premier plan, resync...");
+          try {
+            if (!client.isConnected()) {
+              console.log("🔄 Reconnexion...");
+              await client.connect();
             }
+            await fullSync(client);
+          } catch (e) {
+            console.error("❌ Erreur resync:", e);
           }
-        });
+        };
+
+        // Resync sur récupération réseau
+        const onOnline = async () => {
+          console.log("🌐 Connexion réseau rétablie, resync...");
+          try {
+            if (!client.isConnected()) {
+              await client.connect();
+            }
+            await fullSync(client);
+          } catch (e) {
+            console.error("❌ Erreur resync online:", e);
+          }
+        };
+
+        document.addEventListener("visibilitychange", onVisible);
+        window.addEventListener("online", onOnline);
 
         return () => {
-          unsubscribe();
+          document.removeEventListener("visibilitychange", onVisible);
+          window.removeEventListener("online", onOnline);
         };
       } catch (error) {
         console.error("❌ Erreur de connexion:", error);
@@ -92,15 +142,21 @@ export function useHAClient() {
       }
     };
 
-    connectAndSync();
+    const cleanup = boot();
 
     return () => {
+      cancelled = true;
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
       if (clientRef.current) {
         console.log("🔌 Nettoyage de la connexion...");
         clientRef.current.disconnect();
         clientRef.current = null;
         useHAStore.getState().setClient(null);
       }
+      cleanup?.then(cleanupFn => cleanupFn?.());
     };
   }, [connection?.url, connection?.token]);
 

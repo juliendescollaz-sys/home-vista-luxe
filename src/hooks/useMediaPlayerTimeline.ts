@@ -106,6 +106,23 @@ export function useMediaPlayerTimeline(
     return Math.min(computed, dur);
   }, []);
 
+  // Purge des verrous en cours lors d'un fullSync ou changement significatif
+  useEffect(() => {
+    if (!entity) return;
+    
+    // Si position ou duration changent significativement, purger les verrous
+    const posUpdatedAt = entity.attributes?.media_position_updated_at;
+    if (posUpdatedAt && (pendingSeekRef.current || suppressRef.current)) {
+      const delta = Date.now() - Date.parse(posUpdatedAt);
+      // Si les données HA sont fraîches (< 3s), c'est probablement un fullSync
+      if (delta < 3000) {
+        console.log("🧹 Purge des verrous (fullSync détecté)");
+        suppressRef.current = null;
+        pendingSeekRef.current = null;
+      }
+    }
+  }, [entity?.attributes?.media_position_updated_at, entity?.attributes?.media_duration]);
+
   // Mise à jour depuis l'entité HA (avec gestion pendingSeek)
   useEffect(() => {
     if (!entity || isDragging) return;
