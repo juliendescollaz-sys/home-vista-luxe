@@ -94,10 +94,9 @@ export function AnimatedWeatherTile() {
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold text-white" style={{ textShadow: "0 2px 8px rgba(0,0,0,0.8)" }}>{location}</h3>
-                <span className="text-xs font-semibold text-white/95" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.7)" }}>
-                  {new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                </span>
+                <h3 className="text-lg font-bold text-white" style={{ textShadow: "0 2px 8px rgba(0,0,0,0.8)" }}>
+                  {location.split(',')[0].trim()}
+                </h3>
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-5xl font-bold text-white" style={{ textShadow: "0 3px 12px rgba(0,0,0,0.9)" }}>
@@ -109,7 +108,7 @@ export function AnimatedWeatherTile() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/30 bg-black/20 border border-white/20"
+              className="text-white hover:bg-white/30 bg-black/20"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowConfig(true);
