@@ -14,8 +14,28 @@ const Favorites = () => {
   // Filtrer les entités favorites
   const favoriteEntities = entities?.filter(e => favorites.includes(e.entity_id)) || [];
 
-  const handleDeviceToggle = (entityId: string) => {
-    toast.info("Contrôle de l'appareil à venir");
+  const client = useHAStore((state) => state.client);
+
+  const handleDeviceToggle = async (entityId: string) => {
+    if (!client) {
+      toast.error("Client non connecté");
+      return;
+    }
+
+    const entity = entities?.find((e) => e.entity_id === entityId);
+    if (!entity) return;
+
+    const domain = entityId.split(".")[0];
+    const isOn = entity.state === "on";
+    const service = isOn ? "turn_off" : "turn_on";
+
+    try {
+      await client.callService(domain, service, {}, { entity_id: entityId });
+      toast.success(isOn ? "Éteint" : "Allumé");
+    } catch (error) {
+      console.error("Erreur lors du contrôle:", error);
+      toast.error("Erreur lors du contrôle de l'appareil");
+    }
   };
 
   if (!isConnected) {
