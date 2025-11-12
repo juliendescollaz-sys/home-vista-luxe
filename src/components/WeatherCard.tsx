@@ -86,10 +86,22 @@ export function WeatherCard() {
               <span className="font-medium">{selectedCity?.label ?? "—"}</span>
             </div>
             <div className="flex gap-2">
-              <Button variant="ghost" size="icon" onClick={refresh}>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={refresh}
+                className="hover:bg-accent active:scale-95 transition-transform"
+                onMouseDown={(e) => e.currentTarget.blur()}
+              >
                 <RefreshCw className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => setIsConfigOpen(true)}>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setIsConfigOpen(true)}
+                className="hover:bg-accent active:scale-95 transition-transform"
+                onMouseDown={(e) => e.currentTarget.blur()}
+              >
                 <Settings className="w-4 h-4" />
               </Button>
             </div>

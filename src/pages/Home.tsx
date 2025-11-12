@@ -90,9 +90,9 @@ const Home = () => {
           <AnimatedWeatherTile />
         </div>
 
-        {/* Équipements actifs */}
+        {/* Appareils actifs */}
         <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-          <h2 className="text-2xl font-bold">Équipements actifs</h2>
+          <h2 className="text-2xl font-bold">Appareils actifs</h2>
           
           {activeDevices.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
