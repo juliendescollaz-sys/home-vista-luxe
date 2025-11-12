@@ -47,11 +47,18 @@ export function AnimatedWeatherTile() {
 
   if (isLoading) {
     return (
-      <div className="relative rounded-3xl p-6 min-h-[200px] bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse">
+      <div 
+        className="relative rounded-3xl p-6 min-h-[200px] animate-pulse"
+        style={{ 
+          boxShadow: "0 12px 40px rgba(0, 0, 0, 0.4)",
+          border: "2px solid rgba(255, 255, 255, 0.25)",
+          background: "rgba(0, 0, 0, 0.15)"
+        }}
+      >
         <div className="space-y-3">
-          <div className="h-6 w-32 bg-white/30 rounded" />
-          <div className="h-8 w-24 bg-white/30 rounded" />
-          <div className="h-4 w-48 bg-white/30 rounded" />
+          <div className="h-6 w-32 bg-white/20 rounded" />
+          <div className="h-8 w-24 bg-white/20 rounded" />
+          <div className="h-4 w-48 bg-white/20 rounded" />
         </div>
       </div>
     );
