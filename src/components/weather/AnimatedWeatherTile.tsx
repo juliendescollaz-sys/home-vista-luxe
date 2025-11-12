@@ -79,7 +79,7 @@ export function AnimatedWeatherTile() {
         }}
       >
         {/* Couche d'animation de fond */}
-        <div className="absolute inset-0 -z-10 opacity-70">
+        <div className="absolute inset-0 -z-10 opacity-85">
           <WeatherAnimationLayer
             condition={condition}
             isNight={isNight}
