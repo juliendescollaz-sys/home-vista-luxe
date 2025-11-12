@@ -207,12 +207,13 @@ const MediaPlayerDetails = () => {
     position,
     duration,
     state: playerState,
+    phase,
     isDragging,
     handleSeekStart,
     handleSeekChange,
     handleSeekEnd,
-    optimisticPause,
-    optimisticPlay,
+    beginPendingPlay,
+    beginPendingPause,
   } = useMediaPlayerTimeline(client, entity);
 
   // Hook de contrôle fiable pour play/pause
@@ -226,19 +227,19 @@ const MediaPlayerDetails = () => {
     (entity?.state as any) || "idle"
   );
 
-  // Handler play/pause avec optimistic updates
+  // Handler play/pause avec gestion de phase
   const handlePlayPause = useCallback(async () => {
     if (!entityData) return;
     
-    // Optimistic update immédiat
+    // Marquer la phase immédiatement pour geler/préparer la timeline
     if (entityData.isPlaying && entityData.canPause) {
-      optimisticPause();
+      beginPendingPause();
       await pause();
     } else if (entityData.canPlay) {
-      optimisticPlay();
+      beginPendingPlay();
       await play();
     }
-  }, [entityData, optimisticPause, optimisticPlay, pause, play]);
+  }, [entityData, beginPendingPause, beginPendingPlay, pause, play]);
 
   // Réinitialiser les états pending quand l'entité change
   useEffect(() => {
