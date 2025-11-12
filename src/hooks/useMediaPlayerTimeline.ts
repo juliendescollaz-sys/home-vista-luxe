@@ -50,9 +50,9 @@ export function useMediaPlayerTimeline(
       const elapsed = Math.max(0, (nowMs - t0) / 1000);
       const computed = base + elapsed;
       
-      // Si on dépasse la durée, revenir à la position de base (HA aura mis à jour avec la nouvelle piste/loop)
+      // Si on dépasse la durée, rester à la fin jusqu'à ce que HA envoie la nouvelle position
       if (computed > dur && dur > 0) {
-        return base;
+        return dur;
       }
       
       return Math.min(computed, dur);
