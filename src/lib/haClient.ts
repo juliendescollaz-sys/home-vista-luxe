@@ -16,7 +16,6 @@ export class HAClient {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectTimeout: NodeJS.Timeout | null = null;
-  private lastMessageAt = Date.now();
 
   constructor(private config: HAClientConfig) {
     if (!config.baseUrl || !config.token) {
@@ -32,27 +31,6 @@ export class HAClient {
   }
 
   async connect(): Promise<boolean> {
-    // CRITIQUE iOS : nettoyer l'ancien WebSocket avant d'en créer un nouveau
-    if (this.ws) {
-      console.log("🧹 Nettoyage de l'ancien WebSocket...");
-      const oldWs = this.ws;
-      this.ws = null;
-      this.isAuthenticated = false;
-      
-      // Fermer sans déclencher les handlers de reconnexion
-      try {
-        if (oldWs.readyState === WebSocket.OPEN || oldWs.readyState === WebSocket.CONNECTING) {
-          oldWs.onclose = null;
-          oldWs.onerror = null;
-          oldWs.onmessage = null;
-          oldWs.onopen = null;
-          oldWs.close(1000, "Reconnexion");
-        }
-      } catch (e) {
-        console.warn("⚠️ Erreur lors de la fermeture de l'ancien WS:", e);
-      }
-    }
-
     return new Promise((resolve, reject) => {
       console.log("🔌 Connexion WebSocket à:", this.wsUrl);
 
@@ -77,7 +55,6 @@ export class HAClient {
       };
 
       this.ws.onmessage = (event) => {
-        this.lastMessageAt = Date.now(); // CRITIQUE iOS : tracker les messages entrants
         try {
           const message = JSON.parse(event.data);
           console.log("📨 Message reçu:", message.type, message);
@@ -224,9 +201,6 @@ export class HAClient {
   ): Promise<void> {
     console.log(`🎬 Appel service: ${domain}.${service}`, { serviceData, target });
     
-    // CRITIQUE iOS : vérifier que le WebSocket est vivant avant l'envoi
-    await this.ensureAlive();
-    
     await this.sendWithResponse("call_service", {
       domain,
       service,
@@ -368,15 +342,6 @@ export class HAClient {
 
   isConnected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN && this.isAuthenticated;
-  }
-
-  // CRITIQUE iOS : méthode pour détecter un WebSocket gelé
-  async ensureAlive(): Promise<void> {
-    const silentMs = Date.now() - this.lastMessageAt;
-    if (this.isConnected() && silentMs > 3000) {
-      console.warn("⚠️ WebSocket silencieux depuis", silentMs, "ms, reconnexion...");
-      await this.connect();
-    }
   }
 
   getSocket(): WebSocket | null {
