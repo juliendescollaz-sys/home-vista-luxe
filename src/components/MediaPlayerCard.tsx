@@ -122,8 +122,9 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 flex-shrink-0"
+            className="h-8 w-8 flex-shrink-0 transition-all"
             onClick={handleFavoriteClick}
+            onPointerUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
             data-control
           >
             <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />

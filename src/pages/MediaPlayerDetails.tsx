@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import EntityControl from "@/components/EntityControl";
 import { MediaPlayerControls } from "@/components/MediaPlayerControls";
 import { cn } from "@/lib/utils";
@@ -63,6 +63,32 @@ const MediaPlayerDetails = () => {
     shuffle: false,
     repeat: false,
   });
+
+  // Tracking du morceau actuel pour réinitialiser les pending states
+  const currentTrackRef = useRef<string>("");
+  
+  useEffect(() => {
+    if (!entity) return;
+    const trackKey = `${entity.attributes?.media_content_id ?? ""}::${entity.attributes?.media_title ?? ""}`;
+    
+    // Si le morceau a changé et qu'on était en attente de next/previous
+    if (currentTrackRef.current && currentTrackRef.current !== trackKey) {
+      setPending(p => ({ ...p, next: false, previous: false }));
+    }
+    
+    currentTrackRef.current = trackKey;
+  }, [entity?.attributes?.media_content_id, entity?.attributes?.media_title]);
+
+  // Réinitialiser les pending states de shuffle/repeat quand les attributs changent
+  useEffect(() => {
+    if (!entity) return;
+    setPending(p => ({ ...p, shuffle: false }));
+  }, [entity?.attributes?.shuffle]);
+
+  useEffect(() => {
+    if (!entity) return;
+    setPending(p => ({ ...p, repeat: false }));
+  }, [entity?.attributes?.repeat]);
   
 
   // Tous les calculs dérivés doivent être mémoïsés AVANT le early return

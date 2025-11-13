@@ -61,8 +61,9 @@ export const DeviceCard = ({ entity, onToggle }: DeviceCardProps) => {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 active:bg-accent/50 active:scale-95 transition-all"
+            className="h-8 w-8 transition-all"
             onClick={handleFavoriteClick}
+            onPointerUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
           >
             <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
           </Button>
