@@ -157,16 +157,7 @@ export class HAClient {
 
   async getStates(): Promise<HAEntity[]> {
     console.log("📊 Récupération des états...");
-    const url = `${this.config.baseUrl}/api/states?t=${Date.now()}`;
-    const res = await fetch(url, {
-      headers: { 
-        Authorization: `Bearer ${this.config.token}`,
-        "Cache-Control": "no-cache"
-      },
-      cache: "no-store"
-    });
-    if (!res.ok) throw new Error(`GET /api/states failed: ${res.status}`);
-    return res.json();
+    return this.sendWithResponse<HAEntity[]>("get_states");
   }
 
   async listAreas(): Promise<HAArea[]> {
@@ -340,28 +331,56 @@ export class HAClient {
 
   async getStatesREST(): Promise<any[]> {
     const url = `${this.config.baseUrl}/api/states?t=${Date.now()}`;
-    const res = await fetch(url, {
-      headers: { 
-        Authorization: `Bearer ${this.config.token}`,
-        "Cache-Control": "no-cache"
-      },
-      cache: "no-store"
-    });
-    if (!res.ok) throw new Error(`GET /api/states failed: ${res.status}`);
-    return res.json();
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+      
+      const res = await fetch(url, {
+        headers: { 
+          Authorization: `Bearer ${this.config.token}`,
+          "Cache-Control": "no-cache"
+        },
+        cache: "no-store",
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) throw new Error(`GET /api/states failed: ${res.status}`);
+      return res.json();
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Timeout fetching states');
+      }
+      throw error;
+    }
   }
 
   async getState(entityId: string): Promise<any> {
     const url = `${this.config.baseUrl}/api/states/${entityId}?t=${Date.now()}`;
-    const res = await fetch(url, {
-      headers: { 
-        Authorization: `Bearer ${this.config.token}`,
-        "Cache-Control": "no-cache"
-      },
-      cache: "no-store"
-    });
-    if (!res.ok) throw new Error(`GET /api/states/${entityId} failed: ${res.status}`);
-    return res.json();
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+      
+      const res = await fetch(url, {
+        headers: { 
+          Authorization: `Bearer ${this.config.token}`,
+          "Cache-Control": "no-cache"
+        },
+        cache: "no-store",
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) throw new Error(`GET /api/states/${entityId} failed: ${res.status}`);
+      return res.json();
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`Timeout fetching state for ${entityId}`);
+      }
+      throw error;
+    }
   }
 }
 
