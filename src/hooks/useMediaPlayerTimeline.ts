@@ -54,6 +54,7 @@ export function useMediaPlayerTimeline(
   const playConfirmTimer = useRef<number | null>(null);
   const pauseConfirmTimer = useRef<number | null>(null);
   const lastVisualPosRef = useRef(0); // position visuelle en continu
+  const lastResumeAtRef = useRef<number>(0); // fence temps pour iOS resume
 
   // Mettre à jour la position visuelle
   const updateLastVisualPos = useCallback((p: number) => {
@@ -104,6 +105,14 @@ export function useMediaPlayerTimeline(
 
     // Sans repeat
     return Math.min(computed, dur);
+  }, []);
+
+  // Synchroniser le fence temps au marqueur global de resume
+  useEffect(() => {
+    const t = (window as any).__NEOLIA_LAST_RESUME_AT__;
+    if (typeof t === "number" && t > (lastResumeAtRef.current || 0)) {
+      lastResumeAtRef.current = t;
+    }
   }, []);
 
   // Purge des verrous en cours lors d'un fullSync ou changement significatif
@@ -157,6 +166,17 @@ export function useMediaPlayerTimeline(
     const newMediaContentId = entity.attributes?.media_content_id;
     const newMediaTitle = entity.attributes?.media_title;
 
+    // Horodatage HA de la position
+    const haUpdated = Date.parse(newPositionUpdatedAt || entity.last_updated || "");
+    const fence = lastResumeAtRef.current || 0;
+
+    // Si on a repris récemment ET que cet update est antérieur au resume,
+    // on évite d'avancer la timeline à partir de cet update "vieux"
+    const isStaleAfterResume = fence > 0 && !Number.isNaN(haUpdated) && haUpdated < fence;
+    const adjustedPositionUpdatedAt = isStaleAfterResume 
+      ? new Date(fence).toISOString() 
+      : newPositionUpdatedAt;
+
     // Détecter un changement de piste
     const trackKey = `${newMediaContentId ?? ""}::${newMediaTitle ?? ""}`;
     const trackChanged = lastTrackRef.current !== undefined && lastTrackRef.current !== trackKey;
@@ -168,7 +188,7 @@ export function useMediaPlayerTimeline(
         position: 0,
         duration: newDuration,
         state: newState,
-        positionUpdatedAt: new Date().toISOString(),
+        positionUpdatedAt: adjustedPositionUpdatedAt,
         repeat: newRepeat,
         media_content_id: newMediaContentId,
         media_title: newMediaTitle,
@@ -188,7 +208,7 @@ export function useMediaPlayerTimeline(
         position: fixed,
         duration: newDuration,
         state: newState,
-        positionUpdatedAt: fixed > incoming ? new Date().toISOString() : newPositionUpdatedAt,
+        positionUpdatedAt: fixed > incoming ? new Date().toISOString() : adjustedPositionUpdatedAt,
         repeat: newRepeat,
         media_content_id: newMediaContentId,
         media_title: newMediaTitle,
@@ -208,7 +228,7 @@ export function useMediaPlayerTimeline(
       position: newPosition,
       duration: newDuration,
       state: newState,
-      positionUpdatedAt: newPositionUpdatedAt,
+      positionUpdatedAt: adjustedPositionUpdatedAt,
       repeat: newRepeat,
       media_content_id: newMediaContentId,
       media_title: newMediaTitle,

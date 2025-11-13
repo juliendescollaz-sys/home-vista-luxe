@@ -108,6 +108,7 @@ export function useHAClient() {
               await client.connect();
             }
             await fullSync(client);
+            (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
           } catch (e) {
             console.error("❌ Erreur resync:", e);
           }
@@ -121,17 +122,44 @@ export function useHAClient() {
               await client.connect();
             }
             await fullSync(client);
+            (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
           } catch (e) {
             console.error("❌ Erreur resync online:", e);
           }
         };
 
+        // Resync au retour d'avant-plan sur iOS (fiable en PWA/WebView)
+        const onFocus = async () => {
+          try {
+            if (!client.isConnected()) await client.connect();
+            await fullSync(client);
+            (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
+          } catch (e) {
+            console.error("❌ Erreur resync on focus:", e);
+          }
+        };
+
+        const onPageShow = async (ev: PageTransitionEvent) => {
+          try {
+            // iOS peut ne pas appeler visibilitychange; pageshow est plus fiable
+            if (!client.isConnected()) await client.connect();
+            await fullSync(client);
+            (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
+          } catch (e) {
+            console.error("❌ Erreur resync on pageshow:", e);
+          }
+        };
+
         document.addEventListener("visibilitychange", onVisible);
         window.addEventListener("online", onOnline);
+        window.addEventListener("focus", onFocus);
+        window.addEventListener("pageshow", onPageShow as EventListener);
 
         return () => {
           document.removeEventListener("visibilitychange", onVisible);
           window.removeEventListener("online", onOnline);
+          window.removeEventListener("focus", onFocus);
+          window.removeEventListener("pageshow", onPageShow as EventListener);
         };
       } catch (error) {
         console.error("❌ Erreur de connexion:", error);
