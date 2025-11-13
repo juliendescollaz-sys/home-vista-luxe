@@ -112,6 +112,13 @@ export function useMediaPlayerTimeline(
     const t = (window as any).__NEOLIA_LAST_RESUME_AT__;
     if (typeof t === "number" && t > (lastResumeAtRef.current || 0)) {
       lastResumeAtRef.current = t;
+      // Purger tout pending seek au resume pour éviter états obsolètes
+      if (pendingSeekRef.current) {
+        pendingSeekRef.current = null;
+      }
+      if (suppressRef.current) {
+        suppressRef.current = null;
+      }
     }
   }, []);
 

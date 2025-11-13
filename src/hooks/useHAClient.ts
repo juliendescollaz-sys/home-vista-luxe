@@ -49,7 +49,9 @@ export function useHAClient() {
         unsubscribeRef.current = null;
       }
 
+      let lastEventAt = Date.now();
       unsubscribeRef.current = client.on("state_changed", (data: any) => {
+        lastEventAt = Date.now();
         if (data?.new_state) {
           const currentEntities = useHAStore.getState().entities;
           const index = currentEntities.findIndex((e: HAEntity) => e.entity_id === data.new_state.entity_id);
@@ -95,8 +97,32 @@ export function useHAClient() {
         useHAStore.getState().setClient(client);
         setConnected(true);
 
+        // Variable partagée pour le watchdog et l'abonnement
+        let lastEventAt = Date.now();
+
         // Synchronisation initiale
         await fullSync(client);
+
+        // Watchdog de fraîcheur (seulement quand visible)
+        const VISIBLE_STALENESS_MS = 2500;
+        let watchdogTimer: number | null = null;
+        
+        const checkStaleness = async () => {
+          if (document.visibilityState !== "visible") return;
+          const stale = Date.now() - lastEventAt > VISIBLE_STALENESS_MS;
+          if (stale) {
+            try {
+              if (!client.isConnected()) await client.connect();
+              await fullSync(client);
+              lastEventAt = Date.now();
+              (window as any).__NEOLIA_LAST_RESUME_AT__ = lastEventAt;
+            } catch (e) {
+              console.error("❌ Watchdog resync error:", e);
+            }
+          }
+        };
+        
+        watchdogTimer = window.setInterval(checkStaleness, 800) as unknown as number;
 
         // Resync au retour au premier plan
         const onVisible = async () => {
@@ -156,6 +182,7 @@ export function useHAClient() {
         window.addEventListener("pageshow", onPageShow as EventListener);
 
         return () => {
+          if (watchdogTimer) clearInterval(watchdogTimer);
           document.removeEventListener("visibilitychange", onVisible);
           window.removeEventListener("online", onOnline);
           window.removeEventListener("focus", onFocus);
