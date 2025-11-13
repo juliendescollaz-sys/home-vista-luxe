@@ -98,7 +98,7 @@ export function WeatherCard() {
                 size="icon" 
                 onClick={handleRefresh}
                 onPointerUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
-                className={`transition-all ${isRefreshing ? 'bg-accent' : ''}`}
+                className={`transition-all ${isRefreshing ? 'bg-primary/20' : ''}`}
               >
                 <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
