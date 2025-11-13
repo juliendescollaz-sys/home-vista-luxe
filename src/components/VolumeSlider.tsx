@@ -8,19 +8,27 @@ interface VolumeSliderProps {
   className?: string;
 }
 
-function createThrottled(fn: (v: number) => void, ms = 180) {
+function createThrottled(fn: (v: number) => void, ms = 150) {
   let timer: NodeJS.Timeout | null = null;
   let lastValue: number | null = null;
+  let lastSentValue: number | null = null;
   
   return (v: number) => {
     lastValue = v;
-    if (timer !== null) return;
     
-    fn(lastValue);
-    timer = setTimeout(() => {
-      timer = null;
-      if (lastValue !== null) fn(lastValue);
-    }, ms);
+    // Envoyer immédiatement si pas de timer en cours et changement >= 2%
+    if (timer === null && (lastSentValue === null || Math.abs(v - lastSentValue) >= 2)) {
+      fn(v);
+      lastSentValue = v;
+      timer = setTimeout(() => {
+        timer = null;
+        // Envoyer la dernière valeur si elle diffère de >= 2%
+        if (lastValue !== null && lastSentValue !== null && Math.abs(lastValue - lastSentValue) >= 2) {
+          fn(lastValue);
+          lastSentValue = lastValue;
+        }
+      }, ms);
+    }
   };
 }
 
@@ -41,7 +49,7 @@ export function VolumeSlider({ entityId, volumeLevel, onVolumeChange, className 
     () =>
       createThrottled((v: number) => {
         onVolumeChange(entityId, v / 100);
-      }, 180),
+      }, 150),
     [entityId, onVolumeChange]
   );
 
@@ -67,7 +75,7 @@ export function VolumeSlider({ entityId, volumeLevel, onVolumeChange, className 
     setIsDragging(false);
     endTimer.current = setTimeout(() => {
       suppressKey.current = null;
-    }, 400);
+    }, 300);
   }, []);
 
   return (
