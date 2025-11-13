@@ -31,14 +31,15 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
     position,
     duration,
     state: playerState,
+    phase,
     isDragging,
     handleSeekStart,
     handleSeekChange,
     handleSeekEnd,
   } = useMediaPlayerTimeline(client, entity);
 
-  const isPlaying = playerState === "playing";
-  const isBuffering = playerState === "buffering";
+  const isPlaying = phase === "playing";
+  const isBuffering = phase === "buffering" || phase === "pending_play";
   const mediaTitle = attributes.media_title || "Aucun média";
   const mediaArtist = attributes.media_artist || "";
   const entityPictureLocal = attributes.entity_picture_local;

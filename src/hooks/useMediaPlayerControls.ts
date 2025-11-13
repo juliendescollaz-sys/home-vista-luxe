@@ -1,8 +1,25 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { HAClient } from "@/lib/haClient";
+import { useHAStore } from "@/store/useHAStore";
 
 const IN_FLIGHT_TIMEOUT_MS = 4000;
 const CONFIRMATION_WINDOW_MS = 1500;
+
+async function confirmStateOnce(client: HAClient, entityId: string, want: "playing" | "paused") {
+  try {
+    const st = await client.getState(entityId);
+    if (st?.state === want) {
+      useHAStore.setState(prev => {
+        const list = prev.entities.slice();
+        const idx = list.findIndex(e => e.entity_id === entityId);
+        if (idx >= 0) list[idx] = st; else list.push(st);
+        return { entities: list };
+      });
+      return true;
+    }
+  } catch {}
+  return false;
+}
 
 type MediaState = "playing" | "paused" | "idle" | "off" | "standby" | "buffering" | "unavailable";
 
@@ -87,10 +104,12 @@ export function useMediaPlayerControls(
         await client.callService("media_player", "media_play", undefined, { 
           entity_id: entityId 
         });
+        await confirmStateOnce(client, entityId, "playing");
       } else {
         await client.callService("media_player", "media_pause", undefined, { 
           entity_id: entityId 
         });
+        await confirmStateOnce(client, entityId, "paused");
       }
     } catch (e) {
       console.error("Media action error", e);
