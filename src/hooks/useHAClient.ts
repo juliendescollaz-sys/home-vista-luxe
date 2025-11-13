@@ -81,6 +81,7 @@ export function useHAClient() {
     }
 
     let cancelled = false;
+    let reconnecting = false; // CRITIQUE iOS : protection contre appels multiples
 
     const boot = async () => {
       setIsConnecting(true);
@@ -129,8 +130,9 @@ export function useHAClient() {
 
         // CRITIQUE iOS : forcer reconnect + fullSync + resubscription au retour premier plan
         const onVisible = async () => {
-          if (document.visibilityState !== "visible") return;
+          if (document.visibilityState !== "visible" || reconnecting) return;
           console.log("👁️ App au premier plan, resync...");
+          reconnecting = true;
           try {
             // Force reconnect pour réactiver le WS si gelé
             await client.connect();
@@ -138,42 +140,56 @@ export function useHAClient() {
             (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
           } catch (e) {
             console.error("❌ Erreur resync:", e);
+          } finally {
+            reconnecting = false;
           }
         };
 
         // Resync sur récupération réseau
         const onOnline = async () => {
+          if (reconnecting) return;
           console.log("🌐 Connexion réseau rétablie, resync...");
+          reconnecting = true;
           try {
             await client.connect();
             await fullSync(client);
             (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
           } catch (e) {
             console.error("❌ Erreur resync online:", e);
+          } finally {
+            reconnecting = false;
           }
         };
 
         // CRITIQUE iOS : resync au retour d'avant-plan (fiable en PWA/WebView)
         const onFocus = async () => {
+          if (reconnecting) return;
           console.log("🔄 Focus détecté, resync...");
+          reconnecting = true;
           try {
             await client.connect();
             await fullSync(client);
             (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
           } catch (e) {
             console.error("❌ Erreur resync on focus:", e);
+          } finally {
+            reconnecting = false;
           }
         };
 
         // CRITIQUE iOS : pageshow est le plus fiable pour détecter le retour d'arrière-plan
         const onPageShow = async (ev: PageTransitionEvent) => {
+          if (reconnecting) return;
           console.log("📄 Pageshow détecté, resync...");
+          reconnecting = true;
           try {
             await client.connect();
             await fullSync(client);
             (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
           } catch (e) {
             console.error("❌ Erreur resync on pageshow:", e);
+          } finally {
+            reconnecting = false;
           }
         };
 
