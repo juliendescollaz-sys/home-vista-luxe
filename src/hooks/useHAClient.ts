@@ -176,10 +176,20 @@ export function useHAClient() {
           }
         };
 
+        // Couper la socket à la mise en arrière-plan (iOS)
+        const onPageHide = () => {
+          try {
+            client.disconnect?.();
+          } catch (e) {
+            console.error("❌ Erreur disconnect on pagehide:", e);
+          }
+        };
+
         document.addEventListener("visibilitychange", onVisible);
         window.addEventListener("online", onOnline);
         window.addEventListener("focus", onFocus);
         window.addEventListener("pageshow", onPageShow as EventListener);
+        window.addEventListener("pagehide", onPageHide);
 
         return () => {
           if (watchdogTimer) clearInterval(watchdogTimer);
@@ -187,6 +197,7 @@ export function useHAClient() {
           window.removeEventListener("online", onOnline);
           window.removeEventListener("focus", onFocus);
           window.removeEventListener("pageshow", onPageShow as EventListener);
+          window.removeEventListener("pagehide", onPageHide);
         };
       } catch (error) {
         console.error("❌ Erreur de connexion:", error);

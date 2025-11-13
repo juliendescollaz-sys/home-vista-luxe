@@ -157,7 +157,16 @@ export class HAClient {
 
   async getStates(): Promise<HAEntity[]> {
     console.log("📊 Récupération des états...");
-    return this.sendWithResponse<HAEntity[]>("get_states");
+    const url = `${this.config.baseUrl}/api/states?t=${Date.now()}`;
+    const res = await fetch(url, {
+      headers: { 
+        Authorization: `Bearer ${this.config.token}`,
+        "Cache-Control": "no-cache"
+      },
+      cache: "no-store"
+    });
+    if (!res.ok) throw new Error(`GET /api/states failed: ${res.status}`);
+    return res.json();
   }
 
   async listAreas(): Promise<HAArea[]> {
@@ -330,18 +339,26 @@ export class HAClient {
   }
 
   async getStatesREST(): Promise<any[]> {
-    const url = `${this.config.baseUrl}/api/states`;
+    const url = `${this.config.baseUrl}/api/states?t=${Date.now()}`;
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${this.config.token}` },
+      headers: { 
+        Authorization: `Bearer ${this.config.token}`,
+        "Cache-Control": "no-cache"
+      },
+      cache: "no-store"
     });
     if (!res.ok) throw new Error(`GET /api/states failed: ${res.status}`);
     return res.json();
   }
 
   async getState(entityId: string): Promise<any> {
-    const url = `${this.config.baseUrl}/api/states/${entityId}`;
+    const url = `${this.config.baseUrl}/api/states/${entityId}?t=${Date.now()}`;
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${this.config.token}` },
+      headers: { 
+        Authorization: `Bearer ${this.config.token}`,
+        "Cache-Control": "no-cache"
+      },
+      cache: "no-store"
     });
     if (!res.ok) throw new Error(`GET /api/states/${entityId} failed: ${res.status}`);
     return res.json();
