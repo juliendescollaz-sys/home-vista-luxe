@@ -122,6 +122,18 @@ export function useMediaPlayerTimeline(
     }
   }, []);
 
+  // Couper l'animation quand la page est cachée (Safari/iOS)
+  useEffect(() => {
+    const onVisChange = () => {
+      if (document.visibilityState === "hidden" && animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+    };
+    document.addEventListener("visibilitychange", onVisChange);
+    return () => document.removeEventListener("visibilitychange", onVisChange);
+  }, []);
+
   // Purge des verrous en cours lors d'un fullSync ou changement significatif
   useEffect(() => {
     if (!entity) return;
