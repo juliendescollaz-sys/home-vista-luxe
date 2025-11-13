@@ -30,7 +30,42 @@ export class HAClient {
     return this.config.baseUrl.replace(/^https?/, "wss") + "/api/websocket";
   }
 
+  async ensureConnected(): Promise<void> {
+    // Si déjà connecté ET authentifié → on ne fait rien
+    if (this.isConnected()) return;
+
+    // Annuler toute reconnexion automatique en cours
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
+    // Tenter une nouvelle connexion WebSocket propre
+    await this.connect();
+  }
+
   async connect(): Promise<boolean> {
+    // CRITIQUE iOS : nettoyer l'ancien WebSocket avant d'en créer un nouveau
+    if (this.ws) {
+      console.log("🧹 Nettoyage de l'ancien WebSocket...");
+      const oldWs = this.ws;
+      this.ws = null;
+      this.isAuthenticated = false;
+      
+      // Fermer sans déclencher les handlers de reconnexion
+      try {
+        if (oldWs.readyState === WebSocket.OPEN || oldWs.readyState === WebSocket.CONNECTING) {
+          oldWs.onclose = null; // Empêcher la logique de reconnexion
+          oldWs.onerror = null;
+          oldWs.onmessage = null;
+          oldWs.onopen = null;
+          oldWs.close(1000, "Reconnexion");
+        }
+      } catch (e) {
+        console.warn("⚠️ Erreur lors de la fermeture de l'ancien WS:", e);
+      }
+    }
+
     return new Promise((resolve, reject) => {
       console.log("🔌 Connexion WebSocket à:", this.wsUrl);
 
@@ -136,12 +171,18 @@ export class HAClient {
     }
   }
 
-  private async sendWithResponse<T>(type: string, data?: any): Promise<T> {
+  private async sendWithResponse<T>(type: string, data?: any, retry = true): Promise<T> {
     if (!this.isAuthenticated) {
+      // Première fois : tenter une reconnexion avant d'abandonner
+      if (retry) {
+        console.warn("⚠️ Non authentifié, tentative de reconnexion...");
+        await this.ensureConnected();
+        return this.sendWithResponse<T>(type, data, false);
+      }
       throw new Error("Non authentifié");
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise<T>((resolve, reject) => {
       const id = this.messageId++;
       const timeout = setTimeout(() => {
         this.pendingMessages.delete(id);
@@ -155,11 +196,46 @@ export class HAClient {
         },
         reject: (error) => {
           clearTimeout(timeout);
-          reject(error);
+          // Si erreur d'auth / socket au moment de la réponse → on retente UNE fois
+          const msg = String(error?.message || "");
+          const authError =
+            msg.includes("Non authentifié") ||
+            msg.includes("auth") ||
+            msg.includes("WebSocket non connecté");
+
+          if (retry && authError) {
+            console.warn("⚠️ Erreur auth/service, tentative de reconnexion et retry...");
+            this.ensureConnected()
+              .then(() => this.sendWithResponse<T>(type, data, false).then(resolve).catch(reject))
+              .catch(reject);
+          } else {
+            reject(error);
+          }
         },
       });
 
-      this.send({ id, type, ...data });
+      const message = { id, type, ...data };
+      try {
+        this.send(message);
+      } catch (error) {
+        clearTimeout(timeout);
+        this.pendingMessages.delete(id);
+
+        const msg = String((error as any)?.message || "");
+        const authError =
+          msg.includes("Non authentifié") ||
+          msg.includes("auth") ||
+          msg.includes("WebSocket non connecté");
+
+        if (retry && authError) {
+          console.warn("⚠️ send() a échoué, tentative de reconnexion et retry...");
+          this.ensureConnected()
+            .then(() => this.sendWithResponse<T>(type, data, false).then(resolve).catch(reject))
+            .catch(reject);
+        } else {
+          reject(error);
+        }
+      }
     });
   }
 
