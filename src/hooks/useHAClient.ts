@@ -49,6 +49,7 @@ export function useHAClient() {
         unsubscribeRef.current = null;
       }
 
+      // CRITIQUE iOS : réinstaller le handler local après chaque sync
       let lastEventAt = Date.now();
       unsubscribeRef.current = client.on("state_changed", (data: any) => {
         lastEventAt = Date.now();
@@ -64,6 +65,8 @@ export function useHAClient() {
           }
         }
       });
+
+      console.log("✅ Handler state_changed réinstallé");
     } catch (error) {
       console.error("❌ Erreur lors de la synchronisation:", error);
       throw error;
@@ -124,15 +127,13 @@ export function useHAClient() {
         
         watchdogTimer = window.setInterval(checkStaleness, 800) as unknown as number;
 
-        // Resync au retour au premier plan
+        // CRITIQUE iOS : forcer reconnect + fullSync + resubscription au retour premier plan
         const onVisible = async () => {
           if (document.visibilityState !== "visible") return;
           console.log("👁️ App au premier plan, resync...");
           try {
-            if (!client.isConnected()) {
-              console.log("🔄 Reconnexion...");
-              await client.connect();
-            }
+            // Force reconnect pour réactiver le WS si gelé
+            await client.connect();
             await fullSync(client);
             (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
           } catch (e) {
@@ -144,9 +145,7 @@ export function useHAClient() {
         const onOnline = async () => {
           console.log("🌐 Connexion réseau rétablie, resync...");
           try {
-            if (!client.isConnected()) {
-              await client.connect();
-            }
+            await client.connect();
             await fullSync(client);
             (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
           } catch (e) {
@@ -154,10 +153,11 @@ export function useHAClient() {
           }
         };
 
-        // Resync au retour d'avant-plan sur iOS (fiable en PWA/WebView)
+        // CRITIQUE iOS : resync au retour d'avant-plan (fiable en PWA/WebView)
         const onFocus = async () => {
+          console.log("🔄 Focus détecté, resync...");
           try {
-            if (!client.isConnected()) await client.connect();
+            await client.connect();
             await fullSync(client);
             (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
           } catch (e) {
@@ -165,10 +165,11 @@ export function useHAClient() {
           }
         };
 
+        // CRITIQUE iOS : pageshow est le plus fiable pour détecter le retour d'arrière-plan
         const onPageShow = async (ev: PageTransitionEvent) => {
+          console.log("📄 Pageshow détecté, resync...");
           try {
-            // iOS peut ne pas appeler visibilitychange; pageshow est plus fiable
-            if (!client.isConnected()) await client.connect();
+            await client.connect();
             await fullSync(client);
             (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
           } catch (e) {

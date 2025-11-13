@@ -67,6 +67,8 @@ export class HAClient {
             this.isAuthenticated = true;
             this.reconnectAttempts = 0;
             clearTimeout(authTimeout);
+            // CRITIQUE iOS : réinstaller tous les abonnements après auth_ok
+            this.resubscribeAllEvents().catch(console.error);
             resolve(true);
           } else if (message.type === "auth_invalid") {
             console.error("❌ Token invalide");
@@ -107,11 +109,17 @@ export class HAClient {
         // Tenter une reconnexion si ce n'était pas intentionnel
         if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
-          const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-          console.log(`🔄 Tentative de reconnexion ${this.reconnectAttempts}/${this.maxReconnectAttempts} dans ${delay}ms...`);
+          const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 30000);
+          console.log(`🔄 Reconnexion dans ${delay}ms (tentative ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
           
-          this.reconnectTimeout = setTimeout(() => {
-            this.connect().catch(console.error);
+          this.reconnectTimeout = setTimeout(async () => {
+            try {
+              await this.connect();
+              // CRITIQUE iOS : après reconnect, réinstaller les abonnements
+              await this.resubscribeAllEvents();
+            } catch (error) {
+              console.error("❌ Erreur reconnexion:", error);
+            }
           }, delay);
         }
       };
@@ -278,6 +286,23 @@ export class HAClient {
           console.error("❌ Erreur dans le handler d'événement:", error);
         }
       });
+    }
+  }
+
+  // CRITIQUE iOS : méthode pour réinstaller tous les abonnements actifs
+  private async resubscribeAllEvents(): Promise<void> {
+    console.log("🔄 Réinstallation de tous les abonnements actifs...");
+    const eventTypes = Array.from(this.eventHandlers.keys());
+    
+    for (const eventType of eventTypes) {
+      if (this.eventHandlers.get(eventType)?.size! > 0) {
+        try {
+          await this.sendWithResponse("subscribe_events", { event_type: eventType });
+          console.log(`✅ Réabonné à ${eventType}`);
+        } catch (error) {
+          console.error(`❌ Erreur réabonnement à ${eventType}:`, error);
+        }
+      }
     }
   }
 
