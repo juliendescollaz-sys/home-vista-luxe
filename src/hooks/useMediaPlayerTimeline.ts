@@ -136,28 +136,6 @@ export function useMediaPlayerTimeline(
   useEffect(() => {
     if (!entity || isDragging) return;
     
-    const isSuppress = suppressRef.current === entity.entity_id;
-    const pending = pendingSeekRef.current;
-
-    // Si on attend la confirmation du seek
-    if (isSuppress && pending) {
-      const haPos = entity.attributes?.media_position || 0;
-      const positionConfirmed = Math.abs(haPos - pending.pos) <= 1.5;
-      const timedOut = Date.now() > pending.deadline;
-
-      if (positionConfirmed || timedOut) {
-        // Confirmation reçue ou timeout : lever le verrou
-        suppressRef.current = null;
-        pendingSeekRef.current = null;
-      } else {
-        // Toujours en attente : ignorer cet event
-        return;
-      }
-    } else if (isSuppress) {
-      // Suppress actif sans pending (cas legacy) : ignorer
-      return;
-    }
-
     const newPosition = entity.attributes?.media_position || 0;
     const newDuration = entity.attributes?.media_duration || 0;
     const newState = entity.state as any;
@@ -166,17 +144,6 @@ export function useMediaPlayerTimeline(
     const newMediaContentId = entity.attributes?.media_content_id;
     const newMediaTitle = entity.attributes?.media_title;
 
-    // Horodatage HA de la position
-    const haUpdated = Date.parse(newPositionUpdatedAt || entity.last_updated || "");
-    const fence = lastResumeAtRef.current || 0;
-
-    // Si on a repris récemment ET que cet update est antérieur au resume,
-    // on évite d'avancer la timeline à partir de cet update "vieux"
-    const isStaleAfterResume = fence > 0 && !Number.isNaN(haUpdated) && haUpdated < fence;
-    const adjustedPositionUpdatedAt = isStaleAfterResume 
-      ? new Date(fence).toISOString() 
-      : newPositionUpdatedAt;
-
     // Détecter un changement de piste
     const trackKey = `${newMediaContentId ?? ""}::${newMediaTitle ?? ""}`;
     const trackChanged = lastTrackRef.current !== undefined && lastTrackRef.current !== trackKey;
@@ -184,31 +151,37 @@ export function useMediaPlayerTimeline(
     if (trackChanged) {
       lastTrackRef.current = trackKey;
       setLastVisualPos(0);
+      suppressRef.current = null;
+      pendingSeekRef.current = null;
       setTimeline({
         position: 0,
         duration: newDuration,
         state: newState,
-        positionUpdatedAt: adjustedPositionUpdatedAt,
+        positionUpdatedAt: newPositionUpdatedAt || new Date().toISOString(),
         repeat: newRepeat,
         media_content_id: newMediaContentId,
         media_title: newMediaTitle,
       });
+      setPhase(newState === "playing" ? "playing" : "paused");
       forceUpdate(Date.now());
       return;
     }
-    
-    // Empêcher le rollback lors d'un pause (HA peut renvoyer une position en retard)
+
+    // PRIORITÉ ABSOLUE : états paused/idle/off TOUJOURS traités immédiatement
     if (newState === "paused" || newState === "idle" || newState === "off" || newState === "standby") {
       const incoming = Number(newPosition) || 0;
       const snap = getLastVisualPos();
       const fixed = Math.max(incoming, snap - SNAPSHOT_EPSILON_SEC);
 
       lastTrackRef.current = trackKey;
+      suppressRef.current = null;
+      pendingSeekRef.current = null;
+      
       setTimeline({
         position: fixed,
         duration: newDuration,
         state: newState,
-        positionUpdatedAt: fixed > incoming ? new Date().toISOString() : adjustedPositionUpdatedAt,
+        positionUpdatedAt: fixed > incoming ? new Date().toISOString() : newPositionUpdatedAt,
         repeat: newRepeat,
         media_content_id: newMediaContentId,
         media_title: newMediaTitle,
@@ -219,10 +192,43 @@ export function useMediaPlayerTimeline(
         clearTimeout(pauseConfirmTimer.current);
         pauseConfirmTimer.current = null;
       }
+      if (playConfirmTimer.current) {
+        clearTimeout(playConfirmTimer.current);
+        playConfirmTimer.current = null;
+      }
       return;
     }
 
-    // Mise à jour normale depuis HA
+    // Gestion pendingSeek pour les états playing/buffering uniquement
+    const isSuppress = suppressRef.current === entity.entity_id;
+    const pending = pendingSeekRef.current;
+
+    if (isSuppress && pending) {
+      const haPos = entity.attributes?.media_position || 0;
+      const positionConfirmed = Math.abs(haPos - pending.pos) <= 1.5;
+      const timedOut = Date.now() > pending.deadline;
+
+      if (positionConfirmed || timedOut) {
+        suppressRef.current = null;
+        pendingSeekRef.current = null;
+      } else {
+        // Toujours en attente du seek
+        return;
+      }
+    } else if (isSuppress) {
+      // Suppress actif sans pending : ignorer temporairement
+      return;
+    }
+
+    // Horodatage HA de la position pour fence iOS
+    const haUpdated = Date.parse(newPositionUpdatedAt || entity.last_updated || "");
+    const fence = lastResumeAtRef.current || 0;
+    const isStaleAfterResume = fence > 0 && !Number.isNaN(haUpdated) && haUpdated < fence;
+    const adjustedPositionUpdatedAt = isStaleAfterResume 
+      ? new Date(fence).toISOString() 
+      : newPositionUpdatedAt;
+
+    // Mise à jour normale depuis HA (playing/buffering)
     lastTrackRef.current = trackKey;
     setTimeline({
       position: newPosition,
@@ -241,7 +247,6 @@ export function useMediaPlayerTimeline(
     if (newState === "buffering") {
       setPhase("buffering");
     } else if (newState === "playing") {
-      // Confirme lecture seulement si on voit la position bouger
       if (movedRecently && newPosition > 0 && newDuration > 0) {
         setPhase("playing");
         if (playConfirmTimer.current) {
