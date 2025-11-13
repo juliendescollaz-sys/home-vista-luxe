@@ -90,7 +90,8 @@ export function WeatherCard() {
                 variant="ghost" 
                 size="icon" 
                 onClick={refresh}
-                className="active:bg-accent/50 active:scale-95 transition-all"
+                onPointerUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
+                className="transition-all"
               >
                 <RefreshCw className="w-4 h-4" />
               </Button>
@@ -98,7 +99,8 @@ export function WeatherCard() {
                 variant="ghost" 
                 size="icon" 
                 onClick={() => setIsConfigOpen(true)}
-                className="active:bg-accent/50 active:scale-95 transition-all"
+                onPointerUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
+                className="transition-all"
               >
                 <Settings className="w-4 h-4" />
               </Button>
