@@ -146,11 +146,13 @@ const MediaPlayerDetails = () => {
   const handlePrevious = useCallback(() => {
     setPending(p => ({ ...p, previous: true }));
     callService("media_previous_track");
+    setTimeout(() => setPending(p => ({ ...p, previous: false })), 1500);
   }, [callService]);
 
   const handleNext = useCallback(() => {
     setPending(p => ({ ...p, next: true }));
     callService("media_next_track");
+    setTimeout(() => setPending(p => ({ ...p, next: false })), 1500);
   }, [callService]);
 
   const handleShuffleToggle = useCallback(() => {
@@ -159,6 +161,7 @@ const MediaPlayerDetails = () => {
     // Cast strict pour éviter le problème iOS
     const newShuffle = entity.attributes.shuffle !== true;
     callService("shuffle_set", { shuffle: newShuffle });
+    setTimeout(() => setPending(p => ({ ...p, shuffle: false })), 1500);
   }, [callService, entity]);
 
   const handleRepeatCycle = useCallback(() => {
@@ -167,6 +170,7 @@ const MediaPlayerDetails = () => {
     const currentMode = (entity.attributes.repeat as "off" | "all" | "one") || "off";
     const nextMode = currentMode === "off" ? "all" : currentMode === "all" ? "one" : "off";
     callService("repeat_set", { repeat: nextMode });
+    setTimeout(() => setPending(p => ({ ...p, repeat: false })), 1500);
   }, [callService, entity]);
 
   const handleSelectSource = useCallback(async (source: string) => {
