@@ -6,6 +6,8 @@ import type { HAEntity } from "@/types/homeassistant";
 export function useHAClient() {
   const connection = useHAStore((state) => state.connection);
   const setConnected = useHAStore((state) => state.setConnected);
+  const setConnectionStatus = useHAStore((state) => state.setConnectionStatus);
+  const setLastError = useHAStore((state) => state.setLastError);
   const setEntities = useHAStore((state) => state.setEntities);
   const setAreas = useHAStore((state) => state.setAreas);
   const setFloors = useHAStore((state) => state.setFloors);
@@ -14,6 +16,7 @@ export function useHAClient() {
   
   const clientRef = useRef<HAClient | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const reconnectingRef = useRef(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,6 +88,8 @@ export function useHAClient() {
     const boot = async () => {
       setIsConnecting(true);
       setError(null);
+      setConnectionStatus("connecting");
+      setLastError(null);
 
       try {
         console.log("🔄 Initialisation du client HA...");
@@ -99,6 +104,8 @@ export function useHAClient() {
         clientRef.current = client;
         useHAStore.getState().setClient(client);
         setConnected(true);
+        setConnectionStatus("connected");
+        setLastError(null);
 
         // Variable partagée pour le watchdog et l'abonnement
         let lastEventAt = Date.now();
@@ -127,71 +134,103 @@ export function useHAClient() {
         
         watchdogTimer = window.setInterval(checkStaleness, 800) as unknown as number;
 
-        // CRITIQUE iOS : forcer reconnect + fullSync + resubscription au retour premier plan
-        const onVisible = async () => {
-          if (document.visibilityState !== "visible") return;
-          console.log("👁️ App au premier plan, resync...");
-          try {
-            // Force reconnect pour réactiver le WS si gelé
-            await client.connect();
-            await fullSync(client);
-            (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
-          } catch (e) {
-            console.error("❌ Erreur resync:", e);
-          }
-        };
-
-        // Resync sur récupération réseau
-        const onOnline = async () => {
-          console.log("🌐 Connexion réseau rétablie, resync...");
-          try {
-            await client.connect();
-            await fullSync(client);
-            (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
-          } catch (e) {
-            console.error("❌ Erreur resync online:", e);
-          }
-        };
-
         // CRITIQUE iOS : resync au retour d'avant-plan (fiable en PWA/WebView)
-        const onFocus = async () => {
-          console.log("🔄 Focus détecté, resync...");
+        const reconnect = async () => {
+          if (reconnectingRef.current) return;
+          reconnectingRef.current = true;
+          
+          console.log("🔄 Reconnexion en cours...");
+          setConnectionStatus("reconnecting");
+          setLastError(null);
+          
           try {
             await client.connect();
             await fullSync(client);
+            setConnectionStatus("connected");
+            setLastError(null);
             (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
-          } catch (e) {
-            console.error("❌ Erreur resync on focus:", e);
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            console.error("❌ Erreur reconnexion:", err);
+            
+            let userError = "Erreur de reconnexion";
+            if (errorMsg.toLowerCase().includes("timeout")) {
+              userError = "Timeout - Home Assistant ne répond pas";
+            } else if (errorMsg.toLowerCase().includes("auth")) {
+              userError = "Timeout d'authentification - merci de vous reconnecter";
+            }
+            
+            setLastError(userError);
+            setConnectionStatus("error");
+          } finally {
+            reconnectingRef.current = false;
           }
         };
 
-        // CRITIQUE iOS : pageshow est le plus fiable pour détecter le retour d'arrière-plan
-        const onPageShow = async (ev: PageTransitionEvent) => {
-          console.log("📄 Pageshow détecté, resync...");
-          try {
-            await client.connect();
-            await fullSync(client);
-            (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
-          } catch (e) {
-            console.error("❌ Erreur resync on pageshow:", e);
+        const onAppPause = () => {
+          console.log("⏸️ App en arrière-plan");
+          setConnectionStatus("paused");
+        };
+
+        const onAppResume = async () => {
+          if (document.visibilityState !== "visible") return;
+          console.log("▶️ App au premier plan");
+          await reconnect();
+        };
+
+        const onVisible = () => {
+          if (document.visibilityState === "visible") {
+            onAppResume();
+          } else {
+            onAppPause();
+          }
+        };
+
+        const onOnline = async () => {
+          console.log("🌐 Réseau revenu");
+          await reconnect();
+        };
+
+        const onFocus = async () => {
+          console.log("🎯 Focus revenu");
+          await reconnect();
+        };
+
+        const onPageShow = async (e: PageTransitionEvent) => {
+          if (e.persisted) {
+            console.log("📄 Page restaurée (bfcache)");
+            await reconnect();
           }
         };
 
         document.addEventListener("visibilitychange", onVisible);
         window.addEventListener("online", onOnline);
         window.addEventListener("focus", onFocus);
-        window.addEventListener("pageshow", onPageShow as EventListener);
+        window.addEventListener("pageshow", onPageShow as any);
 
         return () => {
           if (watchdogTimer) clearInterval(watchdogTimer);
           document.removeEventListener("visibilitychange", onVisible);
           window.removeEventListener("online", onOnline);
           window.removeEventListener("focus", onFocus);
-          window.removeEventListener("pageshow", onPageShow as EventListener);
+          window.removeEventListener("pageshow", onPageShow as any);
         };
-      } catch (error) {
-        console.error("❌ Erreur de connexion:", error);
-        setError(error instanceof Error ? error.message : "Erreur de connexion");
+      } catch (err) {
+        if (cancelled) return;
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        console.error("❌ Erreur connexion HA:", err);
+        
+        // Typer l'erreur pour l'utilisateur
+        let userError = "Erreur de connexion à Home Assistant";
+        if (errorMsg.toLowerCase().includes("timeout")) {
+          userError = "Timeout - Home Assistant ne répond pas";
+        } else if (errorMsg.toLowerCase().includes("auth") || errorMsg.includes("401") || errorMsg.includes("403")) {
+          userError = "Timeout d'authentification - merci de vous reconnecter";
+        }
+        
+        setError(errorMsg);
+        setLastError(userError);
+        setConnectionStatus("error");
         setConnected(false);
       } finally {
         setIsConnecting(false);
