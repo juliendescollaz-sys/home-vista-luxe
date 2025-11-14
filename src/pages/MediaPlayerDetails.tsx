@@ -27,6 +27,10 @@ const MediaPlayerDetails = () => {
   const connection = useHAStore((state) => state.connection);
   const connectionStatus = useHAStore((state) => state.connectionStatus);
   
+  // iOS : ne bloquer le transport que si le client HA n'est pas encore prêt
+  const isTransportOverlayVisible =
+    !client && (connectionStatus === "connecting" || connectionStatus === "reconnecting");
+  
   const decodedEntityId = useMemo(() => decodeURIComponent(entityId || ""), [entityId]);
 
   // Scroll to top lors de la navigation
@@ -375,7 +379,7 @@ const MediaPlayerDetails = () => {
 
         {/* Contrôles de lecture */}
         <div className="mb-6 relative">
-          {(connectionStatus === "connecting" || connectionStatus === "reconnecting") && (
+          {isTransportOverlayVisible && (
             <div className="absolute inset-0 bg-background/50 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
               <div className="flex flex-col items-center gap-2">
                 <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
