@@ -30,6 +30,10 @@ const MediaPlayerDetails = () => {
   // iOS : ne bloquer le transport que si le client HA n'est pas encore prêt
   const isTransportOverlayVisible =
     !client && (connectionStatus === "connecting" || connectionStatus === "reconnecting");
+
+  // Désactiver les boutons seulement si le client est vraiment indisponible
+  const isTransportDisabled =
+    !client || connectionStatus === "connecting" || connectionStatus === "error";
   
   const decodedEntityId = useMemo(() => decodeURIComponent(entityId || ""), [entityId]);
 
@@ -405,7 +409,7 @@ const MediaPlayerDetails = () => {
             onShuffleToggle={handleShuffleToggle}
             onRepeatCycle={handleRepeatCycle}
             pending={pending}
-            disabled={connectionStatus === "connecting" || connectionStatus === "reconnecting" || connectionStatus === "error"}
+            disabled={isTransportDisabled}
           />
         </div>
 
