@@ -29,11 +29,8 @@ const PAUSE_CONFIRM_TIMEOUT_MS = 1800;
 const SNAPSHOT_EPSILON_SEC = 0.5; // marge anti-jitter
 
 export function useMediaPlayerTimeline(
-  client: HAClient | null,
   entity: HAEntity | undefined
 ) {
-  const connectionStatus = useHAStore((state) => state.connectionStatus);
-  
   const [timeline, setTimeline] = useState<TimelineState>({
     position: entity?.attributes?.media_position || 0,
     duration: entity?.attributes?.media_duration || 0,

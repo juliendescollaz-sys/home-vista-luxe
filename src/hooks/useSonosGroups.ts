@@ -16,7 +16,6 @@ interface ScriptEntity {
 }
 
 export function useSonosGroups() {
-  const client = useHAStore((state) => state.client);
   const entities = useHAStore((state) => state.entities);
   const devices = useHAStore((state) => state.devices);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
