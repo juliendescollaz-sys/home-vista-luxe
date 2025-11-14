@@ -7,8 +7,8 @@ import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
+
 import { toast } from "sonner";
-import { callHAService } from "@/lib/haService";
 
 const RoomDetails = () => {
   const { areaId } = useParams<{ areaId: string }>();
@@ -18,6 +18,8 @@ const RoomDetails = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [areaId]);
+  
+  const client = useHAStore((state) => state.client);
   const areas = useHAStore((state) => state.areas);
   const entities = useHAStore((state) => state.entities);
   const devices = useHAStore((state) => state.devices);
@@ -77,6 +79,11 @@ const RoomDetails = () => {
   });
 
   const handleToggle = async (entityId: string) => {
+    if (!client) {
+      toast.error("Client non connecté");
+      return;
+    }
+
     const entity = entities.find((e) => e.entity_id === entityId);
     if (!entity) return;
 
@@ -85,7 +92,7 @@ const RoomDetails = () => {
     const service = isOn ? "turn_off" : "turn_on";
 
     try {
-      await callHAService(domain, service, { entity_id: entityId });
+      await client.callService(domain, service, {}, { entity_id: entityId });
       toast.success(isOn ? "Éteint" : "Allumé");
     } catch (error) {
       console.error("Erreur lors du contrôle:", error);

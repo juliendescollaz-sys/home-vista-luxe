@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { HAEntity } from "@/types/homeassistant";
 import { HAClient } from "@/lib/haClient";
-import { useHAStore } from "@/store/useHAStore";
 
 type PlaybackPhase = "idle" | "pending_play" | "buffering" | "playing" | "pending_pause" | "paused";
 
@@ -29,6 +28,7 @@ const PAUSE_CONFIRM_TIMEOUT_MS = 1800;
 const SNAPSHOT_EPSILON_SEC = 0.5; // marge anti-jitter
 
 export function useMediaPlayerTimeline(
+  client: HAClient | null,
   entity: HAEntity | undefined
 ) {
   const [timeline, setTimeline] = useState<TimelineState>({
@@ -54,7 +54,6 @@ export function useMediaPlayerTimeline(
   const playConfirmTimer = useRef<number | null>(null);
   const pauseConfirmTimer = useRef<number | null>(null);
   const lastVisualPosRef = useRef(0); // position visuelle en continu
-  const lastResumeAtRef = useRef<number>(0); // fence temps pour iOS resume
 
   // Mettre à jour la position visuelle
   const updateLastVisualPos = useCallback((p: number) => {
@@ -107,102 +106,6 @@ export function useMediaPlayerTimeline(
     return Math.min(computed, dur);
   }, []);
 
-  // 🔄 RECONNEXION : Nettoyer tous les timers et états en attente
-  useEffect(() => {
-    if (connectionStatus === "connected" && entity) {
-      console.log(`🎵 [iOS Resume] Timeline ${entity.entity_id}: Reconnexion détectée, nettoyage complet`);
-      
-      // Arrêter TOUS les timers
-      if (playConfirmTimer.current) {
-        window.clearTimeout(playConfirmTimer.current);
-        playConfirmTimer.current = null;
-      }
-      if (pauseConfirmTimer.current) {
-        window.clearTimeout(pauseConfirmTimer.current);
-        pauseConfirmTimer.current = null;
-      }
-      if (timerRef.current) {
-        window.clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
-      }
-      
-      // Reset complet des verrous et états en attente
-      pendingSeekRef.current = null;
-      suppressRef.current = null;
-      
-      // Forcer la synchronisation avec l'état réel de l'entité HA
-      const realState = entity.state;
-      const realPosition = entity.attributes?.media_position || 0;
-      const realDuration = entity.attributes?.media_duration || 0;
-      
-      console.log(`🎵 [iOS Resume] Timeline ${entity.entity_id}: État réel = ${realState}, position = ${realPosition}s`);
-      
-      // Mettre à jour la timeline avec les données fraîches
-      setTimeline({
-        position: realPosition,
-        duration: realDuration,
-        state: realState as any,
-        positionUpdatedAt: entity.attributes?.media_position_updated_at || new Date().toISOString(),
-        repeat: entity.attributes?.repeat || "off",
-        media_content_id: entity.attributes?.media_content_id,
-        media_title: entity.attributes?.media_title,
-      });
-      
-      // Synchroniser la phase avec l'état réel (CRITIQUE pour iOS)
-      if (realState === "playing") {
-        console.log(`🎵 [iOS Resume] Timeline ${entity.entity_id}: Phase -> playing`);
-        setPhase("playing");
-      } else if (realState === "paused" || realState === "idle" || realState === "off" || realState === "standby") {
-        console.log(`🎵 [iOS Resume] Timeline ${entity.entity_id}: Phase -> paused`);
-        setPhase("paused");
-      } else if (realState === "buffering") {
-        console.log(`🎵 [iOS Resume] Timeline ${entity.entity_id}: Phase -> buffering`);
-        setPhase("buffering");
-      } else {
-        console.log(`🎵 [iOS Resume] Timeline ${entity.entity_id}: Phase -> idle`);
-        setPhase("idle");
-      }
-      
-      // Mettre à jour la position visuelle
-      setLastVisualPos(realPosition);
-      updateLastVisualPos(realPosition);
-      
-      // Forcer un re-render
-      forceUpdate(Date.now());
-    }
-  }, [connectionStatus, entity, updateLastVisualPos]);
-
-  // Synchroniser le fence temps au marqueur global de resume
-  useEffect(() => {
-    const t = (window as any).__NEOLIA_LAST_RESUME_AT__;
-    if (typeof t === "number" && t > (lastResumeAtRef.current || 0)) {
-      lastResumeAtRef.current = t;
-      // Purger tout pending seek au resume pour éviter états obsolètes
-      if (pendingSeekRef.current) {
-        pendingSeekRef.current = null;
-      }
-      if (suppressRef.current) {
-        suppressRef.current = null;
-      }
-    }
-  }, []);
-
-  // Couper l'animation quand la page est cachée (Safari/iOS)
-  useEffect(() => {
-    const onVisChange = () => {
-      if (document.visibilityState === "hidden" && animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
-      }
-    };
-    document.addEventListener("visibilitychange", onVisChange);
-    return () => document.removeEventListener("visibilitychange", onVisChange);
-  }, []);
-
   // Purge des verrous en cours lors d'un fullSync ou changement significatif
   useEffect(() => {
     if (!entity) return;
@@ -224,6 +127,28 @@ export function useMediaPlayerTimeline(
   useEffect(() => {
     if (!entity || isDragging) return;
     
+    const isSuppress = suppressRef.current === entity.entity_id;
+    const pending = pendingSeekRef.current;
+
+    // Si on attend la confirmation du seek
+    if (isSuppress && pending) {
+      const haPos = entity.attributes?.media_position || 0;
+      const positionConfirmed = Math.abs(haPos - pending.pos) <= 1.5;
+      const timedOut = Date.now() > pending.deadline;
+
+      if (positionConfirmed || timedOut) {
+        // Confirmation reçue ou timeout : lever le verrou
+        suppressRef.current = null;
+        pendingSeekRef.current = null;
+      } else {
+        // Toujours en attente : ignorer cet event
+        return;
+      }
+    } else if (isSuppress) {
+      // Suppress actif sans pending (cas legacy) : ignorer
+      return;
+    }
+
     const newPosition = entity.attributes?.media_position || 0;
     const newDuration = entity.attributes?.media_duration || 0;
     const newState = entity.state as any;
@@ -239,32 +164,26 @@ export function useMediaPlayerTimeline(
     if (trackChanged) {
       lastTrackRef.current = trackKey;
       setLastVisualPos(0);
-      suppressRef.current = null;
-      pendingSeekRef.current = null;
       setTimeline({
         position: 0,
         duration: newDuration,
         state: newState,
-        positionUpdatedAt: newPositionUpdatedAt || new Date().toISOString(),
+        positionUpdatedAt: new Date().toISOString(),
         repeat: newRepeat,
         media_content_id: newMediaContentId,
         media_title: newMediaTitle,
       });
-      setPhase(newState === "playing" ? "playing" : "paused");
       forceUpdate(Date.now());
       return;
     }
-
-    // PRIORITÉ ABSOLUE : états paused/idle/off TOUJOURS traités immédiatement
+    
+    // Empêcher le rollback lors d'un pause (HA peut renvoyer une position en retard)
     if (newState === "paused" || newState === "idle" || newState === "off" || newState === "standby") {
       const incoming = Number(newPosition) || 0;
       const snap = getLastVisualPos();
       const fixed = Math.max(incoming, snap - SNAPSHOT_EPSILON_SEC);
 
       lastTrackRef.current = trackKey;
-      suppressRef.current = null;
-      pendingSeekRef.current = null;
-      
       setTimeline({
         position: fixed,
         duration: newDuration,
@@ -280,49 +199,16 @@ export function useMediaPlayerTimeline(
         clearTimeout(pauseConfirmTimer.current);
         pauseConfirmTimer.current = null;
       }
-      if (playConfirmTimer.current) {
-        clearTimeout(playConfirmTimer.current);
-        playConfirmTimer.current = null;
-      }
       return;
     }
 
-    // Gestion pendingSeek pour les états playing/buffering uniquement
-    const isSuppress = suppressRef.current === entity.entity_id;
-    const pending = pendingSeekRef.current;
-
-    if (isSuppress && pending) {
-      const haPos = entity.attributes?.media_position || 0;
-      const positionConfirmed = Math.abs(haPos - pending.pos) <= 1.5;
-      const timedOut = Date.now() > pending.deadline;
-
-      if (positionConfirmed || timedOut) {
-        suppressRef.current = null;
-        pendingSeekRef.current = null;
-      } else {
-        // Toujours en attente du seek
-        return;
-      }
-    } else if (isSuppress) {
-      // Suppress actif sans pending : ignorer temporairement
-      return;
-    }
-
-    // Horodatage HA de la position pour fence iOS
-    const haUpdated = Date.parse(newPositionUpdatedAt || entity.last_updated || "");
-    const fence = lastResumeAtRef.current || 0;
-    const isStaleAfterResume = fence > 0 && !Number.isNaN(haUpdated) && haUpdated < fence;
-    const adjustedPositionUpdatedAt = isStaleAfterResume 
-      ? new Date(fence).toISOString() 
-      : newPositionUpdatedAt;
-
-    // Mise à jour normale depuis HA (playing/buffering)
+    // Mise à jour normale depuis HA
     lastTrackRef.current = trackKey;
     setTimeline({
       position: newPosition,
       duration: newDuration,
       state: newState,
-      positionUpdatedAt: adjustedPositionUpdatedAt,
+      positionUpdatedAt: newPositionUpdatedAt,
       repeat: newRepeat,
       media_content_id: newMediaContentId,
       media_title: newMediaTitle,
@@ -335,6 +221,7 @@ export function useMediaPlayerTimeline(
     if (newState === "buffering") {
       setPhase("buffering");
     } else if (newState === "playing") {
+      // Confirme lecture seulement si on voit la position bouger
       if (movedRecently && newPosition > 0 && newDuration > 0) {
         setPhase("playing");
         if (playConfirmTimer.current) {

@@ -509,15 +509,8 @@ export function useWeatherData() {
   }, [client, isConnected, entities.length, refresh]);
 
   // Real-time updates handled by store, just refresh when entities or weatherEntity change
-  // IMPORTANT: Ne pas écraser les données Open-Meteo si une ville est sélectionnée
   useEffect(() => {
     if (!client || !isConnected || !entities.length || !hasInitializedRef.current) return;
-    
-    // Si une ville est sélectionnée, on ignore les updates HA car on utilise Open-Meteo
-    if (selectedCity) {
-      console.log("⏸️ Ville sélectionnée, on ignore les updates HA");
-      return;
-    }
     
     // Refresh weather data when entities update or forced entity changes
     const weatherEntities = entities.filter(e => e.entity_id.startsWith("weather."));
@@ -525,7 +518,7 @@ export function useWeatherData() {
       const unified = selectWeather(entities, configRef.current, null, weatherEntity);
       setWeatherData(unified);
     }
-  }, [entities, weatherEntity, client, isConnected, selectWeather, selectedCity]);
+  }, [entities, weatherEntity, client, isConnected, selectWeather]);
 
   return { weatherData, isLoading, error, refresh, forecastMode, setForecastMode };
 }

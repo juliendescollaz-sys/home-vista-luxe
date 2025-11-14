@@ -15,6 +15,7 @@ interface MediaPlayerCardProps {
 export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
   const navigate = useNavigate();
   const connection = useHAStore((state) => state.connection);
+  const client = useHAStore((state) => state.client);
   const { state, attributes } = entity;
   
   const favorites = useHAStore((state) => state.favorites);
@@ -30,15 +31,14 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
     position,
     duration,
     state: playerState,
-    phase,
     isDragging,
     handleSeekStart,
     handleSeekChange,
     handleSeekEnd,
-  } = useMediaPlayerTimeline(entity);
+  } = useMediaPlayerTimeline(client, entity);
 
-  const isPlaying = phase === "playing";
-  const isBuffering = phase === "buffering" || phase === "pending_play";
+  const isPlaying = playerState === "playing";
+  const isBuffering = playerState === "buffering";
   const mediaTitle = attributes.media_title || "Aucun média";
   const mediaArtist = attributes.media_artist || "";
   const entityPictureLocal = attributes.entity_picture_local;
@@ -121,9 +121,8 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 flex-shrink-0 transition-all"
+            className="h-8 w-8 flex-shrink-0"
             onClick={handleFavoriteClick}
-            onPointerUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
             data-control
           >
             <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import EntityControl from "@/components/EntityControl";
 import { MediaPlayerControls } from "@/components/MediaPlayerControls";
 import { cn } from "@/lib/utils";
@@ -16,26 +16,15 @@ import { SonosBrowser } from "@/components/SonosBrowser";
 import { SonosZoneManager } from "@/components/SonosZoneManager";
 import { useMediaPlayerTimeline } from "@/hooks/useMediaPlayerTimeline";
 import { useMediaPlayerControls } from "@/hooks/useMediaPlayerControls";
-import { useHAClient } from "@/hooks/useHAClient";
 
 const MediaPlayerDetails = () => {
   const { entityId } = useParams<{ entityId: string }>();
   const navigate = useNavigate();
   
-  const { callServiceWithTracking } = useHAClient();
   const client = useHAStore((state) => state.client);
   const entities = useHAStore((state) => state.entities);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const connection = useHAStore((state) => state.connection);
-  const connectionStatus = useHAStore((state) => state.connectionStatus);
-  
-  // iOS : ne bloquer le transport que si le client HA n'est pas encore prêt
-  const isTransportOverlayVisible =
-    !client && (connectionStatus === "connecting" || connectionStatus === "reconnecting");
-
-  // Désactiver les boutons seulement si le client est vraiment indisponible
-  const isTransportDisabled =
-    !client || connectionStatus === "connecting" || connectionStatus === "error";
   
   const decodedEntityId = useMemo(() => decodeURIComponent(entityId || ""), [entityId]);
 
@@ -74,32 +63,6 @@ const MediaPlayerDetails = () => {
     shuffle: false,
     repeat: false,
   });
-
-  // Tracking du morceau actuel pour réinitialiser les pending states
-  const currentTrackRef = useRef<string>("");
-  
-  useEffect(() => {
-    if (!entity) return;
-    const trackKey = `${entity.attributes?.media_content_id ?? ""}::${entity.attributes?.media_title ?? ""}`;
-    
-    // Si le morceau a changé et qu'on était en attente de next/previous
-    if (currentTrackRef.current && currentTrackRef.current !== trackKey) {
-      setPending(p => ({ ...p, next: false, previous: false }));
-    }
-    
-    currentTrackRef.current = trackKey;
-  }, [entity?.attributes?.media_content_id, entity?.attributes?.media_title]);
-
-  // Réinitialiser les pending states de shuffle/repeat quand les attributs changent
-  useEffect(() => {
-    if (!entity) return;
-    setPending(p => ({ ...p, shuffle: false }));
-  }, [entity?.attributes?.shuffle]);
-
-  useEffect(() => {
-    if (!entity) return;
-    setPending(p => ({ ...p, repeat: false }));
-  }, [entity?.attributes?.repeat]);
   
 
   // Tous les calculs dérivés doivent être mémoïsés AVANT le early return
@@ -167,29 +130,27 @@ const MediaPlayerDetails = () => {
   }, [entity]);
 
   const callService = useCallback(async (service: string, data?: any) => {
-    if (!entity) {
-      toast.error("Entité non disponible");
+    if (!client || !entity) {
+      toast.error("Client non connecté");
       return;
     }
 
     try {
-      await callServiceWithTracking("media_player", service, { ...data, entity_id: entity.entity_id });
+      await client.callService("media_player", service, data, { entity_id: entity.entity_id });
     } catch (error) {
       console.error("Erreur lors du contrôle:", error);
       toast.error("Erreur lors du contrôle");
     }
-  }, [callServiceWithTracking, entity]);
+  }, [client, entity]);
 
   const handlePrevious = useCallback(() => {
     setPending(p => ({ ...p, previous: true }));
     callService("media_previous_track");
-    setTimeout(() => setPending(p => ({ ...p, previous: false })), 1500);
   }, [callService]);
 
   const handleNext = useCallback(() => {
     setPending(p => ({ ...p, next: true }));
     callService("media_next_track");
-    setTimeout(() => setPending(p => ({ ...p, next: false })), 1500);
   }, [callService]);
 
   const handleShuffleToggle = useCallback(() => {
@@ -198,7 +159,6 @@ const MediaPlayerDetails = () => {
     // Cast strict pour éviter le problème iOS
     const newShuffle = entity.attributes.shuffle !== true;
     callService("shuffle_set", { shuffle: newShuffle });
-    setTimeout(() => setPending(p => ({ ...p, shuffle: false })), 1500);
   }, [callService, entity]);
 
   const handleRepeatCycle = useCallback(() => {
@@ -207,7 +167,6 @@ const MediaPlayerDetails = () => {
     const currentMode = (entity.attributes.repeat as "off" | "all" | "one") || "off";
     const nextMode = currentMode === "off" ? "all" : currentMode === "all" ? "one" : "off";
     callService("repeat_set", { repeat: nextMode });
-    setTimeout(() => setPending(p => ({ ...p, repeat: false })), 1500);
   }, [callService, entity]);
 
   const handleSelectSource = useCallback(async (source: string) => {
@@ -384,17 +343,7 @@ const MediaPlayerDetails = () => {
         </Card>
 
         {/* Contrôles de lecture */}
-        <div className="mb-6 relative">
-          {isTransportOverlayVisible && (
-            <div className="absolute inset-0 bg-background/50 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
-              <div className="flex flex-col items-center gap-2">
-                <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                <p className="text-sm text-muted-foreground">
-                  {connectionStatus === "connecting" ? "Connexion..." : "Reconnexion..."}
-                </p>
-              </div>
-            </div>
-          )}
+        <div className="mb-6">
           <MediaPlayerControls
             isPlaying={isPlaying}
             shuffle={attributes.shuffle === true}
@@ -411,7 +360,6 @@ const MediaPlayerDetails = () => {
             onShuffleToggle={handleShuffleToggle}
             onRepeatCycle={handleRepeatCycle}
             pending={pending}
-            disabled={isTransportDisabled}
           />
         </div>
 

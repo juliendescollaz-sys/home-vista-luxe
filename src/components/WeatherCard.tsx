@@ -20,7 +20,6 @@ export function WeatherCard() {
   const { weatherData, isLoading, error, refresh, forecastMode, setForecastMode } = useWeatherData();
   const selectedCity = useHAStore((state) => state.selectedCity);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleCitySaved = () => {
     // Fermer immédiatement le dialog sans attendre le refresh
@@ -29,12 +28,6 @@ export function WeatherCard() {
 
   const handleOpenChange = (open: boolean) => {
     setIsConfigOpen(open);
-  };
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    refresh();
-    setTimeout(() => setIsRefreshing(false), 1000);
   };
 
   if (isLoading) {
@@ -96,18 +89,16 @@ export function WeatherCard() {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                onClick={handleRefresh}
-                onPointerUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
-                className={`transition-all ${isRefreshing ? 'bg-primary/20' : ''}`}
+                onClick={refresh}
+                className="active:bg-accent/50 active:scale-95 transition-all"
               >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className="w-4 h-4" />
               </Button>
               <Button 
                 variant="ghost" 
                 size="icon" 
                 onClick={() => setIsConfigOpen(true)}
-                onPointerUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
-                className="transition-all"
+                className="active:bg-accent/50 active:scale-95 transition-all"
               >
                 <Settings className="w-4 h-4" />
               </Button>

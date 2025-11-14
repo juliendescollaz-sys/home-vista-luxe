@@ -12,6 +12,7 @@ import { useHAStore } from "@/store/useHAStore";
 
 const SonosZones = () => {
   const navigate = useNavigate();
+  const isConnected = useHAStore((state) => state.isConnected);
   
   const {
     sonosDevices,
@@ -29,6 +30,24 @@ const SonosZones = () => {
   } = useSonosGroups();
 
   const [volumeTimers, setVolumeTimers] = useState<Record<string, NodeJS.Timeout>>({});
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-background p-4">
+        <div className="flex items-center gap-3 mb-6">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-2xl font-bold">Zones Sonos</h1>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-muted-foreground text-center">Non connecté à Home Assistant.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (sonosDevices.length === 0) {
     return (

@@ -5,16 +5,23 @@ import { DeviceCard } from "@/components/DeviceCard";
 import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { callHAService } from "@/lib/haService";
 
 const Favorites = () => {
   const entities = useHAStore((state) => state.entities);
   const favorites = useHAStore((state) => state.favorites);
+  const isConnected = useHAStore((state) => state.isConnected);
 
   // Filtrer les entités favorites
   const favoriteEntities = entities?.filter(e => favorites.includes(e.entity_id)) || [];
 
+  const client = useHAStore((state) => state.client);
+
   const handleDeviceToggle = async (entityId: string) => {
+    if (!client) {
+      toast.error("Client non connecté");
+      return;
+    }
+
     const entity = entities?.find((e) => e.entity_id === entityId);
     if (!entity) return;
 
@@ -23,13 +30,25 @@ const Favorites = () => {
     const service = isOn ? "turn_off" : "turn_on";
 
     try {
-      await callHAService(domain, service, { entity_id: entityId });
+      await client.callService(domain, service, {}, { entity_id: entityId });
       toast.success(isOn ? "Éteint" : "Allumé");
     } catch (error) {
       console.error("Erreur lors du contrôle:", error);
       toast.error("Erreur lors du contrôle de l'appareil");
     }
   };
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-background pb-24 pt-20">
+        <TopBar />
+        <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+          <Skeleton className="h-64 rounded-2xl" />
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24 pt-20">

@@ -17,7 +17,6 @@ interface MediaPlayerControlsProps {
   onNext: () => void;
   onShuffleToggle: () => void;
   onRepeatCycle: () => void;
-  disabled?: boolean;
   pending?: {
     playPause?: boolean;
     previous?: boolean;
@@ -175,7 +174,6 @@ export const MediaPlayerControls = ({
   onNext,
   onShuffleToggle,
   onRepeatCycle,
-  disabled = false,
   pending = {},
 }: MediaPlayerControlsProps) => {
   return (
@@ -186,7 +184,7 @@ export const MediaPlayerControls = ({
           <TransportButton
             icon={SkipBack}
             onPress={onPrevious}
-            disabled={disabled || !canPrevious || pending.previous}
+            disabled={!canPrevious || pending.previous}
             pending={pending.previous}
           />
         )}
@@ -194,7 +192,7 @@ export const MediaPlayerControls = ({
         <TransportButton
           icon={isPlaying ? Pause : Play}
           onPress={onPlayPause}
-          disabled={disabled || (!canPlay && !canPause) || pending.playPause}
+          disabled={(!canPlay && !canPause) || pending.playPause}
           pending={pending.playPause}
           size="lg"
           primary
@@ -204,7 +202,7 @@ export const MediaPlayerControls = ({
           <TransportButton
             icon={SkipForward}
             onPress={onNext}
-            disabled={disabled || !canNext || pending.next}
+            disabled={!canNext || pending.next}
             pending={pending.next}
           />
         )}
@@ -218,7 +216,7 @@ export const MediaPlayerControls = ({
               icon={Shuffle}
               active={shuffle}
               onPress={onShuffleToggle}
-              disabled={disabled || !canShuffle || pending.shuffle}
+              disabled={!canShuffle || pending.shuffle}
               pending={pending.shuffle}
             />
           )}
@@ -226,7 +224,7 @@ export const MediaPlayerControls = ({
             <RepeatButton
               repeat={repeat}
               onPress={onRepeatCycle}
-              disabled={disabled || !canRepeat || pending.repeat}
+              disabled={!canRepeat || pending.repeat}
               pending={pending.repeat}
             />
           )}

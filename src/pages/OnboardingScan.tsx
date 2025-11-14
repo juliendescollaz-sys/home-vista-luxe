@@ -19,6 +19,7 @@ const OnboardingScan = () => {
   const processingRef = useRef(false);
   const navigate = useNavigate();
   const setConnection = useHAStore((state) => state.setConnection);
+  const setConnected = useHAStore((state) => state.setConnected);
 
   useEffect(() => {
     // Ensure video element is mounted
@@ -173,6 +174,7 @@ const OnboardingScan = () => {
         token: token,
         connected: true,
       });
+      setConnected(true);
 
       // Haptic feedback if available
       if (navigator.vibrate) {

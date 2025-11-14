@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { HAConnection, HAEntity, HAArea, HAFloor, HADevice } from "@/types/homeassistant";
+import type { HAClient } from "@/lib/haClient";
 
 interface EntityRegistry {
   entity_id: string;
@@ -11,23 +12,27 @@ interface EntityRegistry {
 
 interface HAStore {
   connection: HAConnection | null;
+  client: HAClient | null;
   entities: HAEntity[];
   entityRegistry: EntityRegistry[];
   areas: HAArea[];
   floors: HAFloor[];
   devices: HADevice[];
   favorites: string[];
+  isConnected: boolean;
   areaPhotos: Record<string, string>;
   weatherEntity: string | null;
   selectedCity: { label: string; lat: number; lon: number } | null;
   
   setConnection: (connection: HAConnection) => void;
+  setClient: (client: HAClient | null) => void;
   setEntities: (entities: HAEntity[]) => void;
   setEntityRegistry: (registry: EntityRegistry[]) => void;
   setAreas: (areas: HAArea[]) => void;
   setFloors: (floors: HAFloor[]) => void;
   setDevices: (devices: HADevice[]) => void;
   toggleFavorite: (entityId: string) => void;
+  setConnected: (connected: boolean) => void;
   setAreaPhoto: (areaId: string, photoUrl: string) => void;
   setWeatherEntity: (entityId: string | null) => void;
   setSelectedCity: (city: { label: string; lat: number; lon: number } | null) => void;
@@ -38,22 +43,26 @@ export const useHAStore = create<HAStore>()(
   persist(
     (set) => ({
       connection: null,
+      client: null,
       entities: [],
       entityRegistry: [],
       areas: [],
       floors: [],
       devices: [],
       favorites: [],
+      isConnected: false,
       areaPhotos: {},
       weatherEntity: null,
       selectedCity: null,
 
       setConnection: (connection) => set({ connection }),
+      setClient: (client) => set({ client }),
       setEntities: (entities) => set({ entities }),
       setEntityRegistry: (registry) => set({ entityRegistry: registry }),
       setAreas: (areas) => set({ areas }),
       setFloors: (floors) => set({ floors }),
       setDevices: (devices) => set({ devices }),
+      setConnected: (isConnected) => set({ isConnected }),
       
       toggleFavorite: (entityId) =>
         set((state) => ({
@@ -75,6 +84,7 @@ export const useHAStore = create<HAStore>()(
         set({
           connection: null,
           entities: [],
+          isConnected: false,
         }),
     }),
     {

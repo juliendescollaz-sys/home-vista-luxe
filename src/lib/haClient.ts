@@ -30,42 +30,7 @@ export class HAClient {
     return this.config.baseUrl.replace(/^https?/, "wss") + "/api/websocket";
   }
 
-  async ensureConnected(): Promise<void> {
-    // Si déjà connecté ET authentifié → on ne fait rien
-    if (this.isConnected()) return;
-
-    // Annuler toute reconnexion automatique en cours
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-      this.reconnectTimeout = null;
-    }
-
-    // Tenter une nouvelle connexion WebSocket propre
-    await this.connect();
-  }
-
   async connect(): Promise<boolean> {
-    // CRITIQUE iOS : nettoyer l'ancien WebSocket avant d'en créer un nouveau
-    if (this.ws) {
-      console.log("🧹 Nettoyage de l'ancien WebSocket...");
-      const oldWs = this.ws;
-      this.ws = null;
-      this.isAuthenticated = false;
-      
-      // Fermer sans déclencher les handlers de reconnexion
-      try {
-        if (oldWs.readyState === WebSocket.OPEN || oldWs.readyState === WebSocket.CONNECTING) {
-          oldWs.onclose = null; // Empêcher la logique de reconnexion
-          oldWs.onerror = null;
-          oldWs.onmessage = null;
-          oldWs.onopen = null;
-          oldWs.close(1000, "Reconnexion");
-        }
-      } catch (e) {
-        console.warn("⚠️ Erreur lors de la fermeture de l'ancien WS:", e);
-      }
-    }
-
     return new Promise((resolve, reject) => {
       console.log("🔌 Connexion WebSocket à:", this.wsUrl);
 
@@ -102,8 +67,6 @@ export class HAClient {
             this.isAuthenticated = true;
             this.reconnectAttempts = 0;
             clearTimeout(authTimeout);
-            // CRITIQUE iOS : réinstaller tous les abonnements après auth_ok
-            this.resubscribeAllEvents().catch(console.error);
             resolve(true);
           } else if (message.type === "auth_invalid") {
             console.error("❌ Token invalide");
@@ -144,17 +107,11 @@ export class HAClient {
         // Tenter une reconnexion si ce n'était pas intentionnel
         if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
-          const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 30000);
-          console.log(`🔄 Reconnexion dans ${delay}ms (tentative ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+          const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+          console.log(`🔄 Tentative de reconnexion ${this.reconnectAttempts}/${this.maxReconnectAttempts} dans ${delay}ms...`);
           
-          this.reconnectTimeout = setTimeout(async () => {
-            try {
-              await this.connect();
-              // CRITIQUE iOS : après reconnect, réinstaller les abonnements
-              await this.resubscribeAllEvents();
-            } catch (error) {
-              console.error("❌ Erreur reconnexion:", error);
-            }
+          this.reconnectTimeout = setTimeout(() => {
+            this.connect().catch(console.error);
           }, delay);
         }
       };
@@ -171,18 +128,12 @@ export class HAClient {
     }
   }
 
-  private async sendWithResponse<T>(type: string, data?: any, retry = true): Promise<T> {
+  private async sendWithResponse<T>(type: string, data?: any): Promise<T> {
     if (!this.isAuthenticated) {
-      // Première fois : tenter une reconnexion avant d'abandonner
-      if (retry) {
-        console.warn("⚠️ Non authentifié, tentative de reconnexion...");
-        await this.ensureConnected();
-        return this.sendWithResponse<T>(type, data, false);
-      }
       throw new Error("Non authentifié");
     }
 
-    return new Promise<T>((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const id = this.messageId++;
       const timeout = setTimeout(() => {
         this.pendingMessages.delete(id);
@@ -196,46 +147,11 @@ export class HAClient {
         },
         reject: (error) => {
           clearTimeout(timeout);
-          // Si erreur d'auth / socket au moment de la réponse → on retente UNE fois
-          const msg = String(error?.message || "");
-          const authError =
-            msg.includes("Non authentifié") ||
-            msg.includes("auth") ||
-            msg.includes("WebSocket non connecté");
-
-          if (retry && authError) {
-            console.warn("⚠️ Erreur auth/service, tentative de reconnexion et retry...");
-            this.ensureConnected()
-              .then(() => this.sendWithResponse<T>(type, data, false).then(resolve).catch(reject))
-              .catch(reject);
-          } else {
-            reject(error);
-          }
+          reject(error);
         },
       });
 
-      const message = { id, type, ...data };
-      try {
-        this.send(message);
-      } catch (error) {
-        clearTimeout(timeout);
-        this.pendingMessages.delete(id);
-
-        const msg = String((error as any)?.message || "");
-        const authError =
-          msg.includes("Non authentifié") ||
-          msg.includes("auth") ||
-          msg.includes("WebSocket non connecté");
-
-        if (retry && authError) {
-          console.warn("⚠️ send() a échoué, tentative de reconnexion et retry...");
-          this.ensureConnected()
-            .then(() => this.sendWithResponse<T>(type, data, false).then(resolve).catch(reject))
-            .catch(reject);
-        } else {
-          reject(error);
-        }
-      }
+      this.send({ id, type, ...data });
     });
   }
 
@@ -365,23 +281,6 @@ export class HAClient {
     }
   }
 
-  // CRITIQUE iOS : méthode pour réinstaller tous les abonnements actifs
-  private async resubscribeAllEvents(): Promise<void> {
-    console.log("🔄 Réinstallation de tous les abonnements actifs...");
-    const eventTypes = Array.from(this.eventHandlers.keys());
-    
-    for (const eventType of eventTypes) {
-      if (this.eventHandlers.get(eventType)?.size! > 0) {
-        try {
-          await this.sendWithResponse("subscribe_events", { event_type: eventType });
-          console.log(`✅ Réabonné à ${eventType}`);
-        } catch (error) {
-          console.error(`❌ Erreur réabonnement à ${eventType}:`, error);
-        }
-      }
-    }
-  }
-
   // Méthode publique pour s'abonner aux événements (conserve handlers entre reconnexions)
   on(eventType: string, callback: EventCallback): () => void {
     if (!this.eventHandlers.has(eventType)) {
@@ -431,57 +330,21 @@ export class HAClient {
   }
 
   async getStatesREST(): Promise<any[]> {
-    const url = `${this.config.baseUrl}/api/states?t=${Date.now()}`;
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
-      
-      const res = await fetch(url, {
-        headers: { 
-          Authorization: `Bearer ${this.config.token}`,
-          "Cache-Control": "no-cache"
-        },
-        cache: "no-store",
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!res.ok) throw new Error(`GET /api/states failed: ${res.status}`);
-      return res.json();
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Timeout fetching states');
-      }
-      throw error;
-    }
+    const url = `${this.config.baseUrl}/api/states`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${this.config.token}` },
+    });
+    if (!res.ok) throw new Error(`GET /api/states failed: ${res.status}`);
+    return res.json();
   }
 
   async getState(entityId: string): Promise<any> {
-    const url = `${this.config.baseUrl}/api/states/${entityId}?t=${Date.now()}`;
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-      
-      const res = await fetch(url, {
-        headers: { 
-          Authorization: `Bearer ${this.config.token}`,
-          "Cache-Control": "no-cache"
-        },
-        cache: "no-store",
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!res.ok) throw new Error(`GET /api/states/${entityId} failed: ${res.status}`);
-      return res.json();
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(`Timeout fetching state for ${entityId}`);
-      }
-      throw error;
-    }
+    const url = `${this.config.baseUrl}/api/states/${entityId}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${this.config.token}` },
+    });
+    if (!res.ok) throw new Error(`GET /api/states/${entityId} failed: ${res.status}`);
+    return res.json();
   }
 }
 

@@ -1,29 +1,13 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { HAClient } from "@/lib/haClient";
-import { useHAStore } from "@/store/useHAStore";
 
 const IN_FLIGHT_TIMEOUT_MS = 4000;
 const CONFIRMATION_WINDOW_MS = 1500;
 
-async function confirmStateOnce(client: HAClient, entityId: string, want: "playing" | "paused") {
-  try {
-    const st = await client.getState(entityId);
-    if (st?.state === want) {
-      useHAStore.setState(prev => {
-        const list = prev.entities.slice();
-        const idx = list.findIndex(e => e.entity_id === entityId);
-        if (idx >= 0) list[idx] = st; else list.push(st);
-        return { entities: list };
-      });
-      return true;
-    }
-  } catch {}
-  return false;
-}
-
 type MediaState = "playing" | "paused" | "idle" | "off" | "standby" | "buffering" | "unavailable";
 
 export function useMediaPlayerControls(
+  client: HAClient | null,
   entityId: string, 
   currentState: MediaState
 ) {
@@ -46,36 +30,23 @@ export function useMediaPlayerControls(
     setInFlightAction(null);
   }, []);
 
-  // 🔄 RECONNEXION : Réinitialiser tous les états en attente
+  // Confirmation par remontée HA (websocket/poll)
   useEffect(() => {
-    if (connectionStatus === "connected") {
-      console.log(`🎵 [iOS Resume] Sonos ${entityId}: Nettoyage après reconnexion`);
-      // Nettoyer tous les spinners et états en attente après reconnexion
+    if (!inFlightAction) return;
+
+    // Conditions de confirmation
+    const okPlay = inFlightAction === "play" && 
+      (currentState === "playing" || currentState === "buffering");
+    const okPause = inFlightAction === "pause" && 
+      (currentState === "paused" || currentState === "idle" || 
+       currentState === "off" || currentState === "standby");
+
+    if (okPlay || okPause) {
       clearInFlight();
       retryRef.current = false;
       lastCommandRef.current = null;
     }
-  }, [connectionStatus, clearInFlight, entityId]);
-
-  // 🔄 iOS : Forcer le nettoyage si l'entité revient et qu'on était en attente
-  useEffect(() => {
-    if (inFlightAction && currentState && client) {
-      // Vérifier si l'état actuel correspond à l'action en cours
-      const okPlay = inFlightAction === "play" && 
-        (currentState === "playing" || currentState === "buffering");
-      const okPause = inFlightAction === "pause" && 
-        (currentState === "paused" || currentState === "idle" || 
-         currentState === "off" || currentState === "standby");
-      
-      if (okPlay || okPause) {
-        console.log(`🎵 [iOS Resume] Sonos ${entityId}: Action ${inFlightAction} confirmée par état ${currentState}`);
-        clearInFlight();
-        retryRef.current = false;
-        lastCommandRef.current = null;
-      }
-    }
-  }, [currentState, inFlightAction, clearInFlight, entityId, client]);
-
+  }, [currentState, inFlightAction, clearInFlight]);
 
   // Envoi générique + gestion retry/rollback
   const sendAction = useCallback(async (action: "play" | "pause") => {
@@ -116,12 +87,10 @@ export function useMediaPlayerControls(
         await client.callService("media_player", "media_play", undefined, { 
           entity_id: entityId 
         });
-        await confirmStateOnce(client, entityId, "playing");
       } else {
         await client.callService("media_player", "media_pause", undefined, { 
           entity_id: entityId 
         });
-        await confirmStateOnce(client, entityId, "paused");
       }
     } catch (e) {
       console.error("Media action error", e);

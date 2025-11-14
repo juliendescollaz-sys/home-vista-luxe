@@ -22,9 +22,7 @@ import NotFound from "./pages/NotFound";
 import SonosZones from "./pages/SonosZones";
 import { useAuth } from "./hooks/useAuth";
 import { useInitializeConnection } from "./hooks/useInitializeConnection";
-import { useHAConnection } from "./hooks/useHAConnection";
-import { ConnectionBanner } from "./components/ConnectionBanner";
-import { useAppForegroundReload } from "./hooks/useAppForegroundReload";
+import { useHAClient } from "./hooks/useHAClient";
 
 // Lazy load pages avec dependencies lourdes
 const OnboardingScan = lazy(() => import("./pages/OnboardingScan"));
@@ -34,8 +32,19 @@ const queryClient = new QueryClient();
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const connection = useHAStore((state) => state.connection);
+  const isConnected = useHAStore((state) => state.isConnected);
   
   const hasValidConnection = connection && connection.url && connection.token;
+  
+  if (hasValidConnection && !isConnected) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-2">
+          <div className="animate-pulse text-muted-foreground">Connexion en cours...</div>
+        </div>
+      </div>
+    );
+  }
   
   if (!hasValidConnection) {
     return <Navigate to="/onboarding" />;
@@ -60,13 +69,9 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   const isInitialized = useInitializeConnection();
-  const connection = useHAStore((state) => state.connection);
   
   // Établir la connexion WebSocket dès que les credentials sont restaurés
-  useHAConnection(connection?.url || "", connection?.token || "");
-  
-  // Recharger l'app au retour au premier plan
-  useAppForegroundReload();
+  useHAClient();
 
   if (!isInitialized) {
     return (
@@ -83,7 +88,6 @@ const App = () => {
           <TooltipProvider>
             <Toaster />
             <Sonner />
-            <ConnectionBanner />
             <BrowserRouter>
             <Routes>
             <Route path="/auth" element={<Auth />} />
