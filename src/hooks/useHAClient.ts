@@ -13,12 +13,35 @@ export function useHAClient() {
   const setFloors = useHAStore((state) => state.setFloors);
   const setDevices = useHAStore((state) => state.setDevices);
   const setEntityRegistry = useHAStore((state) => state.setEntityRegistry);
+  const incrementConnectionIssue = useHAStore((state) => state.incrementConnectionIssue);
+  const resetConnectionIssue = useHAStore((state) => state.resetConnectionIssue);
   
   const clientRef = useRef<HAClient | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const reconnectingRef = useRef(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Helper générique pour exécuter un service HA avec tracking des problèmes de connexion
+  const callServiceWithTracking = async (
+    domain: string,
+    service: string,
+    data: Record<string, any>
+  ) => {
+    if (!clientRef.current) {
+      incrementConnectionIssue();
+      throw new Error("Client Home Assistant non initialisé");
+    }
+
+    try {
+      await clientRef.current.callService(domain, service, data);
+      resetConnectionIssue();
+    } catch (error) {
+      console.error("Erreur lors de l'appel de service HA:", error);
+      incrementConnectionIssue();
+      throw error;
+    }
+  };
 
   // Fonction de synchronisation complète
   const fullSync = async (client: HAClient) => {
@@ -286,5 +309,6 @@ export function useHAClient() {
     isConnecting,
     error,
     isConnected: clientRef.current?.isConnected() || false,
+    callServiceWithTracking,
   };
 }

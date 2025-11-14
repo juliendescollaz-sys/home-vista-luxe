@@ -16,11 +16,13 @@ import { SonosBrowser } from "@/components/SonosBrowser";
 import { SonosZoneManager } from "@/components/SonosZoneManager";
 import { useMediaPlayerTimeline } from "@/hooks/useMediaPlayerTimeline";
 import { useMediaPlayerControls } from "@/hooks/useMediaPlayerControls";
+import { useHAClient } from "@/hooks/useHAClient";
 
 const MediaPlayerDetails = () => {
   const { entityId } = useParams<{ entityId: string }>();
   const navigate = useNavigate();
   
+  const { callServiceWithTracking } = useHAClient();
   const client = useHAStore((state) => state.client);
   const entities = useHAStore((state) => state.entities);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
@@ -165,18 +167,18 @@ const MediaPlayerDetails = () => {
   }, [entity]);
 
   const callService = useCallback(async (service: string, data?: any) => {
-    if (!client || !entity) {
-      toast.error("Client non connecté");
+    if (!entity) {
+      toast.error("Entité non disponible");
       return;
     }
 
     try {
-      await client.callService("media_player", service, data, { entity_id: entity.entity_id });
+      await callServiceWithTracking("media_player", service, { ...data, entity_id: entity.entity_id });
     } catch (error) {
       console.error("Erreur lors du contrôle:", error);
       toast.error("Erreur lors du contrôle");
     }
-  }, [client, entity]);
+  }, [callServiceWithTracking, entity]);
 
   const handlePrevious = useCallback(() => {
     setPending(p => ({ ...p, previous: true }));

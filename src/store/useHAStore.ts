@@ -27,6 +27,7 @@ interface HAStore {
   areaPhotos: Record<string, string>;
   weatherEntity: string | null;
   selectedCity: { label: string; lat: number; lon: number } | null;
+  connectionIssueCount: number;
   
   setConnection: (connection: HAConnection) => void;
   setClient: (client: HAClient | null) => void;
@@ -42,6 +43,8 @@ interface HAStore {
   setAreaPhoto: (areaId: string, photoUrl: string) => void;
   setWeatherEntity: (entityId: string | null) => void;
   setSelectedCity: (city: { label: string; lat: number; lon: number } | null) => void;
+  incrementConnectionIssue: () => void;
+  resetConnectionIssue: () => void;
   disconnect: () => void;
 }
 
@@ -62,6 +65,7 @@ export const useHAStore = create<HAStore>()(
       areaPhotos: {},
       weatherEntity: null,
       selectedCity: null,
+      connectionIssueCount: 0,
 
       setConnection: (connection) => set({ connection }),
       setClient: (client) => set({ client }),
@@ -89,6 +93,16 @@ export const useHAStore = create<HAStore>()(
       setWeatherEntity: (entityId) => set({ weatherEntity: entityId }),
 
       setSelectedCity: (city) => set({ selectedCity: city }),
+
+      incrementConnectionIssue: () =>
+        set((state) => ({
+          connectionIssueCount: state.connectionIssueCount + 1,
+        })),
+
+      resetConnectionIssue: () =>
+        set(() => ({
+          connectionIssueCount: 0,
+        })),
       
       disconnect: () =>
         set({
