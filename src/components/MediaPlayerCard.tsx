@@ -15,7 +15,6 @@ interface MediaPlayerCardProps {
 export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
   const navigate = useNavigate();
   const connection = useHAStore((state) => state.connection);
-  const client = useHAStore((state) => state.client);
   const { state, attributes } = entity;
   
   const favorites = useHAStore((state) => state.favorites);
@@ -36,7 +35,7 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
     handleSeekStart,
     handleSeekChange,
     handleSeekEnd,
-  } = useMediaPlayerTimeline(client, entity);
+  } = useMediaPlayerTimeline(entity);
 
   const isPlaying = phase === "playing";
   const isBuffering = phase === "buffering" || phase === "pending_play";

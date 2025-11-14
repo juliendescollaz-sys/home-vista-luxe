@@ -6,12 +6,11 @@ import { AnimatedWeatherTile } from "@/components/weather/AnimatedWeatherTile";
 import { DeviceCard } from "@/components/DeviceCard";
 import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { toast } from "sonner";
+import { callHAService } from "@/lib/haService";
 
 const Home = () => {
-  const client = useHAStore((state) => state.client);
   const entities = useHAStore((state) => state.entities);
   const favorites = useHAStore((state) => state.favorites);
-  const isConnected = useHAStore((state) => state.isConnected);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
 
   // Trouver les device_id des media_players pour filtrer leurs entités associées
@@ -47,11 +46,6 @@ const Home = () => {
   }) || [];
 
   const handleDeviceToggle = async (entityId: string) => {
-    if (!client) {
-      toast.error("Client non connecté");
-      return;
-    }
-
     const entity = entities?.find((e) => e.entity_id === entityId);
     if (!entity) return;
 
@@ -60,25 +54,13 @@ const Home = () => {
     const service = isOn ? "turn_off" : "turn_on";
 
     try {
-      await client.callService(domain, service, {}, { entity_id: entityId });
+      await callHAService(domain, service, { entity_id: entityId });
       toast.success(isOn ? "Éteint" : "Allumé");
     } catch (error) {
       console.error("Erreur lors du contrôle:", error);
       toast.error("Erreur lors du contrôle de l'appareil");
     }
   };
-
-  if (!isConnected) {
-    return (
-      <div className="min-h-screen bg-background pb-24 pt-20">
-        <TopBar />
-        <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-          <Skeleton className="h-64 rounded-2xl" />
-        </div>
-        <BottomNav />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background pb-24 pt-20">

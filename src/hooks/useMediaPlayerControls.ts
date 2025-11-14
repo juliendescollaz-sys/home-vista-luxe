@@ -24,11 +24,9 @@ async function confirmStateOnce(client: HAClient, entityId: string, want: "playi
 type MediaState = "playing" | "paused" | "idle" | "off" | "standby" | "buffering" | "unavailable";
 
 export function useMediaPlayerControls(
-  client: HAClient | null,
   entityId: string, 
   currentState: MediaState
 ) {
-  const connectionStatus = useHAStore((state) => state.connectionStatus);
   const [inFlightAction, setInFlightAction] = useState<"play" | "pause" | null>(null);
   const timerRef = useRef<number | null>(null);
   const confirmTimerRef = useRef<number | null>(null);

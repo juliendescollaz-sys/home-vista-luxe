@@ -6,6 +6,7 @@ import { Search, MapPin } from "lucide-react";
 import { useHAStore } from "@/store/useHAStore";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { callHAService } from "@/lib/haService";
 
 const HA_ENTITIES = {
   city: "input_text.ville_meteo",
@@ -29,8 +30,6 @@ export const CityPicker = ({ onCitySaved }: CityPickerProps) => {
   const [selectedCity, setSelectedCity] = useState<CityResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const client = useHAStore((state) => state.client);
-  const isConnected = useHAStore((state) => state.isConnected);
   const entities = useHAStore((state) => state.entities);
   const setWeatherEntity = useHAStore((state) => state.setWeatherEntity);
   const setSelectedCityStore = useHAStore((state) => state.setSelectedCity);
@@ -80,30 +79,22 @@ export const CityPicker = ({ onCitySaved }: CityPickerProps) => {
       return;
     }
 
-    if (!client || !isConnected) {
-      toast.error("Non connecté à Home Assistant");
-      return;
-    }
-
     setIsLoading(true);
     try {
       // Mise à jour de la ville, lat, lon dans l'ordre
-      await client.callService("input_text", "set_value", {
-        value: selectedCity.label,
-      }, {
+      await callHAService("input_text", "set_value", {
         entity_id: HA_ENTITIES.city,
+        value: selectedCity.label,
       });
 
-      await client.callService("input_number", "set_value", {
-        value: selectedCity.lat,
-      }, {
+      await callHAService("input_number", "set_value", {
         entity_id: HA_ENTITIES.lat,
+        value: selectedCity.lat,
       });
 
-      await client.callService("input_number", "set_value", {
-        value: selectedCity.lon,
-      }, {
+      await callHAService("input_number", "set_value", {
         entity_id: HA_ENTITIES.lon,
+        value: selectedCity.lon,
       });
 
       // Mise à jour du store local
@@ -177,7 +168,7 @@ export const CityPicker = ({ onCitySaved }: CityPickerProps) => {
           <span className="font-medium text-sm">{selectedCity.label}</span>
           <Button
             onClick={handleSaveCity}
-            disabled={isLoading || !isConnected}
+            disabled={isLoading}
             size="sm"
           >
             {isLoading ? "Enregistrement..." : "Enregistrer"}
