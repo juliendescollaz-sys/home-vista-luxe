@@ -89,7 +89,18 @@ export function useMediaPlayerTimeline(
     }
 
     const updatedAt = Date.parse(state.positionUpdatedAt || "");
-    const elapsed = isNaN(updatedAt) ? 0 : Math.max(0, (nowMs - updatedAt) / 1000);
+    const elapsedMs = isNaN(updatedAt) ? 0 : nowMs - updatedAt;
+
+    // Si la position n'a pas été mise à jour depuis un moment,
+    // on considère les données comme stables et on fige la timeline.
+    // Ça évite qu'elle continue d'avancer alors que le Sonos a été mis en pause
+    // depuis une autre app (Sonos native, par exemple).
+    const STALE_POSITION_THRESHOLD_MS = 5000; // 5 secondes
+    if (elapsedMs > STALE_POSITION_THRESHOLD_MS) {
+      return Math.min(base, dur);
+    }
+
+    const elapsed = Math.max(0, elapsedMs / 1000);
     const computed = base + elapsed;
 
     // Gestion du repeat
