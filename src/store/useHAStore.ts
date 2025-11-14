@@ -10,6 +10,8 @@ interface EntityRegistry {
   platform: string;
 }
 
+export type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "error" | "paused";
+
 interface HAStore {
   connection: HAConnection | null;
   client: HAClient | null;
@@ -20,6 +22,8 @@ interface HAStore {
   devices: HADevice[];
   favorites: string[];
   isConnected: boolean;
+  connectionStatus: ConnectionStatus;
+  lastError: string | null;
   areaPhotos: Record<string, string>;
   weatherEntity: string | null;
   selectedCity: { label: string; lat: number; lon: number } | null;
@@ -33,6 +37,8 @@ interface HAStore {
   setDevices: (devices: HADevice[]) => void;
   toggleFavorite: (entityId: string) => void;
   setConnected: (connected: boolean) => void;
+  setConnectionStatus: (status: ConnectionStatus) => void;
+  setLastError: (error: string | null) => void;
   setAreaPhoto: (areaId: string, photoUrl: string) => void;
   setWeatherEntity: (entityId: string | null) => void;
   setSelectedCity: (city: { label: string; lat: number; lon: number } | null) => void;
@@ -51,6 +57,8 @@ export const useHAStore = create<HAStore>()(
       devices: [],
       favorites: [],
       isConnected: false,
+      connectionStatus: "connecting",
+      lastError: null,
       areaPhotos: {},
       weatherEntity: null,
       selectedCity: null,
@@ -63,6 +71,8 @@ export const useHAStore = create<HAStore>()(
       setFloors: (floors) => set({ floors }),
       setDevices: (devices) => set({ devices }),
       setConnected: (isConnected) => set({ isConnected }),
+      setConnectionStatus: (status) => set({ connectionStatus: status }),
+      setLastError: (error) => set({ lastError: error }),
       
       toggleFavorite: (entityId) =>
         set((state) => ({

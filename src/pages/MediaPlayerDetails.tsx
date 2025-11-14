@@ -25,6 +25,7 @@ const MediaPlayerDetails = () => {
   const entities = useHAStore((state) => state.entities);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const connection = useHAStore((state) => state.connection);
+  const connectionStatus = useHAStore((state) => state.connectionStatus);
   
   const decodedEntityId = useMemo(() => decodeURIComponent(entityId || ""), [entityId]);
 
@@ -373,7 +374,17 @@ const MediaPlayerDetails = () => {
         </Card>
 
         {/* Contrôles de lecture */}
-        <div className="mb-6">
+        <div className="mb-6 relative">
+          {(connectionStatus === "connecting" || connectionStatus === "reconnecting") && (
+            <div className="absolute inset-0 bg-background/50 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
+              <div className="flex flex-col items-center gap-2">
+                <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                <p className="text-sm text-muted-foreground">
+                  {connectionStatus === "connecting" ? "Connexion..." : "Reconnexion..."}
+                </p>
+              </div>
+            </div>
+          )}
           <MediaPlayerControls
             isPlaying={isPlaying}
             shuffle={attributes.shuffle === true}
@@ -390,6 +401,7 @@ const MediaPlayerDetails = () => {
             onShuffleToggle={handleShuffleToggle}
             onRepeatCycle={handleRepeatCycle}
             pending={pending}
+            disabled={connectionStatus === "connecting" || connectionStatus === "reconnecting" || connectionStatus === "error"}
           />
         </div>
 

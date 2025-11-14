@@ -23,6 +23,7 @@ import SonosZones from "./pages/SonosZones";
 import { useAuth } from "./hooks/useAuth";
 import { useInitializeConnection } from "./hooks/useInitializeConnection";
 import { useHAClient } from "./hooks/useHAClient";
+import { ConnectionBanner } from "./components/ConnectionBanner";
 
 // Lazy load pages avec dependencies lourdes
 const OnboardingScan = lazy(() => import("./pages/OnboardingScan"));
@@ -88,6 +89,7 @@ const App = () => {
           <TooltipProvider>
             <Toaster />
             <Sonner />
+            <ConnectionBanner />
             <BrowserRouter>
             <Routes>
             <Route path="/auth" element={<Auth />} />
