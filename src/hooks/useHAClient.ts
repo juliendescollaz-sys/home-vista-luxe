@@ -180,7 +180,15 @@ export function useHAClient() {
 
         const onAppResume = async () => {
           if (document.visibilityState !== "visible") return;
-          console.log("▶️ App au premier plan");
+          
+          const currentStatus = useHAStore.getState().connectionStatus;
+          // Ne pas reconnecter si déjà connecté ou en cours de connexion
+          if (currentStatus === "connected" || currentStatus === "connecting" || currentStatus === "reconnecting") {
+            console.log("▶️ App au premier plan (déjà connecté ou connexion en cours)");
+            return;
+          }
+          
+          console.log("▶️ App au premier plan - reconnexion nécessaire");
           await reconnect();
         };
 
@@ -192,20 +200,20 @@ export function useHAClient() {
           }
         };
 
-        const onOnline = async () => {
+        const onOnline = () => {
           console.log("🌐 Réseau revenu");
-          await reconnect();
+          onAppResume();
         };
 
-        const onFocus = async () => {
+        const onFocus = () => {
           console.log("🎯 Focus revenu");
-          await reconnect();
+          onAppResume();
         };
 
-        const onPageShow = async (e: PageTransitionEvent) => {
+        const onPageShow = (e: PageTransitionEvent) => {
           if (e.persisted) {
             console.log("📄 Page restaurée (bfcache)");
-            await reconnect();
+            onAppResume();
           }
         };
 
