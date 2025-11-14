@@ -23,6 +23,7 @@ import SonosZones from "./pages/SonosZones";
 import { useAuth } from "./hooks/useAuth";
 import { useInitializeConnection } from "./hooks/useInitializeConnection";
 import { useHAClient } from "./hooks/useHAClient";
+import { useHARefreshOnForeground } from "./hooks/useHARefreshOnForeground";
 
 // Lazy load pages avec dependencies lourdes
 const OnboardingScan = lazy(() => import("./pages/OnboardingScan"));
@@ -72,6 +73,9 @@ const App = () => {
   
   // Établir la connexion WebSocket dès que les credentials sont restaurés
   useHAClient();
+  
+  // Rafraîchir les entités au retour au premier plan
+  useHARefreshOnForeground();
 
   if (!isInitialized) {
     return (
