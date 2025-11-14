@@ -147,6 +147,7 @@ export function useHAClient() {
             await client.connect();
             await fullSync(client);
             setConnectionStatus("connected");
+            setConnected(true);
             setLastError(null);
             (window as any).__NEOLIA_LAST_RESUME_AT__ = Date.now();
           } catch (err) {
@@ -162,6 +163,7 @@ export function useHAClient() {
             
             setLastError(userError);
             setConnectionStatus("error");
+            setConnected(false);
           } finally {
             reconnectingRef.current = false;
           }
