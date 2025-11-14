@@ -24,6 +24,7 @@ import { useAuth } from "./hooks/useAuth";
 import { useInitializeConnection } from "./hooks/useInitializeConnection";
 import { useHAClient } from "./hooks/useHAClient";
 import { ConnectionBanner } from "./components/ConnectionBanner";
+import { useAppForegroundReload } from "./hooks/useAppForegroundReload";
 
 // Lazy load pages avec dependencies lourdes
 const OnboardingScan = lazy(() => import("./pages/OnboardingScan"));
@@ -73,6 +74,9 @@ const App = () => {
   
   // Établir la connexion WebSocket dès que les credentials sont restaurés
   useHAClient();
+  
+  // Recharger l'app au retour au premier plan
+  useAppForegroundReload();
 
   if (!isInitialized) {
     return (
