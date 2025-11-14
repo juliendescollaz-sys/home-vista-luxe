@@ -56,6 +56,16 @@ export function useHAClient() {
       let lastEventAt = Date.now();
       unsubscribeRef.current = client.on("state_changed", (data: any) => {
         lastEventAt = Date.now();
+
+        // Si on reçoit des events, c'est que la connexion est OK :
+        const currentStatus = useHAStore.getState().connectionStatus;
+        if (currentStatus !== "connected") {
+          console.log("✅ Event reçu, passage du status à 'connected'");
+          setConnectionStatus("connected");
+          setConnected(true);
+          setLastError(null);
+        }
+
         if (data?.new_state) {
           const currentEntities = useHAStore.getState().entities;
           const index = currentEntities.findIndex((e: HAEntity) => e.entity_id === data.new_state.entity_id);
