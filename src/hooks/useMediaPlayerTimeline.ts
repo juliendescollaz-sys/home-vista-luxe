@@ -112,8 +112,10 @@ export function useMediaPlayerTimeline(
 
   // 🔄 RECONNEXION : Nettoyer tous les timers et états en attente
   useEffect(() => {
-    if (connectionStatus === "connected") {
-      // Arrêter tous les timers de confirmation
+    if (connectionStatus === "connected" && entity) {
+      console.log(`🎵 [iOS Resume] Timeline ${entity.entity_id}: Reconnexion détectée, nettoyage complet`);
+      
+      // Arrêter TOUS les timers
       if (playConfirmTimer.current) {
         window.clearTimeout(playConfirmTimer.current);
         playConfirmTimer.current = null;
@@ -126,21 +128,56 @@ export function useMediaPlayerTimeline(
         window.clearTimeout(timerRef.current);
         timerRef.current = null;
       }
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
       
-      // Réinitialiser les états en attente
+      // Reset complet des verrous et états en attente
       pendingSeekRef.current = null;
       suppressRef.current = null;
       
-      // Synchroniser la phase avec l'état réel de l'entité
-      if (entity?.state === "playing") {
+      // Forcer la synchronisation avec l'état réel de l'entité HA
+      const realState = entity.state;
+      const realPosition = entity.attributes?.media_position || 0;
+      const realDuration = entity.attributes?.media_duration || 0;
+      
+      console.log(`🎵 [iOS Resume] Timeline ${entity.entity_id}: État réel = ${realState}, position = ${realPosition}s`);
+      
+      // Mettre à jour la timeline avec les données fraîches
+      setTimeline({
+        position: realPosition,
+        duration: realDuration,
+        state: realState as any,
+        positionUpdatedAt: entity.attributes?.media_position_updated_at || new Date().toISOString(),
+        repeat: entity.attributes?.repeat || "off",
+        media_content_id: entity.attributes?.media_content_id,
+        media_title: entity.attributes?.media_title,
+      });
+      
+      // Synchroniser la phase avec l'état réel (CRITIQUE pour iOS)
+      if (realState === "playing") {
+        console.log(`🎵 [iOS Resume] Timeline ${entity.entity_id}: Phase -> playing`);
         setPhase("playing");
-      } else if (entity?.state === "paused" || entity?.state === "idle") {
+      } else if (realState === "paused" || realState === "idle" || realState === "off" || realState === "standby") {
+        console.log(`🎵 [iOS Resume] Timeline ${entity.entity_id}: Phase -> paused`);
         setPhase("paused");
+      } else if (realState === "buffering") {
+        console.log(`🎵 [iOS Resume] Timeline ${entity.entity_id}: Phase -> buffering`);
+        setPhase("buffering");
       } else {
+        console.log(`🎵 [iOS Resume] Timeline ${entity.entity_id}: Phase -> idle`);
         setPhase("idle");
       }
+      
+      // Mettre à jour la position visuelle
+      setLastVisualPos(realPosition);
+      updateLastVisualPos(realPosition);
+      
+      // Forcer un re-render
+      forceUpdate(Date.now());
     }
-  }, [connectionStatus, entity?.state]);
+  }, [connectionStatus, entity, updateLastVisualPos]);
 
   // Synchroniser le fence temps au marqueur global de resume
   useEffect(() => {

@@ -51,30 +51,33 @@ export function useMediaPlayerControls(
   // 🔄 RECONNEXION : Réinitialiser tous les états en attente
   useEffect(() => {
     if (connectionStatus === "connected") {
+      console.log(`🎵 [iOS Resume] Sonos ${entityId}: Nettoyage après reconnexion`);
       // Nettoyer tous les spinners et états en attente après reconnexion
       clearInFlight();
       retryRef.current = false;
       lastCommandRef.current = null;
     }
-  }, [connectionStatus, clearInFlight]);
+  }, [connectionStatus, clearInFlight, entityId]);
 
-  // Confirmation par remontée HA (websocket/poll)
+  // 🔄 iOS : Forcer le nettoyage si l'entité revient et qu'on était en attente
   useEffect(() => {
-    if (!inFlightAction) return;
-
-    // Conditions de confirmation
-    const okPlay = inFlightAction === "play" && 
-      (currentState === "playing" || currentState === "buffering");
-    const okPause = inFlightAction === "pause" && 
-      (currentState === "paused" || currentState === "idle" || 
-       currentState === "off" || currentState === "standby");
-
-    if (okPlay || okPause) {
-      clearInFlight();
-      retryRef.current = false;
-      lastCommandRef.current = null;
+    if (inFlightAction && currentState && client) {
+      // Vérifier si l'état actuel correspond à l'action en cours
+      const okPlay = inFlightAction === "play" && 
+        (currentState === "playing" || currentState === "buffering");
+      const okPause = inFlightAction === "pause" && 
+        (currentState === "paused" || currentState === "idle" || 
+         currentState === "off" || currentState === "standby");
+      
+      if (okPlay || okPause) {
+        console.log(`🎵 [iOS Resume] Sonos ${entityId}: Action ${inFlightAction} confirmée par état ${currentState}`);
+        clearInFlight();
+        retryRef.current = false;
+        lastCommandRef.current = null;
+      }
     }
-  }, [currentState, inFlightAction, clearInFlight]);
+  }, [currentState, inFlightAction, clearInFlight, entityId, client]);
+
 
   // Envoi générique + gestion retry/rollback
   const sendAction = useCallback(async (action: "play" | "pause") => {
