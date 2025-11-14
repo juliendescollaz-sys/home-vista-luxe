@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { HAEntity } from "@/types/homeassistant";
 import { HAClient } from "@/lib/haClient";
+import { useHAStore } from "@/store/useHAStore";
 
 type PlaybackPhase = "idle" | "pending_play" | "buffering" | "playing" | "pending_pause" | "paused";
 
@@ -31,6 +32,8 @@ export function useMediaPlayerTimeline(
   client: HAClient | null,
   entity: HAEntity | undefined
 ) {
+  const connectionStatus = useHAStore((state) => state.connectionStatus);
+  
   const [timeline, setTimeline] = useState<TimelineState>({
     position: entity?.attributes?.media_position || 0,
     duration: entity?.attributes?.media_duration || 0,
@@ -106,6 +109,38 @@ export function useMediaPlayerTimeline(
     // Sans repeat
     return Math.min(computed, dur);
   }, []);
+
+  // 🔄 RECONNEXION : Nettoyer tous les timers et états en attente
+  useEffect(() => {
+    if (connectionStatus === "connected") {
+      // Arrêter tous les timers de confirmation
+      if (playConfirmTimer.current) {
+        window.clearTimeout(playConfirmTimer.current);
+        playConfirmTimer.current = null;
+      }
+      if (pauseConfirmTimer.current) {
+        window.clearTimeout(pauseConfirmTimer.current);
+        pauseConfirmTimer.current = null;
+      }
+      if (timerRef.current) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      
+      // Réinitialiser les états en attente
+      pendingSeekRef.current = null;
+      suppressRef.current = null;
+      
+      // Synchroniser la phase avec l'état réel de l'entité
+      if (entity?.state === "playing") {
+        setPhase("playing");
+      } else if (entity?.state === "paused" || entity?.state === "idle") {
+        setPhase("paused");
+      } else {
+        setPhase("idle");
+      }
+    }
+  }, [connectionStatus, entity?.state]);
 
   // Synchroniser le fence temps au marqueur global de resume
   useEffect(() => {

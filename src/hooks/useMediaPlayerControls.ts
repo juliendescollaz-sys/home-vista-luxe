@@ -28,6 +28,7 @@ export function useMediaPlayerControls(
   entityId: string, 
   currentState: MediaState
 ) {
+  const connectionStatus = useHAStore((state) => state.connectionStatus);
   const [inFlightAction, setInFlightAction] = useState<"play" | "pause" | null>(null);
   const timerRef = useRef<number | null>(null);
   const confirmTimerRef = useRef<number | null>(null);
@@ -46,6 +47,16 @@ export function useMediaPlayerControls(
     }
     setInFlightAction(null);
   }, []);
+
+  // 🔄 RECONNEXION : Réinitialiser tous les états en attente
+  useEffect(() => {
+    if (connectionStatus === "connected") {
+      // Nettoyer tous les spinners et états en attente après reconnexion
+      clearInFlight();
+      retryRef.current = false;
+      lastCommandRef.current = null;
+    }
+  }, [connectionStatus, clearInFlight]);
 
   // Confirmation par remontée HA (websocket/poll)
   useEffect(() => {
