@@ -168,6 +168,12 @@ export function useHAClient() {
         };
 
         const onAppPause = () => {
+          const currentStatus = useHAStore.getState().connectionStatus;
+          // Ne pas mettre en pause si on est en train de se connecter/reconnecter
+          if (currentStatus === "connecting" || currentStatus === "reconnecting") {
+            console.log("⏸️ App en arrière-plan (ignoré - connexion en cours)");
+            return;
+          }
           console.log("⏸️ App en arrière-plan");
           setConnectionStatus("paused");
         };
