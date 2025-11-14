@@ -28,13 +28,33 @@ export function useHAClient() {
     service: string,
     data: Record<string, any>
   ) => {
-    if (!clientRef.current) {
+    // On récupère toujours le client le plus à jour depuis le store
+    let activeClient = useHAStore.getState().client;
+
+    // Si pas de client, on tente une reconnexion automatique
+    if (!activeClient) {
+      console.warn("⚠️ Aucun client HA actif, tentative de reconnexion avant appel de service…");
+      try {
+        // La fonction reconnect sera définie plus bas dans le useEffect
+        const reconnectFn = (window as any).__NEOLIA_RECONNECT__;
+        if (reconnectFn) {
+          await reconnectFn();
+          activeClient = useHAStore.getState().client;
+        }
+      } catch (err) {
+        console.error("❌ Échec de la reconnexion automatique:", err);
+      }
+    }
+
+    // Si après tentative de reconnexion il n'y a toujours pas de client → on compte un échec
+    if (!activeClient) {
       incrementConnectionIssue();
-      throw new Error("Client Home Assistant non initialisé");
+      throw new Error("Client Home Assistant non connecté");
     }
 
     try {
-      await clientRef.current.callService(domain, service, data);
+      await activeClient.callService(domain, service, data);
+      // Succès → on remet le compteur de problèmes à zéro
       resetConnectionIssue();
     } catch (error) {
       console.error("Erreur lors de l'appel de service HA:", error);
@@ -252,6 +272,9 @@ export function useHAClient() {
           }
         };
 
+        // Exposer la fonction reconnect globalement pour callServiceWithTracking
+        (window as any).__NEOLIA_RECONNECT__ = reconnect;
+
         document.addEventListener("visibilitychange", onVisible);
         window.addEventListener("online", onOnline);
         window.addEventListener("focus", onFocus);
@@ -263,6 +286,7 @@ export function useHAClient() {
           window.removeEventListener("online", onOnline);
           window.removeEventListener("focus", onFocus);
           window.removeEventListener("pageshow", onPageShow as any);
+          (window as any).__NEOLIA_RECONNECT__ = null;
         };
       } catch (err) {
         if (cancelled) return;
