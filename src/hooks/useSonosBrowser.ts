@@ -107,22 +107,45 @@ export function useSonosBrowser(client: HAClient | null, entityId: string) {
       setPage(p => ({ ...p, items, loading: false, error: undefined }));
     } catch (error: any) {
       clearTimeout(timeoutId);
-      const errorMsg = error.message || "Contenu indisponible";
-      
-      // Détecter si l'appareil est hors ligne
-      const isOffline = errorMsg.toLowerCase().includes("not found") || 
-                       errorMsg.toLowerCase().includes("unavailable") ||
-                       errorMsg.toLowerCase().includes("entity not found");
-      
-      const userMessage = isOffline 
-        ? "L'appareil semble hors ligne ou injoignable" 
-        : errorMsg;
-      
-      setPage(p => ({ ...p, loading: false, error: userMessage }));
-      
-      // Ne pas afficher de toast agressif pour les appareils hors ligne
+      console.error("❌ Erreur browseMedia:", error);
+      const rawMsg = error?.message || String(error) || "Contenu indisponible";
+      const msg = rawMsg.toLowerCase();
+
+      const isOffline =
+        msg.includes("not found") ||
+        msg.includes("unavailable") ||
+        msg.includes("entity not found");
+
+      const isAuthError =
+        msg.includes("auth") ||
+        msg.includes("401") ||
+        msg.includes("403") ||
+        msg.includes("unauthorized") ||
+        msg.includes("forbidden");
+
+      let userMessage: string;
+      if (isOffline) {
+        userMessage = "Ce lecteur Sonos n'est pas disponible pour la navigation de contenu.";
+      } else if (isAuthError) {
+        userMessage = "Authentification requise pour cette source Sonos (service de streaming ou compte à réautoriser).";
+      } else {
+        userMessage = rawMsg;
+      }
+
+      setPage(p => ({
+        ...p,
+        loading: false,
+        error: userMessage,
+      }));
+
+      // Ne pas spammer si juste offline
       if (!isOffline) {
-        toast.error(errorMsg);
+        // Pour une erreur d'auth, message clair
+        if (isAuthError) {
+          toast.error("Problème d'authentification Sonos : vérifiez votre compte dans Home Assistant ou l'app Sonos.");
+        } else {
+          toast.error(rawMsg);
+        }
       }
     }
   }, [client, entityId, getCacheKey]);
