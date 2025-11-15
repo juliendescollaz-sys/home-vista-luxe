@@ -16,6 +16,7 @@ export class HAClient {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectTimeout: NodeJS.Timeout | null = null;
+  private isReconnecting = false;
 
   constructor(private config: HAClientConfig) {
     if (!config.baseUrl || !config.token) {
@@ -67,6 +68,15 @@ export class HAClient {
             this.isAuthenticated = true;
             this.reconnectAttempts = 0;
             clearTimeout(authTimeout);
+            
+            // Si c'est une reconnexion, émettre l'événement
+            if (this.isReconnecting) {
+              console.log("🔄 Reconnexion réussie, émission de l'événement");
+              this.isReconnecting = false;
+              // Émettre après un court délai pour que resolve() soit appelé en premier
+              setTimeout(() => this.handleEvent({ event_type: "reconnected", data: {} }), 0);
+            }
+            
             resolve(true);
           } else if (message.type === "auth_invalid") {
             console.error("❌ Token invalide");
@@ -110,6 +120,7 @@ export class HAClient {
           const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
           console.log(`🔄 Tentative de reconnexion ${this.reconnectAttempts}/${this.maxReconnectAttempts} dans ${delay}ms...`);
           
+          this.isReconnecting = true;
           this.reconnectTimeout = setTimeout(() => {
             this.connect().catch(console.error);
           }, delay);
