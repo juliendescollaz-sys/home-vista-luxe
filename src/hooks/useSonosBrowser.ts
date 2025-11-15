@@ -160,7 +160,22 @@ export function useSonosBrowser(client: HAClient | null, entityId: string) {
       await client.playMedia(entityId, node.mediaContentId, node.mediaContentType);
       toast.success("Lecture lancée");
     } catch (error: any) {
-      toast.error("Erreur lors de la lecture");
+      console.error("❌ Erreur playMedia:", error);
+      const rawMsg = error?.message || String(error) || "Erreur lors de la lecture";
+      const msg = rawMsg.toLowerCase();
+
+      const isAuthError =
+        msg.includes("auth") ||
+        msg.includes("401") ||
+        msg.includes("403") ||
+        msg.includes("unauthorized") ||
+        msg.includes("forbidden");
+
+      if (isAuthError) {
+        toast.error("Problème d'authentification Sonos : ouvrez l'app Sonos ou l'intégration Home Assistant pour reconnecter votre compte.");
+      } else {
+        toast.error("Erreur lors de la lecture");
+      }
     }
   }, [client, entityId]);
 
