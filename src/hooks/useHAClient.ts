@@ -49,7 +49,7 @@ export function useHAClient() {
         unsubscribeRef.current = null;
       }
 
-      unsubscribeRef.current = client.on("state_changed", (data: any) => {
+      const stateChangedUnsubscribe = client.on("state_changed", (data: any) => {
         if (data?.new_state) {
           const currentEntities = useHAStore.getState().entities;
           const index = currentEntities.findIndex((e: HAEntity) => e.entity_id === data.new_state.entity_id);
@@ -62,6 +62,17 @@ export function useHAClient() {
           }
         }
       });
+
+      // Écouter les reconnexions automatiques pour refaire un full sync
+      const reconnectedUnsubscribe = client.on("reconnected", () => {
+        console.log("🔄 Reconnexion WebSocket détectée, full sync...");
+        fullSync(client).catch(console.error);
+      });
+
+      unsubscribeRef.current = () => {
+        stateChangedUnsubscribe();
+        reconnectedUnsubscribe();
+      };
     } catch (error) {
       console.error("❌ Erreur lors de la synchronisation:", error);
       throw error;
