@@ -24,6 +24,7 @@ import { useAuth } from "./hooks/useAuth";
 import { useInitializeConnection } from "./hooks/useInitializeConnection";
 import { useHAClient } from "./hooks/useHAClient";
 import { useHARefreshOnForeground } from "./hooks/useHARefreshOnForeground";
+import { useReloadOnForegroundIOS } from "./hooks/useReloadOnForegroundIOS";
 
 // Lazy load pages avec dependencies lourdes
 const OnboardingScan = lazy(() => import("./pages/OnboardingScan"));
@@ -69,6 +70,9 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => {
+  // Sur iOS uniquement : force un reload complet au retour au premier plan
+  useReloadOnForegroundIOS();
+  
   const isInitialized = useInitializeConnection();
   
   // Établir la connexion WebSocket dès que les credentials sont restaurés
