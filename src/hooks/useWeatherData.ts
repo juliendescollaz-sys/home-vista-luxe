@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import type { HAEntity } from "@/types/homeassistant";
 
@@ -508,17 +508,53 @@ export function useWeatherData() {
     refresh();
   }, [client, isConnected, entities.length, refresh]);
 
-  // Real-time updates handled by store, just refresh when entities or weatherEntity change
+  // Extraire uniquement l'entité météo pertinente pour éviter les rafraîchissements inutiles
+  const relevantWeatherEntity = useMemo(() => {
+    if (!entities.length) return null;
+    
+    // Si une ville est sélectionnée, pas besoin de surveiller les entités HA
+    if (selectedCity) return null;
+    
+    // Trouver l'entité météo utilisée (forcée ou première disponible)
+    if (weatherEntity) {
+      const forced = entities.find(e => e.entity_id === weatherEntity);
+      if (forced) {
+        return {
+          entity_id: forced.entity_id,
+          state: forced.state,
+          temp: forced.attributes?.temperature,
+          humidity: forced.attributes?.humidity,
+          pressure: forced.attributes?.pressure,
+          wind_speed: forced.attributes?.wind_speed,
+          lastUpdated: forced.last_updated
+        };
+      }
+    }
+    
+    const weatherEnt = entities.find(e => e.entity_id.startsWith("weather."));
+    if (weatherEnt) {
+      return {
+        entity_id: weatherEnt.entity_id,
+        state: weatherEnt.state,
+        temp: weatherEnt.attributes?.temperature,
+        humidity: weatherEnt.attributes?.humidity,
+        pressure: weatherEnt.attributes?.pressure,
+        wind_speed: weatherEnt.attributes?.wind_speed,
+        lastUpdated: weatherEnt.last_updated
+      };
+    }
+    
+    return null;
+  }, [entities, weatherEntity, selectedCity]);
+
+  // Ne mettre à jour que quand l'entité météo change réellement
   useEffect(() => {
     if (!client || !isConnected || !entities.length || !hasInitializedRef.current) return;
+    if (selectedCity) return; // Si Open-Meteo est utilisé, pas de mise à jour depuis HA
     
-    // Refresh weather data when entities update or forced entity changes
-    const weatherEntities = entities.filter(e => e.entity_id.startsWith("weather."));
-    if (weatherEntities.length > 0 || entities.some(e => e.entity_id.startsWith("sensor."))) {
-      const unified = selectWeather(entities, configRef.current, null, weatherEntity);
-      setWeatherData(unified);
-    }
-  }, [entities, weatherEntity, client, isConnected, selectWeather]);
+    const unified = selectWeather(entities, configRef.current, null, weatherEntity);
+    setWeatherData(unified);
+  }, [relevantWeatherEntity, client, isConnected, selectWeather, weatherEntity, selectedCity]);
 
   return { weatherData, isLoading, error, refresh, forecastMode, setForecastMode };
 }
