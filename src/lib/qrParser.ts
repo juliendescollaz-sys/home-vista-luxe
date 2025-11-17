@@ -126,6 +126,14 @@ export async function testHAConnection(wsUrl: string, token: string): Promise<vo
 
     try {
       console.log("🔌 Test de connexion WebSocket:", wsUrl);
+      
+      // Vérifier si on essaie de créer une connexion non sécurisée depuis HTTPS
+      if (window.location.protocol === 'https:' && wsUrl.startsWith('ws://')) {
+        clearTimeout(timeout);
+        fail("Connexion bloquée : utilisez HTTPS pour votre Home Assistant (ou accédez à l'app via HTTP)");
+        return;
+      }
+      
       ws = new WebSocket(wsUrl);
     } catch (error) {
       clearTimeout(timeout);
