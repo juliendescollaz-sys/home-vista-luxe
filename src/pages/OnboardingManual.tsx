@@ -48,10 +48,15 @@ const OnboardingManual = () => {
         connected: false,
       });
 
-      toast.success("Connexion établie avec succès");
+    toast.success("Connexion établie avec succès");
+    
+    // Petit délai pour s'assurer que le store est bien mis à jour
+    // avant la navigation, permettant à useHAClient de se déclencher
+    setTimeout(() => {
       navigate("/");
-    } catch (error: any) {
-      console.error("Erreur de connexion:", error);
+    }, 100);
+  } catch (error: any) {
+    console.error("Erreur de connexion:", error);
       
       let errorMessage = "Erreur de connexion";
       if (error.message) {
