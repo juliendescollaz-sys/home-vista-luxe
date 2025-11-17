@@ -28,6 +28,7 @@ import { useReloadOnForegroundIOS } from "./hooks/useReloadOnForegroundIOS";
 
 // Lazy load pages avec dependencies lourdes
 const OnboardingScan = lazy(() => import("./pages/OnboardingScan"));
+const OnboardingManual = lazy(() => import("./pages/OnboardingManual"));
 const Admin = lazy(() => import("./pages/Admin"));
 
 const queryClient = new QueryClient();
@@ -103,6 +104,11 @@ const App = () => {
             <Route path="/onboarding/scan" element={
               <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
                 <OnboardingScan />
+              </Suspense>
+            } />
+            <Route path="/onboarding/manual" element={
+              <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
+                <OnboardingManual />
               </Suspense>
             } />
             <Route path="/admin" element={

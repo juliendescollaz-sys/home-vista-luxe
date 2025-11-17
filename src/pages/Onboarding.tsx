@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { QrCode, Mail } from "lucide-react";
+import { QrCode, Mail, KeyRound } from "lucide-react";
 import neoliaLogo from "@/assets/neolia-logo.png";
 
 const Onboarding = () => {
@@ -21,15 +21,27 @@ const Onboarding = () => {
           <p className="text-muted-foreground text-xl">Smart Home Premium</p>
         </div>
 
-        {/* Bouton Scanner QR */}
-        <Button
-          onClick={() => navigate("/onboarding/scan")}
-          size="lg"
-          className="w-full h-14 text-lg font-semibold"
-        >
-          <QrCode className="mr-3 h-6 w-6" />
-          Scanner un code QR
-        </Button>
+        {/* Boutons de connexion */}
+        <div className="space-y-4">
+          <Button
+            onClick={() => navigate("/onboarding/scan")}
+            size="lg"
+            className="w-full h-14 text-lg font-semibold"
+          >
+            <QrCode className="mr-3 h-6 w-6" />
+            Scanner un code QR
+          </Button>
+
+          <Button
+            onClick={() => navigate("/onboarding/manual")}
+            variant="outline"
+            size="lg"
+            className="w-full h-14 text-lg font-semibold"
+          >
+            <KeyRound className="mr-3 h-6 w-6" />
+            Connexion manuelle
+          </Button>
+        </div>
 
         {/* Lien de contact */}
         <div className="text-center pt-8">
