@@ -142,6 +142,11 @@ export async function testHAConnection(wsUrl: string, token: string): Promise<vo
       fail("Serveur injoignable");
     }, 10000);
 
+    console.log("HA test connection start", {
+      platform: Capacitor.getPlatform(),
+      wsUrl,
+    });
+
     try {
       const blocked = shouldBlockHttpUrl(wsUrl);
       console.log('HA connection', {
@@ -159,8 +164,9 @@ export async function testHAConnection(wsUrl: string, token: string): Promise<vo
       
       ws = new WebSocket(wsUrl);
     } catch (error) {
+      console.error("WebSocket construction failed", { wsUrl, error });
       clearTimeout(timeout);
-      fail("Impossible de créer la connexion WebSocket");
+      fail(error instanceof Error ? error.message : "Impossible de créer la connexion WebSocket");
       return;
     }
 
@@ -193,13 +199,13 @@ export async function testHAConnection(wsUrl: string, token: string): Promise<vo
     };
 
     ws.onerror = (error) => {
-      console.error("❌ Erreur WebSocket:", error);
+      console.error("HA WS onerror", { wsUrl, error });
       clearTimeout(timeout);
       fail("Serveur injoignable");
     };
 
     ws.onclose = (event) => {
-      console.log("🔌 WebSocket fermé:", event.code, event.reason);
+      console.log("HA WS onclose", { wsUrl, code: event.code, reason: event.reason });
       // Only fail if not already resolved/rejected
       if (timeout) {
         clearTimeout(timeout);
