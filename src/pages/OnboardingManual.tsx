@@ -14,9 +14,10 @@ import neoliaLogo from "@/assets/neolia-logo.png";
 const OnboardingManual = () => {
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
-  const [token, setToken] = useState("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM");
+  const [token, setToken] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const setConnection = useHAStore((state) => state.setConnection);
+  const setConnected = useHAStore((state) => state.setConnected);
 
   const handleConnect = async () => {
     if (!url.trim() || !token.trim()) {
@@ -41,20 +42,22 @@ const OnboardingManual = () => {
       // Sauvegarder les credentials
       await storeHACredentials(parsed.baseUrl, parsed.token);
 
-      // Mettre à jour le store
+      // Mettre à jour le store (comme dans OnboardingScan)
       setConnection({
         url: parsed.baseUrl,
         token: parsed.token,
-        connected: false,
+        connected: true,
       });
+      setConnected(true);
 
-    toast.success("Connexion établie avec succès");
+      toast.success("Connexion établie avec succès", {
+        description: "Redirection en cours...",
+      });
     
-    // Petit délai pour s'assurer que le store est bien mis à jour
-    // avant la navigation, permettant à useHAClient de se déclencher
-    setTimeout(() => {
-      navigate("/");
-    }, 100);
+      // Délai identique au scan QR pour cohérence
+      setTimeout(() => {
+        navigate("/");
+      }, 1500);
   } catch (error: any) {
     console.error("Erreur de connexion:", error);
       
