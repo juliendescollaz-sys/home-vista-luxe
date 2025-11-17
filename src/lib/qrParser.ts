@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+
 /**
  * QR Code parsing and validation for Home Assistant pairing
  * Supports two JSON formats:
@@ -98,6 +100,22 @@ export function parseQRCode(rawQR: string): ParsedQRData {
 }
 
 /**
+ * Check if HTTP URL should be blocked based on platform
+ */
+function shouldBlockHttpUrl(wsUrl: string): boolean {
+  const isNative = Capacitor.getPlatform() !== 'web';
+  const isHttp = wsUrl.startsWith('ws://');
+  
+  // En web (PWA en HTTPS) : on bloque le HTTP
+  if (!isNative && window.location.protocol === 'https:' && isHttp) {
+    return true;
+  }
+  
+  // En natif (Android / iOS) : on autorise le HTTP local
+  return false;
+}
+
+/**
  * Test Home Assistant connection via WebSocket
  * @returns Promise that resolves on success or rejects with specific error message
  */
@@ -125,10 +143,15 @@ export async function testHAConnection(wsUrl: string, token: string): Promise<vo
     }, 10000);
 
     try {
-      console.log("🔌 Test de connexion WebSocket:", wsUrl);
+      const blocked = shouldBlockHttpUrl(wsUrl);
+      console.log('HA connection', {
+        platform: Capacitor.getPlatform(),
+        wsUrl,
+        blocked,
+      });
       
-      // Vérifier si on essaie de créer une connexion non sécurisée depuis HTTPS
-      if (window.location.protocol === 'https:' && wsUrl.startsWith('ws://')) {
+      // Vérifier si on doit bloquer la connexion HTTP (web uniquement)
+      if (blocked) {
         clearTimeout(timeout);
         fail("Connexion bloquée : utilisez HTTPS pour votre Home Assistant (ou accédez à l'app via HTTP)");
         return;
