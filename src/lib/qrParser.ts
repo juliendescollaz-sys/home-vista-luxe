@@ -104,14 +104,13 @@ export function parseQRCode(rawQR: string): ParsedQRData {
  */
 function shouldBlockHttpUrl(wsUrl: string): boolean {
   const isNative = Capacitor.getPlatform() !== 'web';
-  const isHttp = wsUrl.startsWith('ws://');
   
-  // En web (PWA en HTTPS) : on bloque le HTTP
-  if (!isNative && window.location.protocol === 'https:' && isHttp) {
-    return true;
-  }
+  // En natif (Android/iOS), on autorise toujours HTTP
+  if (isNative) return false;
   
-  // En natif (Android / iOS) : on autorise le HTTP local
+  // En Web (Lovable / PWA), on bloque HTTP (ws://)
+  if (wsUrl.startsWith('ws://')) return true;
+  
   return false;
 }
 
