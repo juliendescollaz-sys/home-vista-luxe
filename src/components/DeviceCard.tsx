@@ -64,7 +64,7 @@ export const DeviceCard = ({ entity, onToggle }: DeviceCardProps) => {
             className="h-8 w-8 hover:bg-transparent active:bg-accent/50 active:scale-95 transition-all"
             onClick={handleFavoriteClick}
           >
-            <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+            <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
           </Button>
           
           {(domain === "light" || domain === "switch") && (

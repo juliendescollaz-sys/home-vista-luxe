@@ -112,7 +112,7 @@ const OnboardingManual = () => {
             onClick={() => navigate("/onboarding")}
             className="gap-2"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-5 w-5" />
             Retour
           </Button>
         </div>

@@ -102,11 +102,11 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               {isBuffering ? (
-                <Loader2 className="h-4 w-4 text-primary animate-spin flex-shrink-0" />
+                <Loader2 className="h-5 w-5 text-primary animate-spin flex-shrink-0" />
               ) : isPlaying ? (
-                <Play className="h-4 w-4 text-primary fill-primary flex-shrink-0" />
+                <Play className="h-5 w-5 text-primary fill-primary flex-shrink-0" />
               ) : (
-                <Pause className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <Pause className="h-5 w-5 text-muted-foreground flex-shrink-0" />
               )}
               <span className="text-sm font-medium truncate">{mediaTitle}</span>
             </div>
@@ -125,7 +125,7 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
             onClick={handleFavoriteClick}
             data-control
           >
-            <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+            <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
           </Button>
         </div>
 

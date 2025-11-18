@@ -43,7 +43,7 @@ function TransportButton({
   primary?: boolean;
 }) {
   const dim = size === "lg" ? "h-[70px] w-[70px]" : "h-12 w-12";
-  const iconSize = size === "lg" ? "h-8 w-8" : "h-6 w-6";
+  const iconSize = size === "lg" ? "h-10 w-10" : "h-7 w-7";
   const rounded = size === "lg" ? "rounded-full" : "rounded-xl";
 
   return (
@@ -101,10 +101,10 @@ function ToggleButton({
       )}
     >
       {pending ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <Loader2 className="h-5 w-5 animate-spin" />
       ) : (
         <>
-          <Icon className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground/60")} />
+          <Icon className={cn("h-5 w-5", active ? "text-primary" : "text-muted-foreground/60")} />
           <span className={cn("text-sm font-medium", active ? "text-primary" : "text-muted-foreground/60")}>
             {active ? "ON" : "OFF"}
           </span>
@@ -146,10 +146,10 @@ function RepeatButton({
       )}
     >
       {pending ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <Loader2 className="h-5 w-5 animate-spin" />
       ) : (
         <>
-          <Icon className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground/60")} />
+          <Icon className={cn("h-5 w-5", active ? "text-primary" : "text-muted-foreground/60")} />
           <span className={cn("text-sm font-medium", active ? "text-primary" : "text-muted-foreground/60")}>
             {label}
           </span>
