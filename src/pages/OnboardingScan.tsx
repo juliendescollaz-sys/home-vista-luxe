@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { AlertCircle, Camera, CheckCircle2, Loader2, QrCode } from "lucide-react";
+import { AlertCircle, Camera, CheckCircle2, Loader2, QrCode, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { storeHACredentials } from "@/lib/crypto";
 import { useHAStore } from "@/store/useHAStore";
@@ -205,7 +205,20 @@ const OnboardingScan = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
+      {/* Bouton retour */}
+      <div className="w-full max-w-md mb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate("/onboarding")}
+          className="gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour
+        </Button>
+      </div>
+
       <div className="w-full max-w-md animate-fade-up">
         <Card className="overflow-hidden bg-gradient-card border-border/50">
           <div className="relative aspect-square bg-black">
