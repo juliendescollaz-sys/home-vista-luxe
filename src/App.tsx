@@ -2,8 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useHAStore } from "./store/useHAStore";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ThemeProvider } from "next-themes";
@@ -29,23 +29,47 @@ const queryClient = new QueryClient();
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const connection = useHAStore((state) => state.connection);
   const isConnected = useHAStore((state) => state.isConnected);
-  
   const hasValidConnection = connection && connection.url && connection.token;
-  
+  const [showBackButton, setShowBackButton] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!hasValidConnection || isConnected) {
+      setShowBackButton(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setShowBackButton(true);
+    }, 5000);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [hasValidConnection, isConnected]);
+
   if (hasValidConnection && !isConnected) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-4">
           <div className="animate-pulse text-muted-foreground">Connexion en cours...</div>
+          {showBackButton && (
+            <button
+              onClick={() => navigate("/onboarding/manual")}
+              className="mt-4 inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium bg-background text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              Retour à la configuration
+            </button>
+          )}
         </div>
       </div>
     );
   }
-  
+
   if (!hasValidConnection) {
     return <Navigate to="/onboarding" />;
   }
-  
+
   return <>{children}</>;
 };
 
