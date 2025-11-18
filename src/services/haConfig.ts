@@ -6,6 +6,13 @@
 import { storeHACredentials, getHACredentials } from "@/lib/crypto";
 
 export interface HAConfig {
+  localHaUrl?: string;
+  remoteHaUrl?: string;
+  token: string;
+}
+
+// Pour compatibilité ascendante
+export interface HAConfigLegacy {
   url: string;
   token: string;
 }
@@ -25,16 +32,37 @@ export async function hasHaConfig(): Promise<boolean> {
 
 /**
  * Récupère la configuration HA existante
+ * Gère à la fois le nouveau format (local + remote) et l'ancien format (url unique)
  */
 export async function getHaConfig(): Promise<HAConfig | null> {
   try {
     const credentials = await getHACredentials();
-    if (credentials?.baseUrl && credentials?.token) {
+    if (!credentials?.token) {
+      return null;
+    }
+
+    // Nouveau format : localHaUrl et/ou remoteHaUrl
+    const configStr = localStorage.getItem("ha_config_v2");
+    if (configStr) {
+      try {
+        const config = JSON.parse(configStr) as HAConfig;
+        return { ...config, token: credentials.token };
+      } catch {
+        // Format invalide, continuer avec l'ancien format
+      }
+    }
+
+    // Ancien format : baseUrl unique (compatibilité ascendante)
+    if (credentials.baseUrl) {
+      // Si l'URL contient nabu.casa, c'est une URL cloud
+      const isNabuCasa = credentials.baseUrl.includes("nabu.casa");
       return {
-        url: credentials.baseUrl,
+        localHaUrl: isNabuCasa ? undefined : credentials.baseUrl,
+        remoteHaUrl: isNabuCasa ? credentials.baseUrl : undefined,
         token: credentials.token,
       };
     }
+
     return null;
   } catch (error) {
     console.error("Erreur lors de la récupération de la config HA:", error);
@@ -44,10 +72,35 @@ export async function getHaConfig(): Promise<HAConfig | null> {
 
 /**
  * Enregistre la configuration HA (URL + token)
+ * Supporte à la fois le nouveau format (local + remote) et l'ancien format (url unique)
  */
-export async function setHaConfig(config: HAConfig): Promise<void> {
+export async function setHaConfig(config: HAConfig | HAConfigLegacy): Promise<void> {
   try {
-    await storeHACredentials(config.url, config.token);
+    // Si c'est l'ancien format (url unique)
+    if ("url" in config) {
+      await storeHACredentials(config.url, config.token);
+      return;
+    }
+
+    // Nouveau format : stocker localHaUrl et/ou remoteHaUrl
+    const { localHaUrl, remoteHaUrl, token } = config;
+
+    // Stocker le token (utiliser la première URL disponible comme baseUrl pour compatibilité)
+    const baseUrl = localHaUrl || remoteHaUrl;
+    if (!baseUrl) {
+      throw new Error("Au moins une URL (locale ou distante) doit être fournie");
+    }
+
+    await storeHACredentials(baseUrl, token);
+
+    // Stocker la config complète séparément pour la nouvelle logique
+    localStorage.setItem(
+      "ha_config_v2",
+      JSON.stringify({
+        localHaUrl,
+        remoteHaUrl,
+      })
+    );
   } catch (error) {
     console.error("Erreur lors de l'enregistrement de la config HA:", error);
     throw error;
@@ -94,26 +147,32 @@ export async function fetchConfigFromNeoliaServer(
 }
 
 /**
- * Teste la connexion à Home Assistant avec l'URL et le token fournis
+ * Teste la connexion à Home Assistant avec une URL et un token
+ * @param url - L'URL à tester
+ * @param token - Le token d'authentification
+ * @param timeoutMs - Timeout en millisecondes (défaut: 3000ms)
  * @returns true si la connexion réussit, false sinon
  */
-export async function testHaConnection(config: HAConfig): Promise<boolean> {
+export async function testHaConnection(
+  url: string,
+  token: string,
+  timeoutMs: number = 3000
+): Promise<boolean> {
   try {
-    // Construire l'URL de test (endpoint /api/config)
-    const testUrl = `${config.url}/api/config`;
+    const testUrl = `${url}/api/config`;
 
     const response = await fetch(testUrl, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${config.token}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      signal: AbortSignal.timeout(5000), // timeout 5s
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     return response.ok;
-  } catch (error) {
-    console.error("Erreur lors du test de connexion HA:", error);
+  } catch {
+    // Toute erreur = connexion échouée
     return false;
   }
 }

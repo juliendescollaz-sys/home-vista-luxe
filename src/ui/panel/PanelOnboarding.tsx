@@ -75,7 +75,7 @@ export function PanelOnboarding() {
       setStatusMessage("Configuration importée. Vérification de la connexion Home Assistant…");
 
       // 4. Test de connexion à Home Assistant
-      const isConnected = await testHaConnection({ url: ha_url, token });
+      const isConnected = await testHaConnection(ha_url, token, 5000);
 
       if (!isConnected) {
         setStatus("error");
