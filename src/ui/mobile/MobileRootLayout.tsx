@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { ConnectionModeProvider } from "@/components/ConnectionModeProvider";
 import Home from "@/pages/Home";
 import Rooms from "@/pages/Rooms";
 import RoomDetails from "@/pages/RoomDetails";
@@ -18,27 +19,30 @@ import SonosZones from "@/pages/SonosZones";
  * - Navigation type barre en bas (tab bar)
  * - Écrans empilés, affichage optimisé pour une main
  * - UI compacte et tactile
+ * - Détection automatique local/cloud via ConnectionModeProvider
  * 
  * Ce layout réutilise les pages existantes de l'application,
  * qui sont déjà optimisées pour mobile.
  */
 export function MobileRootLayout() {
   return (
-    <Routes>
-      {/* Routes principales (avec PrivateRoute wrapper dans App.tsx) */}
-      <Route path="/" element={<Home />} />
-      <Route path="/rooms" element={<Rooms />} />
-      <Route path="/rooms/:areaId" element={<RoomDetails />} />
-      <Route path="/media-player/:entityId" element={<MediaPlayerDetails />} />
-      <Route path="/favorites" element={<Favorites />} />
-      <Route path="/scenes" element={<Scenes />} />
-      <Route path="/activity" element={<Activity />} />
-      <Route path="/settings" element={<Settings />} />
-      <Route path="/dev" element={<Dev />} />
-      <Route path="/sonos-zones" element={<SonosZones />} />
+    <ConnectionModeProvider>
+      <Routes>
+        {/* Routes principales (avec PrivateRoute wrapper dans App.tsx) */}
+        <Route path="/" element={<Home />} />
+        <Route path="/rooms" element={<Rooms />} />
+        <Route path="/rooms/:areaId" element={<RoomDetails />} />
+        <Route path="/media-player/:entityId" element={<MediaPlayerDetails />} />
+        <Route path="/favorites" element={<Favorites />} />
+        <Route path="/scenes" element={<Scenes />} />
+        <Route path="/activity" element={<Activity />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/dev" element={<Dev />} />
+        <Route path="/sonos-zones" element={<SonosZones />} />
 
-      {/* 404 */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        {/* 404 */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </ConnectionModeProvider>
   );
 }
