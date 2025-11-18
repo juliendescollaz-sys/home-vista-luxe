@@ -3,6 +3,7 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useHAStore } from "@/store/useHAStore";
 import { useEffect } from "react";
+import { getHaConfig } from "@/services/haConfig";
 
 interface ConnectionModeProviderProps {
   children: React.ReactNode;
@@ -18,13 +19,19 @@ export function ConnectionModeProvider({ children }: ConnectionModeProviderProps
   const { connectionMode, haBaseUrl, isChecking, error } = useConnectionMode();
   const setConnection = useHAStore((state) => state.setConnection);
 
-  // Mettre à jour le store avec l'URL détectée
+  // Mettre à jour le store avec l'URL détectée et le token
   useEffect(() => {
     if (haBaseUrl && !isChecking) {
-      setConnection({
-        url: haBaseUrl,
-        token: "", // Le token sera chargé depuis le storage
-        connected: false,
+      getHaConfig().then((config) => {
+        if (config?.token) {
+          setConnection({
+            url: haBaseUrl,
+            token: config.token,
+            connected: false,
+          });
+        }
+      }).catch((error) => {
+        console.error("Erreur lors de la récupération du token:", error);
       });
     }
   }, [haBaseUrl, isChecking, setConnection]);
