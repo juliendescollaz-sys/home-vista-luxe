@@ -1,9 +1,11 @@
 import { useConnectionMode } from "@/hooks/useConnectionMode";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { useHAStore } from "@/store/useHAStore";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getHaConfig } from "@/services/haConfig";
+import { useNavigate } from "react-router-dom";
 
 interface ConnectionModeProviderProps {
   children: React.ReactNode;
@@ -18,6 +20,22 @@ interface ConnectionModeProviderProps {
 export function ConnectionModeProvider({ children }: ConnectionModeProviderProps) {
   const { connectionMode, haBaseUrl, isChecking, error } = useConnectionMode();
   const setConnection = useHAStore((state) => state.setConnection);
+  const navigate = useNavigate();
+  const [showBackButton, setShowBackButton] = useState(false);
+
+  // Timer pour afficher le bouton retour après 5 secondes
+  useEffect(() => {
+    if (isChecking) {
+      const timer = setTimeout(() => {
+        setShowBackButton(true);
+      }, 5000);
+
+      return () => {
+        clearTimeout(timer);
+        setShowBackButton(false);
+      };
+    }
+  }, [isChecking]);
 
   // Mettre à jour le store avec l'URL détectée et le token
   useEffect(() => {
@@ -50,6 +68,16 @@ export function ConnectionModeProvider({ children }: ConnectionModeProviderProps
               Détection du mode de connexion (local/cloud)
             </p>
           </div>
+          {showBackButton && (
+            <Button
+              variant="outline"
+              onClick={() => navigate("/onboarding/manual")}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Retour à la configuration
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -67,16 +95,23 @@ export function ConnectionModeProvider({ children }: ConnectionModeProviderProps
             </AlertDescription>
           </Alert>
 
-          <div className="text-center space-y-4">
-            <p className="text-sm text-muted-foreground">
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-sm text-muted-foreground text-center">
               Vérifiez votre connexion et les paramètres Home Assistant.
             </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="text-primary underline text-sm"
-            >
-              Réessayer
-            </button>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => navigate("/onboarding/manual")}
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Retour
+              </Button>
+              <Button onClick={() => window.location.reload()}>
+                Réessayer
+              </Button>
+            </div>
           </div>
         </div>
       </div>
