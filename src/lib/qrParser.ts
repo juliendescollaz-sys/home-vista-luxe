@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { logger } from './logger';
 
 /**
  * QR Code parsing and validation for Home Assistant pairing
@@ -141,16 +142,15 @@ export async function testHAConnection(wsUrl: string, token: string): Promise<vo
       fail("Serveur injoignable");
     }, 10000);
 
-    console.log("HA test connection start", {
+    logger.debug("HA test connection start", {
       platform: Capacitor.getPlatform(),
-      wsUrl,
+      wsUrl: wsUrl.replace(/:\d+/, ':****'),
     });
 
     try {
       const blocked = shouldBlockHttpUrl(wsUrl);
-      console.log('HA connection', {
+      logger.debug('HA connection check', {
         platform: Capacitor.getPlatform(),
-        wsUrl,
         blocked,
       });
       
@@ -163,48 +163,48 @@ export async function testHAConnection(wsUrl: string, token: string): Promise<vo
       
       ws = new WebSocket(wsUrl);
     } catch (error) {
-      console.error("WebSocket construction failed", { wsUrl, error });
+      logger.error("WebSocket construction failed", error);
       clearTimeout(timeout);
       fail(error instanceof Error ? error.message : "Impossible de créer la connexion WebSocket");
       return;
     }
 
     ws.onopen = () => {
-      console.log("✅ WebSocket ouvert, attente de auth_required...");
+      logger.debug("✅ WebSocket ouvert, attente de auth_required...");
     };
 
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-        console.log("📨 Message reçu:", msg.type);
+        logger.debug("📨 Message reçu:", msg.type);
 
         if (msg.type === "auth_required") {
-          console.log("🔐 Envoi du token d'authentification...");
+          logger.debug("🔐 Envoi du token d'authentification...");
           ws?.send(JSON.stringify({ type: "auth", access_token: token }));
         } else if (msg.type === "auth_ok") {
-          console.log("✅ Authentification réussie!");
+          logger.info("✅ Authentification réussie!");
           clearTimeout(timeout);
           cleanup();
           resolve();
         } else if (msg.type === "auth_invalid") {
-          console.error("❌ Token refusé");
+          logger.error("❌ Token refusé");
           clearTimeout(timeout);
           fail("Token invalide");
         }
       } catch (error) {
-        console.error("❌ Erreur parsing message:", error);
+        logger.error("❌ Erreur parsing message:", error);
         // Ignore malformed messages, continue waiting
       }
     };
 
     ws.onerror = (error) => {
-      console.error("HA WS onerror", { wsUrl, error });
+      logger.error("HA WS onerror", error);
       clearTimeout(timeout);
       fail("Serveur injoignable");
     };
 
     ws.onclose = (event) => {
-      console.log("HA WS onclose", { wsUrl, code: event.code, reason: event.reason });
+      logger.debug("HA WS onclose", { code: event.code, reason: event.reason });
       // Only fail if not already resolved/rejected
       if (timeout) {
         clearTimeout(timeout);
