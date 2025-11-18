@@ -183,16 +183,6 @@ const OnboardingManual = () => {
             </Button>
           </CardContent>
         </Card>
-
-        {/* Bouton retour */}
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/onboarding")}
-          className="w-full"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Retour
-        </Button>
       </div>
     </div>
   );
