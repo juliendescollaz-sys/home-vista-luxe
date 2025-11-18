@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { testHAConnection, parseQRCode } from "@/lib/qrParser";
-import { storeHACredentials } from "@/lib/crypto";
+import { testHAConnection } from "@/lib/qrParser";
 import { useHAStore } from "@/store/useHAStore";
 import { toast } from "sonner";
 import neoliaLogo from "@/assets/neolia-logo.png";
 import { z } from "zod";
+import { setHaConfig } from "@/services/haConfig";
 
 const urlSchema = z.string()
   .trim()
@@ -28,17 +28,21 @@ const tokenSchema = z.string()
 
 const OnboardingManual = () => {
   const navigate = useNavigate();
-  const [url, setUrl] = useState("");
+  const [localUrl, setLocalUrl] = useState("");
+  const [remoteUrl, setRemoteUrl] = useState("");
   const [token, setToken] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const setConnection = useHAStore((state) => state.setConnection);
   const setConnected = useHAStore((state) => state.setConnected);
 
   const handleConnect = async () => {
-    // Validate inputs before attempting connection
+    // Validate inputs
     try {
-      urlSchema.parse(url);
+      urlSchema.parse(localUrl);
       tokenSchema.parse(token);
+      if (remoteUrl.trim() && remoteUrl.trim().length > 0) {
+        urlSchema.parse(remoteUrl);
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
@@ -49,24 +53,27 @@ const OnboardingManual = () => {
     setIsConnecting(true);
 
     try {
-      // Créer un payload JSON simulé pour réutiliser la logique de parsing
-      const simulatedQR = JSON.stringify({
-        ha_url: url.trim(),
-        ha_token: token.trim()
+      const trimmedLocalUrl = localUrl.trim();
+      const trimmedRemoteUrl = remoteUrl.trim() || undefined;
+      const trimmedToken = token.trim();
+
+      // Construire l'URL WebSocket pour le test de connexion
+      const wsUrl = trimmedLocalUrl.replace(/^http/, 'ws') + '/api/websocket';
+      
+      // Tester la connexion locale
+      await testHAConnection(wsUrl, trimmedToken);
+
+      // Enregistrer la configuration avec le nouveau format
+      await setHaConfig({
+        localHaUrl: trimmedLocalUrl,
+        remoteHaUrl: trimmedRemoteUrl,
+        token: trimmedToken,
       });
 
-      const parsed = parseQRCode(simulatedQR);
-      
-      // Tester la connexion WebSocket
-      await testHAConnection(parsed.wsUrl, parsed.token);
-
-      // Sauvegarder les credentials
-      await storeHACredentials(parsed.baseUrl, parsed.token);
-
-      // Mettre à jour le store (comme dans OnboardingScan)
+      // Mettre à jour le store
       setConnection({
-        url: parsed.baseUrl,
-        token: parsed.token,
+        url: trimmedLocalUrl,
+        token: trimmedToken,
         connected: true,
       });
       setConnected(true);
@@ -75,7 +82,6 @@ const OnboardingManual = () => {
         description: "Redirection en cours...",
       });
     
-      // Délai identique au scan QR pour cohérence
       setTimeout(() => {
         navigate("/");
       }, 1500);
@@ -89,7 +95,7 @@ const OnboardingManual = () => {
         } else if (error.message.includes("Token refusé")) {
           errorMessage = "Token refusé par Home Assistant";
         } else if (error.message.includes("Serveur injoignable")) {
-          errorMessage = "Serveur injoignable. Vérifiez l'URL.";
+          errorMessage = "Serveur injoignable. Vérifiez l'URL locale.";
         } else {
           errorMessage = error.message;
         }
@@ -134,18 +140,18 @@ const OnboardingManual = () => {
           <CardHeader>
             <CardTitle>Connexion manuelle</CardTitle>
             <CardDescription>
-              Entrez l'URL de votre Home Assistant et votre token d'accès
+              Configurez votre connexion à Home Assistant
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="url">URL Home Assistant</Label>
+              <Label htmlFor="localUrl">URL locale (LAN) *</Label>
               <Input
-                id="url"
+                id="localUrl"
                 type="url"
-                placeholder="http://homeassistant.local:8123"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                placeholder="http://192.168.1.20:8123"
+                value={localUrl}
+                onChange={(e) => setLocalUrl(e.target.value)}
                 disabled={isConnecting}
                 maxLength={500}
                 required
@@ -153,7 +159,23 @@ const OnboardingManual = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="token">Token d'accès</Label>
+              <Label htmlFor="remoteUrl">URL cloud (accès à distance)</Label>
+              <Input
+                id="remoteUrl"
+                type="url"
+                placeholder="https://xxxxx.ui.nabu.casa"
+                value={remoteUrl}
+                onChange={(e) => setRemoteUrl(e.target.value)}
+                disabled={isConnecting}
+                maxLength={500}
+              />
+              <p className="text-xs text-muted-foreground">
+                Optionnel. À renseigner seulement si l'accès à distance est activé.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="token">Token Home Assistant *</Label>
               <Input
                 id="token"
                 type="password"
