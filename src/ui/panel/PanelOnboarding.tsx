@@ -14,7 +14,7 @@ import { useHAStore } from "@/store/useHAStore";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 import neoliaLogo from "@/assets/neolia-logo.png";
 
-type OnboardingState = "idle" | "loading" | "error" | "success";
+type OnboardingStatus = "idle" | "loading" | "success" | "error";
 
 /**
  * Écran d'onboarding spécifique au mode PANEL
@@ -22,67 +22,111 @@ type OnboardingState = "idle" | "loading" | "error" | "success";
  */
 export function PanelOnboarding() {
   const [installerIp, setInstallerIp] = useState("");
-  const [state, setState] = useState<OnboardingState>("idle");
+  const [status, setStatus] = useState<OnboardingStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
   const setConnection = useHAStore((state) => state.setConnection);
 
+  /**
+   * Valide le format de l'adresse IP
+   */
+  const isValidIp = (ip: string): boolean => {
+    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipRegex.test(ip)) {
+      return false;
+    }
+    // Vérifier que chaque octet est entre 0 et 255
+    const octets = ip.split(".");
+    return octets.every((octet) => {
+      const num = parseInt(octet, 10);
+      return num >= 0 && num <= 255;
+    });
+  };
+
   const handleImportConfig = async () => {
-    // Validation de l'IP
-    if (!installerIp.trim()) {
+    const trimmedIp = installerIp.trim();
+
+    // 1. Validation de l'IP
+    if (!trimmedIp) {
       setErrorMessage("Veuillez saisir l'adresse IP du poste d'installation.");
-      setState("error");
+      setStatus("error");
       return;
     }
 
-    setState("loading");
+    if (!isValidIp(trimmedIp)) {
+      setErrorMessage("Adresse IP invalide. Format attendu : 192.168.1.34");
+      setStatus("error");
+      return;
+    }
+
+    setStatus("loading");
     setErrorMessage("");
+    setStatusMessage("Connexion à NeoliaServer…");
 
     try {
-      // 1. Récupération de la config depuis NeoliaServer
-      const { ha_url, token } = await fetchConfigFromNeoliaServer(installerIp.trim());
+      // 2. Récupération de la config depuis NeoliaServer (timeout 4s)
+      const { ha_url, token } = await fetchConfigFromNeoliaServer(trimmedIp);
 
-      // 2. Enregistrement de la config
+      setStatusMessage("Configuration reçue. Enregistrement…");
+
+      // 3. Enregistrement de la config
       await setHaConfig({ url: ha_url, token });
 
-      // 3. Test de connexion rapide
+      setStatusMessage("Configuration importée. Vérification de la connexion Home Assistant…");
+
+      // 4. Test de connexion à Home Assistant
       const isConnected = await testHaConnection({ url: ha_url, token });
 
       if (!isConnected) {
-        setState("error");
+        setStatus("error");
         setErrorMessage(
-          "Configuration importée mais impossible de contacter Home Assistant. " +
+          "Les paramètres reçus ne permettent pas de se connecter à Home Assistant. " +
           "Vérifiez que Home Assistant est accessible depuis ce panneau."
         );
+        setStatusMessage("");
         return;
       }
 
-      // 4. Mise à jour du store
+      // 5. Mise à jour du store
       setConnection({
         url: ha_url,
         token,
         connected: true,
       });
 
-      setState("success");
+      setStatus("success");
+      setStatusMessage("Configuration importée avec succès. Connexion à Home Assistant établie.");
 
-      // Redirection automatique après 1 seconde
+      // Redirection automatique immédiate
       setTimeout(() => {
         window.location.reload();
-      }, 1000);
+      }, 500);
     } catch (error) {
-      setState("error");
+      setStatus("error");
+      setStatusMessage("");
 
       if (error instanceof Error) {
-        if (error.name === "AbortError" || error.message.includes("fetch")) {
+        // Timeout
+        if (error.name === "TimeoutError" || error.message.includes("timeout")) {
           setErrorMessage(
-            `Impossible de contacter NeoliaServer à l'adresse http://${installerIp}:8765/config. ` +
+            "NeoliaServer ne répond pas. Vérifiez que le PC est allumé et sur le même réseau."
+          );
+        }
+        // Erreur réseau
+        else if (error.name === "TypeError" || error.message.includes("fetch")) {
+          setErrorMessage(
+            `Impossible de contacter NeoliaServer à l'adresse http://${trimmedIp}:8765/config. ` +
             "Vérifiez que le PC est sur le même réseau et que NeoliaServer est lancé."
           );
-        } else if (error.message.includes("invalide")) {
+        }
+        // Configuration invalide
+        else if (error.message.includes("invalide")) {
           setErrorMessage(
             "La configuration reçue est invalide. Vérifiez NeoliaServer et réessayez."
           );
-        } else {
+        }
+        // Autre erreur
+        else {
           setErrorMessage(`Erreur: ${error.message}`);
         }
       } else {
@@ -92,10 +136,13 @@ export function PanelOnboarding() {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && state !== "loading") {
+    if (e.key === "Enter" && status !== "loading" && status !== "success") {
       handleImportConfig();
     }
   };
+
+  const isInputDisabled = status === "loading" || status === "success";
+  const isButtonDisabled = status === "loading" || status === "success";
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-background">
@@ -140,7 +187,7 @@ export function PanelOnboarding() {
                 value={installerIp}
                 onChange={(e) => setInstallerIp(e.target.value)}
                 onKeyPress={handleKeyPress}
-                disabled={state === "loading"}
+                disabled={isInputDisabled}
                 className="text-lg h-14"
               />
               <p className="text-sm text-muted-foreground">
@@ -149,19 +196,30 @@ export function PanelOnboarding() {
               </p>
             </div>
 
-            {/* Messages d'état */}
-            {state === "error" && errorMessage && (
+            {/* Message de statut pendant le chargement */}
+            {status === "loading" && statusMessage && (
+              <Alert className="border-blue-500 bg-blue-50 dark:bg-blue-950">
+                <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+                <AlertDescription className="text-base text-blue-600 dark:text-blue-400">
+                  {statusMessage}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Message d'erreur */}
+            {status === "error" && errorMessage && (
               <Alert variant="destructive">
                 <AlertCircle className="h-5 w-5" />
                 <AlertDescription className="text-base">{errorMessage}</AlertDescription>
               </Alert>
             )}
 
-            {state === "success" && (
+            {/* Message de succès */}
+            {status === "success" && statusMessage && (
               <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
                 <AlertDescription className="text-base text-green-600 dark:text-green-400">
-                  Configuration importée avec succès. Connexion à Home Assistant…
+                  {statusMessage}
                 </AlertDescription>
               </Alert>
             )}
@@ -169,14 +227,19 @@ export function PanelOnboarding() {
             {/* Bouton d'import */}
             <Button
               onClick={handleImportConfig}
-              disabled={state === "loading" || state === "success"}
+              disabled={isButtonDisabled}
               size="lg"
               className="w-full h-16 text-lg"
             >
-              {state === "loading" ? (
+              {status === "loading" ? (
                 <>
                   <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                  Import en cours…
+                  Connexion à NeoliaServer…
+                </>
+              ) : status === "success" ? (
+                <>
+                  <CheckCircle2 className="mr-2 h-6 w-6" />
+                  Configuration importée
                 </>
               ) : (
                 "Importer la configuration"

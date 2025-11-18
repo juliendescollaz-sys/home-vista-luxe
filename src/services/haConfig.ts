@@ -66,7 +66,7 @@ export async function fetchConfigFromNeoliaServer(
 
   const response = await fetch(url, {
     method: "GET",
-    signal: AbortSignal.timeout(10000), // timeout 10s
+    signal: AbortSignal.timeout(4000), // timeout 4s
   });
 
   if (!response.ok) {
