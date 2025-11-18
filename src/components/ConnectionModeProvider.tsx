@@ -20,27 +20,17 @@ interface ConnectionModeProviderProps {
 export function ConnectionModeProvider({ children }: ConnectionModeProviderProps) {
   const { connectionMode, haBaseUrl, isChecking, error } = useConnectionMode();
   const setConnection = useHAStore((state) => state.setConnection);
+  const connected = useHAStore((state) => state.connection.connected);
   const navigate = useNavigate();
   const [showBackButton, setShowBackButton] = useState(false);
+  const [watchdogStarted, setWatchdogStarted] = useState(false);
 
-  // Timer pour afficher le bouton retour après 5 secondes
+  // 1) Initialiser la connexion HA avec l'URL locale (haBaseUrl) + token
   useEffect(() => {
-    if (isChecking) {
-      const timer = setTimeout(() => {
-        setShowBackButton(true);
-      }, 5000);
+    if (!haBaseUrl || isChecking) return;
 
-      return () => {
-        clearTimeout(timer);
-        setShowBackButton(false);
-      };
-    }
-  }, [isChecking]);
-
-  // Mettre à jour le store avec l'URL détectée et le token
-  useEffect(() => {
-    if (haBaseUrl && !isChecking) {
-      getHaConfig().then((config) => {
+    getHaConfig()
+      .then((config) => {
         if (config?.token) {
           setConnection({
             url: haBaseUrl,
@@ -48,13 +38,60 @@ export function ConnectionModeProvider({ children }: ConnectionModeProviderProps
             connected: false,
           });
         }
-      }).catch((error) => {
+      })
+      .catch((error) => {
         console.error("Erreur lors de la récupération du token:", error);
       });
-    }
   }, [haBaseUrl, isChecking, setConnection]);
 
-  // Affichage pendant la détection
+  // 2) Watchdog : si après 5s on n'est pas connecté en LOCAL et qu'une URL cloud existe,
+  //    on bascule vers remoteHaUrl
+  useEffect(() => {
+    if (isChecking) return;
+    if (connectionMode !== "local") return;
+    if (connected) return;
+    if (watchdogStarted) return;
+
+    let cancelled = false;
+    setWatchdogStarted(true);
+
+    (async () => {
+      const config = await getHaConfig();
+      if (!config?.remoteHaUrl || !config.token) {
+        // Pas d'URL cloud configurée => afficher le bouton retour après 5s
+        setTimeout(() => {
+          if (!cancelled) {
+            setShowBackButton(true);
+          }
+        }, 5000);
+        return;
+      }
+
+      setTimeout(() => {
+        if (cancelled) return;
+
+        const latestConnected = useHAStore.getState().connection.connected;
+        if (latestConnected) {
+          // La connexion locale a finalement réussi avant le timeout
+          return;
+        }
+
+        console.warn("[Neolia] Watchdog : bascule vers l'URL cloud…");
+
+        setConnection({
+          url: config.remoteHaUrl!,
+          token: config.token,
+          connected: false,
+        });
+      }, 5000);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [connectionMode, isChecking, connected, watchdogStarted, setConnection]);
+
+  // Affichage pendant la lecture de la configuration
   if (isChecking) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-background">
@@ -62,28 +99,18 @@ export function ConnectionModeProvider({ children }: ConnectionModeProviderProps
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
           <div className="space-y-2">
             <p className="text-lg font-medium">
-              Vérification de la connexion à Home Assistant…
+              Chargement de la configuration Home Assistant…
             </p>
             <p className="text-sm text-muted-foreground">
-              Détection du mode de connexion (local/cloud)
+              Merci de patienter quelques instants.
             </p>
           </div>
-          {showBackButton && (
-            <Button
-              variant="outline"
-              onClick={() => navigate("/onboarding/manual")}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Retour à la configuration
-            </Button>
-          )}
         </div>
       </div>
     );
   }
 
-  // Erreur de connexion
+  // Erreur de configuration
   if (error || !haBaseUrl) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-background">
@@ -118,16 +145,32 @@ export function ConnectionModeProvider({ children }: ConnectionModeProviderProps
     );
   }
 
-  // Mode de connexion détecté avec succès
+  // Mode normal : on laisse le client HA se connecter (local puis éventuellement cloud via watchdog)
   return (
     <>
       {/* Indicateur visuel du mode de connexion (optionnel, pour debug) */}
       {import.meta.env.DEV && (
         <div className="fixed bottom-4 right-4 bg-background/95 border rounded-lg px-3 py-2 text-xs z-50 shadow-lg">
-          <span className="text-muted-foreground">Mode: </span>
+          <span className="text-muted-foreground">Mode initial: </span>
           <span className="font-medium">
             {connectionMode === "local" ? "🏠 Local" : "☁️ Cloud"}
           </span>
+          <span className="ml-2 text-muted-foreground">
+            ({connected ? "connecté" : "en connexion..."})
+          </span>
+        </div>
+      )}
+      {showBackButton && !connected && (
+        <div className="fixed top-4 left-4 z-50">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/onboarding/manual")}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour
+          </Button>
         </div>
       )}
       {children}
