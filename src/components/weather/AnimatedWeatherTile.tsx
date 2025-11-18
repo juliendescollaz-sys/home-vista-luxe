@@ -153,7 +153,7 @@ export function AnimatedWeatherTile() {
                 }}
                 disabled={isLoading}
               >
-                <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
+                <RefreshCw size={24} className={isLoading ? "animate-spin" : ""} />
               </Button>
               <Button
                 variant="ghost"
@@ -164,7 +164,7 @@ export function AnimatedWeatherTile() {
                   setShowConfig(true);
                 }}
               >
-                <Settings size={20} />
+                <Settings size={24} />
               </Button>
             </div>
           </div>
