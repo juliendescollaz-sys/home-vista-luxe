@@ -13,8 +13,8 @@ import neoliaLogo from "@/assets/neolia-logo.png";
 
 const OnboardingManual = () => {
   const navigate = useNavigate();
-  const [url, setUrl] = useState("");
-  const [token, setToken] = useState("");
+  const [url, setUrl] = useState("http://192.168.1.219:8123");
+  const [token, setToken] = useState("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM");
   const [isConnecting, setIsConnecting] = useState(false);
   const setConnection = useHAStore((state) => state.setConnection);
   const setConnected = useHAStore((state) => state.setConnected);
