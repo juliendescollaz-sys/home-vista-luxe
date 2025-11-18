@@ -28,7 +28,21 @@ export class HAClient {
   }
 
   private get wsUrl(): string {
-    return this.config.baseUrl.replace(/^https?/, "wss") + "/api/websocket";
+    const normalized = this.config.baseUrl.replace(/\/+$/, "");
+
+    // Si c'est déjà une URL WebSocket, on ajoute simplement /api/websocket si nécessaire
+    if (/^wss?:\/\//i.test(normalized)) {
+      return normalized.endsWith("/api/websocket")
+        ? normalized
+        : `${normalized}/api/websocket`;
+    }
+
+    // HTTP(S) → WS(S)
+    const isHttps = /^https:\/\//i.test(normalized);
+    const scheme = isHttps ? "wss" : "ws";
+    const wsBase = normalized.replace(/^https?:\/\//i, `${scheme}://`);
+
+    return `${wsBase}/api/websocket`;
   }
 
   async connect(): Promise<boolean> {
