@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { testHAConnection } from "@/lib/qrParser";
 import { useHAStore } from "@/store/useHAStore";
 import { toast } from "sonner";
 import neoliaLogo from "@/assets/neolia-logo.png";
@@ -57,12 +56,6 @@ const OnboardingManual = () => {
       const trimmedRemoteUrl = remoteUrl.trim() || undefined;
       const trimmedToken = token.trim();
 
-      // Construire l'URL WebSocket pour le test de connexion
-      const wsUrl = trimmedLocalUrl.replace(/^http/, 'ws') + '/api/websocket';
-      
-      // Tester la connexion locale
-      await testHAConnection(wsUrl, trimmedToken);
-
       // Enregistrer la configuration avec le nouveau format
       await setHaConfig({
         localHaUrl: trimmedLocalUrl,
@@ -78,30 +71,16 @@ const OnboardingManual = () => {
       });
       setConnected(true);
 
-      toast.success("Connexion établie avec succès", {
-        description: "Redirection en cours...",
+      toast.success("Configuration enregistrée", {
+        description: "Connexion en cours...",
       });
     
       setTimeout(() => {
         navigate("/");
-      }, 1500);
-  } catch (error: any) {
-    console.error("Erreur de connexion:", error);
-      
-      let errorMessage = "Erreur de connexion";
-      if (error.message) {
-        if (error.message.includes("URL HA invalide")) {
-          errorMessage = "URL invalide : utilisez http(s):// ou ws(s)://";
-        } else if (error.message.includes("Token refusé")) {
-          errorMessage = "Token refusé par Home Assistant";
-        } else if (error.message.includes("Serveur injoignable")) {
-          errorMessage = "Serveur injoignable. Vérifiez l'URL locale.";
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
-      toast.error(errorMessage);
+      }, 500);
+    } catch (error: any) {
+      console.error("Erreur lors de l'enregistrement de la configuration:", error);
+      toast.error("Erreur lors de l'enregistrement de la configuration");
     } finally {
       setIsConnecting(false);
     }
