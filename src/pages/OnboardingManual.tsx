@@ -10,19 +10,40 @@ import { storeHACredentials } from "@/lib/crypto";
 import { useHAStore } from "@/store/useHAStore";
 import { toast } from "sonner";
 import neoliaLogo from "@/assets/neolia-logo.png";
+import { z } from "zod";
+
+const urlSchema = z.string()
+  .trim()
+  .min(10, "URL trop courte")
+  .max(500, "URL trop longue")
+  .refine(
+    url => /^https?:\/\//i.test(url) || /^wss?:\/\//i.test(url),
+    "L'URL doit commencer par http://, https://, ws:// ou wss://"
+  );
+
+const tokenSchema = z.string()
+  .trim()
+  .min(50, "Token trop court")
+  .max(1000, "Token trop long");
 
 const OnboardingManual = () => {
   const navigate = useNavigate();
-  const [url, setUrl] = useState("http://192.168.1.219:8123");
-  const [token, setToken] = useState("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM");
+  const [url, setUrl] = useState("");
+  const [token, setToken] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const setConnection = useHAStore((state) => state.setConnection);
   const setConnected = useHAStore((state) => state.setConnected);
 
   const handleConnect = async () => {
-    if (!url.trim() || !token.trim()) {
-      toast.error("Veuillez remplir tous les champs");
-      return;
+    // Validate inputs before attempting connection
+    try {
+      urlSchema.parse(url);
+      tokenSchema.parse(token);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+        return;
+      }
     }
 
     setIsConnecting(true);
@@ -108,11 +129,13 @@ const OnboardingManual = () => {
               <Label htmlFor="url">URL Home Assistant</Label>
               <Input
                 id="url"
-                type="text"
+                type="url"
                 placeholder="http://homeassistant.local:8123"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 disabled={isConnecting}
+                maxLength={500}
+                required
               />
             </div>
 
@@ -121,10 +144,12 @@ const OnboardingManual = () => {
               <Input
                 id="token"
                 type="password"
-                placeholder="Votre Long-Lived Access Token"
+                placeholder="eyJhbGci..."
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 disabled={isConnecting}
+                maxLength={1000}
+                required
               />
             </div>
 

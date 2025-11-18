@@ -1,4 +1,5 @@
 import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
+import { logger } from "./logger";
 
 interface HAClientConfig {
   baseUrl: string;
@@ -47,45 +48,45 @@ export class HAClient {
 
   async connect(): Promise<boolean> {
     return new Promise((resolve, reject) => {
-      console.log("🔌 Connexion WebSocket à:", this.wsUrl);
+      logger.debug("🔌 Connexion WebSocket à:", this.wsUrl.replace(/:\d+/, ':****'));
 
       try {
         this.ws = new WebSocket(this.wsUrl);
       } catch (error) {
-        console.error("❌ Erreur création WebSocket:", error);
+        logger.error("❌ Erreur création WebSocket:", error);
         reject(error);
         return;
       }
 
       const authTimeout = setTimeout(() => {
         if (!this.isAuthenticated) {
-          console.error("⏱️ Timeout d'authentification");
+          logger.error("⏱️ Timeout d'authentification");
           this.ws?.close();
           reject(new Error("Timeout d'authentification"));
         }
       }, 15000);
 
       this.ws.onopen = () => {
-        console.log("✅ WebSocket ouvert, attente de auth_required...");
+        logger.debug("✅ WebSocket ouvert, attente de auth_required...");
       };
 
       this.ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          console.log("📨 Message reçu:", message.type, message);
+          logger.debug("📨 Message reçu:", message.type, message);
 
           if (message.type === "auth_required") {
-            console.log("🔐 Auth requise, envoi du token...");
+            logger.debug("🔐 Auth requise, envoi du token...");
             this.send({ type: "auth", access_token: this.config.token });
           } else if (message.type === "auth_ok") {
-            console.log("✅ Authentification réussie!");
+            logger.info("✅ Authentification réussie!");
             this.isAuthenticated = true;
             this.reconnectAttempts = 0;
             clearTimeout(authTimeout);
             
             // Si c'est une reconnexion, émettre l'événement
             if (this.isReconnecting) {
-              console.log("🔄 Reconnexion réussie, émission de l'événement");
+              logger.info("🔄 Reconnexion réussie, émission de l'événement");
               this.isReconnecting = false;
               // Émettre après un court délai pour que resolve() soit appelé en premier
               setTimeout(() => this.handleEvent({ event_type: "reconnected", data: {} }), 0);
@@ -93,7 +94,7 @@ export class HAClient {
             
             resolve(true);
           } else if (message.type === "auth_invalid") {
-            console.error("❌ Token invalide");
+            logger.error("❌ Token invalide");
             clearTimeout(authTimeout);
             this.isAuthenticated = false;
             reject(new Error("Token d'authentification invalide"));
@@ -102,7 +103,7 @@ export class HAClient {
             this.pendingMessages.delete(message.id);
 
             if (message.success === false) {
-              console.error("❌ Erreur de la requête:", message.error);
+              logger.error("❌ Erreur de la requête:", message.error);
               rejectPending(new Error(message.error?.message || "Erreur inconnue"));
             } else {
               resolvePending(message.result);
@@ -111,12 +112,12 @@ export class HAClient {
             this.handleEvent(message.event);
           }
         } catch (error) {
-          console.error("❌ Erreur parsing message:", error, event.data);
+          logger.error("❌ Erreur parsing message:", error, event.data);
         }
       };
 
       this.ws.onerror = (error) => {
-        console.error("❌ Erreur WebSocket:", error);
+        logger.error("❌ Erreur WebSocket:", error);
         clearTimeout(authTimeout);
         if (!this.isAuthenticated) {
           reject(error);
@@ -124,7 +125,7 @@ export class HAClient {
       };
 
       this.ws.onclose = (event) => {
-        console.log("🔌 WebSocket fermé:", event.code, event.reason);
+        logger.debug("🔌 WebSocket fermé:", event.code, event.reason);
         this.isAuthenticated = false;
         this.ws = null;
 
@@ -132,11 +133,11 @@ export class HAClient {
         if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
           const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-          console.log(`🔄 Tentative de reconnexion ${this.reconnectAttempts}/${this.maxReconnectAttempts} dans ${delay}ms...`);
+          logger.info(`🔄 Tentative de reconnexion ${this.reconnectAttempts}/${this.maxReconnectAttempts} dans ${delay}ms...`);
           
           this.isReconnecting = true;
           this.reconnectTimeout = setTimeout(() => {
-            this.connect().catch(console.error);
+            this.connect().catch(logger.error);
           }, delay);
         }
       };
@@ -146,7 +147,7 @@ export class HAClient {
   private send(message: any) {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
-      console.log("📤 Message envoyé:", message.type || message.id);
+      logger.debug("📤 Message envoyé:", message.type || message.id);
     } else {
       console.error("❌ WebSocket non connecté, impossible d'envoyer:", message);
       throw new Error("WebSocket non connecté");
