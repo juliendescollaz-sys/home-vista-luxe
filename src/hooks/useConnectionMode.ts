@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
-import { getHaConfig, testHaConnection } from "@/services/haConfig";
+import { useEffect, useState } from "react";
+import { getHaConfig } from "@/services/haConfig";
 
 export type ConnectionMode = "local" | "remote";
 
 export interface ConnectionInfo {
-  connectionMode: ConnectionMode | null;
+  connectionMode: ConnectionMode;
   haBaseUrl: string | null;
   isLocal: boolean;
   isRemote: boolean;
@@ -13,19 +13,45 @@ export interface ConnectionInfo {
 }
 
 /**
- * Hook pour déterminer automatiquement le mode de connexion (local vs remote)
- * pour les modes MOBILE et TABLET uniquement.
- * 
- * Logique :
- * 1. Teste d'abord la connexion locale (si localHaUrl existe)
- * 2. Si échec, bascule sur la connexion distante (si remoteHaUrl existe)
- * 3. Retourne l'URL effective à utiliser pour les appels HA
- * 
- * IMPORTANT : Ce hook ne doit PAS être utilisé en mode PANEL
+ * Teste la connexion à Home Assistant sur baseUrl (/api/config)
+ * Toute erreur (timeout, CORS, mixed content, 4xx/5xx) = false
  */
+async function testHaConnection(
+  baseUrl: string,
+  token: string,
+  timeoutMs: number
+): Promise<boolean> {
+  const trimmed = baseUrl.replace(/\/+$/, "");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${trimmed}/api/config`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    // On essaie de parser le JSON pour s'assurer que ce n'est pas une réponse foireuse
+    await response.json();
+    return true;
+  } catch (_err) {
+    // Erreur réseau, CORS, mixed content, AbortError, etc. => KO
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function useConnectionMode(): ConnectionInfo {
-  const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo>({
-    connectionMode: null,
+  const [state, setState] = useState<ConnectionInfo>({
+    connectionMode: "local",
     haBaseUrl: null,
     isLocal: false,
     isRemote: false,
@@ -34,22 +60,21 @@ export function useConnectionMode(): ConnectionInfo {
   });
 
   useEffect(() => {
-    let isMounted = true;
+    let cancelled = false;
 
-    const detectConnectionMode = async () => {
+    async function check() {
       try {
-        // Récupérer la configuration HA
-        const config = await getHaConfig();
+        const config = await getHaConfig(); // { localHaUrl, remoteHaUrl, token } ou null
 
-        if (!config || !config.token) {
-          if (isMounted) {
-            setConnectionInfo({
-              connectionMode: null,
+        if (!config || !config.localHaUrl || !config.token) {
+          if (!cancelled) {
+            setState({
+              connectionMode: "local",
               haBaseUrl: null,
               isLocal: false,
               isRemote: false,
               isChecking: false,
-              error: "Configuration Home Assistant manquante",
+              error: "Configuration Home Assistant incomplète.",
             });
           }
           return;
@@ -57,88 +82,87 @@ export function useConnectionMode(): ConnectionInfo {
 
         const { localHaUrl, remoteHaUrl, token } = config;
 
-        // localHaUrl est TOUJOURS présent (obligatoire)
-        // On teste d'abord la connexion locale
-        const isLocalAvailable = await testHaConnection(localHaUrl, token, 3000);
+        if (!cancelled) {
+          setState((prev) => ({
+            ...prev,
+            isChecking: true,
+            error: undefined,
+          }));
+        }
 
-        if (isLocalAvailable) {
-          if (isMounted) {
-            setConnectionInfo({
-              connectionMode: "local",
-              haBaseUrl: localHaUrl,
-              isLocal: true,
-              isRemote: false,
-              isChecking: false,
-            });
-          }
+        // 1) TENTER LE LOCAL
+        const localOk = await testHaConnection(localHaUrl, token, 3000);
+
+        if (!cancelled && localOk) {
+          setState({
+            connectionMode: "local",
+            haBaseUrl: localHaUrl,
+            isLocal: true,
+            isRemote: false,
+            isChecking: false,
+            error: undefined,
+          });
           return;
         }
 
-        // Local échoue - tester le cloud si disponible
+        // 2) SI LOCAL KO → TENTER CLOUD SI DISPONIBLE
         if (remoteHaUrl) {
-          const isRemoteAvailable = await testHaConnection(remoteHaUrl, token, 5000);
+          const remoteOk = await testHaConnection(remoteHaUrl, token, 5000);
 
-          if (isRemoteAvailable) {
-            if (isMounted) {
-              setConnectionInfo({
-                connectionMode: "remote",
-                haBaseUrl: remoteHaUrl,
-                isLocal: false,
-                isRemote: true,
-                isChecking: false,
-              });
-            }
+          if (!cancelled && remoteOk) {
+            setState({
+              connectionMode: "remote",
+              haBaseUrl: remoteHaUrl,
+              isLocal: false,
+              isRemote: true,
+              isChecking: false,
+              error: undefined,
+            });
             return;
           }
-
-          // Les deux ont échoué
-          if (isMounted) {
-            setConnectionInfo({
-              connectionMode: null,
-              haBaseUrl: null,
-              isLocal: false,
-              isRemote: false,
-              isChecking: false,
-              error: "Impossible de contacter Home Assistant en local. L'accès cloud a également échoué.",
-            });
-          }
-          return;
         }
 
-        // Pas d'URL cloud configurée et local échoue
-        if (isMounted) {
-          setConnectionInfo({
-            connectionMode: null,
+        // 3) SI LOCAL + CLOUD KO, OU CLOUD NON CONFIGURÉ
+        if (!cancelled) {
+          let errorMessage = "Impossible de contacter Home Assistant en local.";
+          if (!remoteHaUrl) {
+            errorMessage += " Aucun accès cloud n'est configuré.";
+          } else {
+            errorMessage += " L'accès cloud a également échoué.";
+          }
+
+          setState({
+            connectionMode: "local",
             haBaseUrl: null,
             isLocal: false,
             isRemote: false,
             isChecking: false,
-            error: "Impossible de contacter Home Assistant en local et aucun accès cloud n'est configuré.",
+            error: errorMessage,
           });
         }
-      } catch (error) {
-        if (isMounted) {
-          setConnectionInfo({
-            connectionMode: null,
+      } catch (err) {
+        if (!cancelled) {
+          setState({
+            connectionMode: "local",
             haBaseUrl: null,
             isLocal: false,
             isRemote: false,
             isChecking: false,
             error:
-              error instanceof Error
-                ? error.message
-                : "Erreur lors de la détection du mode de connexion",
+              err instanceof Error
+                ? err.message
+                : "Erreur inattendue lors de la détection de la connexion.",
           });
         }
       }
-    };
+    }
 
-    detectConnectionMode();
+    check();
 
     return () => {
-      isMounted = false;
+      cancelled = true;
     };
   }, []);
 
-  return connectionInfo;
+  return state;
 }
