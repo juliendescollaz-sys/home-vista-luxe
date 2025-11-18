@@ -9,26 +9,17 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ThemeProvider } from "next-themes";
 import Onboarding from "./pages/Onboarding";
 import Auth from "./pages/Auth";
-import Home from "./pages/Home";
-import Rooms from "./pages/Rooms";
-import RoomDetails from "./pages/RoomDetails";
-import MediaPlayerDetails from "./pages/MediaPlayerDetails";
-import Favorites from "./pages/Favorites";
-import Scenes from "./pages/Scenes";
-import Activity from "./pages/Activity";
-import Settings from "./pages/Settings";
-import Dev from "./pages/Dev";
-import NotFound from "./pages/NotFound";
-import SonosZones from "./pages/SonosZones";
 import { useAuth } from "./hooks/useAuth";
 import { useInitializeConnection } from "./hooks/useInitializeConnection";
 import { useHAClient } from "./hooks/useHAClient";
 import { useHARefreshOnForeground } from "./hooks/useHARefreshOnForeground";
 import { useReloadOnForegroundIOS } from "./hooks/useReloadOnForegroundIOS";
+import { useDisplayMode } from "./hooks/useDisplayMode";
+import { MobileRootLayout } from "./ui/mobile/MobileRootLayout";
+import { TabletRootLayout } from "./ui/tablet/TabletRootLayout";
+import { PanelRootLayout } from "./ui/panel/PanelRootLayout";
 
 // Lazy load pages avec dependencies lourdes
-const OnboardingScan = lazy(() => import("./pages/OnboardingScan"));
-const OnboardingManual = lazy(() => import("./pages/OnboardingManual"));
 const Admin = lazy(() => import("./pages/Admin"));
 
 const queryClient = new QueryClient();
@@ -82,6 +73,9 @@ const App = () => {
   // Rafraîchir les entités au retour au premier plan
   useHARefreshOnForeground();
 
+  // Détection du mode d'affichage (mobile/tablet/panel)
+  const { displayMode } = useDisplayMode();
+
   if (!isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -98,114 +92,41 @@ const App = () => {
             <Toaster />
             <Sonner />
             <BrowserRouter>
-            <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/onboarding/scan" element={
-              <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
-                <OnboardingScan />
-              </Suspense>
-            } />
-            <Route path="/onboarding/manual" element={
-              <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
-                <OnboardingManual />
-              </Suspense>
-            } />
-            <Route path="/admin" element={
-              <AdminRoute>
-                <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
-                  <Admin />
-                </Suspense>
-              </AdminRoute>
-            } />
-            <Route
-              path="/"
-              element={
-                <PrivateRoute>
-                  <Home />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/rooms"
-              element={
-                <PrivateRoute>
-                  <Rooms />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/rooms/:areaId"
-              element={
-                <PrivateRoute>
-                  <RoomDetails />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/media-player/:entityId"
-              element={
-                <PrivateRoute>
-                  <MediaPlayerDetails />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/favorites"
-              element={
-                <PrivateRoute>
-                  <Favorites />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/scenes"
-              element={
-                <PrivateRoute>
-                  <Scenes />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/activity"
-              element={
-                <PrivateRoute>
-                  <Activity />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <PrivateRoute>
-                  <Settings />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/dev"
-              element={
-                <PrivateRoute>
-                  <Dev />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/sonos-zones"
-              element={
-                <PrivateRoute>
-                  <SonosZones />
-                </PrivateRoute>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+              <Routes>
+                {/* Routes publiques (onboarding, auth, admin) */}
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/admin" element={
+                  <AdminRoute>
+                    <Suspense fallback={<LoadingScreen />}>
+                      <Admin />
+                    </Suspense>
+                  </AdminRoute>
+                } />
+
+                {/* Routes protégées avec routage par mode d'affichage */}
+                <Route path="/*" element={
+                  <PrivateRoute>
+                    {displayMode === "panel" && <PanelRootLayout />}
+                    {displayMode === "tablet" && <TabletRootLayout />}
+                    {displayMode === "mobile" && <MobileRootLayout />}
+                  </PrivateRoute>
+                } />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
         </ThemeProvider>
-    </QueryClientProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 };
+
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="animate-pulse text-muted-foreground">Chargement...</div>
+    </div>
+  );
+}
 
 export default App;
