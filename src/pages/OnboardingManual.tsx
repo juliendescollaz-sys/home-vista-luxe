@@ -104,8 +104,21 @@ const OnboardingManual = () => {
   return (
     <div className="min-h-screen flex flex-col p-4 bg-background">
       <div className="w-full max-w-md mx-auto space-y-8 animate-fade-up">
+        {/* Bouton retour */}
+        <div className="pt-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/onboarding")}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour
+          </Button>
+        </div>
+
         {/* Logo */}
-        <div className="text-center space-y-6 pt-8">
+        <div className="text-center space-y-6">
           <div className="flex justify-center">
             <img 
               src={neoliaLogo} 
