@@ -94,12 +94,12 @@ export function useConnectionMode(): ConnectionInfo {
           // Les deux ont échoué
           if (isMounted) {
             setConnectionInfo({
-              connectionMode: "remote",
-              haBaseUrl: remoteHaUrl,
+              connectionMode: null,
+              haBaseUrl: null,
               isLocal: false,
-              isRemote: true,
+              isRemote: false,
               isChecking: false,
-              error: "Impossible de contacter Home Assistant ni en local ni via le cloud.",
+              error: "Impossible de contacter Home Assistant en local. L'accès cloud a également échoué.",
             });
           }
           return;

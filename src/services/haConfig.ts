@@ -171,8 +171,11 @@ export async function testHaConnection(
   token: string,
   timeoutMs: number = 3000
 ): Promise<boolean> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const testUrl = `${url}/api/config`;
+    const testUrl = `${url.replace(/\/+$/, "")}/api/config`;
 
     const response = await fetch(testUrl, {
       method: "GET",
@@ -180,12 +183,20 @@ export async function testHaConnection(
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: controller.signal,
     });
 
-    return response.ok;
+    if (!response.ok) {
+      return false;
+    }
+
+    // Tenter de parser JSON pour valider la réponse
+    await response.json();
+    return true;
   } catch {
-    // Toute erreur = connexion échouée
+    // Toute erreur (CORS, mixed content, timeout, réseau, JSON invalide, etc.) = connexion échouée
     return false;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
