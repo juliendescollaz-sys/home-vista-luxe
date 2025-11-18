@@ -6,9 +6,9 @@
 import { storeHACredentials, getHACredentials } from "@/lib/crypto";
 
 export interface HAConfig {
-  localHaUrl?: string;
-  remoteHaUrl?: string;
-  token: string;
+  localHaUrl: string;      // OBLIGATOIRE - URL locale (LAN)
+  remoteHaUrl?: string;    // OPTIONNEL - URL cloud (Nabu Casa)
+  token: string;           // OBLIGATOIRE
 }
 
 // Pour compatibilité ascendante
@@ -41,24 +41,30 @@ export async function getHaConfig(): Promise<HAConfig | null> {
       return null;
     }
 
-    // Nouveau format : localHaUrl et/ou remoteHaUrl
+    // Nouveau format : localHaUrl (obligatoire) et/ou remoteHaUrl (optionnel)
     const configStr = localStorage.getItem("ha_config_v2");
     if (configStr) {
       try {
-        const config = JSON.parse(configStr) as HAConfig;
-        return { ...config, token: credentials.token };
+        const config = JSON.parse(configStr) as { localHaUrl?: string; remoteHaUrl?: string };
+        // localHaUrl est obligatoire dans le nouveau format
+        if (config.localHaUrl) {
+          return { 
+            localHaUrl: config.localHaUrl,
+            remoteHaUrl: config.remoteHaUrl,
+            token: credentials.token 
+          };
+        }
       } catch {
         // Format invalide, continuer avec l'ancien format
       }
     }
 
     // Ancien format : baseUrl unique (compatibilité ascendante)
+    // On le traite comme localHaUrl, peu importe si c'est nabu.casa ou local
     if (credentials.baseUrl) {
-      // Si l'URL contient nabu.casa, c'est une URL cloud
-      const isNabuCasa = credentials.baseUrl.includes("nabu.casa");
       return {
-        localHaUrl: isNabuCasa ? undefined : credentials.baseUrl,
-        remoteHaUrl: isNabuCasa ? credentials.baseUrl : undefined,
+        localHaUrl: credentials.baseUrl,
+        remoteHaUrl: undefined,
         token: credentials.token,
       };
     }
@@ -79,26 +85,33 @@ export async function setHaConfig(config: HAConfig | HAConfigLegacy): Promise<vo
     // Si c'est l'ancien format (url unique)
     if ("url" in config) {
       await storeHACredentials(config.url, config.token);
+      // Le traiter comme localHaUrl pour compatibilité
+      localStorage.setItem(
+        "ha_config_v2",
+        JSON.stringify({
+          localHaUrl: config.url,
+          remoteHaUrl: undefined,
+        })
+      );
       return;
     }
 
-    // Nouveau format : stocker localHaUrl et/ou remoteHaUrl
+    // Nouveau format : localHaUrl est obligatoire
     const { localHaUrl, remoteHaUrl, token } = config;
 
-    // Stocker le token (utiliser la première URL disponible comme baseUrl pour compatibilité)
-    const baseUrl = localHaUrl || remoteHaUrl;
-    if (!baseUrl) {
-      throw new Error("Au moins une URL (locale ou distante) doit être fournie");
+    if (!localHaUrl) {
+      throw new Error("L'URL locale est obligatoire");
     }
 
-    await storeHACredentials(baseUrl, token);
+    // Stocker le token avec localHaUrl comme baseUrl
+    await storeHACredentials(localHaUrl, token);
 
     // Stocker la config complète séparément pour la nouvelle logique
     localStorage.setItem(
       "ha_config_v2",
       JSON.stringify({
         localHaUrl,
-        remoteHaUrl,
+        remoteHaUrl: remoteHaUrl || undefined,
       })
     );
   } catch (error) {

@@ -153,8 +153,8 @@ const OnboardingScan = () => {
       console.log("📱 QR code scanné:", qrText.substring(0, 50) + "...");
 
       // Parse and validate QR code
-      const { baseUrl, token, wsUrl } = parseQRCode(qrText);
-      console.log("✅ QR code valide:", { baseUrl, wsUrl });
+      const { localHaUrl, remoteHaUrl, token, wsUrl } = parseQRCode(qrText);
+      console.log("✅ QR code valide:", { localHaUrl, remoteHaUrl, wsUrl });
 
       setMessage("Connexion à Home Assistant...");
 
@@ -165,12 +165,17 @@ const OnboardingScan = () => {
       setStatus("success");
       setMessage("Connexion établie !");
 
-      // Store encrypted credentials locally
-      await storeHACredentials(baseUrl, token);
+      // Enregistrer la configuration avec le nouveau format
+      const { setHaConfig } = await import("@/services/haConfig");
+      await setHaConfig({
+        localHaUrl,
+        remoteHaUrl,
+        token,
+      });
 
       // Update Zustand store
       setConnection({
-        url: baseUrl,
+        url: localHaUrl,
         token: token,
         connected: true,
       });

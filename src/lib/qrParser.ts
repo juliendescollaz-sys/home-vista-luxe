@@ -9,13 +9,25 @@ import { logger } from './logger';
  */
 
 export interface ParsedQRData {
-  baseUrl: string;
+  localHaUrl: string;
+  remoteHaUrl?: string;
   token: string;
   wsUrl: string;
+  // Kept for backward compatibility
+  baseUrl: string;
 }
 
-type QRPayloadA = { ha_url: string; ha_token: string };
-type QRPayloadB = { url: string; access_token: string };
+// Ancien format (rétrocompatibilité)
+type QRPayloadLegacyA = { ha_url: string; ha_token: string };
+type QRPayloadLegacyB = { url: string; access_token: string };
+
+// Nouveau format (version 2)
+type QRPayloadV2 = { 
+  version: 2;
+  localHaUrl: string; 
+  remoteHaUrl?: string;
+  token: string;
+};
 
 /**
  * Normalize base URL by removing trailing slashes
@@ -76,7 +88,32 @@ export function parseQRCode(rawQR: string): ParsedQRData {
     throw new Error("QR invalide : contenu non JSON.");
   }
 
-  // Extract URL and token (support both variants)
+  // Nouveau format V2
+  if (data.version === 2) {
+    const localHaUrl = data.localHaUrl?.toString();
+    const remoteHaUrl = data.remoteHaUrl?.toString();
+    const token = data.token?.toString();
+
+    if (!localHaUrl || !token) {
+      throw new Error("QR incomplet : URL locale ou token manquant.");
+    }
+
+    if (!token.trim()) {
+      throw new Error("Token invalide : le token ne peut pas être vide.");
+    }
+
+    const wsUrl = toWebSocketEndpoint(localHaUrl);
+    
+    return {
+      localHaUrl: normalizeBaseUrl(localHaUrl),
+      remoteHaUrl: remoteHaUrl ? normalizeBaseUrl(remoteHaUrl) : undefined,
+      token: token.trim(),
+      wsUrl,
+      baseUrl: normalizeBaseUrl(localHaUrl), // For backward compatibility
+    };
+  }
+
+  // Ancien format (rétrocompatibilité): ha_url/ha_token ou url/access_token
   const baseUrl = (data.ha_url ?? data.url)?.toString();
   const token = (data.ha_token ?? data.access_token)?.toString();
 
@@ -85,7 +122,7 @@ export function parseQRCode(rawQR: string): ParsedQRData {
     throw new Error("QR incomplet : URL ou token manquant.");
   }
 
-  // Validate token format (optional: basic JWT check)
+  // Validate token format
   if (!token.trim()) {
     throw new Error("Token invalide : le token ne peut pas être vide.");
   }
@@ -93,10 +130,13 @@ export function parseQRCode(rawQR: string): ParsedQRData {
   // Build WebSocket URL
   const wsUrl = toWebSocketEndpoint(baseUrl);
   
+  // Ancien QR devient localHaUrl uniquement (pas de remote)
   return {
-    baseUrl: normalizeBaseUrl(baseUrl),
+    localHaUrl: normalizeBaseUrl(baseUrl),
+    remoteHaUrl: undefined,
     token: token.trim(),
     wsUrl,
+    baseUrl: normalizeBaseUrl(baseUrl), // For backward compatibility
   };
 }
 
