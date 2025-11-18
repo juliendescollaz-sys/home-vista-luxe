@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
 import Home from "@/pages/Home";
 import Rooms from "@/pages/Rooms";
 import RoomDetails from "@/pages/RoomDetails";
@@ -11,10 +10,6 @@ import Settings from "@/pages/Settings";
 import Dev from "@/pages/Dev";
 import NotFound from "@/pages/NotFound";
 import SonosZones from "@/pages/SonosZones";
-
-// Lazy load pages avec dependencies lourdes
-const OnboardingScan = lazy(() => import("@/pages/OnboardingScan"));
-const OnboardingManual = lazy(() => import("@/pages/OnboardingManual"));
 
 /**
  * Layout racine pour l'interface MOBILE (smartphone)
@@ -42,34 +37,8 @@ export function MobileRootLayout() {
       <Route path="/dev" element={<Dev />} />
       <Route path="/sonos-zones" element={<SonosZones />} />
 
-      {/* Onboarding */}
-      <Route
-        path="/onboarding/scan"
-        element={
-          <Suspense fallback={<LoadingFallback />}>
-            <OnboardingScan />
-          </Suspense>
-        }
-      />
-      <Route
-        path="/onboarding/manual"
-        element={
-          <Suspense fallback={<LoadingFallback />}>
-            <OnboardingManual />
-          </Suspense>
-        }
-      />
-
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
-  );
-}
-
-function LoadingFallback() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="animate-pulse text-muted-foreground">Chargement...</div>
-    </div>
   );
 }

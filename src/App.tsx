@@ -21,6 +21,8 @@ import { PanelRootLayout } from "./ui/panel/PanelRootLayout";
 
 // Lazy load pages avec dependencies lourdes
 const Admin = lazy(() => import("./pages/Admin"));
+const OnboardingScan = lazy(() => import("./pages/OnboardingScan"));
+const OnboardingManual = lazy(() => import("./pages/OnboardingManual"));
 
 const queryClient = new QueryClient();
 
@@ -96,6 +98,16 @@ const App = () => {
                 {/* Routes publiques (onboarding, auth, admin) */}
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/onboarding/scan" element={
+                  <Suspense fallback={<LoadingScreen />}>
+                    <OnboardingScan />
+                  </Suspense>
+                } />
+                <Route path="/onboarding/manual" element={
+                  <Suspense fallback={<LoadingScreen />}>
+                    <OnboardingManual />
+                  </Suspense>
+                } />
                 <Route path="/admin" element={
                   <AdminRoute>
                     <Suspense fallback={<LoadingScreen />}>
