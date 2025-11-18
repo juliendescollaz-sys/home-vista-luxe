@@ -146,7 +146,7 @@ export function AnimatedWeatherTile() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-slate-700 hover:bg-white/30 bg-white/20 dark:text-white dark:hover:bg-white/30 dark:bg-black/20"
+                className="text-slate-700 hover:bg-transparent bg-white/20 dark:text-white dark:hover:bg-transparent dark:bg-black/20"
                 onClick={(e) => {
                   e.stopPropagation();
                   refresh();
@@ -158,7 +158,7 @@ export function AnimatedWeatherTile() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-slate-700 hover:bg-white/30 bg-white/20 dark:text-white dark:hover:bg-white/30 dark:bg-black/20"
+                className="text-slate-700 hover:bg-transparent bg-white/20 dark:text-white dark:hover:bg-transparent dark:bg-black/20"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowConfig(true);
