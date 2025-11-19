@@ -196,7 +196,7 @@ const Rooms = () => {
     <div className="min-h-screen bg-background pb-24 pt-20">
       <TopBar />
       <div className="max-w-screen-xl mx-auto px-4 py-8">
-        <h2 className="text-3xl font-bold mb-6">Pièces</h2>
+        <h2 className="text-3xl font-bold mb-6">Maison</h2>
         
         {areas.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
