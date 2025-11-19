@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ConnectionModeProvider } from "@/components/ConnectionModeProvider";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import Home from "@/pages/Home";
 import Rooms from "@/pages/Rooms";
 import RoomDetails from "@/pages/RoomDetails";
@@ -27,6 +28,7 @@ import SonosZones from "@/pages/SonosZones";
 export function TabletRootLayout() {
   return (
     <ConnectionModeProvider>
+      <ScrollToTop />
       <div className="tablet-layout">
         {/* Note : Pour l'instant, on réutilise les mêmes pages que mobile */}
         {/* TODO : Créer des variantes optimisées pour tablet avec split-view */}
