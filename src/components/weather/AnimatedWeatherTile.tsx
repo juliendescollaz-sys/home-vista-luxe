@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Settings, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { WeatherAnimationLayer } from "./WeatherAnimationLayer";
 import { WeatherStatsRow } from "./WeatherStatsRow";
 import { ForecastPanel } from "./ForecastPanel";
 import { TrendBackdrop } from "./TrendBackdrop";
@@ -112,16 +111,6 @@ export function AnimatedWeatherTile() {
             dominantCondition={dominant}
             opacity={trendOpacity}
             isNight={isNight}
-          />
-        </div>
-
-        {/* Couche d'animation de fond */}
-        <div className="absolute inset-0 -z-10 opacity-85">
-          <WeatherAnimationLayer
-            condition={condition}
-            isNight={isNight}
-            windSpeed={weatherData.wind_speed}
-            animationsEnabled={true}
           />
         </div>
 
