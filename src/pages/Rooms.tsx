@@ -1,7 +1,7 @@
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useHAStore } from "@/store/useHAStore";
-import { Home } from "lucide-react";
+import { Home, ArrowLeft } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
@@ -20,23 +20,65 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   rectSortingStrategy,
+  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { SortableRoomCard } from "@/components/SortableRoomCard";
+import { SortableDeviceCard } from "@/components/SortableDeviceCard";
+import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { FloorSection } from "@/components/FloorSection";
+import { FloorCard } from "@/components/FloorCard";
+import { ViewSelector, ViewMode } from "@/components/ViewSelector";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
-import { HAFloor } from "@/types/homeassistant";
+import { HAFloor, HAArea, HAEntity } from "@/types/homeassistant";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const Rooms = () => {
   const areas = useHAStore((state) => state.areas);
   const floors = useHAStore((state) => state.floors);
   const devices = useHAStore((state) => state.devices);
+  const entities = useHAStore((state) => state.entities);
+  const client = useHAStore((state) => state.client);
   const areaPhotos = useHAStore((state) => state.areaPhotos);
   const areaOrder = useHAStore((state) => state.areaOrder);
   const setAreaPhoto = useHAStore((state) => state.setAreaPhoto);
   const setAreaOrder = useHAStore((state) => state.setAreaOrder);
   const { displayMode } = useDisplayMode();
   
+  const [viewMode, setViewMode] = useState<ViewMode>("floors");
+  const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Réinitialiser la sélection d'étage quand on change de vue
+  useEffect(() => {
+    if (viewMode !== "floors") {
+      setSelectedFloor(null);
+    }
+  }, [viewMode]);
+
+  // Filtrer les entités contrôlables (pas les capteurs passifs)
+  const controllableEntities = useMemo(() => {
+    return entities.filter(entity => {
+      const domain = entity.entity_id.split(".")[0];
+      return ["light", "switch", "media_player", "cover", "climate", "fan"].includes(domain);
+    });
+  }, [entities]);
+
+  // Fonction pour alterner un appareil
+  const handleDeviceToggle = async (entityId: string) => {
+    if (!client) return;
+    
+    const domain = entityId.split(".")[0];
+    const service = domain === "light" || domain === "switch" ? "toggle" : "toggle";
+    
+    try {
+      await client.callService(domain, service, { entity_id: entityId });
+      toast.success("Commande envoyée");
+    } catch (error) {
+      console.error("Error toggling device:", error);
+      toast.error("Erreur lors de la commande");
+    }
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -196,7 +238,14 @@ const Rooms = () => {
     <div className="min-h-screen bg-background pb-24 pt-20">
       <TopBar />
       <div className="max-w-screen-xl mx-auto px-4 py-8">
-        <h2 className="text-3xl font-bold mb-6">Maison</h2>
+        <h2 className="text-3xl font-bold mb-4">Maison</h2>
+        
+        <div className="mb-6">
+          <ViewSelector 
+            selectedView={viewMode} 
+            onViewChange={setViewMode} 
+          />
+        </div>
         
         {areas.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -207,46 +256,173 @@ const Rooms = () => {
             </p>
           </div>
         ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={allAreaIds}
-              strategy={rectSortingStrategy}
-            >
-              <div className="space-y-8">
-                {floorGroups.map((group) => (
-                  <FloorSection
-                    key={group.floor?.floor_id || 'no-floor'}
-                    floor={group.floor}
-                    areas={group.areas}
-                    devices={devices}
-                    areaPhotos={areaPhotos}
-                    onPhotoChange={handlePhotoChange}
-                    displayMode={displayMode}
-                    isCollapsible={displayMode === "mobile"}
-                  />
-                ))}
+          <>
+            {/* Vue Étages avec drill-down */}
+            {viewMode === "floors" && !selectedFloor && (
+              <div className="space-y-3 animate-fade-in">
+                {floorGroups.map((group) => {
+                  const floorId = group.floor?.floor_id || "no-floor";
+                  const roomCount = group.areas.length;
+                  const deviceCount = group.areas.reduce((acc, area) => 
+                    acc + getDeviceCount(area.area_id), 0
+                  );
+                  
+                  return (
+                    <FloorCard
+                      key={floorId}
+                      floor={group.floor}
+                      roomCount={roomCount}
+                      deviceCount={deviceCount}
+                      onClick={() => setSelectedFloor(floorId)}
+                    />
+                  );
+                })}
               </div>
-            </SortableContext>
-            
-            <DragOverlay dropAnimation={null}>
-              {activeArea ? (
-                <div className="opacity-90 rotate-3 scale-105">
-                  <SortableRoomCard
-                    areaId={activeArea.area_id}
-                    name={activeArea.name}
-                    deviceCount={getDeviceCount(activeArea.area_id)}
-                    customPhoto={areaPhotos[activeArea.area_id]}
-                    onPhotoChange={() => {}}
-                  />
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
+            )}
+
+            {/* Vue des pièces d'un étage sélectionné */}
+            {viewMode === "floors" && selectedFloor && (
+              <div className="space-y-4 animate-fade-in">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedFloor(null)}
+                  className="mb-2"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Retour aux étages
+                </Button>
+                
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={floorGroups.find(g => (g.floor?.floor_id || "no-floor") === selectedFloor)?.areas.map(a => a.area_id) || []}
+                    strategy={rectSortingStrategy}
+                  >
+                    {floorGroups
+                      .filter(g => (g.floor?.floor_id || "no-floor") === selectedFloor)
+                      .map((group) => (
+                        <FloorSection
+                          key={group.floor?.floor_id || 'no-floor'}
+                          floor={group.floor}
+                          areas={group.areas}
+                          devices={devices}
+                          areaPhotos={areaPhotos}
+                          onPhotoChange={handlePhotoChange}
+                          displayMode={displayMode}
+                          isCollapsible={false}
+                        />
+                      ))}
+                  </SortableContext>
+                  
+                  <DragOverlay dropAnimation={null}>
+                    {activeArea ? (
+                      <div className="opacity-90 rotate-3 scale-105">
+                        <SortableRoomCard
+                          areaId={activeArea.area_id}
+                          name={activeArea.name}
+                          deviceCount={getDeviceCount(activeArea.area_id)}
+                          customPhoto={areaPhotos[activeArea.area_id]}
+                          onPhotoChange={() => {}}
+                        />
+                      </div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
+              </div>
+            )}
+
+            {/* Vue Pièces - toutes les pièces à plat */}
+            {viewMode === "rooms" && (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={allAreaIds}
+                  strategy={rectSortingStrategy}
+                >
+                  <div className={`grid ${displayMode === "mobile" ? "grid-cols-1" : displayMode === "tablet" ? "grid-cols-2" : "grid-cols-3"} gap-4 animate-fade-in`}>
+                    {floorGroups.flatMap(group => group.areas).map((area) => (
+                      <SortableRoomCard
+                        key={area.area_id}
+                        areaId={area.area_id}
+                        name={area.name}
+                        deviceCount={getDeviceCount(area.area_id)}
+                        customPhoto={areaPhotos[area.area_id]}
+                        onPhotoChange={(file) => handlePhotoChange(area.area_id, file)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+                
+                <DragOverlay dropAnimation={null}>
+                  {activeArea ? (
+                    <div className="opacity-90 rotate-3 scale-105">
+                      <SortableRoomCard
+                        areaId={activeArea.area_id}
+                        name={activeArea.name}
+                        deviceCount={getDeviceCount(activeArea.area_id)}
+                        customPhoto={areaPhotos[activeArea.area_id]}
+                        onPhotoChange={() => {}}
+                      />
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            )}
+
+            {/* Vue Appareils - tous les appareils à plat */}
+            {viewMode === "devices" && (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={controllableEntities.map(e => e.entity_id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-3 animate-fade-in">
+                    {controllableEntities.map((entity) => {
+                      const isMediaPlayer = entity.entity_id.startsWith("media_player.");
+                      return isMediaPlayer ? (
+                        <SortableMediaPlayerCard
+                          key={entity.entity_id}
+                          entity={entity}
+                        />
+                      ) : (
+                        <SortableDeviceCard
+                          key={entity.entity_id}
+                          entity={entity}
+                          onToggle={handleDeviceToggle}
+                        />
+                      );
+                    })}
+                  </div>
+                </SortableContext>
+                
+                <DragOverlay dropAnimation={null}>
+                  {activeId && entities.find(e => e.entity_id === activeId) ? (
+                    <div className="opacity-90 rotate-1 scale-105">
+                      {activeId.startsWith("media_player.") ? (
+                        <SortableMediaPlayerCard entity={entities.find(e => e.entity_id === activeId)!} />
+                      ) : (
+                        <SortableDeviceCard entity={entities.find(e => e.entity_id === activeId)!} onToggle={() => {}} />
+                      )}
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            )}
+          </>
         )}
       </div>
       <BottomNav />
