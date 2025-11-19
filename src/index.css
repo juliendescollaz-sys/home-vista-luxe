@@ -200,4 +200,13 @@ All colors MUST be HSL.
     padding-bottom: var(--safe-bottom);
     padding-left: var(--safe-left);
   }
+
+  /* Optimisations pour layouts Tablet et Panel */
+  @media (min-width: 768px) {
+    /* Réduire les espacements sur tablet/panel pour maximiser l'espace */
+    .tablet-layout .max-w-2xl,
+    .panel-layout .max-w-2xl {
+      @apply max-w-full;
+    }
+  }
 }
