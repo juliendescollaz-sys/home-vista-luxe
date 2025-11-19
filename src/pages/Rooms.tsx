@@ -3,16 +3,61 @@ import { BottomNav } from "@/components/BottomNav";
 import { useHAStore } from "@/store/useHAStore";
 import { RoomCard } from "@/components/RoomCard";
 import { Home } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableRoomCard } from "@/components/SortableRoomCard";
 
 const Rooms = () => {
   const areas = useHAStore((state) => state.areas);
   const devices = useHAStore((state) => state.devices);
   const areaPhotos = useHAStore((state) => state.areaPhotos);
+  const areaOrder = useHAStore((state) => state.areaOrder);
   const setAreaPhoto = useHAStore((state) => state.setAreaPhoto);
+  const setAreaOrder = useHAStore((state) => state.setAreaOrder);
 
-  // Log pour déboguer
-  console.log('🏠 Areas:', areas.map(a => ({ id: a.area_id, name: a.name })));
-  console.log('📸 AreaPhotos in state:', areaPhotos);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Initialiser l'ordre si nécessaire
+  useEffect(() => {
+    if (areas.length > 0 && areaOrder.length === 0) {
+      setAreaOrder(areas.map(area => area.area_id));
+    }
+  }, [areas, areaOrder.length, setAreaOrder]);
+
+  // Trier les pièces selon l'ordre personnalisé
+  const sortedAreas = useMemo(() => {
+    if (areaOrder.length === 0) return areas;
+    
+    const orderMap = new Map(areaOrder.map((id, index) => [id, index]));
+    return [...areas].sort((a, b) => {
+      const orderA = orderMap.get(a.area_id) ?? Number.MAX_SAFE_INTEGER;
+      const orderB = orderMap.get(b.area_id) ?? Number.MAX_SAFE_INTEGER;
+      return orderA - orderB;
+    });
+  }, [areas, areaOrder]);
 
   // Compter les appareils par pièce
   const getDeviceCount = (areaId: string) => {
@@ -80,6 +125,18 @@ const Rooms = () => {
     }
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = sortedAreas.findIndex((area) => area.area_id === active.id);
+      const newIndex = sortedAreas.findIndex((area) => area.area_id === over.id);
+
+      const newOrder = arrayMove(sortedAreas, oldIndex, newIndex).map(area => area.area_id);
+      setAreaOrder(newOrder);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-24 pt-20">
       <TopBar />
@@ -95,18 +152,29 @@ const Rooms = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {areas.map((area) => (
-              <RoomCard
-                key={area.area_id}
-                areaId={area.area_id}
-                name={area.name}
-                deviceCount={getDeviceCount(area.area_id)}
-                customPhoto={areaPhotos[area.area_id]}
-                onPhotoChange={(file) => handlePhotoChange(area.area_id, file)}
-              />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sortedAreas.map(area => area.area_id)}
+              strategy={rectSortingStrategy}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {sortedAreas.map((area) => (
+                  <SortableRoomCard
+                    key={area.area_id}
+                    areaId={area.area_id}
+                    name={area.name}
+                    deviceCount={getDeviceCount(area.area_id)}
+                    customPhoto={areaPhotos[area.area_id]}
+                    onPhotoChange={(file) => handlePhotoChange(area.area_id, file)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
       <BottomNav />
