@@ -1,9 +1,9 @@
-import { Home, Layers, Star, Sparkles, Activity } from "lucide-react";
+import { Home, Layers, Star, Sparkles, Activity, LayoutDashboard } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const navItems = [
-  { to: "/", icon: Home, label: "Accueil" },
-  { to: "/rooms", icon: Layers, label: "Maison" },
+  { to: "/", icon: LayoutDashboard, label: "Accueil" },
+  { to: "/rooms", icon: Home, label: "Maison" },
   { to: "/favorites", icon: Star, label: "Favoris" },
   { to: "/scenes", icon: Sparkles, label: "Scènes" },
   { to: "/activity", icon: Activity, label: "Activité" },
