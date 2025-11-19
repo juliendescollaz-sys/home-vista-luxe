@@ -158,12 +158,12 @@
   100% { opacity: 0.25; filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
 }
 
-.trend-cloud { opacity: 0.45; }
-.trend-rain  { opacity: 0.40; }
-.trend-snow  { opacity: 0.42; }
-.trend-fog   { opacity: 0.38; }
-.trend-sun   { opacity: 0.40; }
-.trend-thunder { opacity: 0.40; }
+.trend-cloud { opacity: 0.45; color: hsl(var(--muted-foreground)); }
+.trend-rain  { opacity: 0.40; color: hsl(var(--muted-foreground)); }
+.trend-snow  { opacity: 0.42; color: hsl(var(--muted-foreground)); }
+.trend-fog   { opacity: 0.38; color: hsl(var(--muted-foreground)); }
+.trend-sun   { opacity: 0.40; color: hsl(var(--primary)); }
+.trend-thunder { opacity: 0.40; color: hsl(var(--muted-foreground)); }
 
 .drift { animation: driftX 14s ease-in-out infinite; }
 .drift-slow { animation: driftXS 20s ease-in-out infinite; }
