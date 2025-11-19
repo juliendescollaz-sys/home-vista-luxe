@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ConnectionModeProvider } from "@/components/ConnectionModeProvider";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import Home from "@/pages/Home";
 import Rooms from "@/pages/Rooms";
 import RoomDetails from "@/pages/RoomDetails";
@@ -27,6 +28,7 @@ import SonosZones from "@/pages/SonosZones";
 export function MobileRootLayout() {
   return (
     <ConnectionModeProvider>
+      <ScrollToTop />
       <Routes>
         {/* Routes principales (avec PrivateRoute wrapper dans App.tsx) */}
         <Route path="/" element={<Home />} />

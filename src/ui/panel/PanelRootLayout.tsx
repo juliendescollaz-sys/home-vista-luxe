@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import { PanelHome } from "./pages/PanelHome";
 import { PanelOnboarding } from "./PanelOnboarding";
 import Settings from "@/pages/Settings";
@@ -49,6 +50,7 @@ export function PanelRootLayout() {
   // Config existe, afficher le layout normal
   return (
     <div className="panel-layout min-h-screen bg-background">
+      <ScrollToTop />
       <Routes>
         {/* Dashboard principal du panneau */}
         <Route path="/" element={<PanelHome />} />
