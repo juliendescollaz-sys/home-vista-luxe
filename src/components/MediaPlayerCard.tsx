@@ -68,18 +68,6 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
       className="overflow-hidden cursor-pointer glass-card elevated-subtle elevated-active border-border/50 relative"
       onClick={handleCardClick}
     >
-      {/* Background avec jaquette */}
-      {albumArt && (
-        <div className="absolute inset-0">
-          <img
-            src={albumArt}
-            alt={mediaTitle}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/90 to-background/95 backdrop-blur-sm" />
-        </div>
-      )}
-
       <div className="relative p-4 space-y-3">
         {/* Header: Jaquette + Titre/Artiste + Favoris */}
         <div className="flex items-center gap-4">
