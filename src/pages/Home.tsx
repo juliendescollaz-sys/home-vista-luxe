@@ -3,9 +3,25 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedWeatherTile } from "@/components/weather/AnimatedWeatherTile";
-import { DeviceCard } from "@/components/DeviceCard";
-import { MediaPlayerCard } from "@/components/MediaPlayerCard";
+import { SortableDeviceCard } from "@/components/SortableDeviceCard";
+import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { toast } from "sonner";
+import { useEffect, useMemo } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 
 const Home = () => {
   const client = useHAStore((state) => state.client);
@@ -13,6 +29,21 @@ const Home = () => {
   const favorites = useHAStore((state) => state.favorites);
   const isConnected = useHAStore((state) => state.isConnected);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
+  const entityOrder = useHAStore((state) => state.entityOrder);
+  const setEntityOrder = useHAStore((state) => state.setEntityOrder);
+
+  const contextId = "home-active";
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Trouver les device_id des media_players pour filtrer leurs entités associées
   const mediaPlayerDeviceIds = new Set(
@@ -46,6 +77,25 @@ const Home = () => {
     return false;
   }) || [];
 
+  // Initialiser l'ordre si nécessaire
+  useEffect(() => {
+    if (activeDevices.length > 0 && (!entityOrder[contextId] || entityOrder[contextId].length === 0)) {
+      setEntityOrder(contextId, activeDevices.map(e => e.entity_id));
+    }
+  }, [activeDevices.length, entityOrder, contextId, setEntityOrder]);
+
+  // Trier les appareils actifs selon l'ordre personnalisé
+  const sortedDevices = useMemo(() => {
+    if (!entityOrder[contextId] || entityOrder[contextId].length === 0) return activeDevices;
+    
+    const orderMap = new Map(entityOrder[contextId].map((id, index) => [id, index]));
+    return [...activeDevices].sort((a, b) => {
+      const orderA = orderMap.get(a.entity_id) ?? Number.MAX_SAFE_INTEGER;
+      const orderB = orderMap.get(b.entity_id) ?? Number.MAX_SAFE_INTEGER;
+      return orderA - orderB;
+    });
+  }, [activeDevices, entityOrder, contextId]);
+
   const handleDeviceToggle = async (entityId: string) => {
     if (!client) {
       toast.error("Client non connecté");
@@ -65,6 +115,18 @@ const Home = () => {
     } catch (error) {
       console.error("Erreur lors du contrôle:", error);
       toast.error("Erreur lors du contrôle de l'appareil");
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = sortedDevices.findIndex((e) => e.entity_id === active.id);
+      const newIndex = sortedDevices.findIndex((e) => e.entity_id === over.id);
+
+      const newOrder = arrayMove(sortedDevices, oldIndex, newIndex).map(e => e.entity_id);
+      setEntityOrder(contextId, newOrder);
     }
   };
 
@@ -94,28 +156,39 @@ const Home = () => {
         <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <h2 className="text-2xl font-bold">Appareils actifs</h2>
           
-          {activeDevices.length === 0 ? (
+          {sortedDevices.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
               Aucun appareil actif
             </p>
           ) : (
-            <div className="space-y-3">
-              {activeDevices.map((device) => {
-                const isMediaPlayer = device.entity_id.startsWith("media_player.");
-                return isMediaPlayer ? (
-                  <MediaPlayerCard
-                    key={device.entity_id}
-                    entity={device}
-                  />
-                ) : (
-                  <DeviceCard
-                    key={device.entity_id}
-                    entity={device}
-                    onToggle={handleDeviceToggle}
-                  />
-                );
-              })}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={sortedDevices.map(e => e.entity_id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-3">
+                  {sortedDevices.map((entity) => {
+                    const isMediaPlayer = entity.entity_id.startsWith("media_player.");
+                    return isMediaPlayer ? (
+                      <SortableMediaPlayerCard
+                        key={entity.entity_id}
+                        entity={entity}
+                      />
+                    ) : (
+                      <SortableDeviceCard
+                        key={entity.entity_id}
+                        entity={entity}
+                        onToggle={handleDeviceToggle}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
 
