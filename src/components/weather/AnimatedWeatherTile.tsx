@@ -85,7 +85,7 @@ export function AnimatedWeatherTile() {
   const condition = weatherData.condition || "cloudy";
   const temperature = weatherData.temperature;
   const dominant = pickDominantCondition(weatherData);
-  const trendOpacity = 0.22;
+  const trendOpacity = 0.35;
   
   // Récupérer le nom depuis l'entité HA si dispo
   const weatherEntityData = weatherData.entity_id 
