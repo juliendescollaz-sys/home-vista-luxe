@@ -1,7 +1,6 @@
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useHAStore } from "@/store/useHAStore";
-import { RoomCard } from "@/components/RoomCard";
 import { Home } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -23,14 +22,19 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { SortableRoomCard } from "@/components/SortableRoomCard";
+import { FloorSection } from "@/components/FloorSection";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
+import { HAFloor } from "@/types/homeassistant";
 
 const Rooms = () => {
   const areas = useHAStore((state) => state.areas);
+  const floors = useHAStore((state) => state.floors);
   const devices = useHAStore((state) => state.devices);
   const areaPhotos = useHAStore((state) => state.areaPhotos);
   const areaOrder = useHAStore((state) => state.areaOrder);
   const setAreaPhoto = useHAStore((state) => state.setAreaPhoto);
   const setAreaOrder = useHAStore((state) => state.setAreaOrder);
+  const { displayMode } = useDisplayMode();
   
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -58,17 +62,40 @@ const Rooms = () => {
     }
   }, [areas, areaOrder.length, setAreaOrder]);
 
-  // Trier les pièces selon l'ordre personnalisé
-  const sortedAreas = useMemo(() => {
-    if (areaOrder.length === 0) return areas;
-    
-    const orderMap = new Map(areaOrder.map((id, index) => [id, index]));
-    return [...areas].sort((a, b) => {
-      const orderA = orderMap.get(a.area_id) ?? Number.MAX_SAFE_INTEGER;
-      const orderB = orderMap.get(b.area_id) ?? Number.MAX_SAFE_INTEGER;
-      return orderA - orderB;
+  // Organiser les pièces par étage
+  const floorGroups = useMemo(() => {
+    // Trier les pièces selon l'ordre personnalisé
+    const sortedAreas = areaOrder.length === 0 
+      ? areas 
+      : [...areas].sort((a, b) => {
+          const orderMap = new Map(areaOrder.map((id, index) => [id, index]));
+          const orderA = orderMap.get(a.area_id) ?? Number.MAX_SAFE_INTEGER;
+          const orderB = orderMap.get(b.area_id) ?? Number.MAX_SAFE_INTEGER;
+          return orderA - orderB;
+        });
+
+    // Trier les étages par niveau
+    const sortedFloors = [...floors].sort((a, b) => b.level - a.level);
+
+    // Grouper par étage
+    const groups: Array<{ floor: HAFloor | null; areas: typeof areas }> = [];
+
+    // Ajouter les étages avec leurs pièces
+    sortedFloors.forEach(floor => {
+      const floorAreas = sortedAreas.filter(area => area.floor_id === floor.floor_id);
+      if (floorAreas.length > 0) {
+        groups.push({ floor, areas: floorAreas });
+      }
     });
-  }, [areas, areaOrder]);
+
+    // Ajouter les pièces sans étage à la fin
+    const noFloorAreas = sortedAreas.filter(area => !area.floor_id);
+    if (noFloorAreas.length > 0) {
+      groups.push({ floor: null, areas: noFloorAreas });
+    }
+
+    return groups;
+  }, [areas, floors, areaOrder]);
 
   // Compter les appareils par pièce
   const getDeviceCount = (areaId: string) => {
@@ -142,19 +169,28 @@ const Rooms = () => {
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveId(null);
 
     if (over && active.id !== over.id) {
-      const oldIndex = sortedAreas.findIndex((area) => area.area_id === active.id);
-      const newIndex = sortedAreas.findIndex((area) => area.area_id === over.id);
+      // Trouver tous les area_ids dans l'ordre actuel
+      const allAreaIds = floorGroups.flatMap(group => group.areas.map(a => a.area_id));
+      const oldIndex = allAreaIds.indexOf(active.id as string);
+      const newIndex = allAreaIds.indexOf(over.id as string);
 
-      const newOrder = arrayMove(sortedAreas, oldIndex, newIndex).map(area => area.area_id);
-      setAreaOrder(newOrder);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove(allAreaIds, oldIndex, newIndex);
+        setAreaOrder(newOrder);
+      }
     }
-    
-    setActiveId(null);
   };
   
-  const activeArea = sortedAreas.find((area) => area.area_id === activeId);
+  const activeArea = areas.find((area) => area.area_id === activeId);
+  
+  // Tous les area_ids pour le drag and drop
+  const allAreaIds = useMemo(() => 
+    floorGroups.flatMap(group => group.areas.map(a => a.area_id)),
+    [floorGroups]
+  );
 
   return (
     <div className="min-h-screen bg-background pb-24 pt-20">
@@ -178,22 +214,25 @@ const Rooms = () => {
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={sortedAreas.map(area => area.area_id)}
+              items={allAreaIds}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {sortedAreas.map((area) => (
-                  <SortableRoomCard
-                    key={area.area_id}
-                    areaId={area.area_id}
-                    name={area.name}
-                    deviceCount={getDeviceCount(area.area_id)}
-                    customPhoto={areaPhotos[area.area_id]}
-                    onPhotoChange={(file) => handlePhotoChange(area.area_id, file)}
+              <div className="space-y-8">
+                {floorGroups.map((group) => (
+                  <FloorSection
+                    key={group.floor?.floor_id || 'no-floor'}
+                    floor={group.floor}
+                    areas={group.areas}
+                    devices={devices}
+                    areaPhotos={areaPhotos}
+                    onPhotoChange={handlePhotoChange}
+                    displayMode={displayMode}
+                    isCollapsible={displayMode === "mobile"}
                   />
                 ))}
               </div>
             </SortableContext>
+            
             <DragOverlay dropAnimation={null}>
               {activeArea ? (
                 <div className="opacity-90 rotate-3 scale-105">

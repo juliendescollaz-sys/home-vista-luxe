@@ -1,0 +1,85 @@
+import { HAArea, HAFloor } from "@/types/homeassistant";
+import { HADevice } from "@/types/homeassistant";
+import { SortableRoomCard } from "./SortableRoomCard";
+import { Badge } from "./ui/badge";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { useState } from "react";
+import { DisplayMode } from "@/hooks/useDisplayMode";
+
+interface FloorSectionProps {
+  floor: HAFloor | null;
+  areas: HAArea[];
+  devices: HADevice[];
+  areaPhotos: Record<string, string>;
+  onPhotoChange: (areaId: string, file: File) => void;
+  displayMode: DisplayMode;
+  isCollapsible?: boolean;
+}
+
+export const FloorSection = ({
+  floor,
+  areas,
+  devices,
+  areaPhotos,
+  onPhotoChange,
+  displayMode,
+  isCollapsible = false,
+}: FloorSectionProps) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  const getDeviceCount = (areaId: string) => {
+    return devices.filter((device) => device.area_id === areaId && !device.disabled_by).length;
+  };
+
+  const totalDevices = areas.reduce((acc, area) => acc + getDeviceCount(area.area_id), 0);
+
+  const gridColumns = displayMode === "mobile" 
+    ? "grid-cols-1" 
+    : displayMode === "tablet" 
+    ? "grid-cols-2" 
+    : "grid-cols-3";
+
+  return (
+    <div className="space-y-4">
+      {/* Header de l'étage */}
+      <div 
+        className={`flex items-center justify-between ${isCollapsible ? 'cursor-pointer' : ''}`}
+        onClick={() => isCollapsible && setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold">
+            {floor ? floor.name : "Sans étage"}
+          </h2>
+          <Badge variant="secondary" className="text-xs">
+            {areas.length} {areas.length === 1 ? "pièce" : "pièces"} • {totalDevices} {totalDevices === 1 ? "appareil" : "appareils"}
+          </Badge>
+        </div>
+        {isCollapsible && (
+          <button className="p-2 hover:bg-accent rounded-lg transition-colors">
+            {isExpanded ? (
+              <ChevronUp className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Grille des pièces */}
+      {isExpanded && (
+        <div className={`grid ${gridColumns} gap-4 animate-fade-in`}>
+          {areas.map((area) => (
+            <SortableRoomCard
+              key={area.area_id}
+              name={area.name}
+              deviceCount={getDeviceCount(area.area_id)}
+              customPhoto={areaPhotos[area.area_id]}
+              onPhotoChange={(file) => onPhotoChange(area.area_id, file)}
+              areaId={area.area_id}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
