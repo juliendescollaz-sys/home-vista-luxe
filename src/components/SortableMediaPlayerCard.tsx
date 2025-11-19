@@ -86,7 +86,7 @@ export const SortableMediaPlayerCard = ({ entity }: SortableMediaPlayerCardProps
       ref={setNodeRef}
       style={style}
       onClick={handleCardClick}
-      className="group relative overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg bg-card/50 backdrop-blur-sm border-border/50"
+      className="group relative overflow-hidden cursor-pointer glass-card elevated-subtle elevated-hover border-border/50"
     >
       <div className="relative h-32">
         {albumArt ? (

@@ -48,7 +48,7 @@ export function AnimatedWeatherTile() {
   if (isLoading && !weatherData) {
     return (
       <div 
-        className="relative rounded-3xl p-6 min-h-[200px] animate-pulse border-2 bg-card border-border/50 shadow-lg"
+        className="relative rounded-3xl p-6 min-h-[200px] animate-pulse glass-card elevated-subtle border-border/50"
       >
         <div className="space-y-3">
           <div className="h-6 w-32 bg-muted/50 rounded" />
@@ -61,7 +61,7 @@ export function AnimatedWeatherTile() {
 
   if (error || !weatherData || weatherData.source === "none") {
     return (
-      <div className="relative rounded-3xl p-6 min-h-[200px] bg-card border-2 border-border/50 shadow-lg">
+      <div className="relative rounded-3xl p-6 min-h-[200px] glass-card elevated-subtle border-border/50">
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             {error || "Configuration météo requise"}
@@ -101,9 +101,9 @@ export function AnimatedWeatherTile() {
   return (
     <>
       <div 
-        className={`relative rounded-3xl p-6 cursor-pointer overflow-hidden weather-transition border-2 ${
+        className={`relative rounded-3xl p-6 cursor-pointer overflow-hidden weather-transition glass-card elevated-subtle elevated-hover ${
           isExpanded ? "min-h-[500px]" : "min-h-[200px]"
-        } bg-card border-border/50 shadow-lg`}
+        } border-border/50`}
         onClick={handleToggleExpand}
       >
         {/* Tendance du jour en fond - hauteur fixe pour éviter le déplacement */}

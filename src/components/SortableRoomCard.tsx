@@ -67,7 +67,7 @@ export const SortableRoomCard = ({
       ref={setNodeRef}
       style={style}
       onClick={handleCardClick}
-      className="group relative overflow-hidden bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 cursor-pointer touch-manipulation active:scale-[0.98]" 
+      className="group relative overflow-hidden cursor-pointer glass-card elevated-subtle elevated-hover border-border/50"
     >
       <div className="aspect-video relative overflow-hidden">
         {customPhoto ? (

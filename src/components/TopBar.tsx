@@ -10,7 +10,7 @@ export const TopBar = () => {
   const { theme } = useTheme();
 
   return (
-    <div className="fixed top-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-b border-border z-40">
+    <div className="fixed top-0 left-0 right-0 glass-nav border-b border-border/30 z-40">
       <div className="max-w-screen-xl mx-auto px-4 h-16 flex items-center justify-between">
         <img 
           src={theme === "light" ? neoliaLogoDark : neoliaLogoLight} 
