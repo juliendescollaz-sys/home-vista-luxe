@@ -6,16 +6,19 @@ import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   DndContext,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -27,11 +30,19 @@ import {
 const RoomDetails = () => {
   const { areaId } = useParams<{ areaId: string }>();
   const navigate = useNavigate();
+  
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -147,6 +158,10 @@ const RoomDetails = () => {
     }
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -157,7 +172,11 @@ const RoomDetails = () => {
       const newOrder = arrayMove(sortedEntities, oldIndex, newIndex).map(e => e.entity_id);
       setEntityOrder(contextId, newOrder);
     }
+    
+    setActiveId(null);
   };
+  
+  const activeEntity = sortedEntities.find((e) => e.entity_id === activeId);
 
   if (!area) {
     return (
@@ -223,6 +242,7 @@ const RoomDetails = () => {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
             <SortableContext
@@ -252,6 +272,17 @@ const RoomDetails = () => {
                 })}
               </div>
             </SortableContext>
+            <DragOverlay dropAnimation={null}>
+              {activeEntity ? (
+                <div className="opacity-90 rotate-1 scale-105">
+                  {activeEntity.entity_id.split(".")[0] === "media_player" ? (
+                    <SortableMediaPlayerCard entity={activeEntity} />
+                  ) : (
+                    <SortableDeviceCard entity={activeEntity} onToggle={() => {}} />
+                  )}
+                </div>
+              ) : null}
+            </DragOverlay>
           </DndContext>
         )}
       </div>

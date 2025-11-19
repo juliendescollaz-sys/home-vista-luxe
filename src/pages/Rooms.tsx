@@ -3,15 +3,18 @@ import { BottomNav } from "@/components/BottomNav";
 import { useHAStore } from "@/store/useHAStore";
 import { RoomCard } from "@/components/RoomCard";
 import { Home } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -28,11 +31,19 @@ const Rooms = () => {
   const areaOrder = useHAStore((state) => state.areaOrder);
   const setAreaPhoto = useHAStore((state) => state.setAreaPhoto);
   const setAreaOrder = useHAStore((state) => state.setAreaOrder);
+  
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -125,6 +136,10 @@ const Rooms = () => {
     }
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -135,7 +150,11 @@ const Rooms = () => {
       const newOrder = arrayMove(sortedAreas, oldIndex, newIndex).map(area => area.area_id);
       setAreaOrder(newOrder);
     }
+    
+    setActiveId(null);
   };
+  
+  const activeArea = sortedAreas.find((area) => area.area_id === activeId);
 
   return (
     <div className="min-h-screen bg-background pb-24 pt-20">
@@ -155,6 +174,7 @@ const Rooms = () => {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
             <SortableContext
@@ -174,6 +194,19 @@ const Rooms = () => {
                 ))}
               </div>
             </SortableContext>
+            <DragOverlay dropAnimation={null}>
+              {activeArea ? (
+                <div className="opacity-90 rotate-3 scale-105">
+                  <SortableRoomCard
+                    areaId={activeArea.area_id}
+                    name={activeArea.name}
+                    deviceCount={getDeviceCount(activeArea.area_id)}
+                    customPhoto={areaPhotos[activeArea.area_id]}
+                    onPhotoChange={() => {}}
+                  />
+                </div>
+              ) : null}
+            </DragOverlay>
           </DndContext>
         )}
       </div>
