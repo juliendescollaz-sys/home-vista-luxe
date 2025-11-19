@@ -5,15 +5,18 @@ import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -30,11 +33,19 @@ const Favorites = () => {
   const setEntityOrder = useHAStore((state) => state.setEntityOrder);
 
   const contextId = "favorites";
+  
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -88,6 +99,10 @@ const Favorites = () => {
     }
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -98,7 +113,11 @@ const Favorites = () => {
       const newOrder = arrayMove(sortedEntities, oldIndex, newIndex).map(e => e.entity_id);
       setEntityOrder(contextId, newOrder);
     }
+    
+    setActiveId(null);
   };
+  
+  const activeEntity = sortedEntities.find((e) => e.entity_id === activeId);
 
   if (!isConnected) {
     return (
@@ -125,9 +144,10 @@ const Favorites = () => {
             <span className="text-sm">Ajoutez des favoris en cliquant sur l'étoile des appareils</span>
           </p>
         ) : (
-          <DndContext
+           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
             <SortableContext
@@ -152,6 +172,17 @@ const Favorites = () => {
                 })}
               </div>
             </SortableContext>
+            <DragOverlay dropAnimation={null}>
+              {activeEntity ? (
+                <div className="opacity-90 rotate-1 scale-105">
+                  {activeEntity.entity_id.startsWith("media_player.") ? (
+                    <SortableMediaPlayerCard entity={activeEntity} />
+                  ) : (
+                    <SortableDeviceCard entity={activeEntity} onToggle={() => {}} />
+                  )}
+                </div>
+              ) : null}
+            </DragOverlay>
           </DndContext>
         )}
       </div>

@@ -36,7 +36,8 @@ export const SortableMediaPlayerCard = ({ entity }: SortableMediaPlayerCardProps
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isSortableDragging ? 0.5 : 1,
+    opacity: isSortableDragging ? 0.3 : 1,
+    zIndex: isSortableDragging ? 50 : 'auto',
   };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
