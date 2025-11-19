@@ -27,8 +27,7 @@ const tokenSchema = z.string()
 
 const OnboardingManual = () => {
   const navigate = useNavigate();
-  const [localUrl, setLocalUrl] = useState("");
-  const [remoteUrl, setRemoteUrl] = useState("https://bl09dhclkeomkczlb0b7ktsssxmevmdq.ui.nabu.casa");
+  const [url, setUrl] = useState("https://bl09dhclkeomkczlb0b7ktsssxmevmdq.ui.nabu.casa");
   const [token, setToken] = useState("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM");
   const [isConnecting, setIsConnecting] = useState(false);
   const setConnection = useHAStore((state) => state.setConnection);
@@ -37,11 +36,8 @@ const OnboardingManual = () => {
   const handleConnect = async () => {
     // Validate inputs
     try {
-      urlSchema.parse(localUrl);
+      urlSchema.parse(url);
       tokenSchema.parse(token);
-      if (remoteUrl.trim() && remoteUrl.trim().length > 0) {
-        urlSchema.parse(remoteUrl);
-      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
@@ -52,20 +48,18 @@ const OnboardingManual = () => {
     setIsConnecting(true);
 
     try {
-      const trimmedLocalUrl = localUrl.trim();
-      const trimmedRemoteUrl = remoteUrl.trim() || undefined;
+      const trimmedUrl = url.trim();
       const trimmedToken = token.trim();
 
-      // Enregistrer la configuration avec le nouveau format
+      // Enregistrer la configuration (format legacy)
       await setHaConfig({
-        localHaUrl: trimmedLocalUrl,
-        remoteHaUrl: trimmedRemoteUrl,
+        url: trimmedUrl,
         token: trimmedToken,
       });
 
       // Mettre à jour le store
       setConnection({
-        url: trimmedLocalUrl,
+        url: trimmedUrl,
         token: trimmedToken,
         connected: true,
       });
@@ -124,33 +118,17 @@ const OnboardingManual = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="localUrl">URL locale (LAN) *</Label>
+              <Label htmlFor="url">URL Home Assistant *</Label>
               <Input
-                id="localUrl"
+                id="url"
                 type="url"
-                placeholder="http://192.168.1.20:8123"
-                value={localUrl}
-                onChange={(e) => setLocalUrl(e.target.value)}
+                placeholder="https://xxxxx.ui.nabu.casa"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
                 disabled={isConnecting}
                 maxLength={500}
                 required
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="remoteUrl">URL cloud (accès à distance)</Label>
-              <Input
-                id="remoteUrl"
-                type="url"
-                placeholder="https://xxxxx.ui.nabu.casa"
-                value={remoteUrl}
-                onChange={(e) => setRemoteUrl(e.target.value)}
-                disabled={isConnecting}
-                maxLength={500}
-              />
-              <p className="text-xs text-muted-foreground">
-                Optionnel. À renseigner seulement si l'accès à distance est activé.
-              </p>
             </div>
 
             <div className="space-y-2">
