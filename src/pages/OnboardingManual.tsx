@@ -28,8 +28,8 @@ const tokenSchema = z.string()
 const OnboardingManual = () => {
   const navigate = useNavigate();
   const [localUrl, setLocalUrl] = useState("");
-  const [remoteUrl, setRemoteUrl] = useState("");
-  const [token, setToken] = useState("");
+  const [remoteUrl, setRemoteUrl] = useState("https://bl09dhclkeomkczlb0b7ktsssxmevmdq.ui.nabu.casa");
+  const [token, setToken] = useState("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM");
   const [isConnecting, setIsConnecting] = useState(false);
   const setConnection = useHAStore((state) => state.setConnection);
   const setConnected = useHAStore((state) => state.setConnected);
