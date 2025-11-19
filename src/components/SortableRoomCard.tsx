@@ -67,7 +67,7 @@ export const SortableRoomCard = ({
       ref={setNodeRef}
       style={style}
       onClick={handleCardClick}
-      className="group relative overflow-hidden cursor-pointer glass-card elevated-subtle elevated-hover border-border/50"
+      className="group relative overflow-hidden cursor-pointer glass-card elevated-subtle elevated-active border-border/50"
     >
       <div className="aspect-video relative overflow-hidden">
         {customPhoto ? (
@@ -75,7 +75,7 @@ export const SortableRoomCard = ({
             <img
               src={customPhoto}
               alt={name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="w-full h-full object-cover transition-transform duration-300"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/60 to-background/30" />
           </>
@@ -90,7 +90,7 @@ export const SortableRoomCard = ({
           type="button"
           {...attributes}
           {...listeners}
-          className="absolute top-2 left-2 p-3 rounded-full hover:scale-110 transition-all duration-200 md:opacity-0 md:group-hover:opacity-100 opacity-70 z-20 cursor-grab active:cursor-grabbing"
+          className="absolute top-2 left-2 p-3 rounded-full transition-all duration-200 opacity-70 z-20 cursor-grab active:cursor-grabbing"
           aria-label="Déplacer la pièce"
         >
           <GripVertical className="h-5 w-5" />
@@ -100,7 +100,7 @@ export const SortableRoomCard = ({
         <button
           type="button"
           onClick={handlePhotoClick}
-          className="absolute top-2 right-2 p-3 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-200 md:opacity-0 md:group-hover:opacity-100 opacity-70 z-20"
+          className="absolute top-2 right-2 p-3 rounded-full bg-background/90 backdrop-blur-sm transition-all duration-200 opacity-70 z-20"
           aria-label="Changer la photo de la pièce"
         >
           <Camera className="h-5 w-5" />

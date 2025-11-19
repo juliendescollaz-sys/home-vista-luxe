@@ -65,7 +65,7 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
 
   return (
     <Card
-      className="overflow-hidden cursor-pointer glass-card elevated-subtle elevated-hover border-border/50 relative"
+      className="overflow-hidden cursor-pointer glass-card elevated-subtle elevated-active border-border/50 relative"
       onClick={handleCardClick}
     >
       {/* Background avec jaquette */}
@@ -121,7 +121,7 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 flex-shrink-0 hover:bg-transparent"
+            className="h-8 w-8 flex-shrink-0 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
             onClick={handleFavoriteClick}
             data-control
           >
