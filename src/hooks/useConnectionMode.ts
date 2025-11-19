@@ -27,34 +27,30 @@ export function useConnectionMode(): ConnectionInfo {
     let cancelled = false;
 
     async function init() {
-      const config = await getHaConfig(); // { localHaUrl, remoteHaUrl, token } ou null
+      const config = await getHaConfig();
 
       if (cancelled) return;
 
       if (!config || !config.localHaUrl || !config.token) {
         setState({
-          connectionMode: "local",
+          connectionMode: "remote",
           haBaseUrl: null,
           isLocal: false,
-          isRemote: false,
+          isRemote: true,
           isChecking: false,
           error: "Configuration Home Assistant incomplète.",
         });
         return;
       }
 
-      // Priorité à l'URL cloud pour le moment
-      const { localHaUrl, remoteHaUrl } = config;
-      const useCloudFirst = true; // Flag pour tester uniquement en cloud
-      
-      const haBaseUrl = (useCloudFirst && remoteHaUrl) ? remoteHaUrl : localHaUrl;
-      const isRemote = (useCloudFirst && remoteHaUrl) ? true : false;
+      // Utiliser l'URL configurée (qui sera toujours l'URL cloud maintenant)
+      const haBaseUrl = config.localHaUrl;
 
       setState({
-        connectionMode: isRemote ? "remote" : "local",
+        connectionMode: "remote",
         haBaseUrl,
-        isLocal: !isRemote,
-        isRemote,
+        isLocal: false,
+        isRemote: true,
         isChecking: false,
         error: undefined,
       });
