@@ -43,13 +43,18 @@ export function useConnectionMode(): ConnectionInfo {
         return;
       }
 
-      const { localHaUrl } = config;
+      // Priorité à l'URL cloud pour le moment
+      const { localHaUrl, remoteHaUrl } = config;
+      const useCloudFirst = true; // Flag pour tester uniquement en cloud
+      
+      const haBaseUrl = (useCloudFirst && remoteHaUrl) ? remoteHaUrl : localHaUrl;
+      const isRemote = (useCloudFirst && remoteHaUrl) ? true : false;
 
       setState({
-        connectionMode: "local",
-        haBaseUrl: localHaUrl,
-        isLocal: true,
-        isRemote: false,
+        connectionMode: isRemote ? "remote" : "local",
+        haBaseUrl,
+        isLocal: !isRemote,
+        isRemote,
         isChecking: false,
         error: undefined,
       });
