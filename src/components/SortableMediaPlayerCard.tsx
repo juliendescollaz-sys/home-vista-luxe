@@ -107,7 +107,7 @@ export const SortableMediaPlayerCard = ({ entity }: SortableMediaPlayerCardProps
               type="button"
               {...sortableAttributes}
               {...listeners}
-              className="p-2 -ml-2 mt-1 rounded-lg hover:bg-accent/50 transition-colors cursor-grab active:cursor-grabbing touch-none shrink-0"
+              className="p-2 -ml-2 mt-1 rounded-lg transition-colors cursor-grab active:cursor-grabbing touch-none shrink-0"
               aria-label="Déplacer le lecteur"
             >
               <GripVertical className="h-5 w-5 text-muted-foreground" />

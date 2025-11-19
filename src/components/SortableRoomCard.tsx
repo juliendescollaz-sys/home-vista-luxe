@@ -90,7 +90,7 @@ export const SortableRoomCard = ({
           type="button"
           {...attributes}
           {...listeners}
-          className="absolute top-2 left-2 p-3 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-200 md:opacity-0 md:group-hover:opacity-100 opacity-70 z-20 cursor-grab active:cursor-grabbing"
+          className="absolute top-2 left-2 p-3 rounded-full hover:scale-110 transition-all duration-200 md:opacity-0 md:group-hover:opacity-100 opacity-70 z-20 cursor-grab active:cursor-grabbing"
           aria-label="Déplacer la pièce"
         >
           <GripVertical className="h-5 w-5" />

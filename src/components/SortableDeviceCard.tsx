@@ -72,7 +72,7 @@ export const SortableDeviceCard = ({ entity, onToggle }: SortableDeviceCardProps
             type="button"
             {...attributes}
             {...listeners}
-            className="p-2 -ml-2 rounded-lg hover:bg-accent transition-colors cursor-grab active:cursor-grabbing touch-none"
+            className="p-2 -ml-2 rounded-lg transition-colors cursor-grab active:cursor-grabbing touch-none"
             aria-label="Déplacer l'appareil"
           >
             <GripVertical className="h-5 w-5 text-muted-foreground" />
