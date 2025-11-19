@@ -88,19 +88,7 @@ export const SortableMediaPlayerCard = ({ entity }: SortableMediaPlayerCardProps
       onClick={handleCardClick}
       className="group relative overflow-hidden cursor-pointer glass-card elevated-subtle elevated-active border-border/50"
     >
-      <div className="relative h-32">
-        {albumArt ? (
-          <>
-            <div 
-              className="absolute inset-0 bg-cover bg-center blur-xl opacity-40"
-              style={{ backgroundImage: `url(${albumArt})` }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/80 to-background" />
-          </>
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5" />
-        )}
-        
+      <div className="relative h-32 bg-gradient-to-br from-primary/5 to-accent/5">
         <div className="relative h-full p-4 flex items-start justify-between">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <button
