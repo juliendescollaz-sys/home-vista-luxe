@@ -2,8 +2,8 @@ import { Home, Layers, Star, Sparkles, Activity } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const navItems = [
-  { to: "/", icon: Home, label: "Maison" },
-  { to: "/rooms", icon: Layers, label: "Pièces" },
+  { to: "/", icon: Home, label: "Accueil" },
+  { to: "/rooms", icon: Layers, label: "Maison" },
   { to: "/favorites", icon: Star, label: "Favoris" },
   { to: "/scenes", icon: Sparkles, label: "Scènes" },
   { to: "/activity", icon: Activity, label: "Activité" },
