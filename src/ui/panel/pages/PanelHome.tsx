@@ -5,98 +5,146 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import neoliaLogoLight from "@/assets/neolia-logo.png";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
+import { AnimatedWeatherTile } from "@/components/weather/AnimatedWeatherTile";
+import { DeviceCard } from "@/components/DeviceCard";
+import { MediaPlayerCard } from "@/components/MediaPlayerCard";
+import { PanelRoomCard } from "../components/PanelRoomCard";
+import { toast } from "sonner";
 
 /**
  * Page d'accueil pour le mode PANEL (S563)
  * 
  * Dashboard mural plein écran avec :
- * - Gros boutons tactiles pour les contrôles principaux
- * - Affichage des pièces et équipements actifs
- * - Accès rapide aux scènes et aux contrôles Sonos
+ * - Layout dense optimisé pour utilisation maximale de l'espace
+ * - Grandes tuiles tactiles
+ * - Espacement minimal pour maximiser le contenu visible
  * - UI optimisée pour un écran fixe en paysage
- * 
- * TODO : Implémenter les composants spécifiques pour le panneau :
- * - Grille de pièces avec contrôles directs
- * - Contrôles Sonos intégrés
- * - Scènes favoris en accès direct
- * - Interphone (si disponible)
  */
 export function PanelHome() {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const entities = useHAStore((state) => state.entities);
   const areas = useHAStore((state) => state.areas);
+  const client = useHAStore((state) => state.client);
+  const entityRegistry = useHAStore((state) => state.entityRegistry);
+
+  // Trouver les device_id des media_players
+  const mediaPlayerDeviceIds = new Set(
+    entities
+      ?.filter((entity) => entity.entity_id.startsWith("media_player."))
+      .map((entity) => {
+        const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+        return reg?.device_id;
+      })
+      .filter(Boolean) || []
+  );
+
+  // Appareils actifs
+  const activeDevices = entities?.filter(e => {
+    const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
+    const deviceId = reg?.device_id;
+    
+    if (deviceId && mediaPlayerDeviceIds.has(deviceId) && !e.entity_id.startsWith("media_player.")) {
+      return false;
+    }
+
+    if (e.entity_id.startsWith("light.") || e.entity_id.startsWith("switch.")) {
+      return e.state === "on";
+    }
+    if (e.entity_id.startsWith("media_player.")) {
+      return e.state === "playing";
+    }
+    return false;
+  }) || [];
+
+  const handleDeviceToggle = async (entityId: string) => {
+    if (!client) {
+      toast.error("Client non connecté");
+      return;
+    }
+
+    const entity = entities?.find((e) => e.entity_id === entityId);
+    if (!entity) return;
+
+    const domain = entityId.split(".")[0];
+    const isOn = entity.state === "on";
+    const service = isOn ? "turn_off" : "turn_on";
+
+    try {
+      await client.callService(domain, service, {}, { entity_id: entityId });
+      toast.success(isOn ? "Éteint" : "Allumé");
+    } catch (error) {
+      console.error("Erreur lors du contrôle:", error);
+      toast.error("Erreur lors du contrôle");
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      {/* Header */}
-      <header className="flex items-center justify-between mb-12">
+    <div className="min-h-screen bg-background p-3">
+      {/* Header compact */}
+      <header className="flex items-center justify-between mb-3 px-2">
         <img 
           src={theme === "light" ? neoliaLogoDark : neoliaLogoLight} 
           alt="Neolia" 
-          className="h-12 w-auto"
+          className="h-10 w-auto"
         />
         
         <Button
           variant="ghost"
           size="icon"
           onClick={() => navigate("/settings")}
-          className="h-14 w-14"
+          className="h-12 w-12"
         >
-          <Settings className="h-7 w-7" />
+          <Settings className="h-6 w-6" />
         </Button>
       </header>
 
-      {/* Dashboard principal */}
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-5xl font-bold mb-8">Tableau de bord</h1>
+      {/* Grille principale dense - 4 colonnes */}
+      <div className="grid grid-cols-4 gap-3 px-2">
+        {/* Météo - 1 colonne */}
+        <div className="col-span-1">
+          <AnimatedWeatherTile />
+        </div>
 
-        {/* Placeholder pour le contenu du panneau */}
-        <div className="grid grid-cols-3 gap-6">
-          {/* Pièces principales */}
-          <div className="col-span-2 bg-card rounded-2xl p-8 shadow-card">
-            <h2 className="text-3xl font-semibold mb-6">Pièces</h2>
-            <div className="grid grid-cols-2 gap-4">
-              {areas.slice(0, 4).map((area) => (
-                <button
-                  key={area.area_id}
-                  className="bg-muted hover:bg-muted/80 rounded-xl p-6 text-left transition-colors"
-                >
-                  <div className="text-2xl font-medium">{area.name}</div>
-                  <div className="text-lg text-muted-foreground mt-2">
-                    {/* TODO : Afficher le nombre d'appareils actifs */}
-                    Appareils actifs
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Contrôles rapides */}
-          <div className="bg-card rounded-2xl p-8 shadow-card">
-            <h2 className="text-3xl font-semibold mb-6">Contrôles</h2>
-            <div className="space-y-4">
-              <button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl p-6 text-2xl font-medium transition-colors">
-                Tout éteindre
-              </button>
-              <button className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-xl p-6 text-2xl font-medium transition-colors">
-                Mode Soirée
-              </button>
-              <button className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-xl p-6 text-2xl font-medium transition-colors">
-                Mode Nuit
-              </button>
-            </div>
+        {/* Pièces - 2 colonnes */}
+        <div className="col-span-2 space-y-3">
+          <h2 className="text-2xl font-bold">Pièces</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {areas.slice(0, 6).map((area) => (
+              <PanelRoomCard
+                key={area.area_id}
+                area={area}
+              />
+            ))}
           </div>
         </div>
 
-        {/* Message d'implémentation */}
-        <div className="mt-12 bg-muted/50 rounded-2xl p-8 text-center">
-          <p className="text-2xl text-muted-foreground">
-            🚧 Interface PANEL en cours de développement
-          </p>
-          <p className="text-lg text-muted-foreground mt-2">
-            Cette interface sera optimisée pour le panneau mural S563
-          </p>
+        {/* Appareils actifs - 1 colonne */}
+        <div className="col-span-1 space-y-3">
+          <h2 className="text-xl font-bold">Actifs</h2>
+          <div className="space-y-2 max-h-[calc(100vh-120px)] overflow-y-auto scrollbar-hide">
+            {activeDevices.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Aucun appareil actif
+              </p>
+            ) : (
+              activeDevices.map((entity) => {
+                const isMediaPlayer = entity.entity_id.startsWith("media_player.");
+                return isMediaPlayer ? (
+                  <MediaPlayerCard
+                    key={entity.entity_id}
+                    entity={entity}
+                  />
+                ) : (
+                  <DeviceCard
+                    key={entity.entity_id}
+                    entity={entity}
+                    onToggle={handleDeviceToggle}
+                  />
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     </div>
