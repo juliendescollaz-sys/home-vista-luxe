@@ -40,14 +40,14 @@ export const FloorSection = ({
     : "grid-cols-3";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Header de l'étage */}
       <div 
-        className={`flex items-center justify-between ${isCollapsible ? 'cursor-pointer' : ''}`}
+        className={`flex items-center justify-between py-2 ${isCollapsible ? 'cursor-pointer' : ''}`}
         onClick={() => isCollapsible && setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold">
+          <h2 className="text-xl font-semibold">
             {floor ? floor.name : "Sans étage"}
           </h2>
           <Badge variant="secondary" className="text-xs">
@@ -55,7 +55,7 @@ export const FloorSection = ({
           </Badge>
         </div>
         {isCollapsible && (
-          <button className="p-2 hover:bg-accent rounded-lg transition-colors">
+          <button className="p-2 rounded-lg transition-colors">
             {isExpanded ? (
               <ChevronUp className="h-5 w-5 text-muted-foreground" />
             ) : (
