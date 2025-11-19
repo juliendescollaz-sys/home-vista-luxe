@@ -3,28 +3,10 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedWeatherTile } from "@/components/weather/AnimatedWeatherTile";
-import { SortableDeviceCard } from "@/components/SortableDeviceCard";
-import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
+import { DeviceCard } from "@/components/DeviceCard";
+import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { toast } from "sonner";
-import { useEffect, useMemo, useState } from "react";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { useEffect } from "react";
 
 const Home = () => {
   const client = useHAStore((state) => state.client);
@@ -32,29 +14,6 @@ const Home = () => {
   const favorites = useHAStore((state) => state.favorites);
   const isConnected = useHAStore((state) => state.isConnected);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
-  const entityOrder = useHAStore((state) => state.entityOrder);
-  const setEntityOrder = useHAStore((state) => state.setEntityOrder);
-
-  const contextId = "home-active";
-  
-  const [activeId, setActiveId] = useState<string | null>(null);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 200,
-        tolerance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
 
   // Trouver les device_id des media_players pour filtrer leurs entités associées
   const mediaPlayerDeviceIds = new Set(
@@ -88,24 +47,6 @@ const Home = () => {
     return false;
   }) || [];
 
-  // Initialiser l'ordre si nécessaire
-  useEffect(() => {
-    if (activeDevices.length > 0 && (!entityOrder[contextId] || entityOrder[contextId].length === 0)) {
-      setEntityOrder(contextId, activeDevices.map(e => e.entity_id));
-    }
-  }, [activeDevices.length, entityOrder, contextId, setEntityOrder]);
-
-  // Trier les appareils actifs selon l'ordre personnalisé
-  const sortedDevices = useMemo(() => {
-    if (!entityOrder[contextId] || entityOrder[contextId].length === 0) return activeDevices;
-    
-    const orderMap = new Map(entityOrder[contextId].map((id, index) => [id, index]));
-    return [...activeDevices].sort((a, b) => {
-      const orderA = orderMap.get(a.entity_id) ?? Number.MAX_SAFE_INTEGER;
-      const orderB = orderMap.get(b.entity_id) ?? Number.MAX_SAFE_INTEGER;
-      return orderA - orderB;
-    });
-  }, [activeDevices, entityOrder, contextId]);
 
   const handleDeviceToggle = async (entityId: string) => {
     if (!client) {
@@ -129,25 +70,6 @@ const Home = () => {
     }
   };
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      const oldIndex = sortedDevices.findIndex((e) => e.entity_id === active.id);
-      const newIndex = sortedDevices.findIndex((e) => e.entity_id === over.id);
-
-      const newOrder = arrayMove(sortedDevices, oldIndex, newIndex).map(e => e.entity_id);
-      setEntityOrder(contextId, newOrder);
-    }
-    
-    setActiveId(null);
-  };
-  
-  const activeEntity = sortedDevices.find((e) => e.entity_id === activeId);
 
   if (!isConnected) {
     return (
@@ -175,51 +97,28 @@ const Home = () => {
         <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <h2 className="text-2xl font-bold">Appareils actifs</h2>
           
-          {sortedDevices.length === 0 ? (
+          {activeDevices.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
               Aucun appareil actif
             </p>
           ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={sortedDevices.map(e => e.entity_id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="space-y-3">
-                  {sortedDevices.map((entity) => {
-                    const isMediaPlayer = entity.entity_id.startsWith("media_player.");
-                    return isMediaPlayer ? (
-                      <SortableMediaPlayerCard
-                        key={entity.entity_id}
-                        entity={entity}
-                      />
-                    ) : (
-                      <SortableDeviceCard
-                        key={entity.entity_id}
-                        entity={entity}
-                        onToggle={handleDeviceToggle}
-                      />
-                    );
-                  })}
-                </div>
-              </SortableContext>
-              <DragOverlay dropAnimation={null}>
-                {activeEntity ? (
-                  <div className="opacity-90 rotate-1 scale-105">
-                    {activeEntity.entity_id.startsWith("media_player.") ? (
-                      <SortableMediaPlayerCard entity={activeEntity} />
-                    ) : (
-                      <SortableDeviceCard entity={activeEntity} onToggle={() => {}} />
-                    )}
-                  </div>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
+            <div className="space-y-3">
+              {activeDevices.map((entity) => {
+                const isMediaPlayer = entity.entity_id.startsWith("media_player.");
+                return isMediaPlayer ? (
+                  <MediaPlayerCard
+                    key={entity.entity_id}
+                    entity={entity}
+                  />
+                ) : (
+                  <DeviceCard
+                    key={entity.entity_id}
+                    entity={entity}
+                    onToggle={handleDeviceToggle}
+                  />
+                );
+              })}
+            </div>
           )}
         </div>
 
