@@ -21,6 +21,7 @@ interface HAStore {
   favorites: string[];
   isConnected: boolean;
   areaPhotos: Record<string, string>;
+  areaOrder: string[];
   weatherEntity: string | null;
   selectedCity: { label: string; lat: number; lon: number } | null;
   
@@ -34,6 +35,7 @@ interface HAStore {
   toggleFavorite: (entityId: string) => void;
   setConnected: (connected: boolean) => void;
   setAreaPhoto: (areaId: string, photoUrl: string) => void;
+  setAreaOrder: (order: string[]) => void;
   setWeatherEntity: (entityId: string | null) => void;
   setSelectedCity: (city: { label: string; lat: number; lon: number } | null) => void;
   disconnect: () => void;
@@ -52,6 +54,7 @@ export const useHAStore = create<HAStore>()(
       favorites: [],
       isConnected: false,
       areaPhotos: {},
+      areaOrder: [],
       weatherEntity: null,
       selectedCity: null,
 
@@ -76,6 +79,8 @@ export const useHAStore = create<HAStore>()(
           areaPhotos: { ...state.areaPhotos, [areaId]: photoUrl },
         })),
 
+      setAreaOrder: (order) => set({ areaOrder: order }),
+
       setWeatherEntity: (entityId) => set({ weatherEntity: entityId }),
 
       setSelectedCity: (city) => set({ selectedCity: city }),
@@ -90,9 +95,10 @@ export const useHAStore = create<HAStore>()(
     {
       name: "ha-storage",
       partialize: (state) => ({
-        // Persister les favoris, les photos des pièces et l'entité météo
+        // Persister les favoris, les photos des pièces, l'ordre et l'entité météo
         favorites: state.favorites,
         areaPhotos: state.areaPhotos,
+        areaOrder: state.areaOrder,
         weatherEntity: state.weatherEntity,
         selectedCity: state.selectedCity,
       }),
