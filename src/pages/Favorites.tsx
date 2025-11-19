@@ -1,18 +1,68 @@
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useHAStore } from "@/store/useHAStore";
-import { DeviceCard } from "@/components/DeviceCard";
-import { MediaPlayerCard } from "@/components/MediaPlayerCard";
+import { SortableDeviceCard } from "@/components/SortableDeviceCard";
+import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { useEffect, useMemo } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 
 const Favorites = () => {
   const entities = useHAStore((state) => state.entities);
   const favorites = useHAStore((state) => state.favorites);
   const isConnected = useHAStore((state) => state.isConnected);
+  const entityOrder = useHAStore((state) => state.entityOrder);
+  const setEntityOrder = useHAStore((state) => state.setEntityOrder);
+
+  const contextId = "favorites";
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Filtrer les entités favorites
   const favoriteEntities = entities?.filter(e => favorites.includes(e.entity_id)) || [];
+
+  // Initialiser l'ordre si nécessaire
+  useEffect(() => {
+    if (favoriteEntities.length > 0 && (!entityOrder[contextId] || entityOrder[contextId].length === 0)) {
+      setEntityOrder(contextId, favoriteEntities.map(e => e.entity_id));
+    }
+  }, [favoriteEntities.length, entityOrder, contextId, setEntityOrder]);
+
+  // Trier les entités selon l'ordre personnalisé
+  const sortedEntities = useMemo(() => {
+    if (!entityOrder[contextId] || entityOrder[contextId].length === 0) return favoriteEntities;
+    
+    const orderMap = new Map(entityOrder[contextId].map((id, index) => [id, index]));
+    return [...favoriteEntities].sort((a, b) => {
+      const orderA = orderMap.get(a.entity_id) ?? Number.MAX_SAFE_INTEGER;
+      const orderB = orderMap.get(b.entity_id) ?? Number.MAX_SAFE_INTEGER;
+      return orderA - orderB;
+    });
+  }, [favoriteEntities, entityOrder, contextId]);
 
   const client = useHAStore((state) => state.client);
 
@@ -35,6 +85,18 @@ const Favorites = () => {
     } catch (error) {
       console.error("Erreur lors du contrôle:", error);
       toast.error("Erreur lors du contrôle de l'appareil");
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = sortedEntities.findIndex((e) => e.entity_id === active.id);
+      const newIndex = sortedEntities.findIndex((e) => e.entity_id === over.id);
+
+      const newOrder = arrayMove(sortedEntities, oldIndex, newIndex).map(e => e.entity_id);
+      setEntityOrder(contextId, newOrder);
     }
   };
 
@@ -63,23 +125,34 @@ const Favorites = () => {
             <span className="text-sm">Ajoutez des favoris en cliquant sur l'étoile des appareils</span>
           </p>
         ) : (
-          <div className="space-y-3">
-            {favoriteEntities.map((entity) => {
-              const isMediaPlayer = entity.entity_id.startsWith("media_player.");
-              return isMediaPlayer ? (
-                <MediaPlayerCard
-                  key={entity.entity_id}
-                  entity={entity}
-                />
-              ) : (
-                <DeviceCard
-                  key={entity.entity_id}
-                  entity={entity}
-                  onToggle={handleDeviceToggle}
-                />
-              );
-            })}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sortedEntities.map(e => e.entity_id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-3">
+                {sortedEntities.map((entity) => {
+                  const isMediaPlayer = entity.entity_id.startsWith("media_player.");
+                  return isMediaPlayer ? (
+                    <SortableMediaPlayerCard
+                      key={entity.entity_id}
+                      entity={entity}
+                    />
+                  ) : (
+                    <SortableDeviceCard
+                      key={entity.entity_id}
+                      entity={entity}
+                      onToggle={handleDeviceToggle}
+                    />
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
       <BottomNav />

@@ -2,17 +2,42 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useHAStore } from "@/store/useHAStore";
 import { useParams, useNavigate } from "react-router-dom";
-import { DeviceCard } from "@/components/DeviceCard";
-import { MediaPlayerCard } from "@/components/MediaPlayerCard";
+import { SortableDeviceCard } from "@/components/SortableDeviceCard";
+import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect } from "react";
-
+import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 
 const RoomDetails = () => {
   const { areaId } = useParams<{ areaId: string }>();
   const navigate = useNavigate();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Scroll to top lors de la navigation
   useEffect(() => {
@@ -25,8 +50,11 @@ const RoomDetails = () => {
   const devices = useHAStore((state) => state.devices);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const areaPhotos = useHAStore((state) => state.areaPhotos);
+  const entityOrder = useHAStore((state) => state.entityOrder);
+  const setEntityOrder = useHAStore((state) => state.setEntityOrder);
   
   const area = areas.find((a) => a.area_id === areaId);
+  const contextId = `room-${areaId}`;
   
   // Filtrer les entités qui appartiennent à cette pièce
   // 1. Trouver les devices de cette pièce
@@ -78,6 +106,25 @@ const RoomDetails = () => {
     return true;
   });
 
+  // Initialiser l'ordre si nécessaire
+  useEffect(() => {
+    if (roomEntities.length > 0 && (!entityOrder[contextId] || entityOrder[contextId].length === 0)) {
+      setEntityOrder(contextId, roomEntities.map(e => e.entity_id));
+    }
+  }, [roomEntities.length, entityOrder, contextId, setEntityOrder]);
+
+  // Trier les entités selon l'ordre personnalisé
+  const sortedEntities = useMemo(() => {
+    if (!entityOrder[contextId] || entityOrder[contextId].length === 0) return roomEntities;
+    
+    const orderMap = new Map(entityOrder[contextId].map((id, index) => [id, index]));
+    return [...roomEntities].sort((a, b) => {
+      const orderA = orderMap.get(a.entity_id) ?? Number.MAX_SAFE_INTEGER;
+      const orderB = orderMap.get(b.entity_id) ?? Number.MAX_SAFE_INTEGER;
+      return orderA - orderB;
+    });
+  }, [roomEntities, entityOrder, contextId]);
+
   const handleToggle = async (entityId: string) => {
     if (!client) {
       toast.error("Client non connecté");
@@ -97,6 +144,18 @@ const RoomDetails = () => {
     } catch (error) {
       console.error("Erreur lors du contrôle:", error);
       toast.error("Erreur lors du contrôle de l'appareil");
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = sortedEntities.findIndex((e) => e.entity_id === active.id);
+      const newIndex = sortedEntities.findIndex((e) => e.entity_id === over.id);
+
+      const newOrder = arrayMove(sortedEntities, oldIndex, newIndex).map(e => e.entity_id);
+      setEntityOrder(contextId, newOrder);
     }
   };
 
@@ -156,33 +215,44 @@ const RoomDetails = () => {
       </div>
 
       <div className="max-w-screen-xl mx-auto px-4 py-8">
-        {roomEntities.length === 0 ? (
+        {sortedEntities.length === 0 ? (
           <p className="text-center text-muted-foreground">
             Aucun appareil dans cette pièce
           </p>
         ) : (
-          <div className="space-y-3">
-            {roomEntities.map((entity) => {
-              const domain = entity.entity_id.split(".")[0];
-              
-              if (domain === "media_player") {
-                return (
-                  <MediaPlayerCard
-                    key={entity.entity_id}
-                    entity={entity}
-                  />
-                );
-              }
-              
-              return (
-                <DeviceCard
-                  key={entity.entity_id}
-                  entity={entity}
-                  onToggle={handleToggle}
-                />
-              );
-            })}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sortedEntities.map(e => e.entity_id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-3">
+                {sortedEntities.map((entity) => {
+                  const domain = entity.entity_id.split(".")[0];
+                  
+                  if (domain === "media_player") {
+                    return (
+                      <SortableMediaPlayerCard
+                        key={entity.entity_id}
+                        entity={entity}
+                      />
+                    );
+                  }
+                  
+                  return (
+                    <SortableDeviceCard
+                      key={entity.entity_id}
+                      entity={entity}
+                      onToggle={handleToggle}
+                    />
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
       
