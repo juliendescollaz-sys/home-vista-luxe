@@ -36,9 +36,9 @@
   
   .dark .elevated-subtle {
     box-shadow: 
-      0 2px 4px hsl(0 0% 0% / 0.15),
-      0 4px 12px hsl(0 0% 0% / 0.25),
-      0 8px 24px hsl(0 0% 0% / 0.15);
+      0 2px 4px hsl(217 33% 40% / 0.15),
+      0 4px 12px hsl(217 33% 45% / 0.12),
+      0 8px 24px hsl(217 33% 50% / 0.08);
     transform: translateZ(0);
   }
   
@@ -51,8 +51,8 @@
   
   .dark .elevated-active:active {
     box-shadow: 
-      0 1px 3px hsl(0 0% 0% / 0.12),
-      0 3px 8px hsl(0 0% 0% / 0.18);
+      0 1px 3px hsl(217 33% 35% / 0.12),
+      0 3px 8px hsl(217 33% 40% / 0.1);
   }
   
   /* Inner glow for interactive elements */
