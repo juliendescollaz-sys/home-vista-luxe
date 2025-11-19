@@ -65,7 +65,7 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
 
   return (
     <Card
-      className="overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 relative"
+      className="overflow-hidden cursor-pointer glass-card elevated-subtle elevated-hover border-border/50 relative"
       onClick={handleCardClick}
     >
       {/* Background avec jaquette */}

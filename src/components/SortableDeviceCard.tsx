@@ -62,7 +62,7 @@ export const SortableDeviceCard = ({ entity, onToggle }: SortableDeviceCardProps
     <Card 
       ref={setNodeRef}
       style={style}
-      className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg bg-card/50 backdrop-blur-sm border-border/50"
+      className="group relative overflow-hidden glass-card elevated-subtle elevated-hover border-border/50"
     >
       <div className={`absolute inset-0 transition-opacity ${isActive ? 'bg-primary/5 opacity-100' : 'opacity-0'}`} />
       

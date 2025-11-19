@@ -11,7 +11,7 @@ const navItems = [
 
 export const BottomNav = () => {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border z-50">
+    <nav className="fixed bottom-0 left-0 right-0 glass-nav border-t border-border/30 z-50">
       <div className="max-w-screen-xl mx-auto px-4">
         <div className="flex justify-around items-center h-20">
           {navItems.map((item) => (

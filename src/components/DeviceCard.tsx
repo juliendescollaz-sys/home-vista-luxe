@@ -41,7 +41,7 @@ export const DeviceCard = ({ entity, onToggle }: DeviceCardProps) => {
   };
 
   return (
-    <Card className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg bg-card/50 backdrop-blur-sm border-border/50">
+    <Card className="group relative overflow-hidden glass-card elevated-subtle elevated-hover border-border/50">
       <div className={`absolute inset-0 transition-opacity ${isActive ? 'bg-primary/5 opacity-100' : 'opacity-0'}`} />
       
       <div className="relative p-4 flex items-center justify-between">
