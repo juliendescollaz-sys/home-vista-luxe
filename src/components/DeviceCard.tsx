@@ -41,7 +41,7 @@ export const DeviceCard = ({ entity, onToggle }: DeviceCardProps) => {
   };
 
   return (
-    <Card className="group relative overflow-hidden glass-card elevated-subtle elevated-hover border-border/50">
+    <Card className="group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50">
       <div className={`absolute inset-0 transition-opacity ${isActive ? 'bg-primary/5 opacity-100' : 'opacity-0'}`} />
       
       <div className="relative p-4 flex items-center justify-between">
@@ -61,7 +61,7 @@ export const DeviceCard = ({ entity, onToggle }: DeviceCardProps) => {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 hover:bg-transparent active:bg-accent/50 active:scale-95 transition-all"
+            className="h-8 w-8 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
             onClick={handleFavoriteClick}
           >
             <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />

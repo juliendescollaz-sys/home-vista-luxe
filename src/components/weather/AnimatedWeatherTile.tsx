@@ -101,7 +101,7 @@ export function AnimatedWeatherTile() {
   return (
     <>
       <div 
-        className={`relative rounded-3xl p-6 cursor-pointer overflow-hidden weather-transition glass-card elevated-subtle elevated-hover ${
+        className={`relative rounded-3xl p-6 cursor-pointer overflow-hidden weather-transition glass-card elevated-subtle elevated-active ${
           isExpanded ? "min-h-[500px]" : "min-h-[200px]"
         } border-border/50`}
         onClick={handleToggleExpand}

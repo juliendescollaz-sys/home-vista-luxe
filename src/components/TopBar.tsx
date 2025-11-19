@@ -22,7 +22,7 @@ export const TopBar = () => {
           variant="ghost"
           size="icon"
           onClick={() => navigate("/settings")}
-          className="hover:bg-transparent"
+          className="bg-transparent"
         >
           <Settings className="h-5 w-5" />
         </Button>
