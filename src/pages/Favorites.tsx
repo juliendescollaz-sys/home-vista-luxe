@@ -6,6 +6,7 @@ import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 import {
   DndContext,
   closestCenter,
@@ -31,6 +32,8 @@ const Favorites = () => {
   const isConnected = useHAStore((state) => state.isConnected);
   const entityOrder = useHAStore((state) => state.entityOrder);
   const setEntityOrder = useHAStore((state) => state.setEntityOrder);
+  const { displayMode } = useDisplayMode();
+  const ptClass = displayMode === "mobile" ? "pt-16" : "pt-10";
 
   const contextId = "favorites";
   
@@ -121,7 +124,7 @@ const Favorites = () => {
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-background pb-24 pt-12">
+      <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
         <TopBar />
         <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
           <Skeleton className="h-64 rounded-2xl" />
@@ -132,7 +135,7 @@ const Favorites = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 pt-12">
+    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
       <TopBar />
       <div className="max-w-2xl mx-auto px-4 py-4">
         <h2 className="text-3xl font-bold mb-4">Favoris</h2>

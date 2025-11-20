@@ -48,6 +48,7 @@ const Rooms = () => {
   const [viewMode, setViewMode] = useState<ViewMode>("floors");
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const ptClass = displayMode === "mobile" ? "pt-16" : "pt-10";
 
   // Réinitialiser la sélection d'étage quand on change de vue
   useEffect(() => {
@@ -246,7 +247,7 @@ const Rooms = () => {
   }, [areas, areaOrder]);
 
   return (
-    <div className="min-h-screen bg-background pb-24 pt-12">
+    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
       <TopBar />
       <div className="max-w-screen-xl mx-auto px-4 py-4">
         <h2 className="text-3xl font-bold mb-4">Maison</h2>

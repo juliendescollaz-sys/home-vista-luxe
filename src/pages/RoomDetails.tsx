@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 import {
   DndContext,
   closestCenter,
@@ -30,6 +31,8 @@ import {
 const RoomDetails = () => {
   const { areaId } = useParams<{ areaId: string }>();
   const navigate = useNavigate();
+  const { displayMode } = useDisplayMode();
+  const ptClass = displayMode === "mobile" ? "pt-16" : "pt-10";
   
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -180,7 +183,7 @@ const RoomDetails = () => {
 
   if (!area) {
     return (
-      <div className="min-h-screen bg-background pb-24 pt-12">
+      <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
         <TopBar />
         <div className="max-w-screen-xl mx-auto px-4 py-4">
           <p className="text-muted-foreground">Pièce introuvable</p>
@@ -193,7 +196,7 @@ const RoomDetails = () => {
   const customPhoto = areaPhotos[areaId];
 
   return (
-    <div className="min-h-screen bg-background pb-24 pt-12">
+    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
       <TopBar />
       
       {/* Header avec photo de fond */}

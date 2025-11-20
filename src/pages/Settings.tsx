@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { clearHACredentials } from "@/lib/crypto";
 import { useConnectionMode } from "@/hooks/useConnectionMode";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -16,6 +17,8 @@ const Settings = () => {
   const connection = useHAStore((state) => state.connection);
   const { theme, setTheme } = useTheme();
   const { connectionMode } = useConnectionMode();
+  const { displayMode } = useDisplayMode();
+  const ptClass = displayMode === "mobile" ? "pt-16" : "pt-10";
 
   const handleDisconnect = () => {
     disconnect();
@@ -26,7 +29,7 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24 pt-12">
+    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
       <TopBar />
       
       <div className="max-w-screen-xl mx-auto px-4 py-4 space-y-8">
