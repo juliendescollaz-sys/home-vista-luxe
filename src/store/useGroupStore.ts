@@ -12,6 +12,7 @@ import {
 
 interface GroupStore {
   groups: NeoliaGroup[];
+  groupFavorites: string[];
   isSaving: boolean;
   error: string | null;
 
@@ -26,6 +27,7 @@ interface GroupStore {
   toggleGroup: (groupId: string, currentState: string, domain: HaGroupDomain) => Promise<void>;
   openCover: (groupId: string) => Promise<void>;
   closeCover: (groupId: string) => Promise<void>;
+  toggleGroupFavorite: (groupId: string) => void;
   clearError: () => void;
 }
 
@@ -33,6 +35,7 @@ export const useGroupStore = create<GroupStore>()(
   persist(
     (set, get) => ({
       groups: [],
+      groupFavorites: [],
       isSaving: false,
       error: null,
 
@@ -147,12 +150,21 @@ export const useGroupStore = create<GroupStore>()(
         }
       },
 
+      toggleGroupFavorite: (groupId) => {
+        set((state) => ({
+          groupFavorites: state.groupFavorites.includes(groupId)
+            ? state.groupFavorites.filter((id) => id !== groupId)
+            : [...state.groupFavorites, groupId],
+        }));
+      },
+
       clearError: () => set({ error: null }),
     }),
     {
       name: "neolia-groups",
       partialize: (state) => ({
         groups: state.groups,
+        groupFavorites: state.groupFavorites,
       }),
     }
   )
