@@ -71,30 +71,30 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
 
   return (
     <Card className="overflow-hidden">
-      {/* Header compact */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
-        <h3 className="text-base font-semibold">Bibliothèque</h3>
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b bg-muted/30">
+        <h3 className="text-lg font-semibold">Bibliothèque</h3>
         <Button
           variant="ghost"
           size="sm"
           onClick={loadRoot}
           disabled={page.loading}
-          className="h-8 text-xs"
+          className="h-10 text-sm px-4"
         >
           Actualiser
         </Button>
       </div>
 
-      {/* Fil d'Ariane compact */}
+      {/* Fil d'Ariane */}
       {page.path.length > 1 && (
-        <div className="px-4 py-2 bg-accent/30 border-b overflow-x-auto">
-          <div className="flex items-center gap-1 text-xs whitespace-nowrap">
+        <div className="px-5 py-3 bg-accent/30 border-b overflow-x-auto">
+          <div className="flex items-center gap-2 text-sm whitespace-nowrap">
             {page.path.map((item, index) => (
-              <div key={index} className="flex items-center gap-1">
+              <div key={index} className="flex items-center gap-2">
                 <button
                   onClick={() => navigateBack(index)}
                   className={cn(
-                    "hover:text-primary transition-colors",
+                    "hover:text-primary transition-colors py-1 px-2 -mx-2 rounded min-h-[32px]",
                     index === page.path.length - 1 
                       ? "text-foreground font-medium" 
                       : "text-muted-foreground"
@@ -104,7 +104,7 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
                   {item.title}
                 </button>
                 {index < page.path.length - 1 && (
-                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
             ))}
@@ -113,19 +113,19 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
       )}
 
       {/* Contenu */}
-      <div className="p-2">
+      <div className="p-3">
         {page.loading && (
           <div className="space-y-2">
             {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-14 w-full" />
+              <Skeleton key={i} className="h-20 w-full" />
             ))}
           </div>
         )}
 
         {page.error && (
           <div className="text-center py-8 px-4">
-            <p className="text-xs text-destructive mb-3">{page.error}</p>
-            <Button variant="outline" size="sm" onClick={loadRoot}>
+            <p className="text-sm text-destructive mb-3">{page.error}</p>
+            <Button variant="outline" size="default" onClick={loadRoot}>
               Réessayer
             </Button>
           </div>
@@ -133,13 +133,13 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
 
         {!page.loading && !page.error && page.items.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            <Music className="h-10 w-10 mx-auto mb-2 opacity-40" />
-            <p className="text-xs">Aucun contenu</p>
+            <Music className="h-12 w-12 mx-auto mb-3 opacity-40" />
+            <p className="text-sm">Aucun contenu</p>
           </div>
         )}
 
         {!page.loading && !page.error && page.items.length > 0 && (
-          <div className="space-y-1 max-h-[350px] overflow-y-auto">
+          <div className="space-y-2 max-h-[350px] overflow-y-auto">
             {page.items.map((node, index) => {
               const Icon = getIconForNode(node);
               const thumbnailUrl = getThumbnailUrl(node.thumbnail);
@@ -151,14 +151,14 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
                   key={`${node.title}-${index}`}
                   onClick={() => handleNodeClick(node)}
                   className={cn(
-                    "w-full flex items-center gap-3 p-2 rounded-lg",
+                    "w-full flex items-center gap-4 p-3.5 rounded-lg min-h-[72px]",
                     "hover:bg-accent active:bg-accent/70 transition-all",
                     "border border-transparent hover:border-border",
                     "group text-left"
                   )}
                 >
-                  {/* Thumbnail compact */}
-                  <div className="flex-shrink-0 w-12 h-12 rounded bg-muted flex items-center justify-center overflow-hidden">
+                  {/* Thumbnail */}
+                  <div className="flex-shrink-0 w-14 h-14 rounded bg-muted flex items-center justify-center overflow-hidden">
                     {!forceIcon && thumbnailUrl ? (
                       <img
                         src={thumbnailUrl}
@@ -176,25 +176,25 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
                         }}
                       />
                     ) : (
-                      <Icon className="h-5 w-5 text-muted-foreground" />
+                      <Icon className="h-6 w-6 text-muted-foreground" />
                     )}
                   </div>
 
                   {/* Contenu texte */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium line-clamp-1 mb-0.5">
+                    <p className="text-base font-medium line-clamp-1 mb-1">
                       {displayTitle}
                     </p>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       {node.canPlay && (
-                        <span className="flex items-center gap-0.5">
-                          <Play className="h-3 w-3" />
+                        <span className="flex items-center gap-1">
+                          <Play className="h-3.5 w-3.5" />
                           Lecture
                         </span>
                       )}
                       {node.canExpand && (
-                        <span className="flex items-center gap-0.5">
-                          <Folder className="h-3 w-3" />
+                        <span className="flex items-center gap-1">
+                          <Folder className="h-3.5 w-3.5" />
                           Dossier
                         </span>
                       )}
@@ -203,7 +203,7 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
 
                   {/* Indicateur de navigation */}
                   {node.canExpand && (
-                    <ChevronRight className="flex-shrink-0 h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                    <ChevronRight className="flex-shrink-0 h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                   )}
                   {node.canPlay && !node.canExpand && (
                     <Play className="flex-shrink-0 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
