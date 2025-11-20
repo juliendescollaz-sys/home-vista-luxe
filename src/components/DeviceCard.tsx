@@ -48,12 +48,12 @@ export const DeviceCard = ({ entity, onToggle, floor, area }: DeviceCardProps) =
       <LocationBadge floor={floor} area={area} />
       
       <div className="relative pt-10 p-4">
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-2">
           {/* Icon */}
-          <div className={`p-2.5 rounded-lg flex-shrink-0 transition-colors ${
+          <div className={`w-14 h-14 rounded-lg flex-shrink-0 transition-colors flex items-center justify-center ${
             isActive ? 'bg-primary/20 text-primary' : 'bg-muted/50 text-muted-foreground'
           }`}>
-            <Icon className="h-6 w-6" />
+            <Icon className="h-8 w-8" />
           </div>
           
           {/* Title & State */}
@@ -79,7 +79,7 @@ export const DeviceCard = ({ entity, onToggle, floor, area }: DeviceCardProps) =
             <Switch
               checked={isActive}
               onCheckedChange={() => onToggle?.(entity.entity_id)}
-              className="data-[state=checked]:bg-primary"
+              className="data-[state=checked]:bg-primary scale-125"
             />
           </div>
         )}
