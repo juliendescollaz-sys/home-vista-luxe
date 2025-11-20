@@ -78,7 +78,9 @@ export function TabletSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   onClick={() => navigate("/settings")}
-                  className="flex items-center gap-3 px-4 py-4 rounded-lg transition-colors hover:bg-muted/50 h-14"
+                  className={`flex items-center gap-3 px-4 py-4 rounded-lg transition-colors hover:bg-muted/50 h-14 ${
+                    currentPath === "/settings" ? "bg-primary/10 text-primary font-medium" : ""
+                  }`}
                 >
                   <Settings className="h-5 w-5 flex-shrink-0" />
                   {!isCollapsed && <span>Paramètres</span>}

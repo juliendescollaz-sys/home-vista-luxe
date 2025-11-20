@@ -73,7 +73,7 @@ const Home = () => {
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-background pb-24 pt-20">
+      <div className="min-h-screen bg-background pb-24 pt-16">
         <TopBar />
         <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
           <Skeleton className="h-64 rounded-2xl" />
@@ -84,7 +84,7 @@ const Home = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 pt-20">
+    <div className="min-h-screen bg-background pb-24 pt-16">
       <TopBar />
       
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
