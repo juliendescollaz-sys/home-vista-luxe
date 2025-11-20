@@ -20,7 +20,7 @@ const Settings = () => {
   const { connectionMode } = useConnectionMode();
   const { displayMode } = useDisplayMode();
   const { handedness, setHandedness } = useHandedness();
-  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
+  const ptClass = displayMode === "mobile" ? "pt-[7.125rem]" : "pt-10";
 
   const handleDisconnect = () => {
     disconnect();
