@@ -3,13 +3,14 @@ import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Lightbulb, Blinds, Power, Fan, Music, ChevronUp, ChevronDown, Trash2, Play, Pause, Star, Volume2 } from "lucide-react";
+import { Lightbulb, Blinds, Power, Fan, Music, ChevronUp, ChevronDown, Pencil, Play, Pause, Star, Volume2 } from "lucide-react";
 import type { NeoliaGroup, HaGroupDomain } from "@/types/groups";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
 import { playMediaGroup, pauseMediaGroup, setGroupVolume } from "@/services/haGroups";
 import { toast } from "sonner";
 import { GroupBadge } from "./GroupBadge";
+import { GroupEditDialog } from "./GroupEditDialog";
 
 const DOMAIN_ICONS: Record<HaGroupDomain, any> = {
   light: Lightbulb,
@@ -21,7 +22,6 @@ const DOMAIN_ICONS: Record<HaGroupDomain, any> = {
 
 interface GroupTileProps {
   group: NeoliaGroup;
-  onDelete?: () => void;
   showBadge?: boolean;
   sortableProps?: {
     attributes?: any;
@@ -31,10 +31,11 @@ interface GroupTileProps {
   };
 }
 
-export function GroupTile({ group, onDelete, showBadge = false, sortableProps }: GroupTileProps) {
+export function GroupTile({ group, showBadge = false, sortableProps }: GroupTileProps) {
   const entities = useHAStore((state) => state.entities);
   const { toggleGroup, openCover, closeCover, toggleGroupFavorite, groupFavorites } = useGroupStore();
   const [localVolume, setLocalVolume] = useState<number | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const isFavorite = groupFavorites.includes(group.id);
 
   // Récupérer l'entité de groupe depuis HA
@@ -89,12 +90,10 @@ export function GroupTile({ group, onDelete, showBadge = false, sortableProps }:
     }
   };
 
-  const handleDeleteClick = (e: React.MouseEvent) => {
+  const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    if (confirm(`Supprimer le groupe "${group.name}" ?`)) {
-      onDelete?.();
-    }
+    setEditDialogOpen(true);
   };
 
   const volumePercentage = Math.round((localVolume ?? mediaPlayerState?.avgVolume ?? 0.5) * 100);
@@ -164,7 +163,7 @@ export function GroupTile({ group, onDelete, showBadge = false, sortableProps }:
             </p>
           </div>
 
-          {/* Favorite & Delete buttons */}
+          {/* Favorite & Edit buttons */}
           <div className="flex items-center gap-1 flex-shrink-0 -mt-1 -mr-1">
             <Button
               variant="ghost"
@@ -175,17 +174,15 @@ export function GroupTile({ group, onDelete, showBadge = false, sortableProps }:
             >
               <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
             </Button>
-            {onDelete && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive active:bg-destructive/10"
-                onClick={handleDeleteClick}
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-primary active:bg-primary/10"
+              onClick={handleEditClick}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
@@ -254,6 +251,12 @@ export function GroupTile({ group, onDelete, showBadge = false, sortableProps }:
           )}
         </div>
       </div>
+
+      <GroupEditDialog 
+        group={group} 
+        open={editDialogOpen} 
+        onOpenChange={setEditDialogOpen} 
+      />
     </Card>
   );
 }

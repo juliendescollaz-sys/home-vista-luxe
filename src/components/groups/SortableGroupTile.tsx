@@ -5,10 +5,9 @@ import type { NeoliaGroup } from "@/types/groups";
 
 interface SortableGroupTileProps {
   group: NeoliaGroup;
-  onDelete?: () => void;
 }
 
-export const SortableGroupTile = ({ group, onDelete }: SortableGroupTileProps) => {
+export const SortableGroupTile = ({ group }: SortableGroupTileProps) => {
   const {
     attributes,
     listeners,
@@ -28,7 +27,6 @@ export const SortableGroupTile = ({ group, onDelete }: SortableGroupTileProps) =
   return (
     <GroupTile 
       group={group} 
-      onDelete={onDelete} 
       showBadge 
       sortableProps={{ attributes, listeners, setNodeRef, style }}
     />

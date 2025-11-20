@@ -13,16 +13,7 @@ const Groupes = () => {
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
   
   const [wizardOpen, setWizardOpen] = useState(false);
-  const { groups, removeGroup } = useGroupStore();
-
-  const handleDelete = async (groupId: string) => {
-    try {
-      await removeGroup(groupId);
-      toast.success("Groupe supprimé");
-    } catch (error) {
-      toast.error("Erreur lors de la suppression");
-    }
-  };
+  const { groups } = useGroupStore();
 
   return (
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
@@ -53,7 +44,6 @@ const Groupes = () => {
               <GroupTile
                 key={group.id}
                 group={group}
-                onDelete={() => handleDelete(group.id)}
               />
             ))}
           </div>
