@@ -6,7 +6,11 @@ import { useDisplayMode } from "@/hooks/useDisplayMode";
 import neoliaLogoLight from "@/assets/neolia-logo.png";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 
-export const TopBar = () => {
+interface TopBarProps {
+  title?: string;
+}
+
+export const TopBar = ({ title }: TopBarProps) => {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const { displayMode } = useDisplayMode();
@@ -19,6 +23,13 @@ export const TopBar = () => {
           alt="Neolia" 
           className="h-8 w-auto"
         />
+
+        {/* Titre centré */}
+        {title && (
+          <h1 className="absolute left-1/2 -translate-x-1/2 text-2xl font-bold">
+            {title}
+          </h1>
+        )}
 
         {/* Bouton Paramètres uniquement en mode Mobile */}
         {displayMode === "mobile" && (

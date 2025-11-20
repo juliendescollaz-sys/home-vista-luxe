@@ -88,7 +88,7 @@ const Home = () => {
 
   return (
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
-      <TopBar />
+      <TopBar title="Accueil" />
       
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
         {/* Section météo */}
@@ -98,7 +98,7 @@ const Home = () => {
 
         {/* Appareils actifs */}
         <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-          <h2 className="text-2xl font-bold">Appareils actifs</h2>
+          <h2 className="text-xl font-semibold">Appareils actifs</h2>
           
           {activeDevices.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">

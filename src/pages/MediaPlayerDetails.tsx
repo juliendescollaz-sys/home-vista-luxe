@@ -279,7 +279,7 @@ const MediaPlayerDetails = () => {
 
   return (
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
-      <TopBar />
+      <TopBar title={attributes?.friendly_name || entity.entity_id.split('.')[1]} />
       
       <div className="max-w-screen-xl mx-auto px-6 py-4">
         <Button
