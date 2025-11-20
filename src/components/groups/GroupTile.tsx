@@ -23,6 +23,7 @@ const DOMAIN_ICONS: Record<HaGroupDomain, any> = {
 interface GroupTileProps {
   group: NeoliaGroup;
   showBadge?: boolean;
+  hideEditButton?: boolean;
   sortableProps?: {
     attributes?: any;
     listeners?: any;
@@ -31,7 +32,7 @@ interface GroupTileProps {
   };
 }
 
-export function GroupTile({ group, showBadge = false, sortableProps }: GroupTileProps) {
+export function GroupTile({ group, showBadge = false, hideEditButton = false, sortableProps }: GroupTileProps) {
   const entities = useHAStore((state) => state.entities);
   const { toggleGroup, openCover, closeCover, toggleGroupFavorite, groupFavorites } = useGroupStore();
   const [localVolume, setLocalVolume] = useState<number | null>(null);
@@ -174,15 +175,17 @@ export function GroupTile({ group, showBadge = false, sortableProps }: GroupTile
             >
               <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-primary active:bg-primary/10"
-              onClick={handleEditClick}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
+            {!hideEditButton && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-primary active:bg-primary/10"
+                onClick={handleEditClick}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
 

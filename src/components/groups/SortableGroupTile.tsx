@@ -5,9 +5,10 @@ import type { NeoliaGroup } from "@/types/groups";
 
 interface SortableGroupTileProps {
   group: NeoliaGroup;
+  hideEditButton?: boolean;
 }
 
-export const SortableGroupTile = ({ group }: SortableGroupTileProps) => {
+export const SortableGroupTile = ({ group, hideEditButton }: SortableGroupTileProps) => {
   const {
     attributes,
     listeners,
@@ -28,6 +29,7 @@ export const SortableGroupTile = ({ group }: SortableGroupTileProps) => {
     <GroupTile 
       group={group} 
       showBadge 
+      hideEditButton={hideEditButton}
       sortableProps={{ attributes, listeners, setNodeRef, style }}
     />
   );

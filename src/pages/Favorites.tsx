@@ -187,7 +187,7 @@ const Favorites = () => {
                 {sortedAllItems.map((item) => {
                   if (item.type === 'group') {
                     return (
-                      <SortableGroupTile key={item.id} group={item.data} />
+                      <SortableGroupTile key={item.id} group={item.data} hideEditButton />
                     );
                   }
 
