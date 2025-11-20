@@ -1,7 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card } from "@/components/ui/card";
-import { Lightbulb, Thermometer, Music, Lock, Camera, MoreVertical, Power, Star, GripVertical } from "lucide-react";
+import { Lightbulb, Thermometer, Music, Lock, Camera, MoreVertical, Power, Star } from "lucide-react";
 import type { HAEntity, EntityDomain, HAFloor, HAArea } from "@/types/homeassistant";
 import { Switch } from "@/components/ui/switch";
 import { useHAStore } from "@/store/useHAStore";
@@ -74,14 +74,6 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
       
       <div className="relative p-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-1 min-w-0">
-          <button
-            type="button"
-            className="p-2 -ml-2 rounded-lg transition-colors cursor-grab active:cursor-grabbing touch-none"
-            aria-label="Déplacer l'appareil"
-          >
-            <GripVertical className="h-5 w-5 text-muted-foreground" />
-          </button>
-          
           <div className={`p-3 rounded-xl transition-colors ${
             isActive ? 'bg-primary/20 text-primary' : 'bg-muted/50 text-muted-foreground'
           }`}>

@@ -2,7 +2,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card } from "@/components/ui/card";
 import { HAEntity, HAFloor, HAArea } from "@/types/homeassistant";
-import { Music, Pause, Play, Loader2, Star, GripVertical } from "lucide-react";
+import { Music, Pause, Play, Loader2, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
 import { useHAStore } from "@/store/useHAStore";
@@ -97,14 +97,6 @@ export const SortableMediaPlayerCard = ({ entity, floor, area }: SortableMediaPl
       <div className="relative h-32">
         <div className="relative h-full p-4 flex items-start justify-between">
           <div className="flex items-start gap-3 flex-1 min-w-0">
-            <button
-              type="button"
-              className="p-2 -ml-2 mt-1 rounded-lg transition-colors cursor-grab active:cursor-grabbing touch-none shrink-0"
-              aria-label="Déplacer le lecteur"
-            >
-              <GripVertical className="h-5 w-5 text-muted-foreground" />
-            </button>
-
             {albumArt ? (
               <div className="w-20 h-20 rounded-lg overflow-hidden shadow-lg shrink-0">
                 <img 

@@ -281,7 +281,6 @@ const Rooms = () => {
 
     // Réorganisation des pièces (zones)
     if (viewMode !== "devices") {
-      // Trouver tous les area_ids dans l'ordre actuel
       const allAreaIds = floorGroups.flatMap(group => group.areas.map(a => a.area_id));
       const oldIndex = allAreaIds.indexOf(active.id as string);
       const newIndex = allAreaIds.indexOf(over.id as string);
@@ -294,11 +293,13 @@ const Rooms = () => {
     }
 
     // Réorganisation des appareils (vue Appareils)
-    const oldIndex = deviceOrder.indexOf(active.id as string);
-    const newIndex = deviceOrder.indexOf(over.id as string);
+    const allEntityIds = orderedControllableEntities.map(e => e.entity_id);
+    const oldIndex = allEntityIds.indexOf(active.id as string);
+    const newIndex = allEntityIds.indexOf(over.id as string);
 
     if (oldIndex !== -1 && newIndex !== -1) {
-      setDeviceOrder((prev) => arrayMove(prev, oldIndex, newIndex));
+      const newOrder = arrayMove(allEntityIds, oldIndex, newIndex);
+      setDeviceOrder(newOrder);
     }
   };
   
