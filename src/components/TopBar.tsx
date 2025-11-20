@@ -44,7 +44,7 @@ export const TopBar = ({
           {/* Bouton Menu - à droite si droitier, à gauche si gaucher (mobile seulement) */}
           {isMobile && <div className={`${isLeftHanded ? "order-1" : "order-2"}`}>
               <Button variant="ghost" size="icon" onClick={() => setMenuOpen(true)} className="bg-transparent h-14 w-14 p-0">
-                <img src={theme === "light" ? burgerDark : burgerLight} alt="Menu" className="h-8 w-8" />
+                <img src={theme === "light" ? burgerDark : burgerLight} alt="Menu" className="h-7 w-7" />
               </Button>
             </div>}
         </div>
