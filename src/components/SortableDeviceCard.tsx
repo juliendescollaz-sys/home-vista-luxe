@@ -72,11 +72,11 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
       <LocationBadge floor={floor} area={area} />
       
       <div className="relative pt-10 p-4">
-        <div className="flex items-start gap-3">
-          <div className={`p-2.5 rounded-lg flex-shrink-0 transition-colors ${
+        <div className="flex items-start gap-2">
+          <div className={`w-14 h-14 rounded-lg flex-shrink-0 transition-colors flex items-center justify-center ${
             isActive ? 'bg-primary/20 text-primary' : 'bg-muted/50 text-muted-foreground'
           }`}>
-            <Icon className="h-6 w-6" />
+            <Icon className="h-8 w-8" />
           </div>
           
           <div className="flex-1 min-w-0 pt-0.5">
@@ -99,7 +99,7 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
             <Switch
               checked={isActive}
               onCheckedChange={() => onToggle?.(entity.entity_id)}
-              className="data-[state=checked]:bg-primary"
+              className="data-[state=checked]:bg-primary scale-125"
             />
           </div>
         )}

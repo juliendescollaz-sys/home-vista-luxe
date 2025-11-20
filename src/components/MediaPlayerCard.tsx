@@ -94,7 +94,7 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
       <LocationBadge floor={floor} area={area} />
       
       <div className="relative pt-10 p-4">
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-2">
           {/* Jaquette */}
           <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted/50 backdrop-blur-sm border border-border/50">
             {albumArt ? (
