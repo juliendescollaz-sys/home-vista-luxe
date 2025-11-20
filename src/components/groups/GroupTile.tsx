@@ -89,13 +89,19 @@ export function GroupTile({ group, onDelete, showBadge = false, sortableProps }:
     }
   };
 
-  const handleDelete = async () => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     if (confirm(`Supprimer le groupe "${group.name}" ?`)) {
       onDelete?.();
     }
   };
 
-  const handlePlayPause = async () => {
+  const volumePercentage = Math.round((localVolume ?? mediaPlayerState?.avgVolume ?? 0.5) * 100);
+
+  const handlePlayPause = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     try {
       if (mediaPlayerState?.isPlaying) {
         await pauseMediaGroup(group.entityIds);
@@ -125,10 +131,9 @@ export function GroupTile({ group, onDelete, showBadge = false, sortableProps }:
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     toggleGroupFavorite(group.id);
   };
-
-  const volumePercentage = Math.round((localVolume ?? mediaPlayerState?.avgVolume ?? 0.5) * 100);
 
   return (
     <Card 
@@ -166,6 +171,7 @@ export function GroupTile({ group, onDelete, showBadge = false, sortableProps }:
               size="icon"
               className="h-8 w-8 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
               onClick={handleFavoriteClick}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
             </Button>
@@ -174,7 +180,8 @@ export function GroupTile({ group, onDelete, showBadge = false, sortableProps }:
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-muted-foreground hover:text-destructive active:bg-destructive/10"
-                onClick={handleDelete}
+                onClick={handleDeleteClick}
+                onPointerDown={(e) => e.stopPropagation()}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -191,6 +198,7 @@ export function GroupTile({ group, onDelete, showBadge = false, sortableProps }:
                 size="sm"
                 className="gap-2 flex-1"
                 onClick={handleOpen}
+                onPointerDown={(e) => e.stopPropagation()}
               >
                 <ChevronUp className="h-4 w-4" />
                 Ouvrir
@@ -200,6 +208,7 @@ export function GroupTile({ group, onDelete, showBadge = false, sortableProps }:
                 size="sm"
                 className="gap-2 flex-1"
                 onClick={handleClose}
+                onPointerDown={(e) => e.stopPropagation()}
               >
                 <ChevronDown className="h-4 w-4" />
                 Fermer
@@ -212,6 +221,7 @@ export function GroupTile({ group, onDelete, showBadge = false, sortableProps }:
                 size="icon"
                 className="h-9 w-9 rounded-full flex-shrink-0"
                 onClick={handlePlayPause}
+                onPointerDown={(e) => e.stopPropagation()}
               >
                 {mediaPlayerState?.isPlaying ? (
                   <Pause className="h-5 w-5" />
@@ -219,7 +229,7 @@ export function GroupTile({ group, onDelete, showBadge = false, sortableProps }:
                   <Play className="h-5 w-5" />
                 )}
               </Button>
-              <div className="flex-1 flex items-center gap-2">
+              <div className="flex-1 flex items-center gap-2" onPointerDown={(e) => e.stopPropagation()}>
                 <Volume2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <Slider
                   value={[localVolume ?? mediaPlayerState?.avgVolume ?? 0.5]}
