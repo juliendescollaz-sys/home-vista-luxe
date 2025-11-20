@@ -1,5 +1,6 @@
 import { Home, Layers, Star, Sparkles, Activity, LayoutDashboard } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Accueil" },
@@ -10,6 +11,13 @@ const navItems = [
 ];
 
 export const BottomNav = () => {
+  const { displayMode } = useDisplayMode();
+  
+  // Ne s'affiche qu'en mode Mobile
+  if (displayMode !== "mobile") {
+    return null;
+  }
+  
   return (
     <nav className="fixed bottom-0 left-0 right-0 glass-nav border-t border-border/30 z-50">
       <div className="max-w-screen-xl mx-auto px-4">
