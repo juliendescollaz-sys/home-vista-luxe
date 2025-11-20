@@ -1,20 +1,18 @@
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 
-const Activity = () => {
+const Groupes = () => {
   const { displayMode } = useDisplayMode();
   const ptClass = displayMode === "mobile" ? "pt-16" : "pt-10";
   
   return (
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
-      <TopBar title="Activité" />
+      <TopBar title="Groupes" />
       <div className="max-w-screen-xl mx-auto px-4 py-4">
-        <p className="text-muted-foreground">Journal des événements récents à venir...</p>
+        <p className="text-muted-foreground">Vos groupes d'appareils apparaîtront ici...</p>
       </div>
-      <BottomNav />
     </div>
   );
 };
 
-export default Activity;
+export default Groupes;

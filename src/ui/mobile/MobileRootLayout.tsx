@@ -7,7 +7,9 @@ import RoomDetails from "@/pages/RoomDetails";
 import MediaPlayerDetails from "@/pages/MediaPlayerDetails";
 import Favorites from "@/pages/Favorites";
 import Scenes from "@/pages/Scenes";
-import Activity from "@/pages/Activity";
+import Routines from "@/pages/Routines";
+import Groupes from "@/pages/Groupes";
+import Smart from "@/pages/Smart";
 import Settings from "@/pages/Settings";
 import Dev from "@/pages/Dev";
 import NotFound from "@/pages/NotFound";
@@ -37,7 +39,9 @@ export function MobileRootLayout() {
         <Route path="/media-player/:entityId" element={<MediaPlayerDetails />} />
         <Route path="/favorites" element={<Favorites />} />
         <Route path="/scenes" element={<Scenes />} />
-        <Route path="/activity" element={<Activity />} />
+        <Route path="/routines" element={<Routines />} />
+        <Route path="/groupes" element={<Groupes />} />
+        <Route path="/smart" element={<Smart />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/dev" element={<Dev />} />
         <Route path="/sonos-zones" element={<SonosZones />} />

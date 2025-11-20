@@ -1,0 +1,51 @@
+import { Home, Star, Sparkles, Repeat, Users, Zap } from "lucide-react";
+import { NavLink } from "@/components/NavLink";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+
+interface MobileMenuProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+const navItems = [
+  { to: "/", icon: Home, label: "Accueil" },
+  { to: "/rooms", icon: Home, label: "Maison" },
+  { to: "/favorites", icon: Star, label: "Favoris" },
+  { to: "/scenes", icon: Sparkles, label: "Scènes" },
+  { to: "/routines", icon: Repeat, label: "Routines" },
+  { to: "/groupes", icon: Users, label: "Groupes" },
+  { to: "/smart", icon: Zap, label: "Smart" },
+];
+
+export const MobileMenu = ({ open, onOpenChange }: MobileMenuProps) => {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-72">
+        <SheetHeader>
+          <SheetTitle>Menu</SheetTitle>
+        </SheetHeader>
+        <nav className="mt-8">
+          <div className="flex flex-col gap-2">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={() => onOpenChange(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors hover:bg-muted/50"
+                activeClassName="bg-primary/10 text-primary font-medium"
+              >
+                <item.icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </NavLink>
+            ))}
+          </div>
+        </nav>
+      </SheetContent>
+    </Sheet>
+  );
+};
