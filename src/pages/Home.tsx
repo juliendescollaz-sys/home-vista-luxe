@@ -75,7 +75,7 @@ const Home = () => {
     return (
       <div className="min-h-screen bg-background pb-24 pt-20">
         <TopBar />
-        <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+        <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
           <Skeleton className="h-64 rounded-2xl" />
         </div>
         <BottomNav />
@@ -87,7 +87,7 @@ const Home = () => {
     <div className="min-h-screen bg-background pb-24 pt-20">
       <TopBar />
       
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
         {/* Section météo */}
         <div className="animate-fade-in">
           <AnimatedWeatherTile />

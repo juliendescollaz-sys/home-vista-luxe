@@ -182,7 +182,7 @@ const RoomDetails = () => {
     return (
       <div className="min-h-screen bg-background pb-24 pt-20">
         <TopBar />
-        <div className="max-w-screen-xl mx-auto px-4 py-8">
+        <div className="max-w-screen-xl mx-auto px-4 py-4">
           <p className="text-muted-foreground">Pièce introuvable</p>
         </div>
         <BottomNav />
@@ -233,7 +233,7 @@ const RoomDetails = () => {
         </div>
       </div>
 
-      <div className="max-w-screen-xl mx-auto px-4 py-8">
+      <div className="max-w-screen-xl mx-auto px-4 py-4">
         {sortedEntities.length === 0 ? (
           <p className="text-center text-muted-foreground">
             Aucun appareil dans cette pièce

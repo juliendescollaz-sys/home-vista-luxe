@@ -29,7 +29,7 @@ const Settings = () => {
     <div className="min-h-screen bg-background pb-24 pt-20">
       <TopBar />
       
-      <div className="max-w-screen-xl mx-auto px-4 py-8 space-y-8">
+      <div className="max-w-screen-xl mx-auto px-4 py-4 space-y-8">
         <h2 className="text-3xl font-bold">Paramètres</h2>
 
         <div className="space-y-4">
