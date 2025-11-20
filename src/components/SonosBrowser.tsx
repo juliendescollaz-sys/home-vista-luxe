@@ -60,12 +60,8 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
 
   const handleNodeClick = (node: BrowseNode) => {
     console.log("👆 Click sur node", node);
-    
-    // Pour les albums et playlists, toujours essayer de naviguer d'abord
-    const isAlbumOrPlaylist = node.mediaClass === "album" || node.mediaClass === "playlist";
-    
-    if (node.canExpand || isAlbumOrPlaylist) {
-      console.log("📂 Navigation vers dossier/album");
+    if (node.canExpand) {
+      console.log("📂 Navigation vers dossier");
       navigateTo(node);
     } else if (node.canPlay) {
       console.log("▶️ Lecture");
@@ -190,23 +186,23 @@ export function SonosBrowser({ client, entityId, connectionUrl }: SonosBrowserPr
                       {displayTitle}
                     </p>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      {(node.canExpand || node.mediaClass === "album" || node.mediaClass === "playlist") && (
-                        <span className="flex items-center gap-1">
-                          <Folder className="h-3.5 w-3.5" />
-                          {node.mediaClass === "album" ? "Album" : node.mediaClass === "playlist" ? "Playlist" : "Dossier"}
-                        </span>
-                      )}
-                      {node.canPlay && !node.canExpand && node.mediaClass !== "album" && node.mediaClass !== "playlist" && (
+                      {node.canPlay && (
                         <span className="flex items-center gap-1">
                           <Play className="h-3.5 w-3.5" />
                           Lecture
+                        </span>
+                      )}
+                      {node.canExpand && (
+                        <span className="flex items-center gap-1">
+                          <Folder className="h-3.5 w-3.5" />
+                          Dossier
                         </span>
                       )}
                     </div>
                   </div>
 
                   {/* Indicateur de navigation */}
-                  {(node.canExpand || node.mediaClass === "album" || node.mediaClass === "playlist") && (
+                  {node.canExpand && (
                     <ChevronRight className="flex-shrink-0 h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                   )}
                   {node.canPlay && !node.canExpand && (
