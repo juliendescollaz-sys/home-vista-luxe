@@ -228,16 +228,27 @@ const Rooms = () => {
   
   const activeArea = areas.find((area) => area.area_id === activeId);
   
-  // Tous les area_ids pour le drag and drop
-  const allAreaIds = useMemo(() => 
-    floorGroups.flatMap(group => group.areas.map(a => a.area_id)),
-    [floorGroups]
-  );
+  // Tous les area_ids pour le drag and drop - utilise l'ordre personnalisé
+  const allAreaIds = useMemo(() => {
+    if (areaOrder.length === 0) return areas.map(a => a.area_id);
+    return areaOrder.filter(id => areas.some(a => a.area_id === id));
+  }, [areaOrder, areas]);
+
+  // Pièces triées selon l'ordre personnalisé pour la vue "Pièces"
+  const sortedAreas = useMemo(() => {
+    if (areaOrder.length === 0) return areas;
+    const orderMap = new Map(areaOrder.map((id, index) => [id, index]));
+    return [...areas].sort((a, b) => {
+      const orderA = orderMap.get(a.area_id) ?? Number.MAX_SAFE_INTEGER;
+      const orderB = orderMap.get(b.area_id) ?? Number.MAX_SAFE_INTEGER;
+      return orderA - orderB;
+    });
+  }, [areas, areaOrder]);
 
   return (
     <div className="min-h-screen bg-background pb-24 pt-20">
       <TopBar />
-      <div className="max-w-screen-xl mx-auto px-4 py-8">
+      <div className="max-w-screen-xl mx-auto px-4 py-4">
         <h2 className="text-3xl font-bold mb-4">Maison</h2>
         
         <div className="mb-6">
@@ -336,7 +347,7 @@ const Rooms = () => {
               </div>
             )}
 
-            {/* Vue Pièces - toutes les pièces à plat */}
+            {/* Vue Pièces - toutes les pièces à plat avec ordre personnalisable */}
             {viewMode === "rooms" && (
               <DndContext
                 sensors={sensors}
@@ -349,7 +360,7 @@ const Rooms = () => {
                   strategy={rectSortingStrategy}
                 >
                   <div className={`grid ${displayMode === "mobile" ? "grid-cols-1" : displayMode === "tablet" ? "grid-cols-2" : "grid-cols-3"} gap-4 animate-fade-in`}>
-                    {floorGroups.flatMap(group => group.areas).map((area) => (
+                    {sortedAreas.map((area) => (
                       <SortableRoomCard
                         key={area.area_id}
                         areaId={area.area_id}

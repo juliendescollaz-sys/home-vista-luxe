@@ -264,7 +264,7 @@ const MediaPlayerDetails = () => {
     return (
       <div className="min-h-screen bg-background pb-24 pt-20">
         <TopBar />
-        <div className="max-w-screen-xl mx-auto px-4 py-8">
+        <div className="max-w-screen-xl mx-auto px-4 py-4">
           <p className="text-muted-foreground">Appareil introuvable</p>
         </div>
         <BottomNav />
@@ -278,19 +278,19 @@ const MediaPlayerDetails = () => {
     <div className="min-h-screen bg-background pb-24 pt-20">
       <TopBar />
       
-      <div className="max-w-screen-xl mx-auto px-6 pt-6">
+      <div className="max-w-screen-xl mx-auto px-6 py-4">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => navigate(-1)}
-          className="mb-6"
+          className="mb-4"
         >
           <ArrowLeft className="h-5 w-5 mr-2" />
           Retour
         </Button>
       </div>
 
-      <div className="max-w-screen-xl mx-auto px-4 pb-8">
+      <div className="max-w-screen-xl mx-auto px-4 pb-4">
 
         {/* Jaquette et infos */}
         <Card className="overflow-hidden mb-6">
