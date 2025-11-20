@@ -77,7 +77,9 @@ export const useGroupStore = create<GroupStore>()(
             return { groups: [...state.groups, newGroup], isSaving: false };
           });
         } catch (error: any) {
-          set({ error: error.message || "Erreur lors de la création du groupe", isSaving: false });
+          const errorMessage = error.message || "Erreur lors de la création du groupe";
+          console.error("Erreur createOrUpdateGroup:", errorMessage, error);
+          set({ error: errorMessage, isSaving: false });
           throw error;
         }
       },
