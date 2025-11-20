@@ -322,7 +322,7 @@ const Rooms = () => {
     });
   }, [areas, areaOrder]);
 
-  // Grouper les appareils par pièce/étage pour la vue "Appareils"
+  // Grouper les appareils par pièce/étage pour la vue "Appareils" (pour d'autres usages éventuels)
   const groupedDevices = useMemo(() => {
     const groups: Record<string, { area: typeof areas[0] | null; floor: typeof floors[0] | null; devices: typeof controllableEntities }> = {};
     
@@ -356,6 +356,27 @@ const Rooms = () => {
       return (a.area?.name || "Sans pièce").localeCompare(b.area?.name || "Sans pièce");
     });
   }, [orderedControllableEntities, areas, floors, devices, entityRegistry]);
+
+  const getEntityLocation = (entity: HAEntity) => {
+    const reg = entityRegistry.find(r => r.entity_id === entity.entity_id);
+    let areaId = reg?.area_id;
+
+    if (!areaId && reg?.device_id) {
+      const dev = devices.find(d => d.id === reg.device_id);
+      if (dev?.area_id) {
+        areaId = dev.area_id;
+      }
+    }
+
+    if (!areaId && (entity as any).attributes?.area_id) {
+      areaId = (entity as any).attributes.area_id as string;
+    }
+
+    const area = areaId ? areas.find(a => a.area_id === areaId) || null : null;
+    const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) || null : null;
+
+    return { area, floor };
+  };
 
   return (
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
@@ -500,7 +521,7 @@ const Rooms = () => {
               </DndContext>
             )}
 
-            {/* Vue Appareils - tous les appareils regroupés par pièce */}
+            {/* Vue Appareils - tous les appareils avec localisation intégrée */}
             {viewMode === "devices" && (
               <DndContext
                 sensors={sensors}
@@ -513,27 +534,27 @@ const Rooms = () => {
                   strategy={verticalListSortingStrategy}
                 >
                   <div className="space-y-3 animate-fade-in">
-                    {groupedDevices.flatMap(([areaId, { area, floor, devices: groupDevices }]) =>
-                      groupDevices.map((entity) => {
-                        const isMediaPlayer = entity.entity_id.startsWith("media_player.");
-                        return isMediaPlayer ? (
-                          <SortableMediaPlayerCard
-                            key={entity.entity_id}
-                            entity={entity}
-                            floor={floor}
-                            area={area}
-                          />
-                        ) : (
-                          <SortableDeviceCard
-                            key={entity.entity_id}
-                            entity={entity}
-                            onToggle={handleDeviceToggle}
-                            floor={floor}
-                            area={area}
-                          />
-                        );
-                      })
-                    )}
+                    {orderedControllableEntities.map((entity) => {
+                      const { area, floor } = getEntityLocation(entity);
+                      const isMediaPlayer = entity.entity_id.startsWith("media_player.");
+
+                      return isMediaPlayer ? (
+                        <SortableMediaPlayerCard
+                          key={entity.entity_id}
+                          entity={entity}
+                          floor={floor}
+                          area={area}
+                        />
+                      ) : (
+                        <SortableDeviceCard
+                          key={entity.entity_id}
+                          entity={entity}
+                          onToggle={handleDeviceToggle}
+                          floor={floor}
+                          area={area}
+                        />
+                      );
+                    })}
                   </div>
                 </SortableContext>
                 
