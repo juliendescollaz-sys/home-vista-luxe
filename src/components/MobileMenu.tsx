@@ -1,4 +1,4 @@
-import { Home, Star, Sparkles, Repeat, Users, Zap } from "lucide-react";
+import { Home, Layers, Star, Sparkles, Repeat, Users, Zap, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sheet,
@@ -6,6 +6,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useHandedness } from "@/hooks/useHandedness";
 
 interface MobileMenuProps {
   open: boolean;
@@ -14,18 +15,22 @@ interface MobileMenuProps {
 
 const navItems = [
   { to: "/", icon: Home, label: "Accueil" },
-  { to: "/rooms", icon: Home, label: "Maison" },
+  { to: "/rooms", icon: Layers, label: "Maison" },
   { to: "/favorites", icon: Star, label: "Favoris" },
   { to: "/scenes", icon: Sparkles, label: "Scènes" },
   { to: "/routines", icon: Repeat, label: "Routines" },
   { to: "/groupes", icon: Users, label: "Groupes" },
   { to: "/smart", icon: Zap, label: "Smart" },
+  { to: "/settings", icon: Settings, label: "Paramètres" },
 ];
 
 export const MobileMenu = ({ open, onOpenChange }: MobileMenuProps) => {
+  const { handedness } = useHandedness();
+  const menuSide = handedness === "left" ? "left" : "right";
+  
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-72">
+      <SheetContent side={menuSide} className="w-72">
         <SheetHeader>
           <SheetTitle>Menu</SheetTitle>
         </SheetHeader>

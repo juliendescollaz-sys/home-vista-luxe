@@ -1,4 +1,4 @@
-import { Settings, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
@@ -43,9 +43,9 @@ export const TopBar = ({ title }: TopBarProps) => {
             </h1>
           )}
 
-          {/* Bouton Menu/Paramètres - à droite si droitier, à gauche si gaucher */}
-          <div className={`${isLeftHanded && isMobile ? "order-1" : "order-2"}`}>
-            {isMobile ? (
+          {/* Bouton Menu - à droite si droitier, à gauche si gaucher (mobile seulement) */}
+          {isMobile && (
+            <div className={`${isLeftHanded ? "order-1" : "order-2"}`}>
               <Button
                 variant="ghost"
                 size="icon"
@@ -54,17 +54,8 @@ export const TopBar = ({ title }: TopBarProps) => {
               >
                 <Menu className="h-5 w-5" />
               </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/settings")}
-                className="bg-transparent"
-              >
-                <Settings className="h-5 w-5" />
-              </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
