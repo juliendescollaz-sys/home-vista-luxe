@@ -87,16 +87,25 @@ const Favorites = () => {
     const groups: Record<string, { area: typeof areas[0] | null; floor: typeof floors[0] | null; devices: typeof sortedEntities }> = {};
     
     sortedEntities.forEach(device => {
+      // Chercher l'area depuis l'entityRegistry ou directement depuis l'entité
       const reg = entityRegistry.find(r => r.entity_id === device.entity_id);
-      const areaId = reg?.area_id || "no_area";
+      let areaId = reg?.area_id;
       
-      if (!groups[areaId]) {
-        const area = areas.find(a => a.area_id === areaId) || null;
-        const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) || null : null;
-        groups[areaId] = { area, floor, devices: [] };
+      // Si pas trouvé dans le registry, chercher dans les attributs de l'entité
+      if (!areaId && device.attributes?.area_id) {
+        areaId = device.attributes.area_id;
       }
       
-      groups[areaId].devices.push(device);
+      // Utiliser "no_area" seulement si vraiment aucune area n'est trouvée
+      const groupKey = areaId || "no_area";
+      
+      if (!groups[groupKey]) {
+        const area = areaId ? areas.find(a => a.area_id === areaId) || null : null;
+        const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) || null : null;
+        groups[groupKey] = { area, floor, devices: [] };
+      }
+      
+      groups[groupKey].devices.push(device);
     });
     
     return Object.entries(groups).sort(([, a], [, b]) => {
