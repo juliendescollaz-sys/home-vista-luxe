@@ -72,7 +72,7 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
       onClick={handleCardClick}
     >
       <LocationBadge floor={floor} area={area} />
-      <div className="relative p-4 pt-10 space-y-3">
+      <div className="relative p-4 space-y-3">
         {/* Header: Jaquette + Titre/Artiste + Favoris */}
         <div className="flex items-center gap-4">
           {/* Jaquette */}
