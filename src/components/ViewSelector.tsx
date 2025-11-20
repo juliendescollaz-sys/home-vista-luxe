@@ -6,14 +6,19 @@ export type ViewMode = "floors" | "rooms" | "devices";
 interface ViewSelectorProps {
   selectedView: ViewMode;
   onViewChange: (view: ViewMode) => void;
+  hideFloors?: boolean;
 }
 
-export const ViewSelector = ({ selectedView, onViewChange }: ViewSelectorProps) => {
-  const views = [
+export const ViewSelector = ({ selectedView, onViewChange, hideFloors = false }: ViewSelectorProps) => {
+  const allViews = [
     { id: "floors" as ViewMode, label: "Étages", icon: Building2 },
     { id: "rooms" as ViewMode, label: "Pièces", icon: Home },
     { id: "devices" as ViewMode, label: "Appareils", icon: Grid3x3 },
   ];
+
+  const views = hideFloors 
+    ? allViews.filter(view => view.id !== "floors")
+    : allViews;
 
   return (
     <div className="flex gap-2 p-1 bg-muted/50 rounded-xl backdrop-blur-sm border border-border/50">
