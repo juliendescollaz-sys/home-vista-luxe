@@ -173,3 +173,46 @@ export async function closeGroup(haEntityId: string): Promise<void> {
     throw new Error("Impossible de fermer les stores");
   }
 }
+
+/**
+ * Lance la lecture d'un groupe de media players
+ */
+export async function playMediaGroup(entityIds: string[]): Promise<void> {
+  try {
+    await callHAService("media_player", "media_play", {
+      entity_id: entityIds,
+    });
+  } catch (error: any) {
+    console.error("Erreur lors de la lecture:", error);
+    throw new Error("Impossible de lancer la lecture");
+  }
+}
+
+/**
+ * Met en pause un groupe de media players
+ */
+export async function pauseMediaGroup(entityIds: string[]): Promise<void> {
+  try {
+    await callHAService("media_player", "media_pause", {
+      entity_id: entityIds,
+    });
+  } catch (error: any) {
+    console.error("Erreur lors de la pause:", error);
+    throw new Error("Impossible de mettre en pause");
+  }
+}
+
+/**
+ * Définit le volume d'un groupe de media players
+ */
+export async function setGroupVolume(entityIds: string[], volume: number): Promise<void> {
+  try {
+    await callHAService("media_player", "volume_set", {
+      entity_id: entityIds,
+      volume_level: volume,
+    });
+  } catch (error: any) {
+    console.error("Erreur lors du réglage du volume:", error);
+    throw new Error("Impossible de régler le volume");
+  }
+}
