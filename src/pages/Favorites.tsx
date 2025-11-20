@@ -33,7 +33,7 @@ const Favorites = () => {
   const entityOrder = useHAStore((state) => state.entityOrder);
   const setEntityOrder = useHAStore((state) => state.setEntityOrder);
   const { displayMode } = useDisplayMode();
-  const ptClass = displayMode === "mobile" ? "pt-[7.375rem]" : "pt-10";
+  const ptClass = displayMode === "mobile" ? "pt-[7.1875rem]" : "pt-10";
 
   const contextId = "favorites";
   

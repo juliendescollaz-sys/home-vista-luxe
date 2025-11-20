@@ -3,7 +3,7 @@ import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 const Groupes = () => {
   const { displayMode } = useDisplayMode();
-  const ptClass = displayMode === "mobile" ? "pt-[7.375rem]" : "pt-10";
+  const ptClass = displayMode === "mobile" ? "pt-[7.1875rem]" : "pt-10";
   
   return (
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
