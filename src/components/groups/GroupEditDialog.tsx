@@ -76,6 +76,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
         name,
         domain: group.domain,
         entityIds: selectedEntityIds,
+        isShared: group.isShared, // Maintenir le type de groupe existant
       });
       toast.success("Groupe modifié");
       handleClose();

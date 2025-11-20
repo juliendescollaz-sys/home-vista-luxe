@@ -99,6 +99,7 @@ export async function createOrUpdateHaGroup(params: {
     domain,
     entityIds,
     haEntityId,
+    isShared: true,
   };
 
   return group;
@@ -214,5 +215,46 @@ export async function setGroupVolume(entityIds: string[], volume: number): Promi
   } catch (error: any) {
     console.error("Erreur lors du réglage du volume:", error);
     throw new Error("Impossible de régler le volume");
+  }
+}
+
+/**
+ * Récupère tous les groupes partagés depuis Home Assistant
+ * (groupes avec entity_id commençant par group.neolia_)
+ */
+export async function fetchSharedGroupsFromHA(): Promise<NeoliaGroup[]> {
+  const client = getHAClient();
+  
+  try {
+    const states = await client.getStates();
+    
+    return states
+      .filter((s: any) => 
+        typeof s.entity_id === "string" && 
+        s.entity_id.startsWith("group.neolia_")
+      )
+      .map((s: any) => {
+        const entityId: string = s.entity_id;
+        const attrs = s.attributes || {};
+        const members: string[] = attrs.entity_id || [];
+        
+        // Déduire le domaine à partir du premier membre
+        const first = members[0] as string | undefined;
+        const domain = first && first.includes(".") 
+          ? (first.split(".")[0] as HaGroupDomain) 
+          : "light";
+        
+        return {
+          id: entityId.replace("group.", ""),
+          name: attrs.friendly_name || entityId,
+          domain,
+          entityIds: members,
+          haEntityId: entityId,
+          isShared: true,
+        } as NeoliaGroup;
+      });
+  } catch (error: any) {
+    console.error("Erreur lors de la récupération des groupes partagés:", error);
+    throw new Error("Impossible de récupérer les groupes partagés");
   }
 }
