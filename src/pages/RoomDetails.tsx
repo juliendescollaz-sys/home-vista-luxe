@@ -32,7 +32,7 @@ const RoomDetails = () => {
   const { areaId } = useParams<{ areaId: string }>();
   const navigate = useNavigate();
   const { displayMode } = useDisplayMode();
-  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
+  const ptClass = displayMode === "mobile" ? "pt-[7.125rem]" : "pt-10";
   
   const [activeId, setActiveId] = useState<string | null>(null);
 
