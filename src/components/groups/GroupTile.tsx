@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Lightbulb, Blinds, Power, Fan, Music, ChevronUp, ChevronDown, Pencil, Play, Pause, Star, Volume2 } from "lucide-react";
+import { Lightbulb, Blinds, Power, Fan, Music, ChevronUp, ChevronDown, Pencil, Play, Pause, Star, Volume2, Cloud, Lock } from "lucide-react";
 import type { NeoliaGroup, HaGroupDomain } from "@/types/groups";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
@@ -39,8 +39,8 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const isFavorite = groupFavorites.includes(group.id);
 
-  // Récupérer l'entité de groupe depuis HA
-  const groupEntity = entities.find((e) => e.entity_id === group.haEntityId);
+  // Récupérer l'entité de groupe depuis HA (seulement pour les groupes partagés)
+  const groupEntity = group.haEntityId ? entities.find((e) => e.entity_id === group.haEntityId) : undefined;
   const isActive = groupEntity?.state === "on" || groupEntity?.state === "open";
   const Icon = DOMAIN_ICONS[group.domain];
 
@@ -158,7 +158,14 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
 
           {/* Info */}
           <div className="flex-1 min-w-0 pt-0.5">
-            <h3 className="font-semibold text-base truncate mb-0.5">{group.name}</h3>
+            <div className="flex items-center gap-2 mb-0.5">
+              <h3 className="font-semibold text-base truncate">{group.name}</h3>
+              {group.isShared ? (
+                <Cloud className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" />
+              ) : (
+                <Lock className="h-3.5 w-3.5 text-muted-foreground/70 flex-shrink-0" />
+              )}
+            </div>
             <p className="text-sm text-muted-foreground">
               {group.entityIds.length} appareil{group.entityIds.length > 1 ? "s" : ""}
             </p>

@@ -5,7 +5,7 @@ import { GroupWizard } from "@/components/groups/GroupWizard";
 import { GroupTile } from "@/components/groups/GroupTile";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 const Groupes = () => {
@@ -13,7 +13,13 @@ const Groupes = () => {
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
   
   const [wizardOpen, setWizardOpen] = useState(false);
-  const { groups } = useGroupStore();
+  const { groups, syncSharedGroupsFromHA } = useGroupStore();
+
+  // Synchroniser les groupes partagés au montage
+  useEffect(() => {
+    syncSharedGroupsFromHA().catch(console.error);
+  }, [syncSharedGroupsFromHA]);
+
 
   return (
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>

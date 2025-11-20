@@ -9,7 +9,8 @@ export interface NeoliaGroup {
   name: string;
   domain: HaGroupDomain;
   entityIds: string[];
-  haEntityId: string; // ex: group.neolia_salon
+  haEntityId?: string; // ex: group.neolia_salon (seulement pour les groupes partagés)
+  isShared: boolean;   // true = partagé via HA, false = privé à cet appareil
 }
 
 export interface GroupWizardState {

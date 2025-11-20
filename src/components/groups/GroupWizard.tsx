@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Lightbulb, Blinds, Power, Fan, Music, ChevronLeft, ChevronRight, Check, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Lightbulb, Blinds, Power, Fan, Music, ChevronLeft, ChevronRight, Check, Loader2, Cloud, Lock } from "lucide-react";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
 import type { HaGroupDomain } from "@/types/groups";
@@ -30,6 +31,7 @@ export function GroupWizard({ open, onOpenChange }: GroupWizardProps) {
   const [domain, setDomain] = useState<HaGroupDomain | undefined>();
   const [name, setName] = useState("");
   const [selectedEntityIds, setSelectedEntityIds] = useState<string[]>([]);
+  const [isShared, setIsShared] = useState(true);
 
   const entities = useHAStore((state) => state.entities);
   const { createOrUpdateGroup, isSaving, error, clearError } = useGroupStore();
@@ -44,6 +46,7 @@ export function GroupWizard({ open, onOpenChange }: GroupWizardProps) {
     setDomain(undefined);
     setName("");
     setSelectedEntityIds([]);
+    setIsShared(true);
     clearError();
     onOpenChange(false);
   };
@@ -73,6 +76,7 @@ export function GroupWizard({ open, onOpenChange }: GroupWizardProps) {
         name,
         domain,
         entityIds: selectedEntityIds,
+        isShared,
       });
       toast.success("Groupe créé avec succès");
       handleClose();
@@ -208,11 +212,37 @@ export function GroupWizard({ open, onOpenChange }: GroupWizardProps) {
           {/* Étape 4: Résumé */}
           {step === 4 && (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                En validant, un groupe sera créé dans votre Home Assistant.
-                <br />
-                Vous pourrez ensuite contrôler tous ces appareils avec un seul bouton.
-              </p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="share-toggle" className="text-base">
+                    Mettre ce groupe à disposition des autres utilisateurs ?
+                  </Label>
+                  <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-background/20">
+                    <div className="flex items-center gap-3">
+                      {isShared ? (
+                        <Cloud className="h-5 w-5 text-primary" />
+                      ) : (
+                        <Lock className="h-5 w-5 text-muted-foreground" />
+                      )}
+                      <div>
+                        <p className="font-medium text-sm">
+                          {isShared ? "Groupe partagé" : "Groupe privé"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {isShared
+                            ? "Visible sur tous les appareils utilisant Neolia"
+                            : "Uniquement sur cet appareil"}
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      id="share-toggle"
+                      checked={isShared}
+                      onCheckedChange={setIsShared}
+                    />
+                  </div>
+                </div>
+              </div>
 
               <div className="rounded-lg border border-border/50 bg-background/30 p-4 space-y-3">
                 <div>
