@@ -1,4 +1,3 @@
-import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
@@ -8,6 +7,8 @@ import { MobileMenu } from "@/components/MobileMenu";
 import { useState } from "react";
 import neoliaLogoLight from "@/assets/neolia-logo.png";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
+import burgerLight from "@/assets/burger-light.png";
+import burgerDark from "@/assets/burger-dark.png";
 
 interface TopBarProps {
   title?: string;
@@ -50,9 +51,13 @@ export const TopBar = ({ title }: TopBarProps) => {
                 variant="ghost"
                 size="icon"
                 onClick={() => setMenuOpen(true)}
-                className="bg-transparent h-14 w-14"
+                className="bg-transparent h-14 w-14 p-0"
               >
-                <Menu className="h-12 w-12" strokeWidth={1.5} />
+                <img 
+                  src={theme === "light" ? burgerDark : burgerLight} 
+                  alt="Menu" 
+                  className="h-10 w-10"
+                />
               </Button>
             </div>
           )}
