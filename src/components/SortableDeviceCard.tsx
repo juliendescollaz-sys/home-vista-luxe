@@ -65,6 +65,8 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
     <Card 
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       className="group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50"
     >
       <LocationBadge floor={floor} area={area} />
@@ -74,8 +76,6 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <button
             type="button"
-            {...attributes}
-            {...listeners}
             className="p-2 -ml-2 rounded-lg transition-colors cursor-grab active:cursor-grabbing touch-none"
             aria-label="Déplacer l'appareil"
           >

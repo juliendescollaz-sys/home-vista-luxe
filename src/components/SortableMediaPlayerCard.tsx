@@ -89,6 +89,8 @@ export const SortableMediaPlayerCard = ({ entity, floor, area }: SortableMediaPl
       ref={setNodeRef}
       style={style}
       onClick={handleCardClick}
+      {...sortableAttributes}
+      {...listeners}
       className="group relative overflow-hidden cursor-pointer glass-card elevated-subtle elevated-active border-border/50"
     >
       <LocationBadge floor={floor} area={area} />
@@ -97,8 +99,6 @@ export const SortableMediaPlayerCard = ({ entity, floor, area }: SortableMediaPl
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <button
               type="button"
-              {...sortableAttributes}
-              {...listeners}
               className="p-2 -ml-2 mt-1 rounded-lg transition-colors cursor-grab active:cursor-grabbing touch-none shrink-0"
               aria-label="Déplacer le lecteur"
             >
