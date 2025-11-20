@@ -2,37 +2,37 @@
  * Service pour la gestion des groupes Home Assistant
  */
 
-import { getHaConfig } from "./haConfig";
+import { useHAStore } from "@/store/useHAStore";
 import type { HaGroupDomain, NeoliaGroup } from "@/types/groups";
 
 /**
- * Helper générique pour appeler un service Home Assistant
+ * Helper pour obtenir le client HA
+ */
+function getHAClient() {
+  const client = useHAStore.getState().client;
+  if (!client) {
+    throw new Error("Client Home Assistant non connecté");
+  }
+  return client;
+}
+
+/**
+ * Helper générique pour appeler un service Home Assistant via WebSocket
  */
 async function callHAService(
   domain: string,
   service: string,
-  data: Record<string, any>
+  serviceData: Record<string, any> = {}
 ): Promise<any> {
-  const config = await getHaConfig();
-  if (!config) {
-    throw new Error("Configuration Home Assistant introuvable");
+  const client = getHAClient();
+  
+  try {
+    const result = await client.callService(domain, service, serviceData);
+    return result;
+  } catch (error: any) {
+    console.error(`Erreur lors de l'appel ${domain}.${service}:`, error);
+    throw new Error(error.message || `Échec de l'appel à ${domain}.${service}`);
   }
-
-  const response = await fetch(`${config.localHaUrl}/api/services/${domain}/${service}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.token}`,
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Erreur HA (${response.status}): ${errorText}`);
-  }
-
-  return response.json();
 }
 
 /**
@@ -78,12 +78,19 @@ export async function createOrUpdateHaGroup(params: {
   const objectId = `neolia_${slug}`;
   const haEntityId = `group.${objectId}`;
 
-  // Appel à l'API Home Assistant
-  await callHAService("group", "set", {
-    object_id: objectId,
-    name: name.trim(),
-    entities: entityIds,
-  });
+  // Appel à l'API Home Assistant via WebSocket
+  try {
+    await callHAService("group", "set", {
+      object_id: objectId,
+      name: name.trim(),
+      entities: entityIds,
+    });
+  } catch (error: any) {
+    console.error("Erreur lors de la création du groupe:", error);
+    throw new Error(
+      `Impossible de créer le groupe dans Home Assistant. Vérifiez que l'intégration Group est active.`
+    );
+  }
 
   // Créer l'objet NeoliaGroup
   const group: NeoliaGroup = {
@@ -101,43 +108,68 @@ export async function createOrUpdateHaGroup(params: {
  * Supprime un groupe dans Home Assistant
  */
 export async function deleteHaGroup(objectId: string): Promise<void> {
-  await callHAService("group", "remove", {
-    object_id: objectId,
-  });
+  try {
+    await callHAService("group", "remove", {
+      object_id: objectId,
+    });
+  } catch (error: any) {
+    console.error("Erreur lors de la suppression du groupe:", error);
+    throw new Error("Impossible de supprimer le groupe");
+  }
 }
 
 /**
  * Allume un groupe
  */
 export async function turnOnGroup(haEntityId: string, domain: HaGroupDomain): Promise<void> {
-  await callHAService(domain, "turn_on", {
-    entity_id: haEntityId,
-  });
+  try {
+    await callHAService(domain, "turn_on", {
+      entity_id: haEntityId,
+    });
+  } catch (error: any) {
+    console.error("Erreur lors de l'activation du groupe:", error);
+    throw new Error("Impossible d'activer le groupe");
+  }
 }
 
 /**
  * Éteint un groupe
  */
 export async function turnOffGroup(haEntityId: string, domain: HaGroupDomain): Promise<void> {
-  await callHAService(domain, "turn_off", {
-    entity_id: haEntityId,
-  });
+  try {
+    await callHAService(domain, "turn_off", {
+      entity_id: haEntityId,
+    });
+  } catch (error: any) {
+    console.error("Erreur lors de la désactivation du groupe:", error);
+    throw new Error("Impossible de désactiver le groupe");
+  }
 }
 
 /**
  * Ouvre un groupe (covers)
  */
 export async function openGroup(haEntityId: string): Promise<void> {
-  await callHAService("cover", "open_cover", {
-    entity_id: haEntityId,
-  });
+  try {
+    await callHAService("cover", "open_cover", {
+      entity_id: haEntityId,
+    });
+  } catch (error: any) {
+    console.error("Erreur lors de l'ouverture:", error);
+    throw new Error("Impossible d'ouvrir les stores");
+  }
 }
 
 /**
  * Ferme un groupe (covers)
  */
 export async function closeGroup(haEntityId: string): Promise<void> {
-  await callHAService("cover", "close_cover", {
-    entity_id: haEntityId,
-  });
+  try {
+    await callHAService("cover", "close_cover", {
+      entity_id: haEntityId,
+    });
+  } catch (error: any) {
+    console.error("Erreur lors de la fermeture:", error);
+    throw new Error("Impossible de fermer les stores");
+  }
 }
