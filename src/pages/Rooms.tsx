@@ -293,9 +293,8 @@ const Rooms = () => {
 
   return (
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
-      <TopBar />
+      <TopBar title="Maison" />
       <div className="max-w-screen-xl mx-auto px-4 py-4">
-        <h2 className="text-3xl font-bold mb-4">Maison</h2>
         
         <div className="mb-6">
           <ViewSelector 
