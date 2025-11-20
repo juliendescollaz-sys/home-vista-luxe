@@ -2,10 +2,11 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card } from "@/components/ui/card";
 import { Lightbulb, Thermometer, Music, Lock, Camera, MoreVertical, Power, Star, GripVertical } from "lucide-react";
-import type { HAEntity, EntityDomain } from "@/types/homeassistant";
+import type { HAEntity, EntityDomain, HAFloor, HAArea } from "@/types/homeassistant";
 import { Switch } from "@/components/ui/switch";
 import { useHAStore } from "@/store/useHAStore";
 import { Button } from "@/components/ui/button";
+import { LocationBadge } from "./LocationBadge";
 
 const domainIcons: Record<EntityDomain, any> = {
   light: Lightbulb,
@@ -25,9 +26,11 @@ const domainIcons: Record<EntityDomain, any> = {
 interface SortableDeviceCardProps {
   entity: HAEntity;
   onToggle?: (entityId: string) => void;
+  floor?: HAFloor | null;
+  area?: HAArea | null;
 }
 
-export const SortableDeviceCard = ({ entity, onToggle }: SortableDeviceCardProps) => {
+export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDeviceCardProps) => {
   const domain = entity.entity_id.split(".")[0] as EntityDomain;
   const Icon = domainIcons[domain] || MoreVertical;
   const isActive = entity.state === "on";
@@ -64,6 +67,7 @@ export const SortableDeviceCard = ({ entity, onToggle }: SortableDeviceCardProps
       style={style}
       className="group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50"
     >
+      <LocationBadge floor={floor} area={area} />
       <div className={`absolute inset-0 transition-opacity ${isActive ? 'bg-primary/5 opacity-100' : 'opacity-0'}`} />
       
       <div className="relative p-4 flex items-center justify-between">

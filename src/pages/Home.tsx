@@ -135,8 +135,8 @@ const Home = () => {
           <AnimatedWeatherTile />
         </div>
 
-        {/* Appareils actifs regroupés par pièce */}
-        <div className="space-y-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+        {/* Appareils actifs */}
+        <div className="space-y-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <h2 className="text-xl font-semibold">Appareils actifs</h2>
           
           {groupedDevices.length === 0 ? (
@@ -144,48 +144,29 @@ const Home = () => {
               Aucun appareil actif
             </p>
           ) : (
-            groupedDevices.map(([areaId, { area, floor, devices }]) => (
-              <div key={areaId} className="space-y-3">
-                {/* En-tête de groupe avec étage et pièce */}
-                <div className="flex items-center gap-2">
-                  <HomeIcon className="h-4 w-4 text-muted-foreground" />
-                  <div className="flex items-baseline gap-2">
-                    {floor && (
-                      <span className="text-sm text-muted-foreground">
-                        {floor.name}
-                      </span>
-                    )}
-                    <span className="text-base font-medium">
-                      {area?.name || "Sans pièce"}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      ({devices.length})
-                    </span>
-                  </div>
-                </div>
-
-                {/* Appareils de la pièce */}
-                <div className="space-y-3">
-                  {devices.map((entity) => {
-                    if (entity.entity_id.startsWith("media_player.")) {
-                      return (
-                        <MediaPlayerCard
-                          key={entity.entity_id}
-                          entity={entity}
-                        />
-                      );
-                    }
-                    return (
-                      <DeviceCard
-                        key={entity.entity_id}
-                        entity={entity}
-                        onToggle={handleDeviceToggle}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            ))
+            groupedDevices.flatMap(([areaId, { area, floor, devices }]) =>
+              devices.map((entity) => {
+                if (entity.entity_id.startsWith("media_player.")) {
+                  return (
+                    <MediaPlayerCard
+                      key={entity.entity_id}
+                      entity={entity}
+                      floor={floor}
+                      area={area}
+                    />
+                  );
+                }
+                return (
+                  <DeviceCard
+                    key={entity.entity_id}
+                    entity={entity}
+                    onToggle={handleDeviceToggle}
+                    floor={floor}
+                    area={area}
+                  />
+                );
+              })
+            )
           )}
         </div>
       </div>
