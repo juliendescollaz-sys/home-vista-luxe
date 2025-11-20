@@ -24,7 +24,7 @@ const navItems = [
   { to: "/scenes", icon: Sparkles, label: "Scènes" },
   { to: "/routines", icon: Repeat, label: "Routines" },
   { to: "/groupes", icon: Package, label: "Groupes" },
-  { to: "/smart", icon: Wand2, label: "Smart" },
+  { to: "/smart", icon: Wand2, label: "Smarthome" },
 ];
 
 export function TabletSidebar() {
