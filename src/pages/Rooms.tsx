@@ -52,7 +52,7 @@ const Rooms = () => {
   });
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const ptClass = displayMode === "mobile" ? "pt-[7.125rem]" : "pt-10";
+  const ptClass = displayMode === "mobile" ? "pt-[7.625rem]" : "pt-10";
 
   // Sauvegarder la vue dans sessionStorage
   useEffect(() => {
@@ -296,7 +296,7 @@ const Rooms = () => {
       <TopBar title="Maison" />
       <div className="max-w-screen-xl mx-auto px-4 py-4">
         
-        <div className="mb-6">
+        <div className="mb-4">
           <ViewSelector 
             selectedView={viewMode} 
             onViewChange={setViewMode} 
