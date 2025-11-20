@@ -27,7 +27,7 @@ const MediaPlayerDetails = () => {
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const connection = useHAStore((state) => state.connection);
   const { displayMode } = useDisplayMode();
-  const ptClass = displayMode === "mobile" ? "pt-16" : "pt-10";
+  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
   
   const decodedEntityId = useMemo(() => decodeURIComponent(entityId || ""), [entityId]);
 
