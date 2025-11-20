@@ -1,8 +1,10 @@
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useHAStore } from "@/store/useHAStore";
+import { useGroupStore } from "@/store/useGroupStore";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
+import { GroupTile } from "@/components/groups/GroupTile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
@@ -39,6 +41,8 @@ const Favorites = () => {
   const isConnected = useHAStore((state) => state.isConnected);
   const entityOrder = useHAStore((state) => state.entityOrder);
   const setEntityOrder = useHAStore((state) => state.setEntityOrder);
+  const groups = useGroupStore((state) => state.groups);
+  const groupFavorites = useGroupStore((state) => state.groupFavorites);
   const { displayMode } = useDisplayMode();
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
 
@@ -63,8 +67,9 @@ const Favorites = () => {
     })
   );
 
-  // Filtrer les entités favorites
+  // Filtrer les entités favorites et les groupes favoris
   const favoriteEntities = entities?.filter(e => favorites.includes(e.entity_id)) || [];
+  const favoriteGroups = groups.filter(g => groupFavorites.includes(g.id));
 
   // Initialiser l'ordre si nécessaire
   useEffect(() => {
@@ -188,11 +193,24 @@ const Favorites = () => {
       <TopBar title="Favoris" />
       
       <div className="max-w-screen-xl mx-auto px-4 py-4">
-        {favoriteEntities.length === 0 ? (
+        {favoriteEntities.length === 0 && favoriteGroups.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">
             Aucun favori
           </p>
         ) : (
+          <>
+            {favoriteGroups.length > 0 && (
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold mb-3 px-1">Groupes</h2>
+                <div className={getGridClasses("devices", displayMode)}>
+                  {favoriteGroups.map((group) => (
+                    <GroupTile key={group.id} group={group} showBadge />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {favoriteEntities.length > 0 && (
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -261,6 +279,8 @@ const Favorites = () => {
               ) : null}
             </DragOverlay>
           </DndContext>
+            )}
+          </>
         )}
       </div>
 
