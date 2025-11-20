@@ -49,8 +49,7 @@ const Favorites = () => {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        delay: 250,
-        tolerance: 5,
+        distance: 8,
       },
     }),
     useSensor(TouchSensor, {
