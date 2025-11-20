@@ -202,29 +202,45 @@ const Favorites = () => {
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-3">
-                {groupedFavorites.flatMap(([areaId, { area, floor, devices }]) =>
-                  devices.map((entity) => {
-                    if (entity.entity_id.startsWith("media_player.")) {
-                      return (
-                        <SortableMediaPlayerCard
-                          key={entity.entity_id}
-                          entity={entity}
-                          floor={floor}
-                          area={area}
-                        />
-                      );
+                {sortedEntities.map((entity) => {
+                  const reg = entityRegistry.find(r => r.entity_id === entity.entity_id);
+                  let areaId = reg?.area_id;
+
+                  if (!areaId && reg?.device_id) {
+                    const dev = devices.find(d => d.id === reg.device_id);
+                    if (dev?.area_id) {
+                      areaId = dev.area_id;
                     }
+                  }
+
+                  if (!areaId && (entity as any).attributes?.area_id) {
+                    areaId = (entity as any).attributes.area_id as string;
+                  }
+
+                  const area = areaId ? areas.find(a => a.area_id === areaId) || null : null;
+                  const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) || null : null;
+
+                  if (entity.entity_id.startsWith("media_player.")) {
                     return (
-                      <SortableDeviceCard
+                      <SortableMediaPlayerCard
                         key={entity.entity_id}
                         entity={entity}
-                        onToggle={handleDeviceToggle}
                         floor={floor}
                         area={area}
                       />
                     );
-                  })
-                )}
+                  }
+
+                  return (
+                    <SortableDeviceCard
+                      key={entity.entity_id}
+                      entity={entity}
+                      onToggle={handleDeviceToggle}
+                      floor={floor}
+                      area={area}
+                    />
+                  );
+                })}
               </div>
             </SortableContext>
             
