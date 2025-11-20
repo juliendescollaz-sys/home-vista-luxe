@@ -9,6 +9,7 @@ export type BrowseNode = {
   mediaContentId?: string;
   mediaContentType?: string;
   thumbnail?: string;
+  mediaClass?: string;
 };
 
 export type BreadcrumbItem = {
@@ -77,6 +78,7 @@ export function useSonosBrowser(client: HAClient | null, entityId: string) {
         mediaContentId: c.media_content_id,
         mediaContentType: c.media_content_type,
         thumbnail: c.thumbnail || c.thumbnail_url,
+        mediaClass: c.media_class,
       }));
 
       // Filtrage intelligent à la racine uniquement
@@ -181,7 +183,10 @@ export function useSonosBrowser(client: HAClient | null, entityId: string) {
 
   const navigateTo = useCallback((node: BrowseNode) => {
     console.log("🔍 navigateTo appelé", node);
-    if (!node.canExpand) {
+    
+    // Permettre la navigation pour les albums/playlists même sans canExpand explicite
+    const isAlbumOrPlaylist = node.mediaClass === "album" || node.mediaClass === "playlist";
+    if (!node.canExpand && !isAlbumOrPlaylist) {
       console.log("❌ Navigation impossible - canExpand est false");
       return;
     }
