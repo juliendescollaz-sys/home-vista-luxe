@@ -16,7 +16,7 @@ const Home = () => {
   const isConnected = useHAStore((state) => state.isConnected);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const { displayMode } = useDisplayMode();
-  const ptClass = displayMode === "mobile" ? "pt-[7.5rem]" : "pt-10";
+  const ptClass = displayMode === "mobile" ? "pt-[7.375rem]" : "pt-10";
 
   // Trouver les device_id des media_players pour filtrer leurs entités associées
   const mediaPlayerDeviceIds = new Set(
