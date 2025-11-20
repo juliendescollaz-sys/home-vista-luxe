@@ -1,4 +1,4 @@
-import { Home, Layers, Star, Sparkles, Repeat, Users, Zap, Settings } from "lucide-react";
+import { LayoutDashboard, Home, Star, Sparkles, Repeat, Users, Zap, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sheet,
@@ -14,8 +14,8 @@ interface MobileMenuProps {
 }
 
 const navItems = [
-  { to: "/", icon: Home, label: "Accueil" },
-  { to: "/rooms", icon: Layers, label: "Maison" },
+  { to: "/", icon: LayoutDashboard, label: "Accueil" },
+  { to: "/rooms", icon: Home, label: "Maison" },
   { to: "/favorites", icon: Star, label: "Favoris" },
   { to: "/scenes", icon: Sparkles, label: "Scènes" },
   { to: "/routines", icon: Repeat, label: "Routines" },
