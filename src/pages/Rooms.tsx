@@ -132,12 +132,16 @@ const Rooms = () => {
   const handleDeviceToggle = async (entityId: string) => {
     if (!client) return;
     
+    const entity = entities.find((e) => e.entity_id === entityId);
+    if (!entity) return;
+
     const domain = entityId.split(".")[0];
-    const service = domain === "light" || domain === "switch" ? "toggle" : "toggle";
+    const isOn = entity.state === "on";
+    const service = isOn ? "turn_off" : "turn_on";
     
     try {
-      await client.callService(domain, service, { entity_id: entityId });
-      toast.success("Commande envoyée");
+      await client.callService(domain, service, {}, { entity_id: entityId });
+      toast.success(isOn ? "Éteint" : "Allumé");
     } catch (error) {
       console.error("Error toggling device:", error);
       toast.error("Erreur lors de la commande");
