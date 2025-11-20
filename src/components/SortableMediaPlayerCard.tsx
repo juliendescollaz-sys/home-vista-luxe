@@ -115,7 +115,7 @@ export const SortableMediaPlayerCard = ({ entity, floor, area }: SortableMediaPl
     >
       <LocationBadge floor={floor} area={area} />
       
-      <div className="relative pt-10 p-4">
+      <div className="relative pt-8 p-4">
         <div className="flex items-start gap-2">
           <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted/50 backdrop-blur-sm border border-border/50">
             {albumArt ? (
