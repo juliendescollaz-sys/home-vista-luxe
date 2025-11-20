@@ -4,16 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useHAStore } from "@/store/useHAStore";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Moon, Sun, Users } from "lucide-react";
+import { LogOut, Moon, Sun, Cloud, Home as HomeIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { clearHACredentials } from "@/lib/crypto";
+import { useConnectionMode } from "@/hooks/useConnectionMode";
 
 const Settings = () => {
   const navigate = useNavigate();
   const disconnect = useHAStore((state) => state.disconnect);
   const connection = useHAStore((state) => state.connection);
   const { theme, setTheme } = useTheme();
+  const { connectionMode } = useConnectionMode();
 
   const handleDisconnect = () => {
     disconnect();
@@ -43,6 +45,22 @@ const Settings = () => {
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
                   <span className="text-sm">Connecté</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Mode de connexion</p>
+                <div className="flex items-center gap-2">
+                  {connectionMode === "remote" ? (
+                    <>
+                      <Cloud className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">Cloud (Nabu Casa)</span>
+                    </>
+                  ) : (
+                    <>
+                      <HomeIcon className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">Local</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

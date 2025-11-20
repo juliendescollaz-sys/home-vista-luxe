@@ -98,15 +98,6 @@ export function ConnectionModeProvider({ children }: ConnectionModeProviderProps
   // Mode normal : on laisse le client HA se connecter (local puis éventuellement cloud via watchdog)
   return (
     <>
-      {import.meta.env.DEV && (
-        <div className="fixed bottom-4 right-4 bg-background/95 border rounded-lg px-3 py-2 text-xs z-50 shadow-lg">
-          <span className="text-muted-foreground">Mode: </span>
-          <span className="font-medium">
-            {connectionMode === "remote" ? "☁️ Cloud" : "🏠 Local"}
-          </span>
-        </div>
-      )}
-
       {children}
     </>
   );
