@@ -49,14 +49,10 @@ export function TabletSidebar() {
         />
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className={isCollapsed ? "text-center" : ""}>
-            {!isCollapsed && "Navigation"}
-          </SidebarGroupLabel>
-
-          <SidebarGroupContent>
-            <SidebarMenu>
+      <SidebarContent className="flex flex-col h-full">
+        <SidebarGroup className="flex-1">
+          <SidebarGroupContent className="pt-2">
+            <SidebarMenu className="space-y-1">
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.to}>
                   <SidebarMenuButton asChild>
@@ -76,7 +72,7 @@ export function TabletSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className="mt-auto">
+        <SidebarGroup className="mt-auto pb-4">
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>

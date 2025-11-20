@@ -1,6 +1,8 @@
 import { Routes, Route } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { TabletSidebar } from "@/components/TabletSidebar";
 import { PanelHome } from "./pages/PanelHome";
 import { PanelOnboarding } from "./PanelOnboarding";
 import Settings from "@/pages/Settings";
@@ -49,18 +51,30 @@ export function PanelRootLayout() {
 
   // Config existe, afficher le layout normal
   return (
-    <div className="panel-layout min-h-screen bg-background">
-      <ScrollToTop />
-      <Routes>
-        {/* Dashboard principal du panneau */}
-        <Route path="/" element={<PanelHome />} />
+    <SidebarProvider defaultOpen={true}>
+      <div className="panel-layout min-h-screen flex w-full bg-background">
+        <TabletSidebar />
         
-        {/* Settings (potentiellement protégés par PIN) */}
-        <Route path="/settings" element={<Settings />} />
+        <div className="flex-1 flex flex-col">
+          <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav">
+            <SidebarTrigger />
+          </header>
 
-        {/* Toutes les autres routes redirigent vers le dashboard */}
-        <Route path="*" element={<PanelHome />} />
-      </Routes>
-    </div>
+          <main className="flex-1 overflow-auto">
+            <ScrollToTop />
+            <Routes>
+              {/* Dashboard principal du panneau */}
+              <Route path="/" element={<PanelHome />} />
+              
+              {/* Settings (potentiellement protégés par PIN) */}
+              <Route path="/settings" element={<Settings />} />
+
+              {/* Toutes les autres routes redirigent vers le dashboard */}
+              <Route path="*" element={<PanelHome />} />
+            </Routes>
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
   );
 }
