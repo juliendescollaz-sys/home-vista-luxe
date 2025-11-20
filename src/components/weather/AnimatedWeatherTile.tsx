@@ -44,6 +44,32 @@ export function AnimatedWeatherTile() {
   const { weatherData, isLoading, error, refresh } = useWeatherData();
   const { entities, selectedCity } = useHAStore();
 
+  // Si aucune ville n'est sélectionnée, afficher l'état "Choisir une ville"
+  if (!selectedCity) {
+    return (
+      <div className="relative rounded-3xl p-6 min-h-[200px] glass-card elevated-subtle border-border/50">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold">Choisir une ville</h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowConfig(true)}
+            className="hover-lift"
+          >
+            <Settings size={20} />
+          </Button>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Configurez une ville pour afficher la météo
+        </p>
+        <WeatherConfigDialog 
+          open={showConfig} 
+          onOpenChange={setShowConfig}
+        />
+      </div>
+    );
+  }
+
   if (isLoading && !weatherData) {
     return (
       <div 
