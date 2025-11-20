@@ -52,6 +52,7 @@ const Rooms = () => {
   });
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [deviceOrder, setDeviceOrder] = useState<string[]>([]);
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
 
   // Sauvegarder la vue dans sessionStorage
@@ -110,6 +111,23 @@ const Rooms = () => {
     });
   }, [entities, entityRegistry, mediaPlayerDeviceIds]);
 
+  const orderedControllableEntities = useMemo(() => {
+    if (!deviceOrder.length) return controllableEntities;
+
+    const orderMap = new Map(deviceOrder.map((id, index) => [id, index]));
+    return [...controllableEntities].sort((a, b) => {
+      const orderA = orderMap.get(a.entity_id) ?? Number.MAX_SAFE_INTEGER;
+      const orderB = orderMap.get(b.entity_id) ?? Number.MAX_SAFE_INTEGER;
+      return orderA - orderB;
+    });
+  }, [controllableEntities, deviceOrder]);
+
+  useEffect(() => {
+    if (!deviceOrder.length && controllableEntities.length) {
+      setDeviceOrder(controllableEntities.map((e) => e.entity_id));
+    }
+  }, [controllableEntities, deviceOrder.length, setDeviceOrder]);
+ 
   // Fonction pour alterner un appareil
   const handleDeviceToggle = async (entityId: string) => {
     if (!client) return;
@@ -259,7 +277,10 @@ const Rooms = () => {
     const { active, over } = event;
     setActiveId(null);
 
-    if (over && active.id !== over.id) {
+    if (!over || active.id === over.id) return;
+
+    // Réorganisation des pièces (zones)
+    if (viewMode !== "devices") {
       // Trouver tous les area_ids dans l'ordre actuel
       const allAreaIds = floorGroups.flatMap(group => group.areas.map(a => a.area_id));
       const oldIndex = allAreaIds.indexOf(active.id as string);
@@ -269,6 +290,15 @@ const Rooms = () => {
         const newOrder = arrayMove(allAreaIds, oldIndex, newIndex);
         setAreaOrder(newOrder);
       }
+      return;
+    }
+
+    // Réorganisation des appareils (vue Appareils)
+    const oldIndex = deviceOrder.indexOf(active.id as string);
+    const newIndex = deviceOrder.indexOf(over.id as string);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      setDeviceOrder((prev) => arrayMove(prev, oldIndex, newIndex));
     }
   };
   
@@ -295,7 +325,7 @@ const Rooms = () => {
   const groupedDevices = useMemo(() => {
     const groups: Record<string, { area: typeof areas[0] | null; floor: typeof floors[0] | null; devices: typeof controllableEntities }> = {};
     
-    controllableEntities.forEach(device => {
+    orderedControllableEntities.forEach(device => {
       const reg = entityRegistry.find(r => r.entity_id === device.entity_id);
       let areaId = reg?.area_id;
 
@@ -324,7 +354,7 @@ const Rooms = () => {
       if (floorA !== floorB) return floorA - floorB;
       return (a.area?.name || "Sans pièce").localeCompare(b.area?.name || "Sans pièce");
     });
-  }, [controllableEntities, areas, floors, devices, entityRegistry]);
+  }, [orderedControllableEntities, areas, floors, devices, entityRegistry]);
 
   return (
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
@@ -478,7 +508,7 @@ const Rooms = () => {
                 onDragEnd={handleDragEnd}
               >
                 <SortableContext
-                  items={controllableEntities.map(e => e.entity_id)}
+                  items={orderedControllableEntities.map((e) => e.entity_id)}
                   strategy={verticalListSortingStrategy}
                 >
                   <div className="space-y-6 animate-fade-in">
