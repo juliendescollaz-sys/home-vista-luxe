@@ -1,4 +1,4 @@
-import { Home, Layers, Star, Sparkles, Activity, LayoutDashboard } from "lucide-react";
+import { Home, Layers, Star, Sparkles, Repeat, Users, Zap, LayoutDashboard } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 
@@ -7,14 +7,16 @@ const navItems = [
   { to: "/rooms", icon: Home, label: "Maison" },
   { to: "/favorites", icon: Star, label: "Favoris" },
   { to: "/scenes", icon: Sparkles, label: "Scènes" },
-  { to: "/activity", icon: Activity, label: "Activité" },
+  { to: "/routines", icon: Repeat, label: "Routines" },
+  { to: "/groupes", icon: Users, label: "Groupes" },
+  { to: "/smart", icon: Zap, label: "Smart" },
 ];
 
 export const BottomNav = () => {
   const { displayMode } = useDisplayMode();
   
-  // Ne s'affiche qu'en mode Mobile
-  if (displayMode !== "mobile") {
+  // Ne s'affiche plus en mode Mobile (remplacé par le menu burger)
+  if (displayMode === "mobile") {
     return null;
   }
   
