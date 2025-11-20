@@ -23,9 +23,15 @@ interface GroupTileProps {
   group: NeoliaGroup;
   onDelete?: () => void;
   showBadge?: boolean;
+  sortableProps?: {
+    attributes?: any;
+    listeners?: any;
+    setNodeRef?: any;
+    style?: any;
+  };
 }
 
-export function GroupTile({ group, onDelete, showBadge = false }: GroupTileProps) {
+export function GroupTile({ group, onDelete, showBadge = false, sortableProps }: GroupTileProps) {
   const entities = useHAStore((state) => state.entities);
   const { toggleGroup, openCover, closeCover, toggleGroupFavorite, groupFavorites } = useGroupStore();
   const [localVolume, setLocalVolume] = useState<number | null>(null);
@@ -125,7 +131,13 @@ export function GroupTile({ group, onDelete, showBadge = false }: GroupTileProps
   const volumePercentage = Math.round((localVolume ?? mediaPlayerState?.avgVolume ?? 0.5) * 100);
 
   return (
-    <Card className="group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50">
+    <Card 
+      ref={sortableProps?.setNodeRef}
+      style={sortableProps?.style}
+      {...sortableProps?.attributes}
+      {...sortableProps?.listeners}
+      className={`group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50 ${sortableProps ? 'cursor-grab active:cursor-grabbing touch-none' : ''}`}
+    >
       {showBadge && <GroupBadge />}
       
       <div className={`relative ${showBadge ? 'pt-8' : ''} p-4`}>

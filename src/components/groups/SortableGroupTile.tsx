@@ -26,14 +26,11 @@ export const SortableGroupTile = ({ group, onDelete }: SortableGroupTileProps) =
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className="cursor-grab active:cursor-grabbing touch-none"
-    >
-      <GroupTile group={group} onDelete={onDelete} showBadge />
-    </div>
+    <GroupTile 
+      group={group} 
+      onDelete={onDelete} 
+      showBadge 
+      sortableProps={{ attributes, listeners, setNodeRef, style }}
+    />
   );
 };
