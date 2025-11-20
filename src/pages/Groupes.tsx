@@ -1,16 +1,66 @@
 import { TopBar } from "@/components/TopBar";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
+import { useGroupStore } from "@/store/useGroupStore";
+import { GroupWizard } from "@/components/groups/GroupWizard";
+import { GroupTile } from "@/components/groups/GroupTile";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 const Groupes = () => {
   const { displayMode } = useDisplayMode();
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
   
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const { groups, removeGroup } = useGroupStore();
+
+  const handleDelete = async (groupId: string) => {
+    try {
+      await removeGroup(groupId);
+      toast.success("Groupe supprimé");
+    } catch (error) {
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
   return (
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
       <TopBar title="Groupes" />
+      
       <div className="max-w-screen-xl mx-auto px-4 py-4">
-        <p className="text-muted-foreground">Vos groupes d'appareils apparaîtront ici...</p>
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-muted-foreground">
+            Créez des groupes pour contrôler plusieurs appareils simultanément
+          </p>
+          <Button onClick={() => setWizardOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Créer un groupe
+          </Button>
+        </div>
+
+        {groups.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground mb-4">Aucun groupe créé pour le moment</p>
+            <Button onClick={() => setWizardOpen(true)} variant="outline" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Créer votre premier groupe
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {groups.map((group) => (
+              <GroupTile
+                key={group.id}
+                group={group}
+                onDelete={() => handleDelete(group.id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
+
+      <GroupWizard open={wizardOpen} onOpenChange={setWizardOpen} />
     </div>
   );
 };
