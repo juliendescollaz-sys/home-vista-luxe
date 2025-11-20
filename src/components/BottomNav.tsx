@@ -14,12 +14,11 @@ const navItems = [
 ];
 
 export const BottomNav = () => {
-  const { displayMode } = useDisplayMode();
+  // Ne s'affiche dans aucun layout (navigation via menu burger en mobile, sidebar en tablet/panel)
+  return null;
   
-  // Ne s'affiche pas en mode Mobile (remplacé par le menu burger)
-  if (displayMode === "mobile") {
-    return null;
-  }
+  /* Code désactivé - BottomNav complètement masqué
+  const { displayMode } = useDisplayMode();
   
   return (
     <nav className="fixed bottom-0 left-0 right-0 glass-nav border-t border-border/30 z-50">
@@ -53,5 +52,5 @@ export const BottomNav = () => {
         </div>
       </div>
     </nav>
-  );
+  */
 };
