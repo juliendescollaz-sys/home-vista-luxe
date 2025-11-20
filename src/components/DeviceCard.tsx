@@ -46,39 +46,43 @@ export const DeviceCard = ({ entity, onToggle, floor, area }: DeviceCardProps) =
   return (
     <Card className="group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50">
       <LocationBadge floor={floor} area={area} />
-      <div className={`absolute inset-0 transition-opacity ${isActive ? 'bg-primary/5 opacity-100' : 'opacity-0'}`} />
       
-      <div className="relative p-4 flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
-          <div className={`p-3 rounded-xl transition-colors ${
+      <div className="relative pt-10 p-4">
+        <div className="flex items-start gap-3">
+          {/* Icon */}
+          <div className={`p-2.5 rounded-lg flex-shrink-0 transition-colors ${
             isActive ? 'bg-primary/20 text-primary' : 'bg-muted/50 text-muted-foreground'
           }`}>
-            <Icon className="h-5 w-5" />
+            <Icon className="h-6 w-6" />
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-medium truncate">{name}</h3>
-            <p className="text-sm text-muted-foreground">{entity.state}</p>
+          
+          {/* Title & State */}
+          <div className="flex-1 min-w-0 pt-0.5">
+            <h3 className="font-semibold text-base truncate mb-0.5">{name}</h3>
+            <p className="text-sm text-muted-foreground capitalize">{entity.state}</p>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2">
+          {/* Favorite */}
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
+            className="h-8 w-8 -mt-1 -mr-1 bg-transparent active:bg-accent/50 active:scale-95 transition-all flex-shrink-0"
             onClick={handleFavoriteClick}
           >
             <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
           </Button>
-          
-          {(domain === "light" || domain === "switch") && (
+        </div>
+
+        {/* Switch at bottom */}
+        {(domain === "light" || domain === "switch") && (
+          <div className="mt-4 flex justify-end">
             <Switch
               checked={isActive}
               onCheckedChange={() => onToggle?.(entity.entity_id)}
               className="data-[state=checked]:bg-primary"
             />
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </Card>
   );

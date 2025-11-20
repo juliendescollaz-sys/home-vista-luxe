@@ -92,11 +92,11 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
       onClick={handleCardClick}
     >
       <LocationBadge floor={floor} area={area} />
-      <div className="relative p-4 space-y-3">
-        {/* Header: Jaquette + Titre/Artiste + Favoris */}
-        <div className="flex items-center gap-4">
+      
+      <div className="relative pt-10 p-4">
+        <div className="flex items-start gap-3">
           {/* Jaquette */}
-          <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-muted/50 backdrop-blur-sm border border-border/50">
+          <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted/50 backdrop-blur-sm border border-border/50">
             {albumArt ? (
               <img
                 src={albumArt}
@@ -105,31 +105,29 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <Music className="h-8 w-8 text-muted-foreground" />
+                <Music className="h-7 w-7 text-muted-foreground" />
               </div>
             )}
           </div>
 
           {/* Titre et artiste */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-sm font-medium truncate">{mediaTitle}</span>
-            </div>
+          <div className="flex-1 min-w-0 pt-0.5">
+            <h3 className="font-semibold text-base truncate mb-0.5">{mediaTitle}</h3>
             {mediaArtist && (
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-sm text-muted-foreground truncate">
                 {mediaArtist}
               </p>
             )}
           </div>
 
           {/* Play/Pause et Favoris */}
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center gap-1 flex-shrink-0 -mt-1 -mr-1">
             <Button
               variant="ghost"
               size="icon"
               onClick={handlePlayPause}
               disabled={playPauseInFlight}
-              className="h-8 w-8 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
+              className="h-9 w-9 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
               data-control
             >
               {playPauseInFlight || isBuffering ? (
@@ -154,7 +152,7 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
 
         {/* Timeline interactive */}
         {duration > 0 && (
-          <div className="space-y-1.5" data-control>
+          <div className="mt-4 space-y-1.5" data-control>
             <Slider
               value={[position]}
               max={duration}
@@ -175,7 +173,6 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
             </div>
           </div>
         )}
-
       </div>
     </Card>
   );
