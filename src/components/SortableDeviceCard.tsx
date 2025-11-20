@@ -67,7 +67,7 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
       style={style}
       {...attributes}
       {...listeners}
-      className="group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50 cursor-grab active:cursor-grabbing touch-none"
+      className="group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50 cursor-grab active:cursor-grabbing"
     >
       <LocationBadge floor={floor} area={area} />
       
