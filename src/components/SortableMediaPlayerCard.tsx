@@ -111,90 +111,53 @@ export const SortableMediaPlayerCard = ({ entity, floor, area }: SortableMediaPl
       onClick={handleCardClick}
       {...sortableAttributes}
       {...listeners}
-      className="group relative overflow-hidden cursor-pointer glass-card elevated-subtle elevated-active border-border/50"
+      className="group relative overflow-hidden cursor-pointer glass-card elevated-subtle elevated-active border-border/50 cursor-grab active:cursor-grabbing touch-none"
     >
       <LocationBadge floor={floor} area={area} />
-      <div className="relative h-32">
-        <div className="relative h-full p-4 flex items-start justify-between">
-          <div className="flex items-start gap-3 flex-1 min-w-0">
+      
+      <div className="relative pt-10 p-4">
+        <div className="flex items-start gap-3">
+          <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted/50 backdrop-blur-sm border border-border/50">
             {albumArt ? (
-              <div className="w-20 h-20 rounded-lg overflow-hidden shadow-lg shrink-0">
-                <img 
-                  src={albumArt} 
-                  alt={mediaTitle}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+              <img src={albumArt} alt={mediaTitle} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-20 h-20 rounded-lg bg-muted/30 flex items-center justify-center shrink-0">
-                <Music className="h-8 w-8 text-muted-foreground" />
+              <div className="w-full h-full flex items-center justify-center">
+                <Music className="h-7 w-7 text-muted-foreground" />
               </div>
             )}
-            
-            <div className="flex-1 min-w-0 pt-2">
-              <h3 className="font-semibold truncate">{mediaTitle}</h3>
-              {mediaArtist && (
-                <p className="text-sm text-muted-foreground truncate">{mediaArtist}</p>
-              )}
-            </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
-              onClick={handleFavoriteClick}
-            >
+          <div className="flex-1 min-w-0 pt-0.5">
+            <h3 className="font-semibold text-base truncate mb-0.5">{mediaTitle}</h3>
+            {mediaArtist && <p className="text-sm text-muted-foreground truncate">{mediaArtist}</p>}
+          </div>
+
+          <div className="flex items-center gap-1 flex-shrink-0 -mt-1 -mr-1">
+            <Button variant="ghost" size="icon" onClick={handlePlayPause} disabled={playPauseInFlight} className="h-9 w-9 bg-transparent active:bg-accent/50 active:scale-95 transition-all">
+              {playPauseInFlight || isBuffering ? (
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              ) : isPlaying ? (
+                <Pause className="h-5 w-5 text-primary" />
+              ) : (
+                <Play className="h-5 w-5 text-muted-foreground" />
+              )}
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 bg-transparent active:bg-accent/50 active:scale-95 transition-all" onClick={handleFavoriteClick}>
               <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
             </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handlePlayPause}
-              disabled={playPauseInFlight}
-              className={cn(
-                "w-10 h-10 rounded-full transition-all",
-                isPlaying ? "bg-primary hover:bg-primary/90 text-primary-foreground" : "bg-muted hover:bg-muted/80"
-              )}
-            >
-              {playPauseInFlight || isBuffering ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : isPlaying ? (
-                <Pause className="h-5 w-5" />
-              ) : (
-                <Play className="h-5 w-5 ml-0.5" />
-              )}
-            </Button>
           </div>
         </div>
+
+        {duration > 0 && (
+          <div className="mt-4 space-y-1.5">
+            <Slider value={[position]} max={duration} step={1} onPointerDown={handleSeekStart} onValueChange={(values) => handleSeekChange(values[0])} onPointerUp={handleSeekEnd} disabled={isBuffering} className={cn("cursor-pointer", isTimelineDragging && "cursor-grabbing")} style={{ touchAction: "none" }} />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{formatTime(position)}</span>
+              <span>{formatTime(duration)}</span>
+            </div>
+          </div>
+        )}
       </div>
-
-      {duration > 0 && (
-        <div className="px-4 pb-4">
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground tabular-nums w-10 text-right">
-              {formatTime(position)}
-            </span>
-            <Slider
-              value={[position]}
-              max={duration}
-              step={1}
-              onPointerDown={handleSeekStart}
-              onValueChange={(values) => handleSeekChange(values[0])}
-              onPointerUp={handleSeekEnd}
-              className={cn(
-                "flex-1 cursor-pointer",
-                isTimelineDragging && "cursor-grabbing"
-              )}
-            />
-            <span className="text-xs text-muted-foreground tabular-nums w-10">
-              {formatTime(duration)}
-            </span>
-          </div>
-        </div>
-      )}
     </Card>
   );
 };
