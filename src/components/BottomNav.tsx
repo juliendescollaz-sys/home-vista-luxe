@@ -1,4 +1,4 @@
-import { LayoutDashboard, Home, Star, Sparkles, Repeat, Users, Zap, Settings } from "lucide-react";
+import { LayoutDashboard, Home, Star, Sparkles, Repeat, Package, Wand2, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 
@@ -8,8 +8,8 @@ const navItems = [
   { to: "/favorites", icon: Star, label: "Favoris" },
   { to: "/scenes", icon: Sparkles, label: "Scènes" },
   { to: "/routines", icon: Repeat, label: "Routines" },
-  { to: "/groupes", icon: Users, label: "Groupes" },
-  { to: "/smart", icon: Zap, label: "Smart" },
+  { to: "/groupes", icon: Package, label: "Groupes" },
+  { to: "/smart", icon: Wand2, label: "Smart" },
   { to: "/settings", icon: Settings, label: "Paramètres" },
 ];
 

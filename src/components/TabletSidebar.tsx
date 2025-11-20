@@ -1,4 +1,4 @@
-import { Home, Layers, Star, Sparkles, Repeat, Users, Zap, LayoutDashboard, Settings } from "lucide-react";
+import { Home, Star, Sparkles, Repeat, Package, Wand2, LayoutDashboard, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "next-themes";
@@ -23,8 +23,8 @@ const navItems = [
   { to: "/favorites", icon: Star, label: "Favoris" },
   { to: "/scenes", icon: Sparkles, label: "Scènes" },
   { to: "/routines", icon: Repeat, label: "Routines" },
-  { to: "/groupes", icon: Users, label: "Groupes" },
-  { to: "/smart", icon: Zap, label: "Smart" },
+  { to: "/groupes", icon: Package, label: "Groupes" },
+  { to: "/smart", icon: Wand2, label: "Smart" },
 ];
 
 export function TabletSidebar() {
