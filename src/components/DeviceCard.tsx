@@ -75,7 +75,7 @@ export const DeviceCard = ({ entity, onToggle, floor, area }: DeviceCardProps) =
 
         {/* Switch at bottom */}
         {(domain === "light" || domain === "switch") && (
-          <div className="mt-3.5 flex items-center justify-end">
+          <div className="mt-2 flex items-center justify-end">
             <Switch
               checked={isActive}
               onCheckedChange={() => onToggle?.(entity.entity_id)}
@@ -83,7 +83,7 @@ export const DeviceCard = ({ entity, onToggle, floor, area }: DeviceCardProps) =
             />
           </div>
         )}
-      </div>
+       </div>
     </Card>
   );
 };
