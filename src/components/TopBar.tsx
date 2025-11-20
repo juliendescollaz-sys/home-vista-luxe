@@ -36,8 +36,8 @@ export const TopBar = ({ title }: TopBarProps) => {
             />
           </div>
 
-          {/* Titre centré */}
-          {title && (
+          {/* Titre centré - uniquement pour tablet/panel */}
+          {title && !isMobile && (
             <h1 className="absolute left-1/2 -translate-x-1/2 text-2xl font-bold">
               {title}
             </h1>
@@ -52,12 +52,21 @@ export const TopBar = ({ title }: TopBarProps) => {
                 onClick={() => setMenuOpen(true)}
                 className="bg-transparent"
               >
-                <Menu className="h-7 w-7" />
+                <Menu className="h-9 w-9" />
               </Button>
             </div>
           )}
         </div>
       </div>
+
+      {/* Titre sous le header - uniquement pour mobile */}
+      {title && isMobile && (
+        <div className="fixed top-16 left-0 right-0 glass-nav border-b border-border/30 z-40">
+          <div className="max-w-screen-xl mx-auto px-4 h-12 flex items-center justify-center">
+            <h1 className="text-2xl font-bold">{title}</h1>
+          </div>
+        </div>
+      )}
 
       {isMobile && (
         <MobileMenu open={menuOpen} onOpenChange={setMenuOpen} />
