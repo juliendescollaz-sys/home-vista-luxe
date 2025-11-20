@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
 import { useHAStore } from "@/store/useHAStore";
 import { useMediaPlayerTimeline } from "@/hooks/useMediaPlayerTimeline";
+import { useMediaPlayerControls } from "@/hooks/useMediaPlayerControls";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LocationBadge } from "./LocationBadge";
@@ -58,6 +59,16 @@ export const SortableMediaPlayerCard = ({ entity, floor, area }: SortableMediaPl
     handleSeekEnd,
   } = useMediaPlayerTimeline(client, entity);
 
+  const {
+    play,
+    pause,
+    inFlight: playPauseInFlight,
+  } = useMediaPlayerControls(
+    client,
+    entity.entity_id,
+    entity.state as any
+  );
+
   const isPlaying = playerState === "playing";
   const isBuffering = playerState === "buffering";
   const mediaTitle = attributes.media_title || "Aucun média";
@@ -82,6 +93,15 @@ export const SortableMediaPlayerCard = ({ entity, floor, area }: SortableMediaPl
       return;
     }
     navigate(`/media-player/${entity.entity_id}`);
+  };
+
+  const handlePlayPause = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isPlaying) {
+      await pause();
+    } else {
+      await play();
+    }
   };
 
   return (
@@ -129,22 +149,24 @@ export const SortableMediaPlayerCard = ({ entity, floor, area }: SortableMediaPl
               <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
             </Button>
 
-            {isBuffering ? (
-              <div className="w-10 h-10 rounded-full bg-background/80 flex items-center justify-center">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center transition-colors",
-                isPlaying ? "bg-primary text-primary-foreground" : "bg-muted"
-              )}>
-                {isPlaying ? (
-                  <Pause className="h-5 w-5" />
-                ) : (
-                  <Play className="h-5 w-5 ml-0.5" />
-                )}
-              </div>
-            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handlePlayPause}
+              disabled={playPauseInFlight}
+              className={cn(
+                "w-10 h-10 rounded-full transition-all",
+                isPlaying ? "bg-primary hover:bg-primary/90 text-primary-foreground" : "bg-muted hover:bg-muted/80"
+              )}
+            >
+              {playPauseInFlight || isBuffering ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : isPlaying ? (
+                <Pause className="h-5 w-5" />
+              ) : (
+                <Play className="h-5 w-5 ml-0.5" />
+              )}
+            </Button>
           </div>
         </div>
       </div>
