@@ -6,15 +6,18 @@ import { AnimatedWeatherTile } from "@/components/weather/AnimatedWeatherTile";
 import { DeviceCard } from "@/components/DeviceCard";
 import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { toast } from "sonner";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
+import { Home as HomeIcon } from "lucide-react";
 
 const Home = () => {
   const client = useHAStore((state) => state.client);
   const entities = useHAStore((state) => state.entities);
+  const areas = useHAStore((state) => state.areas);
+  const floors = useHAStore((state) => state.floors);
+  const entityRegistry = useHAStore((state) => state.entityRegistry);
   const favorites = useHAStore((state) => state.favorites);
   const isConnected = useHAStore((state) => state.isConnected);
-  const entityRegistry = useHAStore((state) => state.entityRegistry);
   const { displayMode } = useDisplayMode();
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
 
@@ -30,13 +33,10 @@ const Home = () => {
   );
 
   // Appareils actifs uniquement (lumières, switches actifs + media_player en lecture)
-  // Exclure les entités associées aux media_players (volume, loudness, etc.)
   const activeDevices = entities?.filter(e => {
-    // Vérifier si cette entité appartient au device d'un media_player
     const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
     const deviceId = reg?.device_id;
     
-    // Si c'est une entité associée à un media_player (mais pas le media_player lui-même), l'exclure
     if (deviceId && mediaPlayerDeviceIds.has(deviceId) && !e.entity_id.startsWith("media_player.")) {
       return false;
     }
@@ -50,6 +50,31 @@ const Home = () => {
     return false;
   }) || [];
 
+  // Grouper les appareils actifs par pièce/étage
+  const groupedDevices = useMemo(() => {
+    const groups: Record<string, { area: typeof areas[0] | null; floor: typeof floors[0] | null; devices: typeof activeDevices }> = {};
+    
+    activeDevices.forEach(device => {
+      const reg = entityRegistry.find(r => r.entity_id === device.entity_id);
+      const areaId = reg?.area_id || "no_area";
+      
+      if (!groups[areaId]) {
+        const area = areas.find(a => a.area_id === areaId) || null;
+        const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) || null : null;
+        groups[areaId] = { area, floor, devices: [] };
+      }
+      
+      groups[areaId].devices.push(device);
+    });
+    
+    return Object.entries(groups).sort(([, a], [, b]) => {
+      // Trier par étage puis par pièce
+      const floorA = a.floor?.level ?? 999;
+      const floorB = b.floor?.level ?? 999;
+      if (floorA !== floorB) return floorA - floorB;
+      return (a.area?.name || "Sans pièce").localeCompare(b.area?.name || "Sans pièce");
+    });
+  }, [activeDevices, areas, floors, entityRegistry]);
 
   const handleDeviceToggle = async (entityId: string) => {
     if (!client) {
@@ -73,7 +98,6 @@ const Home = () => {
     }
   };
 
-
   if (!isConnected) {
     return (
       <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
@@ -96,35 +120,59 @@ const Home = () => {
           <AnimatedWeatherTile />
         </div>
 
-        {/* Appareils actifs */}
-        <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+        {/* Appareils actifs regroupés par pièce */}
+        <div className="space-y-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <h2 className="text-xl font-semibold">Appareils actifs</h2>
           
-          {activeDevices.length === 0 ? (
+          {groupedDevices.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
               Aucun appareil actif
             </p>
           ) : (
-            <div className="space-y-3">
-              {activeDevices.map((entity) => {
-                const isMediaPlayer = entity.entity_id.startsWith("media_player.");
-                return isMediaPlayer ? (
-                  <MediaPlayerCard
-                    key={entity.entity_id}
-                    entity={entity}
-                  />
-                ) : (
-                  <DeviceCard
-                    key={entity.entity_id}
-                    entity={entity}
-                    onToggle={handleDeviceToggle}
-                  />
-                );
-              })}
-            </div>
+            groupedDevices.map(([areaId, { area, floor, devices }]) => (
+              <div key={areaId} className="space-y-3">
+                {/* En-tête de groupe avec étage et pièce */}
+                <div className="flex items-center gap-2">
+                  <HomeIcon className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex items-baseline gap-2">
+                    {floor && (
+                      <span className="text-sm text-muted-foreground">
+                        {floor.name}
+                      </span>
+                    )}
+                    <span className="text-base font-medium">
+                      {area?.name || "Sans pièce"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      ({devices.length})
+                    </span>
+                  </div>
+                </div>
+
+                {/* Appareils de la pièce */}
+                <div className="space-y-3">
+                  {devices.map((entity) => {
+                    if (entity.entity_id.startsWith("media_player.")) {
+                      return (
+                        <MediaPlayerCard
+                          key={entity.entity_id}
+                          entity={entity}
+                        />
+                      );
+                    }
+                    return (
+                      <DeviceCard
+                        key={entity.entity_id}
+                        entity={entity}
+                        onToggle={handleDeviceToggle}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ))
           )}
         </div>
-
       </div>
 
       <BottomNav />
