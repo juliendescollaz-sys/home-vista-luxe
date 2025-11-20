@@ -70,7 +70,7 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
       <LocationBadge floor={floor} area={area} />
       <div className={`absolute inset-0 transition-opacity ${isActive ? 'bg-primary/5 opacity-100' : 'opacity-0'}`} />
       
-      <div className="relative p-4 pt-10 flex items-center justify-between">
+      <div className="relative p-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <button
             type="button"

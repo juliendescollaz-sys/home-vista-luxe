@@ -92,7 +92,7 @@ export const SortableMediaPlayerCard = ({ entity, floor, area }: SortableMediaPl
       className="group relative overflow-hidden cursor-pointer glass-card elevated-subtle elevated-active border-border/50"
     >
       <LocationBadge floor={floor} area={area} />
-      <div className="relative h-32 pt-6">
+      <div className="relative h-32">
         <div className="relative h-full p-4 flex items-start justify-between">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <button
