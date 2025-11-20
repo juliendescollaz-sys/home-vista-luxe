@@ -4,7 +4,7 @@ import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 const Scenes = () => {
   const { displayMode } = useDisplayMode();
-  const ptClass = displayMode === "mobile" ? "pt-[7.125rem]" : "pt-10";
+  const ptClass = displayMode === "mobile" ? "pt-[7.625rem]" : "pt-10";
   
   return (
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
