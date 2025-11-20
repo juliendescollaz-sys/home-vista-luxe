@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { HAEntity } from "@/types/homeassistant";
+import { HAEntity, HAFloor, HAArea } from "@/types/homeassistant";
 import { Music, Pause, Play, Loader2, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
@@ -7,12 +7,15 @@ import { useHAStore } from "@/store/useHAStore";
 import { useMediaPlayerTimeline } from "@/hooks/useMediaPlayerTimeline";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { LocationBadge } from "./LocationBadge";
 
 interface MediaPlayerCardProps {
   entity: HAEntity;
+  floor?: HAFloor | null;
+  area?: HAArea | null;
 }
 
-export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
+export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) => {
   const navigate = useNavigate();
   const connection = useHAStore((state) => state.connection);
   const client = useHAStore((state) => state.client);
@@ -68,6 +71,7 @@ export const MediaPlayerCard = ({ entity }: MediaPlayerCardProps) => {
       className="overflow-hidden cursor-pointer glass-card elevated-subtle elevated-active border-border/50 relative"
       onClick={handleCardClick}
     >
+      <LocationBadge floor={floor} area={area} />
       <div className="relative p-4 space-y-3">
         {/* Header: Jaquette + Titre/Artiste + Favoris */}
         <div className="flex items-center gap-4">

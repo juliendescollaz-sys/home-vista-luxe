@@ -511,47 +511,28 @@ const Rooms = () => {
                   items={orderedControllableEntities.map((e) => e.entity_id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <div className="space-y-6 animate-fade-in">
-                    {groupedDevices.map(([areaId, { area, floor, devices: groupDevices }]) => (
-                      <div key={areaId} className="space-y-3">
-                        {/* En-tête de groupe avec étage et pièce */}
-                        <div className="flex items-center gap-2">
-                          <Home className="h-4 w-4 text-muted-foreground" />
-                          <div className="flex items-baseline gap-2">
-                            {floor && (
-                              <span className="text-sm text-muted-foreground">
-                                {floor.name}
-                              </span>
-                            )}
-                            <span className="text-base font-medium">
-                              {area?.name || "Sans pièce"}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              ({groupDevices.length})
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Appareils de la pièce */}
-                        <div className="space-y-3">
-                          {groupDevices.map((entity) => {
-                            const isMediaPlayer = entity.entity_id.startsWith("media_player.");
-                            return isMediaPlayer ? (
-                              <SortableMediaPlayerCard
-                                key={entity.entity_id}
-                                entity={entity}
-                              />
-                            ) : (
-                              <SortableDeviceCard
-                                key={entity.entity_id}
-                                entity={entity}
-                                onToggle={handleDeviceToggle}
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="space-y-3 animate-fade-in">
+                    {groupedDevices.flatMap(([areaId, { area, floor, devices: groupDevices }]) =>
+                      groupDevices.map((entity) => {
+                        const isMediaPlayer = entity.entity_id.startsWith("media_player.");
+                        return isMediaPlayer ? (
+                          <SortableMediaPlayerCard
+                            key={entity.entity_id}
+                            entity={entity}
+                            floor={floor}
+                            area={area}
+                          />
+                        ) : (
+                          <SortableDeviceCard
+                            key={entity.entity_id}
+                            entity={entity}
+                            onToggle={handleDeviceToggle}
+                            floor={floor}
+                            area={area}
+                          />
+                        );
+                      })
+                    )}
                   </div>
                 </SortableContext>
                 

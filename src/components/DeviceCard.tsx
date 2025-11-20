@@ -1,9 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Lightbulb, Thermometer, Music, Lock, Camera, MoreVertical, Power, Star } from "lucide-react";
-import type { HAEntity, EntityDomain } from "@/types/homeassistant";
+import type { HAEntity, EntityDomain, HAFloor, HAArea } from "@/types/homeassistant";
 import { Switch } from "@/components/ui/switch";
 import { useHAStore } from "@/store/useHAStore";
 import { Button } from "@/components/ui/button";
+import { LocationBadge } from "./LocationBadge";
 
 const domainIcons: Record<EntityDomain, any> = {
   light: Lightbulb,
@@ -23,9 +24,11 @@ const domainIcons: Record<EntityDomain, any> = {
 interface DeviceCardProps {
   entity: HAEntity;
   onToggle?: (entityId: string) => void;
+  floor?: HAFloor | null;
+  area?: HAArea | null;
 }
 
-export const DeviceCard = ({ entity, onToggle }: DeviceCardProps) => {
+export const DeviceCard = ({ entity, onToggle, floor, area }: DeviceCardProps) => {
   const domain = entity.entity_id.split(".")[0] as EntityDomain;
   const Icon = domainIcons[domain] || MoreVertical;
   const isActive = entity.state === "on";
@@ -42,6 +45,7 @@ export const DeviceCard = ({ entity, onToggle }: DeviceCardProps) => {
 
   return (
     <Card className="group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50">
+      <LocationBadge floor={floor} area={area} />
       <div className={`absolute inset-0 transition-opacity ${isActive ? 'bg-primary/5 opacity-100' : 'opacity-0'}`} />
       
       <div className="relative p-4 flex items-center justify-between">

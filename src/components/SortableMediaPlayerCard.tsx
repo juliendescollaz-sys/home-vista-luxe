@@ -1,7 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card } from "@/components/ui/card";
-import { HAEntity } from "@/types/homeassistant";
+import { HAEntity, HAFloor, HAArea } from "@/types/homeassistant";
 import { Music, Pause, Play, Loader2, Star, GripVertical } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
@@ -9,12 +9,15 @@ import { useHAStore } from "@/store/useHAStore";
 import { useMediaPlayerTimeline } from "@/hooks/useMediaPlayerTimeline";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { LocationBadge } from "./LocationBadge";
 
 interface SortableMediaPlayerCardProps {
   entity: HAEntity;
+  floor?: HAFloor | null;
+  area?: HAArea | null;
 }
 
-export const SortableMediaPlayerCard = ({ entity }: SortableMediaPlayerCardProps) => {
+export const SortableMediaPlayerCard = ({ entity, floor, area }: SortableMediaPlayerCardProps) => {
   const navigate = useNavigate();
   const connection = useHAStore((state) => state.connection);
   const client = useHAStore((state) => state.client);
@@ -88,6 +91,7 @@ export const SortableMediaPlayerCard = ({ entity }: SortableMediaPlayerCardProps
       onClick={handleCardClick}
       className="group relative overflow-hidden cursor-pointer glass-card elevated-subtle elevated-active border-border/50"
     >
+      <LocationBadge floor={floor} area={area} />
       <div className="relative h-32">
         <div className="relative h-full p-4 flex items-start justify-between">
           <div className="flex items-start gap-3 flex-1 min-w-0">
