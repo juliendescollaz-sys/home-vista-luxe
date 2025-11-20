@@ -1,4 +1,4 @@
-import { Building2, Home, Grid3x3 } from "lucide-react";
+import { Layers, Home, Grid3x3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ViewMode = "floors" | "rooms" | "devices";
@@ -11,7 +11,7 @@ interface ViewSelectorProps {
 
 export const ViewSelector = ({ selectedView, onViewChange, hideFloors = false }: ViewSelectorProps) => {
   const allViews = [
-    { id: "floors" as ViewMode, label: "Étages", icon: Building2 },
+    { id: "floors" as ViewMode, label: "Étages", icon: Layers },
     { id: "rooms" as ViewMode, label: "Pièces", icon: Home },
     { id: "devices" as ViewMode, label: "Appareils", icon: Grid3x3 },
   ];
