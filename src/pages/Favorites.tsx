@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { Home as HomeIcon } from "lucide-react";
+import { getGridClasses } from "@/lib/gridLayout";
 import {
   DndContext,
   closestCenter,
@@ -25,6 +26,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  rectSortingStrategy,
 } from "@dnd-kit/sortable";
 
 const Favorites = () => {
@@ -199,9 +201,9 @@ const Favorites = () => {
           >
             <SortableContext
               items={sortedEntities.map(e => e.entity_id)}
-              strategy={verticalListSortingStrategy}
+              strategy={rectSortingStrategy}
             >
-              <div className="space-y-3">
+              <div className={getGridClasses("devices", displayMode)}>
                 {sortedEntities.map((entity) => {
                   const reg = entityRegistry.find(r => r.entity_id === entity.entity_id);
                   let areaId = reg?.area_id;

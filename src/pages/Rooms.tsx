@@ -32,6 +32,7 @@ import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { HAFloor, HAArea, HAEntity } from "@/types/homeassistant";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { getGridClasses } from "@/lib/gridLayout";
 
 const Rooms = () => {
   const areas = useHAStore((state) => state.areas);
@@ -414,7 +415,7 @@ const Rooms = () => {
           <>
             {/* Vue Étages avec drill-down */}
             {viewMode === "floors" && !selectedFloor && (
-              <div className="space-y-3 animate-fade-in">
+              <div className={`${getGridClasses("floors", displayMode)} animate-fade-in`}>
                 {floorGroups.map((group) => {
                   const floorId = group.floor?.floor_id || "no-floor";
                   const roomCount = group.areas.length;
@@ -503,7 +504,7 @@ const Rooms = () => {
                   items={allAreaIds}
                   strategy={rectSortingStrategy}
                 >
-                  <div className={`grid ${displayMode === "mobile" ? "grid-cols-1" : displayMode === "tablet" ? "grid-cols-2" : "grid-cols-3"} gap-4 animate-fade-in`}>
+                  <div className={`${getGridClasses("rooms", displayMode)} animate-fade-in`}>
                     {sortedAreas.map((area) => (
                       <SortableRoomCard
                         key={area.area_id}
@@ -543,9 +544,9 @@ const Rooms = () => {
               >
                 <SortableContext
                   items={orderedControllableEntities.map((e) => e.entity_id)}
-                  strategy={verticalListSortingStrategy}
+                  strategy={rectSortingStrategy}
                 >
-                  <div className="space-y-3 animate-fade-in">
+                  <div className={`${getGridClasses("devices", displayMode)} animate-fade-in`}>
                     {orderedControllableEntities.map((entity) => {
                       const { area, floor } = getEntityLocation(entity);
                       const isMediaPlayer = entity.entity_id.startsWith("media_player.");

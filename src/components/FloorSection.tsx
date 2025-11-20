@@ -5,6 +5,7 @@ import { Badge } from "./ui/badge";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { DisplayMode } from "@/hooks/useDisplayMode";
+import { getGridClasses } from "@/lib/gridLayout";
 
 interface FloorSectionProps {
   floor: HAFloor | null;
@@ -32,12 +33,6 @@ export const FloorSection = ({
   };
 
   const totalDevices = areas.reduce((acc, area) => acc + getDeviceCount(area.area_id), 0);
-
-  const gridColumns = displayMode === "mobile" 
-    ? "grid-cols-1" 
-    : displayMode === "tablet" 
-    ? "grid-cols-2" 
-    : "grid-cols-3";
 
   return (
     <div className="space-y-3">
@@ -67,7 +62,7 @@ export const FloorSection = ({
 
       {/* Grille des pièces */}
       {isExpanded && (
-        <div className={`grid ${gridColumns} gap-4 animate-fade-in`}>
+        <div className={`${getGridClasses("rooms", displayMode)} animate-fade-in`}>
           {areas.map((area) => (
             <SortableRoomCard
               key={area.area_id}
