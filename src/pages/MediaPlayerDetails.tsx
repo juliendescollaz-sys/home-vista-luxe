@@ -307,22 +307,6 @@ const MediaPlayerDetails = () => {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
                 
-                {/* Play/Pause Button */}
-                <Button
-                  size="icon"
-                  onClick={handlePlayPause}
-                  disabled={playPauseInFlight || (!canPlay && !canPause)}
-                  className="absolute top-4 right-4 h-12 w-12 rounded-full bg-background/80 hover:bg-background/90 backdrop-blur-sm shadow-lg"
-                >
-                  {playPauseInFlight ? (
-                    <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
-                  ) : isPlaying ? (
-                    <Pause className="h-6 w-6" />
-                  ) : (
-                    <Play className="h-6 w-6 ml-0.5" />
-                  )}
-                </Button>
-                
                 {/* Timeline overlay */}
                 {duration > 0 && (
                   <div className="absolute bottom-0 left-0 right-0 px-6 pb-4 space-y-1.5">
