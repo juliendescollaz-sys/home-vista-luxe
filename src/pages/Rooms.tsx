@@ -67,6 +67,13 @@ const Rooms = () => {
     }
   }, [viewMode]);
 
+  // Si 0 ou 1 étage, basculer automatiquement sur la vue "rooms"
+  useEffect(() => {
+    if (floors.length <= 1 && viewMode === "floors") {
+      setViewMode("rooms");
+    }
+  }, [floors.length, viewMode]);
+
   const entityRegistry = useHAStore((state) => state.entityRegistry);
 
   // Trouver les device_id des media_players pour filtrer leurs entités associées
@@ -390,7 +397,8 @@ const Rooms = () => {
         <div className="mb-4">
           <ViewSelector 
             selectedView={viewMode} 
-            onViewChange={setViewMode} 
+            onViewChange={setViewMode}
+            hideFloors={floors.length <= 1}
           />
         </div>
         
