@@ -16,6 +16,7 @@ import { SonosBrowser } from "@/components/SonosBrowser";
 import { SonosZoneManager } from "@/components/SonosZoneManager";
 import { useMediaPlayerTimeline } from "@/hooks/useMediaPlayerTimeline";
 import { useMediaPlayerControls } from "@/hooks/useMediaPlayerControls";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 const MediaPlayerDetails = () => {
   const { entityId } = useParams<{ entityId: string }>();
@@ -25,6 +26,8 @@ const MediaPlayerDetails = () => {
   const entities = useHAStore((state) => state.entities);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const connection = useHAStore((state) => state.connection);
+  const { displayMode } = useDisplayMode();
+  const ptClass = displayMode === "mobile" ? "pt-16" : "pt-10";
   
   const decodedEntityId = useMemo(() => decodeURIComponent(entityId || ""), [entityId]);
 
@@ -262,7 +265,7 @@ const MediaPlayerDetails = () => {
 
   if (!entity || !entityData) {
     return (
-      <div className="min-h-screen bg-background pb-24 pt-12">
+      <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
         <TopBar />
         <div className="max-w-screen-xl mx-auto px-4 py-4">
           <p className="text-muted-foreground">Appareil introuvable</p>
@@ -275,7 +278,7 @@ const MediaPlayerDetails = () => {
   const { attributes, isPlaying, isMuted, mediaTitle, mediaArtist, mediaAlbum, albumArt, canPause, canPlay, canSetVolume, canMute, canPrevious, canNext, canShuffle, canRepeat } = entityData;
 
   return (
-    <div className="min-h-screen bg-background pb-24 pt-12">
+    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
       <TopBar />
       
       <div className="max-w-screen-xl mx-auto px-6 py-4">

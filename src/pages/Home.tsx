@@ -7,6 +7,7 @@ import { DeviceCard } from "@/components/DeviceCard";
 import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { toast } from "sonner";
 import { useEffect } from "react";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 const Home = () => {
   const client = useHAStore((state) => state.client);
@@ -14,6 +15,8 @@ const Home = () => {
   const favorites = useHAStore((state) => state.favorites);
   const isConnected = useHAStore((state) => state.isConnected);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
+  const { displayMode } = useDisplayMode();
+  const ptClass = displayMode === "mobile" ? "pt-16" : "pt-10";
 
   // Trouver les device_id des media_players pour filtrer leurs entités associées
   const mediaPlayerDeviceIds = new Set(
@@ -73,7 +76,7 @@ const Home = () => {
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-background pb-24 pt-12">
+      <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
         <TopBar />
         <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
           <Skeleton className="h-64 rounded-2xl" />
@@ -84,7 +87,7 @@ const Home = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 pt-12">
+    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
       <TopBar />
       
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
