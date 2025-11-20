@@ -95,7 +95,7 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
         </div>
 
         {(domain === "light" || domain === "switch") && (
-          <div className="mt-3.5 flex items-center justify-end">
+          <div className="mt-2 flex items-center justify-end">
             <Switch
               checked={isActive}
               onCheckedChange={() => onToggle?.(entity.entity_id)}
@@ -103,7 +103,7 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
             />
           </div>
         )}
-      </div>
+       </div>
     </Card>
   );
 };
