@@ -15,6 +15,7 @@ const Home = () => {
   const entities = useHAStore((state) => state.entities);
   const areas = useHAStore((state) => state.areas);
   const floors = useHAStore((state) => state.floors);
+  const devices = useHAStore((state) => state.devices);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const favorites = useHAStore((state) => state.favorites);
   const isConnected = useHAStore((state) => state.isConnected);
@@ -55,16 +56,22 @@ const Home = () => {
     const groups: Record<string, { area: typeof areas[0] | null; floor: typeof floors[0] | null; devices: typeof activeDevices }> = {};
     
     activeDevices.forEach(device => {
-      // Chercher l'area depuis l'entityRegistry ou directement depuis l'entité
       const reg = entityRegistry.find(r => r.entity_id === device.entity_id);
       let areaId = reg?.area_id;
-      
-      // Si pas trouvé dans le registry, chercher dans les attributs de l'entité
-      if (!areaId && device.attributes?.area_id) {
-        areaId = device.attributes.area_id;
+
+      // Si pas d'area_id direct, récupérer l'area via le device
+      if (!areaId && reg?.device_id) {
+        const dev = devices.find(d => d.id === reg.device_id);
+        if (dev?.area_id) {
+          areaId = dev.area_id;
+        }
       }
       
-      // Utiliser "no_area" seulement si vraiment aucune area n'est trouvée
+      // Si toujours rien, tenter les attributs de l'entité
+      if (!areaId && (device as any).attributes?.area_id) {
+        areaId = (device as any).attributes.area_id;
+      }
+      
       const groupKey = areaId || "no_area";
       
       if (!groups[groupKey]) {
@@ -77,13 +84,12 @@ const Home = () => {
     });
     
     return Object.entries(groups).sort(([, a], [, b]) => {
-      // Trier par étage puis par pièce
       const floorA = a.floor?.level ?? 999;
       const floorB = b.floor?.level ?? 999;
       if (floorA !== floorB) return floorA - floorB;
       return (a.area?.name || "Sans pièce").localeCompare(b.area?.name || "Sans pièce");
     });
-  }, [activeDevices, areas, floors, entityRegistry]);
+  }, [activeDevices, areas, floors, devices, entityRegistry]);
 
   const handleDeviceToggle = async (entityId: string) => {
     if (!client) {
