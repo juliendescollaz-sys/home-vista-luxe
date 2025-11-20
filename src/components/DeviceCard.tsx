@@ -75,7 +75,7 @@ export const DeviceCard = ({ entity, onToggle, floor, area }: DeviceCardProps) =
 
         {/* Switch at bottom */}
         {(domain === "light" || domain === "switch") && (
-          <div className="mt-4 pt-1.5 flex justify-end">
+          <div className="mt-4 flex justify-end">
             <Switch
               checked={isActive}
               onCheckedChange={() => onToggle?.(entity.entity_id)}
