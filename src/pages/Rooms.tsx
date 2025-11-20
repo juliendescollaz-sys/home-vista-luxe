@@ -52,7 +52,7 @@ const Rooms = () => {
   });
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const ptClass = displayMode === "mobile" ? "pt-16" : "pt-10";
+  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
 
   // Sauvegarder la vue dans sessionStorage
   useEffect(() => {

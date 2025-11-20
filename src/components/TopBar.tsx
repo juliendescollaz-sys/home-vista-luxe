@@ -50,9 +50,9 @@ export const TopBar = ({ title }: TopBarProps) => {
                 variant="ghost"
                 size="icon"
                 onClick={() => setMenuOpen(true)}
-                className="bg-transparent"
+                className="bg-transparent h-12 w-12"
               >
-                <Menu className="h-9 w-9" />
+                <Menu className="h-10 w-10" />
               </Button>
             </div>
           )}
