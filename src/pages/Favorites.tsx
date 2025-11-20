@@ -4,6 +4,7 @@ import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
+import { SortableGroupTile } from "@/components/groups/SortableGroupTile";
 import { GroupTile } from "@/components/groups/GroupTile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -43,6 +44,8 @@ const Favorites = () => {
   const setEntityOrder = useHAStore((state) => state.setEntityOrder);
   const groups = useGroupStore((state) => state.groups);
   const groupFavorites = useGroupStore((state) => state.groupFavorites);
+  const groupOrder = useGroupStore((state) => state.groupOrder);
+  const setGroupOrder = useGroupStore((state) => state.setGroupOrder);
   const { displayMode } = useDisplayMode();
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
 
@@ -70,6 +73,25 @@ const Favorites = () => {
   // Filtrer les entités favorites et les groupes favoris
   const favoriteEntities = entities?.filter(e => favorites.includes(e.entity_id)) || [];
   const favoriteGroups = groups.filter(g => groupFavorites.includes(g.id));
+
+  // Initialiser l'ordre des groupes si nécessaire
+  useEffect(() => {
+    if (favoriteGroups.length > 0 && (!groupOrder[contextId] || groupOrder[contextId].length === 0)) {
+      setGroupOrder(contextId, favoriteGroups.map(g => g.id));
+    }
+  }, [favoriteGroups.length, groupOrder, contextId, setGroupOrder]);
+
+  // Trier les groupes selon l'ordre personnalisé
+  const sortedGroups = useMemo(() => {
+    if (!groupOrder[contextId] || groupOrder[contextId].length === 0) return favoriteGroups;
+    
+    const orderMap = new Map(groupOrder[contextId].map((id, index) => [id, index]));
+    return [...favoriteGroups].sort((a, b) => {
+      const orderA = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+      const orderB = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+      return orderA - orderB;
+    });
+  }, [favoriteGroups, groupOrder, contextId]);
 
   // Initialiser l'ordre si nécessaire
   useEffect(() => {
@@ -162,12 +184,30 @@ const Favorites = () => {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      const oldIndex = sortedEntities.findIndex((e) => e.entity_id === active.id);
-      const newIndex = sortedEntities.findIndex((e) => e.entity_id === over.id);
+      const activeId = active.id as string;
+      const overId = over.id as string;
 
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const newOrder = arrayMove(sortedEntities, oldIndex, newIndex);
-        setEntityOrder(contextId, newOrder.map(e => e.entity_id));
+      // Gérer le drag-and-drop des groupes
+      if (activeId.startsWith('group-') && overId.startsWith('group-')) {
+        const activeGroupId = activeId.replace('group-', '');
+        const overGroupId = overId.replace('group-', '');
+        
+        const oldIndex = sortedGroups.findIndex((g) => g.id === activeGroupId);
+        const newIndex = sortedGroups.findIndex((g) => g.id === overGroupId);
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(sortedGroups, oldIndex, newIndex);
+          setGroupOrder(contextId, newOrder.map(g => g.id));
+        }
+      } else {
+        // Gérer le drag-and-drop des entités
+        const oldIndex = sortedEntities.findIndex((e) => e.entity_id === activeId);
+        const newIndex = sortedEntities.findIndex((e) => e.entity_id === overId);
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(sortedEntities, oldIndex, newIndex);
+          setEntityOrder(contextId, newOrder.map(e => e.entity_id));
+        }
       }
     }
 
@@ -175,6 +215,7 @@ const Favorites = () => {
   };
 
   const activeEntity = sortedEntities.find((e) => e.entity_id === activeId);
+  const activeGroup = sortedGroups.find((g) => `group-${g.id}` === activeId);
 
   if (!isConnected) {
     return (
@@ -199,87 +240,93 @@ const Favorites = () => {
           </p>
         ) : (
           <>
-            {favoriteGroups.length > 0 && (
-              <div className="mb-6">
-                <h2 className="text-lg font-semibold mb-3 px-1">Groupes</h2>
-                <div className={getGridClasses("devices", displayMode)}>
-                  {favoriteGroups.map((group) => (
-                    <GroupTile key={group.id} group={group} showBadge />
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {favoriteEntities.length > 0 && (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={sortedEntities.map(e => e.entity_id)}
-              strategy={rectSortingStrategy}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
             >
-              <div className={getGridClasses("devices", displayMode)}>
-                {sortedEntities.map((entity) => {
-                  const reg = entityRegistry.find(r => r.entity_id === entity.entity_id);
-                  let areaId = reg?.area_id;
-
-                  if (!areaId && reg?.device_id) {
-                    const dev = devices.find(d => d.id === reg.device_id);
-                    if (dev?.area_id) {
-                      areaId = dev.area_id;
-                    }
-                  }
-
-                  if (!areaId && (entity as any).attributes?.area_id) {
-                    areaId = (entity as any).attributes.area_id as string;
-                  }
-
-                  const area = areaId ? areas.find(a => a.area_id === areaId) || null : null;
-                  const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) || null : null;
-
-                  if (entity.entity_id.startsWith("media_player.")) {
-                    return (
-                      <SortableMediaPlayerCard
-                        key={entity.entity_id}
-                        entity={entity}
-                        floor={floor}
-                        area={area}
-                      />
-                    );
-                  }
-
-                  return (
-                    <SortableDeviceCard
-                      key={entity.entity_id}
-                      entity={entity}
-                      onToggle={handleDeviceToggle}
-                      floor={floor}
-                      area={area}
-                    />
-                  );
-                })}
-              </div>
-            </SortableContext>
+              {favoriteGroups.length > 0 && (
+                <SortableContext
+                  items={sortedGroups.map(g => `group-${g.id}`)}
+                  strategy={rectSortingStrategy}
+                >
+                  <div className={`${getGridClasses("devices", displayMode)} mb-4`}>
+                    {sortedGroups.map((group) => (
+                      <SortableGroupTile key={group.id} group={group} />
+                    ))}
+                  </div>
+                </SortableContext>
+              )}
             
-            <DragOverlay dropAnimation={null}>
-              {activeEntity ? (
-                <div className="opacity-90 rotate-3 scale-105">
-                  {activeEntity.entity_id.startsWith("media_player.") ? (
-                    <SortableMediaPlayerCard entity={activeEntity} />
-                  ) : (
-                    <SortableDeviceCard
-                      entity={activeEntity}
-                      onToggle={() => {}}
-                    />
-                  )}
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-            )}
+              {favoriteEntities.length > 0 && (
+                <SortableContext
+                  items={sortedEntities.map(e => e.entity_id)}
+                  strategy={rectSortingStrategy}
+                >
+                  <div className={getGridClasses("devices", displayMode)}>
+                    {sortedEntities.map((entity) => {
+                      const reg = entityRegistry.find(r => r.entity_id === entity.entity_id);
+                      let areaId = reg?.area_id;
+
+                      if (!areaId && reg?.device_id) {
+                        const dev = devices.find(d => d.id === reg.device_id);
+                        if (dev?.area_id) {
+                          areaId = dev.area_id;
+                        }
+                      }
+
+                      if (!areaId && (entity as any).attributes?.area_id) {
+                        areaId = (entity as any).attributes.area_id as string;
+                      }
+
+                      const area = areaId ? areas.find(a => a.area_id === areaId) || null : null;
+                      const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) || null : null;
+
+                      if (entity.entity_id.startsWith("media_player.")) {
+                        return (
+                          <SortableMediaPlayerCard
+                            key={entity.entity_id}
+                            entity={entity}
+                            floor={floor}
+                            area={area}
+                          />
+                        );
+                      }
+
+                      return (
+                        <SortableDeviceCard
+                          key={entity.entity_id}
+                          entity={entity}
+                          onToggle={handleDeviceToggle}
+                          floor={floor}
+                          area={area}
+                        />
+                      );
+                    })}
+                  </div>
+                </SortableContext>
+              )}
+            
+              <DragOverlay dropAnimation={null}>
+                {activeGroup ? (
+                  <div className="opacity-90 rotate-3 scale-105">
+                    <GroupTile group={activeGroup} showBadge />
+                  </div>
+                ) : activeEntity ? (
+                  <div className="opacity-90 rotate-3 scale-105">
+                    {activeEntity.entity_id.startsWith("media_player.") ? (
+                      <SortableMediaPlayerCard entity={activeEntity} />
+                    ) : (
+                      <SortableDeviceCard
+                        entity={activeEntity}
+                        onToggle={() => {}}
+                      />
+                    )}
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           </>
         )}
       </div>
