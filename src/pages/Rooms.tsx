@@ -164,8 +164,8 @@ const Rooms = () => {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250,
-        tolerance: 5,
+        delay: 400,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
