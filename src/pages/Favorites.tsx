@@ -187,7 +187,7 @@ const Favorites = () => {
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
       <TopBar title="Favoris" />
       
-      <div className="max-w-2xl mx-auto px-4 py-4">
+      <div className="max-w-screen-xl mx-auto px-4 py-4">
         {favoriteEntities.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">
             Aucun favori
