@@ -291,6 +291,41 @@ const Rooms = () => {
     });
   }, [areas, areaOrder]);
 
+  // Grouper les appareils par pièce/étage pour la vue "Appareils"
+  const groupedDevices = useMemo(() => {
+    const groups: Record<string, { area: typeof areas[0] | null; floor: typeof floors[0] | null; devices: typeof controllableEntities }> = {};
+    
+    controllableEntities.forEach(device => {
+      const reg = entityRegistry.find(r => r.entity_id === device.entity_id);
+      let areaId = reg?.area_id;
+
+      // Si pas d'area_id direct, récupérer l'area via le device
+      if (!areaId && reg?.device_id) {
+        const dev = devices.find(d => d.id === reg.device_id);
+        if (dev?.area_id) {
+          areaId = dev.area_id;
+        }
+      }
+      
+      const groupKey = areaId || "no_area";
+      
+      if (!groups[groupKey]) {
+        const area = areaId ? areas.find(a => a.area_id === areaId) || null : null;
+        const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) || null : null;
+        groups[groupKey] = { area, floor, devices: [] };
+      }
+      
+      groups[groupKey].devices.push(device);
+    });
+    
+    return Object.entries(groups).sort(([, a], [, b]) => {
+      const floorA = a.floor?.level ?? 999;
+      const floorB = b.floor?.level ?? 999;
+      if (floorA !== floorB) return floorA - floorB;
+      return (a.area?.name || "Sans pièce").localeCompare(b.area?.name || "Sans pièce");
+    });
+  }, [controllableEntities, areas, floors, devices, entityRegistry]);
+
   return (
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
       <TopBar title="Maison" />
@@ -434,49 +469,74 @@ const Rooms = () => {
               </DndContext>
             )}
 
-            {/* Vue Appareils - tous les appareils à plat */}
+            {/* Vue Appareils - tous les appareils regroupés par pièce */}
             {viewMode === "devices" && (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={controllableEntities.map(e => e.entity_id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className="space-y-3 animate-fade-in">
-                    {controllableEntities.map((entity) => {
-                      const isMediaPlayer = entity.entity_id.startsWith("media_player.");
-                      return isMediaPlayer ? (
-                        <SortableMediaPlayerCard
-                          key={entity.entity_id}
-                          entity={entity}
-                        />
-                      ) : (
-                        <SortableDeviceCard
-                          key={entity.entity_id}
-                          entity={entity}
-                          onToggle={handleDeviceToggle}
-                        />
-                      );
-                    })}
-                  </div>
-                </SortableContext>
-                
-                <DragOverlay dropAnimation={null}>
-                  {activeId && entities.find(e => e.entity_id === activeId) ? (
-                    <div className="opacity-90 rotate-1 scale-105">
-                      {activeId.startsWith("media_player.") ? (
-                        <SortableMediaPlayerCard entity={entities.find(e => e.entity_id === activeId)!} />
-                      ) : (
-                        <SortableDeviceCard entity={entities.find(e => e.entity_id === activeId)!} onToggle={() => {}} />
-                      )}
+              <div className="space-y-6 animate-fade-in">
+                {groupedDevices.map(([areaId, { area, floor, devices: groupDevices }]) => (
+                  <div key={areaId} className="space-y-3">
+                    {/* En-tête de groupe avec étage et pièce */}
+                    <div className="flex items-center gap-2">
+                      <Home className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex items-baseline gap-2">
+                        {floor && (
+                          <span className="text-sm text-muted-foreground">
+                            {floor.name}
+                          </span>
+                        )}
+                        <span className="text-base font-medium">
+                          {area?.name || "Sans pièce"}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({groupDevices.length})
+                        </span>
+                      </div>
                     </div>
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
+
+                    {/* Appareils de la pièce avec drag & drop */}
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={groupDevices.map(e => e.entity_id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="space-y-3">
+                          {groupDevices.map((entity) => {
+                            const isMediaPlayer = entity.entity_id.startsWith("media_player.");
+                            return isMediaPlayer ? (
+                              <SortableMediaPlayerCard
+                                key={entity.entity_id}
+                                entity={entity}
+                              />
+                            ) : (
+                              <SortableDeviceCard
+                                key={entity.entity_id}
+                                entity={entity}
+                                onToggle={handleDeviceToggle}
+                              />
+                            );
+                          })}
+                        </div>
+                      </SortableContext>
+                      
+                      <DragOverlay dropAnimation={null}>
+                        {activeId && entities.find(e => e.entity_id === activeId) ? (
+                          <div className="opacity-90 rotate-1 scale-105">
+                            {activeId.startsWith("media_player.") ? (
+                              <SortableMediaPlayerCard entity={entities.find(e => e.entity_id === activeId)!} />
+                            ) : (
+                              <SortableDeviceCard entity={entities.find(e => e.entity_id === activeId)!} onToggle={() => {}} />
+                            )}
+                          </div>
+                        ) : null}
+                      </DragOverlay>
+                    </DndContext>
+                  </div>
+                ))}
+              </div>
             )}
           </>
         )}
