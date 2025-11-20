@@ -45,10 +45,19 @@ const Rooms = () => {
   const setAreaOrder = useHAStore((state) => state.setAreaOrder);
   const { displayMode } = useDisplayMode();
   
-  const [viewMode, setViewMode] = useState<ViewMode>("floors");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    // Restaurer la vue depuis sessionStorage
+    const savedView = sessionStorage.getItem('rooms-view-mode');
+    return (savedView as ViewMode) || "floors";
+  });
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const ptClass = displayMode === "mobile" ? "pt-16" : "pt-10";
+
+  // Sauvegarder la vue dans sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('rooms-view-mode', viewMode);
+  }, [viewMode]);
 
   // Réinitialiser la sélection d'étage quand on change de vue
   useEffect(() => {
@@ -57,13 +66,49 @@ const Rooms = () => {
     }
   }, [viewMode]);
 
+  const entityRegistry = useHAStore((state) => state.entityRegistry);
+
+  // Trouver les device_id des media_players pour filtrer leurs entités associées
+  const mediaPlayerDeviceIds = useMemo(() => {
+    return new Set(
+      entities
+        .filter((entity) => entity.entity_id.startsWith("media_player."))
+        .map((entity) => {
+          const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+          return reg?.device_id;
+        })
+        .filter(Boolean)
+    );
+  }, [entities, entityRegistry]);
+
   // Filtrer les entités contrôlables (pas les capteurs passifs)
+  // Exclure les contrôles associés aux media_players Sonos
   const controllableEntities = useMemo(() => {
     return entities.filter(entity => {
       const domain = entity.entity_id.split(".")[0];
-      return ["light", "switch", "media_player", "cover", "climate", "fan"].includes(domain);
+      
+      // Vérifier si c'est une entité contrôlable
+      if (!["light", "switch", "media_player", "cover", "climate", "fan"].includes(domain)) {
+        return false;
+      }
+
+      // Si c'est un media_player, toujours l'inclure
+      if (domain === "media_player") {
+        return true;
+      }
+
+      // Vérifier si cette entité appartient au device d'un media_player
+      const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+      const deviceId = reg?.device_id;
+      
+      // Si cette entité appartient au même device qu'un media_player (mais n'est pas le media_player), l'exclure
+      if (deviceId && mediaPlayerDeviceIds.has(deviceId)) {
+        return false;
+      }
+
+      return true;
     });
-  }, [entities]);
+  }, [entities, entityRegistry, mediaPlayerDeviceIds]);
 
   // Fonction pour alterner un appareil
   const handleDeviceToggle = async (entityId: string) => {
