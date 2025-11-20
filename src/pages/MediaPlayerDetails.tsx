@@ -262,7 +262,7 @@ const MediaPlayerDetails = () => {
 
   if (!entity || !entityData) {
     return (
-      <div className="min-h-screen bg-background pb-24 pt-16">
+      <div className="min-h-screen bg-background pb-24 pt-12">
         <TopBar />
         <div className="max-w-screen-xl mx-auto px-4 py-4">
           <p className="text-muted-foreground">Appareil introuvable</p>
@@ -275,7 +275,7 @@ const MediaPlayerDetails = () => {
   const { attributes, isPlaying, isMuted, mediaTitle, mediaArtist, mediaAlbum, albumArt, canPause, canPlay, canSetVolume, canMute, canPrevious, canNext, canShuffle, canRepeat } = entityData;
 
   return (
-    <div className="min-h-screen bg-background pb-24 pt-16">
+    <div className="min-h-screen bg-background pb-24 pt-12">
       <TopBar />
       
       <div className="max-w-screen-xl mx-auto px-6 py-4">
