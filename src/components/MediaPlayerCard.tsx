@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
 import { useHAStore } from "@/store/useHAStore";
 import { useMediaPlayerTimeline } from "@/hooks/useMediaPlayerTimeline";
+import { useMediaPlayerControls } from "@/hooks/useMediaPlayerControls";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LocationBadge } from "./LocationBadge";
@@ -40,6 +41,16 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
     handleSeekEnd,
   } = useMediaPlayerTimeline(client, entity);
 
+  const {
+    play,
+    pause,
+    inFlight: playPauseInFlight,
+  } = useMediaPlayerControls(
+    client,
+    entity.entity_id,
+    entity.state as any
+  );
+
   const isPlaying = playerState === "playing";
   const isBuffering = playerState === "buffering";
   const mediaTitle = attributes.media_title || "Aucun média";
@@ -63,6 +74,15 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
       return;
     }
     navigate(`/media-player/${encodeURIComponent(entity.entity_id)}`);
+  };
+
+  const handlePlayPause = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isPlaying) {
+      await pause();
+    } else {
+      await play();
+    }
   };
 
 
@@ -93,13 +113,6 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
           {/* Titre et artiste */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              {isBuffering ? (
-                <Loader2 className="h-5 w-5 text-primary animate-spin flex-shrink-0" />
-              ) : isPlaying ? (
-                <Play className="h-5 w-5 text-primary fill-primary flex-shrink-0" />
-              ) : (
-                <Pause className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-              )}
               <span className="text-sm font-medium truncate">{mediaTitle}</span>
             </div>
             {mediaArtist && (
@@ -109,16 +122,34 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
             )}
           </div>
 
-          {/* Favoris */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 flex-shrink-0 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
-            onClick={handleFavoriteClick}
-            data-control
-          >
-            <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
-          </Button>
+          {/* Play/Pause et Favoris */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handlePlayPause}
+              disabled={playPauseInFlight}
+              className="h-8 w-8 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
+              data-control
+            >
+              {playPauseInFlight || isBuffering ? (
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              ) : isPlaying ? (
+                <Pause className="h-5 w-5 text-primary" />
+              ) : (
+                <Play className="h-5 w-5 text-muted-foreground" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
+              onClick={handleFavoriteClick}
+              data-control
+            >
+              <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+            </Button>
+          </div>
         </div>
 
         {/* Timeline interactive */}
