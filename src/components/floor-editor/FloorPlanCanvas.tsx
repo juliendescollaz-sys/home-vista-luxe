@@ -125,7 +125,7 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
       ctx.stroke();
 
       // Texte du nom
-      ctx.fillStyle = isSelected ? "hsl(var(--primary-foreground))" : "hsl(var(--foreground))";
+      ctx.fillStyle = "#ffffff";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.fillText(label, labelX + labelPaddingX, labelY + labelHeight / 2);
