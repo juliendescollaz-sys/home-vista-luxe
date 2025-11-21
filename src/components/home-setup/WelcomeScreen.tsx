@@ -1,11 +1,32 @@
 import { Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useHomeProjectStore } from "@/store/useHomeProjectStore";
 
 interface WelcomeScreenProps {
-  onStart: () => void;
+  onStart?: () => void;
 }
 
 export const WelcomeScreen = ({ onStart }: WelcomeScreenProps) => {
+  const { setProject, setWizardStep } = useHomeProjectStore();
+
+  const handleStart = () => {
+    // Créer un projet minimal pour démarrer le wizard
+    const newProject = {
+      id: crypto.randomUUID(),
+      name: "",
+      levels: [],
+      rooms: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setProject(newProject);
+    setWizardStep(0);
+    
+    if (onStart) {
+      onStart();
+    }
+  };
+
   return (
     <div className="min-h-[calc(100vh-12rem)] flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center space-y-8 animate-fade-in">
@@ -23,7 +44,7 @@ export const WelcomeScreen = ({ onStart }: WelcomeScreenProps) => {
         </div>
         
         <Button 
-          onClick={onStart}
+          onClick={handleStart}
           size="lg"
           className="w-full max-w-xs mx-auto h-12 text-base"
         >

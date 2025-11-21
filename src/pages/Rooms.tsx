@@ -405,7 +405,7 @@ const Rooms = () => {
         <TopBar title="Maison" />
         
         {!project ? (
-          <WelcomeScreen onStart={() => setWizardStep(0)} />
+          <WelcomeScreen />
         ) : (
           <HomeSetupWizard />
         )}
