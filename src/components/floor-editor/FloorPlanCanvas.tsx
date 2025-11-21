@@ -90,7 +90,7 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
       ctx.strokeRect(room.x, room.y, room.width, room.height);
 
       // Nom de la pièce
-      ctx.fillStyle = isSelected ? "hsl(var(--primary))" : "hsl(var(--foreground))";
+      ctx.fillStyle = isSelected ? "hsl(var(--primary))" : "#1a1a1a";
       ctx.font = isSelected ? "bold 14px sans-serif" : "14px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
