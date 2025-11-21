@@ -18,6 +18,7 @@ const FloorPlanEditor = () => {
   const { project, updateProject, updateRoom, removeRoom, addRoom } = useHomeProjectStore();
   const [activeLevel, setActiveLevel] = useState(project?.levels[0]?.id || "");
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [gridSize, setGridSize] = useState(20);
 
   if (!project) {
     navigate("/rooms");
@@ -87,10 +88,24 @@ const FloorPlanEditor = () => {
                   ))}
                 </TabsList>
 
-                <Button variant="outline" size="sm" onClick={handleAddRoom}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Ajouter une pièce
-                </Button>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-muted-foreground">Grille:</label>
+                  <select 
+                    value={gridSize} 
+                    onChange={(e) => setGridSize(Number(e.target.value))}
+                    className="px-2 py-1 text-sm bg-background border border-border rounded-md"
+                  >
+                    <option value={10}>10px</option>
+                    <option value={20}>20px</option>
+                    <option value={30}>30px</option>
+                    <option value={40}>40px</option>
+                  </select>
+                  
+                  <Button variant="outline" size="sm" onClick={handleAddRoom}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Ajouter une pièce
+                  </Button>
+                </div>
               </div>
 
               {project.levels.map((level) => (
@@ -101,6 +116,7 @@ const FloorPlanEditor = () => {
                     levelId={level.id}
                     selectedRoomId={selectedRoomId}
                     onRoomSelect={setSelectedRoomId}
+                    gridSize={gridSize}
                   />
 
                   <div className="mt-3 text-center text-xs text-muted-foreground space-y-1">
