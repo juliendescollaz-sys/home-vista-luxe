@@ -549,10 +549,14 @@ const Rooms = () => {
                 >
                   <div className={`${getGridClasses("devices", displayMode)} animate-fade-in`}>
                     {orderedControllableEntities.map((entity) => {
+                      const { area, floor } = getEntityLocation(entity);
+                      
                       return (
                         <SortableUniversalEntityTile
                           key={entity.entity_id}
                           entity={entity}
+                          floor={floor}
+                          area={area}
                         />
                       );
                     })}
