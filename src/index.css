@@ -185,6 +185,12 @@ All colors MUST be HSL.
     height: 100%;
   }
 
+  html,
+  body {
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+
   html {
     @apply dark;
   }
