@@ -10,38 +10,20 @@ import NotFound from "@/pages/NotFound";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
 import { hasHaConfig } from "@/services/haConfig";
 
-/**
- * Layout racine pour l'interface PANEL (S563 - panneau mural)
- * 
- * Comportement :
- * - Dashboard principal plein écran, avec très gros boutons et contrôles
- * - UX pensée "télécommande murale" :
- *   - Une vue principale "Home/Room"
- *   - Priorité au contrôle immédiat (lumières, scènes, musique, interphone)
- * - Navigation limitée (très peu de menus, pas de pages de profil utilisateur standard)
- * - Certaines fonctions sensibles (reset, gestion de comptes, etc.) peuvent être 
- *   cachées ou protégées par PIN dans le mode PANEL
- * 
- * En mode PANEL, si aucune configuration HA n'existe, affiche l'écran d'onboarding
- * pour récupérer automatiquement la config depuis NeoliaServer.
- */
 export function PanelRootLayout() {
   const [hasConfig, setHasConfig] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Vérifier si une config HA existe déjà
     hasHaConfig().then(setHasConfig);
   }, []);
 
-  // Affichage de l'onboarding si pas de config
   if (hasConfig === false) {
     return <PanelOnboarding />;
   }
 
-  // Loading state pendant la vérification
   if (hasConfig === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
         <div className="text-center space-y-4">
           <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto" />
           <p className="text-lg text-muted-foreground">Chargement...</p>
@@ -50,28 +32,24 @@ export function PanelRootLayout() {
     );
   }
 
-  // Config existe, afficher le layout normal
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="panel-layout min-h-screen flex w-full bg-background">
+      <ScrollToTop />
+      <div className="flex h-screen w-screen overflow-hidden bg-background panel-layout">
         <TabletSidebar />
-        
-        <div className="flex-1 flex flex-col">
-          <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav">
+
+        <div className="flex flex-1 flex-col min-w-0 min-h-0">
+          {/* Header fixe */}
+          <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav shrink-0">
             <SidebarTrigger />
           </header>
 
-          <main className="flex-1 overflow-auto">
-            <ScrollToTop />
+          {/* Contenu scrollable uniquement ici */}
+          <main className="flex-1 min-h-0 overflow-y-auto">
             <Routes>
-              {/* Dashboard principal du panneau */}
               <Route path="/" element={<PanelHome />} />
               <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
-              
-              {/* Settings (potentiellement protégés par PIN) */}
               <Route path="/settings" element={<Settings />} />
-
-              {/* Toutes les autres routes redirigent vers le dashboard */}
               <Route path="*" element={<PanelHome />} />
             </Routes>
           </main>

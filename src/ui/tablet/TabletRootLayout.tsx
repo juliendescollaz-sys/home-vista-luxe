@@ -3,6 +3,7 @@ import { ConnectionModeProvider } from "@/components/ConnectionModeProvider";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TabletSidebar } from "@/components/TabletSidebar";
+
 import Home from "@/pages/Home";
 import Rooms from "@/pages/Rooms";
 import RoomDetails from "@/pages/RoomDetails";
@@ -14,36 +15,29 @@ import Groupes from "@/pages/Groupes";
 import Smart from "@/pages/Smart";
 import Settings from "@/pages/Settings";
 import Dev from "@/pages/Dev";
-import NotFound from "@/pages/NotFound";
 import SonosZones from "@/pages/SonosZones";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
+import NotFound from "@/pages/NotFound";
 
-/**
- * Layout racine pour l'interface TABLET (iPad, Galaxy Tab)
- * 
- * Comportement :
- * - Sidebar verticale à gauche pour navigation persistante
- * - Split-view optimisé avec sidebar collapsible
- * - Profiter de la largeur pour afficher plus d'infos sur un seul écran
- * - Fonctionnalités globalement identiques au mobile, mais présentation plus riche
- * - Détection automatique local/cloud via ConnectionModeProvider
- */
 export function TabletRootLayout() {
   return (
     <ConnectionModeProvider>
       <ScrollToTop />
       <SidebarProvider defaultOpen={true}>
-        <div className="min-h-screen flex w-full">
+        {/* Layout plein écran : sidebar fixe + header fixe + contenu scrollable */}
+        <div className="flex h-screen w-screen overflow-hidden bg-background">
+          {/* Sidebar à gauche */}
           <TabletSidebar />
-          
-          <div className="flex-1 flex flex-col">
-            {/* Header avec trigger de sidebar */}
-            <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav">
+
+          {/* Colonne centrale */}
+          <div className="flex flex-1 flex-col min-w-0 min-h-0">
+            {/* Header fixe */}
+            <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav shrink-0">
               <SidebarTrigger />
             </header>
 
-            {/* Contenu principal */}
-            <main className="flex-1 overflow-auto">
+            {/* Contenu : seule zone scrollable */}
+            <main className="flex-1 min-h-0 overflow-y-auto">
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/rooms" element={<Rooms />} />
@@ -58,7 +52,6 @@ export function TabletRootLayout() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/dev" element={<Dev />} />
                 <Route path="/sonos-zones" element={<SonosZones />} />
-
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
