@@ -2,11 +2,11 @@ import { useState } from "react";
 import { useHomeProjectStore } from "@/store/useHomeProjectStore";
 import { FloorsCountStep } from "./steps/FloorsCountStep";
 import { FloorsNamingStep } from "./steps/FloorsNamingStep";
-import { RoomsStep } from "./steps/RoomsStep";
+import { PlanPreparationStep } from "./steps/PlanPreparationStep";
 import { useNavigate } from "react-router-dom";
 
 export const HomeSetupWizard = () => {
-  const { project, addLevel, addRoom, currentWizardStep, setWizardStep, resetProject } =
+  const { project, addLevel, currentWizardStep, setWizardStep, resetProject } =
     useHomeProjectStore();
   const navigate = useNavigate();
 
@@ -18,10 +18,10 @@ export const HomeSetupWizard = () => {
       // Skip naming step for single floor, create default floor
       if (project) {
         addLevel({ name: "Rez-de-chaussée", type: "interior", order: 0 });
-        setWizardStep(2);
+        setWizardStep(2); // Go to plan preparation
       }
     } else {
-      setWizardStep(1);
+      setWizardStep(1); // Go to naming step
     }
   };
 
@@ -34,16 +34,7 @@ export const HomeSetupWizard = () => {
       floors.forEach((floor, index) => {
         addLevel({ ...floor, order: index });
       });
-      setWizardStep(2);
-    }
-  };
-
-  const handleRoomsNext = (rooms: Array<{ name: string; type?: string; levelId: string }>) => {
-    if (project) {
-      rooms.forEach((room) => {
-        addRoom(room);
-      });
-      navigate("/floor-plan-editor");
+      setWizardStep(2); // Go to plan preparation
     }
   };
 
@@ -63,11 +54,8 @@ export const HomeSetupWizard = () => {
             />
           )}
 
-          {currentWizardStep === 2 && project && (
-            <RoomsStep
-              levels={project.levels}
-              rooms={project.rooms}
-              onNext={handleRoomsNext}
+          {currentWizardStep === 2 && (
+            <PlanPreparationStep
               onBack={() => setWizardStep(floorCount === 1 ? 0 : 1)}
             />
           )}
