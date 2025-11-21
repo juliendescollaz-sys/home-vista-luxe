@@ -7,7 +7,7 @@ const Smart = () => {
   
   return (
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
-      <TopBar title="Smart" />
+      <TopBar title="Smarthome" />
       <div className="max-w-screen-xl mx-auto px-4 py-4">
         <p className="text-muted-foreground">Fonctionnalités intelligentes à venir...</p>
       </div>
