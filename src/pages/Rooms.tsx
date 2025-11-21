@@ -25,6 +25,7 @@ import {
 import { SortableRoomCard } from "@/components/SortableRoomCard";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
+import { SortableUniversalEntityTile } from "@/components/SortableUniversalEntityTile";
 import { FloorSection } from "@/components/FloorSection";
 import { FloorCard } from "@/components/FloorCard";
 import { ViewSelector, ViewMode } from "@/components/ViewSelector";
@@ -549,20 +550,11 @@ const Rooms = () => {
                   <div className={`${getGridClasses("devices", displayMode)} animate-fade-in`}>
                     {orderedControllableEntities.map((entity) => {
                       const { area, floor } = getEntityLocation(entity);
-                      const isMediaPlayer = entity.entity_id.startsWith("media_player.");
 
-                      return isMediaPlayer ? (
-                        <SortableMediaPlayerCard
+                      return (
+                        <SortableUniversalEntityTile
                           key={entity.entity_id}
                           entity={entity}
-                          floor={floor}
-                          area={area}
-                        />
-                      ) : (
-                        <SortableDeviceCard
-                          key={entity.entity_id}
-                          entity={entity}
-                          onToggle={handleDeviceToggle}
                           floor={floor}
                           area={area}
                         />
@@ -574,11 +566,7 @@ const Rooms = () => {
                 <DragOverlay dropAnimation={null}>
                   {activeId && entities.find(e => e.entity_id === activeId) ? (
                     <div className="opacity-90 rotate-1 scale-105">
-                      {activeId.startsWith("media_player.") ? (
-                        <SortableMediaPlayerCard entity={entities.find(e => e.entity_id === activeId)!} />
-                      ) : (
-                        <SortableDeviceCard entity={entities.find(e => e.entity_id === activeId)!} onToggle={() => {}} />
-                      )}
+                      <SortableUniversalEntityTile entity={entities.find(e => e.entity_id === activeId)!} />
                     </div>
                   ) : null}
                 </DragOverlay>
