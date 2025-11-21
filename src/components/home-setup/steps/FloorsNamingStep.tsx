@@ -93,7 +93,7 @@ export const FloorsNamingStep = ({ floorCount, onNext, onBack }: FloorsNamingSte
       </div>
 
       <div className="flex gap-3">
-        <Button variant="outline" onClick={onBack} className="flex-1">
+        <Button variant="outline" onClick={onBack} size="lg" className="flex-1">
           Retour
         </Button>
         <Button

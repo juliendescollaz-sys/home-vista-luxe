@@ -129,10 +129,10 @@ export const RoomsStep = ({ levels, rooms: initialRooms, onNext, onBack }: Rooms
       </Tabs>
 
       <div className="flex gap-3 pt-4">
-        <Button variant="outline" onClick={onBack} className="flex-1">
+        <Button variant="outline" onClick={onBack} size="lg" className="flex-1">
           Retour
         </Button>
-        <Button onClick={handleNext} disabled={!hasValidRooms} className="flex-1">
+        <Button onClick={handleNext} size="lg" disabled={!hasValidRooms} className="flex-1">
           Continuer
         </Button>
       </div>
