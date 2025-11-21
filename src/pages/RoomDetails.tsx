@@ -2,12 +2,10 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useHAStore } from "@/store/useHAStore";
 import { useParams, useNavigate } from "react-router-dom";
-import { SortableDeviceCard } from "@/components/SortableDeviceCard";
-import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
+import { UniversalEntityTile } from "@/components/entities/UniversalEntityTile";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import {
   DndContext,
@@ -58,7 +56,6 @@ const RoomDetails = () => {
     window.scrollTo(0, 0);
   }, [areaId]);
   
-  const client = useHAStore((state) => state.client);
   const areas = useHAStore((state) => state.areas);
   const entities = useHAStore((state) => state.entities);
   const devices = useHAStore((state) => state.devices);
@@ -138,28 +135,6 @@ const RoomDetails = () => {
       return orderA - orderB;
     });
   }, [roomEntities, entityOrder, contextId]);
-
-  const handleToggle = async (entityId: string) => {
-    if (!client) {
-      toast.error("Client non connecté");
-      return;
-    }
-
-    const entity = entities.find((e) => e.entity_id === entityId);
-    if (!entity) return;
-
-    const domain = entityId.split(".")[0];
-    const isOn = entity.state === "on";
-    const service = isOn ? "turn_off" : "turn_on";
-
-    try {
-      await client.callService(domain, service, {}, { entity_id: entityId });
-      toast.success(isOn ? "Éteint" : "Allumé");
-    } catch (error) {
-      console.error("Erreur lors du contrôle:", error);
-      toast.error("Erreur lors du contrôle de l'appareil");
-    }
-  };
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -253,38 +228,17 @@ const RoomDetails = () => {
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-3">
-                {sortedEntities.map((entity) => {
-                  const domain = entity.entity_id.split(".")[0];
-                  
-                  if (domain === "media_player") {
-                    return (
-                      <SortableMediaPlayerCard
-                        key={entity.entity_id}
-                        entity={entity}
-                      />
-                    );
-                  }
-                  
-                  return (
-                    <SortableDeviceCard
-                      key={entity.entity_id}
-                      entity={entity}
-                      onToggle={handleToggle}
-                    />
-                  );
-                })}
+                {sortedEntities.map((entity) => (
+                  <UniversalEntityTile key={entity.entity_id} entity={entity} />
+                ))}
               </div>
             </SortableContext>
             <DragOverlay dropAnimation={null}>
-              {activeEntity ? (
+              {activeEntity && (
                 <div className="opacity-90 rotate-1 scale-105">
-                  {activeEntity.entity_id.split(".")[0] === "media_player" ? (
-                    <SortableMediaPlayerCard entity={activeEntity} />
-                  ) : (
-                    <SortableDeviceCard entity={activeEntity} onToggle={() => {}} />
-                  )}
+                  <UniversalEntityTile entity={activeEntity} />
                 </div>
-              ) : null}
+              )}
             </DragOverlay>
           </DndContext>
         )}

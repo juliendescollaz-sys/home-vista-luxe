@@ -79,4 +79,17 @@ export type EntityDomain =
   | "camera"
   | "scene"
   | "script"
-  | "button";
+  | "button"
+  | "fan"
+  | "update"
+  | "select"
+  | "number"
+  | "input_text"
+  | "input_number"
+  | "input_boolean"
+  | "input_select"
+  | "automation"
+  | "alarm_control_panel"
+  | "vacuum"
+  | "water_heater"
+  | "humidifier";
