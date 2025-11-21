@@ -1,5 +1,4 @@
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useGroupStore } from "@/store/useGroupStore";
 import { GroupWizard } from "@/components/groups/GroupWizard";
@@ -11,6 +10,7 @@ import { toast } from "sonner";
 
 const Groupes = () => {
   const { displayMode } = useDisplayMode();
+  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
   
   const [wizardOpen, setWizardOpen] = useState(false);
   const { groups, syncSharedGroupsFromHA } = useGroupStore();
@@ -22,10 +22,10 @@ const Groupes = () => {
 
 
   return (
-    <div className="w-full h-full bg-background">
-      {displayMode === "mobile" && <TopBar title="Groupes" />}
+    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
+      <TopBar title="Groupes" />
       
-      <div className="max-w-screen-xl mx-auto px-4 py-6">
+      <div className="max-w-screen-xl mx-auto px-4 py-4">
         <div className="flex items-center justify-between mb-6">
           <p className="text-muted-foreground">
             Créez des groupes pour contrôler plusieurs appareils simultanément
@@ -56,7 +56,6 @@ const Groupes = () => {
         )}
       </div>
 
-      {displayMode === "mobile" && <BottomNav />}
       <GroupWizard open={wizardOpen} onOpenChange={setWizardOpen} />
     </div>
   );

@@ -4,14 +4,15 @@ import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 const Scenes = () => {
   const { displayMode } = useDisplayMode();
+  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
   
   return (
-    <div className="w-full h-full bg-background">
-      {displayMode === "mobile" && <TopBar title="Scènes" />}
-      <div className="max-w-screen-xl mx-auto px-4 py-6">
+    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
+      <TopBar title="Scènes" />
+      <div className="max-w-screen-xl mx-auto px-4 py-4">
         <p className="text-muted-foreground">Vos scènes Home Assistant apparaîtront ici...</p>
       </div>
-      {displayMode === "mobile" && <BottomNav />}
+      <BottomNav />
     </div>
   );
 };

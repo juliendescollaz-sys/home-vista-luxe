@@ -212,11 +212,6 @@ All colors MUST be HSL.
     overscroll-behavior: none;
   }
 
-  /* Empêcher le scroll sur le body pour tablet/panel */
-  body {
-    overflow: hidden;
-  }
-
   html {
     @apply dark;
   }

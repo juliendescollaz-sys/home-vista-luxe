@@ -20,6 +20,7 @@ const Settings = () => {
   const { connectionMode } = useConnectionMode();
   const { displayMode } = useDisplayMode();
   const { handedness, setHandedness } = useHandedness();
+  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
 
   const handleDisconnect = () => {
     disconnect();
@@ -30,10 +31,10 @@ const Settings = () => {
   };
 
   return (
-    <div className="w-full h-full bg-background">
-      {displayMode === "mobile" && <TopBar title="Paramètres" />}
+    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
+      <TopBar title="Paramètres" />
       
-      <div className="max-w-screen-xl mx-auto px-4 py-6 space-y-8">
+      <div className="max-w-screen-xl mx-auto px-4 py-4 space-y-8">
 
         <div className="space-y-4">
           <Card className="p-6 bg-gradient-card border-border/50">
@@ -168,7 +169,7 @@ const Settings = () => {
         </div>
       </div>
 
-      {displayMode === "mobile" && <BottomNav />}
+      <BottomNav />
     </div>
   );
 };
