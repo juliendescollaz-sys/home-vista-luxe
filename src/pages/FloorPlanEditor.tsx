@@ -54,10 +54,11 @@ const FloorPlanEditor = () => {
   const levelRooms = project.rooms.filter((r) => r.levelId === activeLevel);
 
   return (
-    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
+    <div className={`h-screen overflow-hidden bg-background ${ptClass}`}>
       <TopBar title="Éditeur de plan" />
 
-      <div className="max-w-screen-2xl mx-auto px-4 py-4">
+      <div className="h-full overflow-y-auto">
+        <div className="max-w-screen-2xl mx-auto px-4 py-4 pb-24">
         <div className="flex items-center justify-between mb-4">
           <Button variant="ghost" onClick={() => navigate("/rooms")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -136,6 +137,7 @@ const FloorPlanEditor = () => {
             </Button>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
