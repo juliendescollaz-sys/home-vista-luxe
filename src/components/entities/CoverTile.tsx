@@ -77,7 +77,7 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
     <Card className="glass-card elevated-subtle elevated-active border-border/50 overflow-hidden">
       <div className="p-4">
         {/* Header */}
-        <div className="flex items-start gap-3 mb-4">
+        <div className="flex items-start gap-3 mb-3">
           <div className={`w-14 h-14 rounded-lg flex-shrink-0 transition-all flex items-center justify-center ${
             state === "open" ? 'bg-primary/20 text-primary' : 'bg-muted/50 text-muted-foreground'
           }`}>
@@ -94,11 +94,10 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
         </div>
         
         {/* Action buttons */}
-        <div className="flex gap-2 mt-4">
+        <div className="grid grid-cols-3 gap-2">
           <Button
             variant="outline"
             size="sm"
-            className="flex-1"
             onClick={handleOpen}
           >
             <ChevronUp className="h-4 w-4 mr-1" />
@@ -108,7 +107,6 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
           <Button
             variant="outline"
             size="sm"
-            className="flex-1"
             onClick={handleStop}
           >
             <Square className="h-4 w-4 mr-1" />
@@ -118,7 +116,6 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
           <Button
             variant="outline"
             size="sm"
-            className="flex-1"
             onClick={handleClose}
           >
             <ChevronDown className="h-4 w-4 mr-1" />
