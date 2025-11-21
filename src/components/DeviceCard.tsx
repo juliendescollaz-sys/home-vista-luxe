@@ -6,7 +6,7 @@ import { useHAStore } from "@/store/useHAStore";
 import { Button } from "@/components/ui/button";
 import { LocationBadge } from "./LocationBadge";
 
-const domainIcons: Record<EntityDomain, any> = {
+const domainIcons: Partial<Record<EntityDomain, any>> = {
   light: Lightbulb,
   climate: Thermometer,
   media_player: Music,

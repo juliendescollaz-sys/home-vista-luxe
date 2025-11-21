@@ -1,0 +1,123 @@
+import { Card } from "@/components/ui/card";
+import { HAEntity } from "@/types/homeassistant";
+import { Fan } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState, useEffect } from "react";
+import { supportsFeature, FAN_FEATURES } from "@/lib/entityUtils";
+import { toast } from "sonner";
+
+interface FanTileProps {
+  entity: HAEntity;
+  onControl: (service: string, data?: any) => Promise<void>;
+}
+
+export function FanTile({ entity, onControl }: FanTileProps) {
+  const isOn = entity.state === "on";
+  const name = entity.attributes.friendly_name || entity.entity_id;
+  const percentage = entity.attributes.percentage || 0;
+  const presetMode = entity.attributes.preset_mode;
+  const presetModes = entity.attributes.preset_modes || [];
+  
+  const supportsSpeed = supportsFeature(entity, FAN_FEATURES.SUPPORT_SET_SPEED);
+  const supportsPreset = supportsFeature(entity, FAN_FEATURES.SUPPORT_PRESET_MODE);
+  
+  const [speed, setSpeed] = useState(percentage);
+  
+  useEffect(() => {
+    setSpeed(percentage);
+  }, [percentage]);
+  
+  const handleToggle = async (checked: boolean) => {
+    try {
+      await onControl(checked ? "turn_on" : "turn_off");
+      toast.success(checked ? "Allumé" : "Éteint");
+    } catch (error) {
+      toast.error("Erreur");
+    }
+  };
+  
+  const handleSpeedCommit = async (value: number[]) => {
+    try {
+      await onControl("set_percentage", { percentage: value[0] });
+    } catch (error) {
+      toast.error("Erreur");
+    }
+  };
+  
+  const handlePresetChange = async (preset: string) => {
+    try {
+      await onControl("set_preset_mode", { preset_mode: preset });
+    } catch (error) {
+      toast.error("Erreur");
+    }
+  };
+  
+  return (
+    <Card className="glass-card elevated-subtle elevated-active border-border/50 overflow-hidden">
+      <div className="p-4">
+        <div className="flex items-start gap-3 mb-4">
+          <div className={`w-14 h-14 rounded-lg flex-shrink-0 transition-all flex items-center justify-center ${
+            isOn ? 'bg-primary/20 text-primary' : 'bg-muted/50 text-muted-foreground'
+          }`}>
+            <Fan className={`h-8 w-8 ${isOn ? 'animate-spin' : ''}`} />
+          </div>
+          
+          <div className="flex-1 min-w-0 pt-0.5">
+            <h3 className="font-semibold text-base truncate mb-0.5">{name}</h3>
+            <p className="text-sm text-muted-foreground">
+              {isOn ? (supportsSpeed ? `${speed}%` : "Allumé") : "Éteint"}
+            </p>
+          </div>
+          
+          <Switch
+            checked={isOn}
+            onCheckedChange={handleToggle}
+            className="scale-125"
+          />
+        </div>
+        
+        {isOn && (
+          <div className="space-y-3 pt-2 border-t border-border/30">
+            {supportsSpeed && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Vitesse</span>
+                  <span className="font-medium">{speed}%</span>
+                </div>
+                <Slider
+                  value={[speed]}
+                  onValueChange={(v) => setSpeed(v[0])}
+                  onValueCommit={handleSpeedCommit}
+                  min={0}
+                  max={100}
+                  step={1}
+                  className="py-1"
+                />
+              </div>
+            )}
+            
+            {supportsPreset && presetModes.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-sm text-muted-foreground">Mode</span>
+                <Select value={presetMode} onValueChange={handlePresetChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {presetModes.map((mode: string) => (
+                      <SelectItem key={mode} value={mode}>
+                        {mode}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
