@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { HAEntity } from "@/types/homeassistant";
-import { ChevronUp, ChevronDown, Square, RotateCw } from "lucide-react";
+import { ChevronUp, ChevronDown, Square, Blinds } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useState, useEffect } from "react";
@@ -81,7 +81,7 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
           <div className={`w-14 h-14 rounded-lg flex-shrink-0 transition-all flex items-center justify-center ${
             state === "open" ? 'bg-primary/20 text-primary' : 'bg-muted/50 text-muted-foreground'
           }`}>
-            <ChevronUp className="h-8 w-8" />
+            <Blinds className="h-8 w-8" />
           </div>
           
           <div className="flex-1 min-w-0 pt-0.5">
@@ -93,81 +93,37 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
           </div>
         </div>
         
-        {/* Controls */}
-        <div className="space-y-3 pt-2 border-t border-border/30">
-          {/* Position slider */}
-          {supportsPosition && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Position</span>
-                <span className="font-medium">{position}%</span>
-              </div>
-              <Slider
-                value={[position]}
-                onValueChange={(v) => setPosition(v[0])}
-                onValueCommit={handlePositionCommit}
-                min={0}
-                max={100}
-                step={1}
-                className="py-1"
-              />
-            </div>
-          )}
+        {/* Action buttons */}
+        <div className="flex gap-2 mt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={handleOpen}
+          >
+            <ChevronUp className="h-4 w-4 mr-1" />
+            Ouvrir
+          </Button>
           
-          {/* Tilt slider */}
-          {supportsTilt && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <RotateCw className="h-4 w-4" />
-                  <span>Inclinaison</span>
-                </div>
-                <span className="font-medium">{tilt}%</span>
-              </div>
-              <Slider
-                value={[tilt]}
-                onValueChange={(v) => setTilt(v[0])}
-                onValueCommit={handleTiltCommit}
-                min={0}
-                max={100}
-                step={1}
-                className="py-1"
-              />
-            </div>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={handleStop}
+          >
+            <Square className="h-4 w-4 mr-1" />
+            Stop
+          </Button>
           
-          {/* Action buttons */}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={handleOpen}
-            >
-              <ChevronUp className="h-4 w-4 mr-1" />
-              Ouvrir
-            </Button>
-            
-            {supportsStop && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleStop}
-              >
-                <Square className="h-4 w-4" />
-              </Button>
-            )}
-            
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={handleClose}
-            >
-              <ChevronDown className="h-4 w-4 mr-1" />
-              Fermer
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={handleClose}
+          >
+            <ChevronDown className="h-4 w-4 mr-1" />
+            Fermer
+          </Button>
         </div>
       </div>
     </Card>
