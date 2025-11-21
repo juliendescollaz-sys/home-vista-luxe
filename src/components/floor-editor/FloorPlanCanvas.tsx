@@ -83,9 +83,9 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
       const isSelected = room.id === selectedRoomId;
 
       // Rectangle de la pièce
-      ctx.fillStyle = isSelected ? "hsl(var(--primary) / 0.2)" : "hsl(var(--muted) / 0.8)";
-      ctx.strokeStyle = isSelected ? "hsl(var(--primary))" : "hsl(var(--border))";
-      ctx.lineWidth = isSelected ? 4 : 1;
+      ctx.fillStyle = isSelected ? "#1b1d22" : "#1b1d22"; // gris anthracite
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = isSelected ? 4 : 2;
       ctx.fillRect(room.x, room.y, room.width, room.height);
       ctx.strokeRect(room.x, room.y, room.width, room.height);
 
