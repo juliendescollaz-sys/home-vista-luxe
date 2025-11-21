@@ -1,16 +1,17 @@
 import { TopBar } from "@/components/TopBar";
+import { BottomNav } from "@/components/BottomNav";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 const Smart = () => {
   const { displayMode } = useDisplayMode();
-  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
   
   return (
-    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
-      <TopBar title="Smarthome" />
-      <div className="max-w-screen-xl mx-auto px-4 py-4">
+    <div className="w-full h-full bg-background">
+      {displayMode === "mobile" && <TopBar title="Smarthome" />}
+      <div className="max-w-screen-xl mx-auto px-4 py-6">
         <p className="text-muted-foreground">Fonctionnalités intelligentes à venir...</p>
       </div>
+      {displayMode === "mobile" && <BottomNav />}
     </div>
   );
 };
