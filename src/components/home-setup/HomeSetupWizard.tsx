@@ -1,55 +1,50 @@
+import { useState } from "react";
 import { useHomeProjectStore } from "@/store/useHomeProjectStore";
-import { NameStep } from "./steps/NameStep";
-import { LevelsStep } from "./steps/LevelsStep";
+import { FloorsCountStep } from "./steps/FloorsCountStep";
+import { FloorsNamingStep } from "./steps/FloorsNamingStep";
 import { RoomsStep } from "./steps/RoomsStep";
-import { PlanPreparationStep } from "./steps/PlanPreparationStep";
+import { PlanTutorialStep } from "./steps/PlanTutorialStep";
 import { Progress } from "@/components/ui/progress";
-import { toast } from "sonner";
 
 export const HomeSetupWizard = () => {
-  const {
-    project,
-    currentWizardStep,
-    setProject,
-    updateProject,
-    setWizardStep,
-  } = useHomeProjectStore();
+  const { project, addLevel, addRoom, currentWizardStep, setWizardStep } =
+    useHomeProjectStore();
+
+  const [floorCount, setFloorCount] = useState(1);
+
+  const handleFloorsCountNext = (count: number) => {
+    setFloorCount(count);
+    if (count === 1) {
+      // Skip naming step for single floor, create default floor
+      if (project) {
+        addLevel({ name: "Rez-de-chaussée", type: "interior", order: 0 });
+        setWizardStep(2);
+      }
+    } else {
+      setWizardStep(1);
+    }
+  };
+
+  const handleFloorsNamingNext = (floors: Array<{ name: string; type: "interior" | "exterior" }>) => {
+    if (project) {
+      floors.forEach((floor, index) => {
+        addLevel({ ...floor, order: index });
+      });
+      setWizardStep(2);
+    }
+  };
+
+  const handleRoomsNext = (rooms: Array<{ name: string; type?: string; levelId: string }>) => {
+    if (project) {
+      rooms.forEach((room) => {
+        addRoom(room);
+      });
+      setWizardStep(3);
+    }
+  };
 
   const totalSteps = 4;
   const progress = ((currentWizardStep + 1) / totalSteps) * 100;
-
-  const handleNameNext = (name: string) => {
-    if (!project) {
-      const newProject = {
-        id: crypto.randomUUID(),
-        name,
-        levels: [],
-        rooms: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setProject(newProject);
-    } else {
-      updateProject({ name });
-    }
-    setWizardStep(1);
-  };
-
-  const handleLevelsNext = (levels: typeof project.levels) => {
-    updateProject({ levels });
-    setWizardStep(2);
-  };
-
-  const handleRoomsNext = (rooms: typeof project.rooms) => {
-    updateProject({ rooms });
-    setWizardStep(3);
-  };
-
-  const handlePlanNext = () => {
-    toast.success("Configuration enregistrée");
-    // TODO: Navigate to 2D editor (étape 2 du projet global)
-    console.log("Navigate to 2D editor with project:", project);
-  };
 
   return (
     <div className="min-h-[calc(100vh-12rem)] flex items-center justify-center px-4 py-8">
@@ -64,16 +59,13 @@ export const HomeSetupWizard = () => {
 
         <div className="glass-card elevated-subtle border-border/50 rounded-2xl p-6 md:p-8">
           {currentWizardStep === 0 && (
-            <NameStep
-              initialName={project?.name || ""}
-              onNext={handleNameNext}
-            />
+            <FloorsCountStep onNext={handleFloorsCountNext} />
           )}
 
-          {currentWizardStep === 1 && project && (
-            <LevelsStep
-              levels={project.levels}
-              onNext={handleLevelsNext}
+          {currentWizardStep === 1 && (
+            <FloorsNamingStep
+              floorCount={floorCount}
+              onNext={handleFloorsNamingNext}
               onBack={() => setWizardStep(0)}
             />
           )}
@@ -83,13 +75,12 @@ export const HomeSetupWizard = () => {
               levels={project.levels}
               rooms={project.rooms}
               onNext={handleRoomsNext}
-              onBack={() => setWizardStep(1)}
+              onBack={() => setWizardStep(floorCount === 1 ? 0 : 1)}
             />
           )}
 
           {currentWizardStep === 3 && (
-            <PlanPreparationStep
-              onNext={handlePlanNext}
+            <PlanTutorialStep
               onBack={() => setWizardStep(2)}
             />
           )}

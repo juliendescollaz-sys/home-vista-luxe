@@ -37,9 +37,9 @@ export const WelcomeScreen = ({ onStart }: WelcomeScreenProps) => {
         </div>
         
         <div className="space-y-3">
-          <h1 className="text-3xl font-bold">Bienvenue dans Neolia</h1>
+          <h1 className="text-3xl font-bold">Bienvenue !</h1>
           <p className="text-muted-foreground text-lg">
-            Pour commencer, créez votre maison.
+            Construisons ensemble le plan de votre maison.
           </p>
         </div>
         
@@ -48,7 +48,7 @@ export const WelcomeScreen = ({ onStart }: WelcomeScreenProps) => {
           size="lg"
           className="w-full max-w-xs mx-auto h-12 text-base"
         >
-          Créer ma maison
+          Commencer
         </Button>
       </div>
     </div>
