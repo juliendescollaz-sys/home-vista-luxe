@@ -53,15 +53,15 @@ export function PanelRootLayout() {
   // Config existe, afficher le layout normal
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="panel-layout min-h-screen flex w-full bg-background">
+      <div className="panel-layout h-screen overflow-hidden flex w-full bg-background">
         <TabletSidebar />
         
-        <div className="flex-1 flex flex-col">
-          <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav">
+        <div className="flex-1 flex flex-col min-h-0">
+          <header className="h-14 flex-shrink-0 flex items-center border-b border-border/30 px-4 glass-nav">
             <SidebarTrigger />
           </header>
 
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 min-h-0 overflow-y-auto">
             <ScrollToTop />
             <Routes>
               {/* Dashboard principal du panneau */}
