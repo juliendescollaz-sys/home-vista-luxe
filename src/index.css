@@ -67,6 +67,27 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* ===== TYPOGRAPHY RESPONSIVE SYSTEM ===== */
+    /* Base font sizes selon le mode d'affichage */
+    --font-size-base-mobile: 0.95rem;
+    --font-size-base-tablet: 1.0rem;
+    --font-size-base-panel: 1.05rem;
+    
+    /* Échelle typographique avec clamp() pour responsivité fluide */
+    --font-h1: clamp(1.4rem, 1.4rem + 1vw, 2rem);
+    --font-h2: clamp(1.2rem, 1.2rem + 0.6vw, 1.6rem);
+    --font-h3: clamp(1.1rem, 1.1rem + 0.4vw, 1.4rem);
+    --font-body: clamp(0.9rem, 0.9rem + 0.3vw, 1.1rem);
+    --font-small: clamp(0.8rem, 0.8rem + 0.2vw, 0.95rem);
+    
+    /* Line heights optimisés pour lisibilité */
+    --line-height-tight: 1.2;
+    --line-height-normal: 1.4;
+    --line-height-relaxed: 1.6;
+    
+    /* Max width pour éviter lignes trop longues */
+    --text-max-width: 60ch;
+    
     /* Light theme (secondary, app is dark by default) */
     --background: 210 20% 98%;
     --foreground: 222 47% 11%;
@@ -194,6 +215,55 @@ All colors MUST be HSL.
   html {
     @apply dark;
   }
+
+  /* ===== APPLICATION DES FONT SIZES SELON LE MODE ===== */
+  .mode-mobile body {
+    font-size: var(--font-size-base-mobile);
+  }
+
+  .mode-tablet body {
+    font-size: var(--font-size-base-tablet);
+  }
+
+  .mode-panel body {
+    font-size: var(--font-size-base-panel);
+  }
+
+  /* ===== ÉCHELLE TYPOGRAPHIQUE GLOBALE ===== */
+  h1, .h1 {
+    font-size: var(--font-h1);
+    font-weight: 600;
+    line-height: var(--line-height-tight);
+  }
+
+  h2, .h2 {
+    font-size: var(--font-h2);
+    font-weight: 600;
+    line-height: var(--line-height-tight);
+  }
+
+  h3, .h3 {
+    font-size: var(--font-h3);
+    font-weight: 600;
+    line-height: var(--line-height-normal);
+  }
+
+  p, .text-body {
+    font-size: var(--font-body);
+    line-height: var(--line-height-normal);
+    max-width: var(--text-max-width);
+  }
+
+  .text-small {
+    font-size: var(--font-small);
+    line-height: var(--line-height-normal);
+  }
+
+  /* Optimisation lisibilité pour blocs de texte */
+  .prose p {
+    max-width: var(--text-max-width);
+  }
+
 
   body {
     @apply bg-background text-foreground antialiased;

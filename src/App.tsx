@@ -15,6 +15,8 @@ import { useHAClient } from "./hooks/useHAClient";
 import { useHARefreshOnForeground } from "./hooks/useHARefreshOnForeground";
 import { useReloadOnForegroundIOS } from "./hooks/useReloadOnForegroundIOS";
 import { useDisplayMode } from "./hooks/useDisplayMode";
+import { useOrientationLock } from "./hooks/useOrientationLock";
+import { OrientationOverlay } from "./components/OrientationOverlay";
 import { MobileRootLayout } from "./ui/mobile/MobileRootLayout";
 import { TabletRootLayout } from "./ui/tablet/TabletRootLayout";
 import { PanelRootLayout } from "./ui/panel/PanelRootLayout";
@@ -144,45 +146,67 @@ const App = () => {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                {/* Routes publiques (onboarding, auth, admin) */}
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/onboarding" element={<Onboarding />} />
-                <Route path="/onboarding/scan" element={
-                  <Suspense fallback={<LoadingScreen />}>
-                    <OnboardingScan />
-                  </Suspense>
-                } />
-                <Route path="/onboarding/manual" element={
-                  <Suspense fallback={<LoadingScreen />}>
-                    <OnboardingManual />
-                  </Suspense>
-                } />
-                <Route path="/admin" element={
-                  <AdminRoute>
+            <div className={`mode-${displayMode}`}>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  {/* Routes publiques (onboarding, auth, admin) */}
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/onboarding" element={<Onboarding />} />
+                  <Route path="/onboarding/scan" element={
                     <Suspense fallback={<LoadingScreen />}>
-                      <Admin />
+                      <OnboardingScan />
                     </Suspense>
-                  </AdminRoute>
-                } />
+                  } />
+                  <Route path="/onboarding/manual" element={
+                    <Suspense fallback={<LoadingScreen />}>
+                      <OnboardingManual />
+                    </Suspense>
+                  } />
+                  <Route path="/admin" element={
+                    <AdminRoute>
+                      <Suspense fallback={<LoadingScreen />}>
+                        <Admin />
+                      </Suspense>
+                    </AdminRoute>
+                  } />
 
-                {/* Routes protégées avec routage par mode d'affichage */}
-                <Route path="/*" element={
-                  <PrivateRoute>
-                    {displayMode === "panel" && <PanelRootLayout />}
-                    {displayMode === "tablet" && <TabletRootLayout />}
-                    {displayMode === "mobile" && <MobileRootLayout />}
-                  </PrivateRoute>
-                } />
-              </Routes>
-            </BrowserRouter>
+                  {/* Routes protégées avec routage par mode d'affichage */}
+                  <Route path="/*" element={
+                    <PrivateRoute>
+                      <AppContent displayMode={displayMode} />
+                    </PrivateRoute>
+                  } />
+                </Routes>
+              </BrowserRouter>
+            </div>
           </TooltipProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>
+  );
+};
+
+/**
+ * Contenu de l'app avec gestion de l'orientation
+ */
+function AppContent({ displayMode }: { displayMode: "mobile" | "tablet" | "panel" }) {
+  const { showRotateOverlay, showPortraitSuggestion } = useOrientationLock(displayMode);
+
+  return (
+    <>
+      {/* Overlay bloquant pour mobile en paysage */}
+      {showRotateOverlay && <OrientationOverlay type="blocking" />}
+      
+      {/* Suggestion non bloquante pour tablet/panel en portrait */}
+      {showPortraitSuggestion && <OrientationOverlay type="suggestion" />}
+      
+      {/* Contenu principal selon le mode */}
+      {displayMode === "panel" && <PanelRootLayout />}
+      {displayMode === "tablet" && <TabletRootLayout />}
+      {displayMode === "mobile" && <MobileRootLayout />}
+    </>
   );
 };
 
