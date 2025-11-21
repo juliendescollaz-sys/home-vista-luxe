@@ -18,10 +18,15 @@ export const SortableUniversalEntityTile = ({
   floor,
   area
 }: SortableUniversalEntityTileProps) => {
+  const domain = entity.entity_id.split(".")[0];
+  const isMediaPlayer = entity.entity_id.startsWith("media_player.");
+  const shouldShowOverlay =
+    !isMediaPlayer &&
+    !["switch", "scene", "script", "button", "camera"].includes(domain);
+
   const favorites = useHAStore((state) => state.favorites);
   const toggleFavorite = useHAStore((state) => state.toggleFavorite);
   const isFavorite = favorites.includes(entity.entity_id);
-  
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     toggleFavorite(entity.entity_id);
@@ -50,18 +55,22 @@ export const SortableUniversalEntityTile = ({
       {...listeners}
       className="relative cursor-grab active:cursor-grabbing"
     >
-      <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none">
-        <LocationBadge floor={floor} area={area} />
-      </div>
+      {shouldShowOverlay && (
+        <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none">
+          <LocationBadge floor={floor} area={area} />
+        </div>
+      )}
       
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-2 right-2 z-10 h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background/90 active:bg-accent/50 active:scale-95 transition-all pointer-events-auto"
-        onClick={handleFavoriteClick}
-      >
-        <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
-      </Button>
+      {shouldShowOverlay && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 right-2 z-10 h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background/90 active:bg-accent/50 active:scale-95 transition-all pointer-events-auto"
+          onClick={handleFavoriteClick}
+        >
+          <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+        </Button>
+      )}
 
       <UniversalEntityTile entity={entity} />
     </div>
