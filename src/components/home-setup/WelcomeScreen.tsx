@@ -7,10 +7,13 @@ interface WelcomeScreenProps {
 }
 
 export const WelcomeScreen = ({ onStart }: WelcomeScreenProps) => {
-  const { setProject, setWizardStep } = useHomeProjectStore();
+  const { setProject, setWizardStep, resetProject } = useHomeProjectStore();
 
   const handleStart = () => {
-    // Créer un projet minimal pour démarrer le wizard
+    // Réinitialiser complètement le projet avant de démarrer
+    resetProject();
+    
+    // Créer un nouveau projet vide
     const newProject = {
       id: crypto.randomUUID(),
       name: "",

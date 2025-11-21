@@ -5,9 +5,10 @@ import { Building2 } from "lucide-react";
 
 interface FloorsCountStepProps {
   onNext: (count: number) => void;
+  onBack: () => void;
 }
 
-export const FloorsCountStep = ({ onNext }: FloorsCountStepProps) => {
+export const FloorsCountStep = ({ onNext, onBack }: FloorsCountStepProps) => {
   const [selectedCount, setSelectedCount] = useState<number | null>(null);
   const [customCount, setCustomCount] = useState("");
   const [showCustomInput, setShowCustomInput] = useState(false);
@@ -80,14 +81,19 @@ export const FloorsCountStep = ({ onNext }: FloorsCountStepProps) => {
         </div>
       )}
 
-      <Button
-        onClick={handleNext}
-        size="lg"
-        className="w-full h-12"
-        disabled={!selectedCount && (!customCount || parseInt(customCount) < 1)}
-      >
-        Continuer
-      </Button>
+      <div className="flex gap-3">
+        <Button variant="outline" onClick={onBack} className="flex-1">
+          Retour
+        </Button>
+        <Button
+          onClick={handleNext}
+          size="lg"
+          className="flex-1"
+          disabled={!selectedCount && (!customCount || parseInt(customCount) < 1)}
+        >
+          Continuer
+        </Button>
+      </div>
     </div>
   );
 };

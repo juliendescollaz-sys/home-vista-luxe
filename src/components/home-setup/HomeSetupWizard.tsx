@@ -7,7 +7,7 @@ import { PlanTutorialStep } from "./steps/PlanTutorialStep";
 import { Progress } from "@/components/ui/progress";
 
 export const HomeSetupWizard = () => {
-  const { project, addLevel, addRoom, currentWizardStep, setWizardStep } =
+  const { project, addLevel, addRoom, currentWizardStep, setWizardStep, resetProject } =
     useHomeProjectStore();
 
   const [floorCount, setFloorCount] = useState(1);
@@ -23,6 +23,10 @@ export const HomeSetupWizard = () => {
     } else {
       setWizardStep(1);
     }
+  };
+
+  const handleBackToWelcome = () => {
+    resetProject();
   };
 
   const handleFloorsNamingNext = (floors: Array<{ name: string; type: "interior" | "exterior" }>) => {
@@ -59,7 +63,7 @@ export const HomeSetupWizard = () => {
 
         <div className="glass-card elevated-subtle border-border/50 rounded-2xl p-6 md:p-8">
           {currentWizardStep === 0 && (
-            <FloorsCountStep onNext={handleFloorsCountNext} />
+            <FloorsCountStep onNext={handleFloorsCountNext} onBack={handleBackToWelcome} />
           )}
 
           {currentWizardStep === 1 && (
