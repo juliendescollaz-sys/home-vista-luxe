@@ -398,10 +398,14 @@ const Rooms = () => {
     return { area, floor };
   };
 
+  const rootClassName = displayMode === "mobile" 
+    ? `min-h-screen bg-background pb-24 ${ptClass}`
+    : "w-full h-full flex items-center justify-center";
+
   // Afficher l'écran de bienvenue ou le wizard si setup non terminé
   if (needsSetup) {
     return (
-      <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
+      <div className={rootClassName}>
         <TopBar title="Maison" />
         
         {!project ? (
@@ -416,7 +420,7 @@ const Rooms = () => {
   }
 
   return (
-    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
+    <div className={rootClassName}>
       <TopBar title="Maison" />
       <div className="max-w-screen-xl mx-auto px-4 py-4">
         

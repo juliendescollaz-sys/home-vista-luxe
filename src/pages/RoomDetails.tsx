@@ -156,9 +156,13 @@ const RoomDetails = () => {
   
   const activeEntity = sortedEntities.find((e) => e.entity_id === activeId);
 
+  const rootClassName = displayMode === "mobile" 
+    ? `min-h-screen bg-background pb-24 ${ptClass}`
+    : "w-full h-full flex items-center justify-center";
+
   if (!area) {
     return (
-      <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
+      <div className={rootClassName}>
         <TopBar />
         <div className="max-w-screen-xl mx-auto px-4 py-4">
           <p className="text-muted-foreground">Pièce introuvable</p>
@@ -171,7 +175,7 @@ const RoomDetails = () => {
   const customPhoto = areaPhotos[areaId];
 
   return (
-    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
+    <div className={rootClassName}>
       <TopBar />
       
       {/* Header avec photo de fond */}
