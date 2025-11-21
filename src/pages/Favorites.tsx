@@ -12,6 +12,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { Home as HomeIcon } from "lucide-react";
 import { getGridClasses } from "@/lib/gridLayout";
+import { FavoritesViewSelector, FavoritesViewMode } from "@/components/FavoritesViewSelector";
+import { getEntityDomain } from "@/lib/entityUtils";
 import {
   DndContext,
   closestCenter,
@@ -50,6 +52,7 @@ const Favorites = () => {
   const contextId = "favorites";
   
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<FavoritesViewMode>("type");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -151,6 +154,76 @@ const Favorites = () => {
   const activeEntity = activeItem?.type === 'entity' ? activeItem.data : null;
   const activeGroup = activeItem?.type === 'group' ? activeItem.data : null;
 
+  // Grouper les items selon le mode de vue
+  const groupedItems = useMemo(() => {
+    if (viewMode === "type") {
+      const groups: Record<string, typeof sortedAllItems> = {};
+      
+      sortedAllItems.forEach(item => {
+        if (item.type === 'group') {
+          if (!groups['Groupes']) groups['Groupes'] = [];
+          groups['Groupes'].push(item);
+        } else {
+          const domain = getEntityDomain(item.data.entity_id);
+          const typeLabels: Record<string, string> = {
+            light: "Éclairages",
+            switch: "Interrupteurs",
+            cover: "Volets",
+            climate: "Climatisation",
+            fan: "Ventilateurs",
+            lock: "Serrures",
+            media_player: "Lecteurs média",
+            sensor: "Capteurs",
+            binary_sensor: "Détecteurs",
+          };
+          const label = typeLabels[domain] || "Autres";
+          if (!groups[label]) groups[label] = [];
+          groups[label].push(item);
+        }
+      });
+      
+      return groups;
+    } else {
+      // Mode location
+      const groups: Record<string, typeof sortedAllItems> = {};
+      
+      sortedAllItems.forEach(item => {
+        if (item.type === 'group') {
+          if (!groups['Groupes']) groups['Groupes'] = [];
+          groups['Groupes'].push(item);
+        } else {
+          const entity = item.data;
+          const reg = entityRegistry.find(r => r.entity_id === entity.entity_id);
+          let areaId = reg?.area_id;
+
+          if (!areaId && reg?.device_id) {
+            const dev = devices.find(d => d.id === reg.device_id);
+            if (dev?.area_id) areaId = dev.area_id;
+          }
+
+          if (!areaId && (entity as any).attributes?.area_id) {
+            areaId = (entity as any).attributes.area_id as string;
+          }
+
+          const area = areaId ? areas.find(a => a.area_id === areaId) : null;
+          const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) : null;
+          
+          let label = "Sans localisation";
+          if (floor && area) {
+            label = `${floor.name} - ${area.name}`;
+          } else if (area) {
+            label = area.name;
+          }
+          
+          if (!groups[label]) groups[label] = [];
+          groups[label].push(item);
+        }
+      });
+      
+      return groups;
+    }
+  }, [sortedAllItems, viewMode, entityRegistry, devices, areas, floors]);
+
   if (!isConnected) {
     return (
       <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
@@ -167,24 +240,36 @@ const Favorites = () => {
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
       <TopBar title="Favoris" />
       
-      <div className="max-w-screen-xl mx-auto px-4 py-4">
+      <div className="max-w-screen-xl mx-auto px-4 py-4 space-y-6">
         {sortedAllItems.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">
             Aucun favori
           </p>
         ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={sortedAllItems.map(item => item.id)}
-              strategy={rectSortingStrategy}
+          <>
+            <FavoritesViewSelector 
+              selectedView={viewMode} 
+              onViewChange={setViewMode} 
+            />
+            
+            <div className="space-y-8">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
             >
-              <div className={getGridClasses("devices", displayMode)}>
-                {sortedAllItems.map((item) => {
+              <SortableContext
+                items={sortedAllItems.map(item => item.id)}
+                strategy={rectSortingStrategy}
+              >
+                {Object.entries(groupedItems).map(([groupName, items]) => (
+                  <div key={groupName} className="space-y-3">
+                    <h3 className="text-lg font-semibold text-foreground px-1">
+                      {groupName}
+                    </h3>
+                    <div className={getGridClasses("devices", displayMode)}>
+                      {items.map((item) => {
                   if (item.type === 'group') {
                     return (
                       <SortableGroupTile key={item.id} group={item.data} hideEditButton />
@@ -228,10 +313,12 @@ const Favorites = () => {
                       floor={floor}
                       area={area}
                     />
-                  );
-                })}
-              </div>
-            </SortableContext>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </SortableContext>
             
             <DragOverlay dropAnimation={null}>
               {activeGroup ? (
@@ -251,7 +338,9 @@ const Favorites = () => {
                 </div>
               ) : null}
             </DragOverlay>
-          </DndContext>
+            </DndContext>
+            </div>
+          </>
         )}
       </div>
 
