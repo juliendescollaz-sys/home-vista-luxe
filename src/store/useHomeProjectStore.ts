@@ -18,6 +18,7 @@ export interface HomeRoom {
   width?: number;
   height?: number;
   rotation?: number;
+  zIndex?: number;
 }
 
 export interface HomeProject {

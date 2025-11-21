@@ -6,6 +6,7 @@ interface Room extends HomeRoom {
   y: number;
   width: number;
   height: number;
+  zIndex?: number;
 }
 
 interface FloorPlanCanvasProps {
@@ -14,23 +15,24 @@ interface FloorPlanCanvasProps {
   levelId: string;
   selectedRoomId: string | null;
   onRoomSelect: (roomId: string | null) => void;
+  gridSize: number;
 }
 
 type DragMode = "move" | "resize-se" | "resize-sw" | "resize-ne" | "resize-nw" | null;
 
-export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId, onRoomSelect }: FloorPlanCanvasProps) => {
+export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId, onRoomSelect, gridSize }: FloorPlanCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [canvasRooms, setCanvasRooms] = useState<Room[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragMode, setDragMode] = useState<DragMode>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [initialRoom, setInitialRoom] = useState<Room | null>(null);
-  const [gridSize] = useState(20);
 
   const CANVAS_WIDTH = 600;
   const CANVAS_HEIGHT = 400;
   const ROOM_MIN_SIZE = 60;
-  const HANDLE_SIZE = 8;
+  const HANDLE_SIZE = 12;
+  const HANDLE_HITBOX = 20;
 
   // Initialiser les pièces avec positions par défaut
   useEffect(() => {
@@ -42,6 +44,7 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
       width: room.width ?? 150,
       height: room.height ?? 120,
       rotation: room.rotation ?? 0,
+      zIndex: room.zIndex ?? index,
     }));
     setCanvasRooms(initializedRooms);
   }, [rooms, levelId]);
@@ -73,20 +76,22 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
       ctx.stroke();
     }
 
-    // Dessiner les pièces
-    canvasRooms.forEach((room) => {
+    // Dessiner les pièces triées par zIndex
+    const sortedRooms = [...canvasRooms].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
+    
+    sortedRooms.forEach((room) => {
       const isSelected = room.id === selectedRoomId;
 
       // Rectangle de la pièce
-      ctx.fillStyle = isSelected ? "hsl(var(--primary) / 0.15)" : "hsl(var(--muted) / 0.8)";
+      ctx.fillStyle = isSelected ? "hsl(var(--primary) / 0.2)" : "hsl(var(--muted) / 0.8)";
       ctx.strokeStyle = isSelected ? "hsl(var(--primary))" : "hsl(var(--border))";
-      ctx.lineWidth = isSelected ? 2 : 1;
+      ctx.lineWidth = isSelected ? 4 : 1;
       ctx.fillRect(room.x, room.y, room.width, room.height);
       ctx.strokeRect(room.x, room.y, room.width, room.height);
 
       // Nom de la pièce
-      ctx.fillStyle = "hsl(var(--foreground))";
-      ctx.font = "14px sans-serif";
+      ctx.fillStyle = isSelected ? "hsl(var(--primary))" : "hsl(var(--foreground))";
+      ctx.font = isSelected ? "bold 14px sans-serif" : "14px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(
@@ -98,6 +103,9 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
       // Poignées de redimensionnement si sélectionné
       if (isSelected) {
         ctx.fillStyle = "hsl(var(--primary))";
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        
         // Sud-Est
         ctx.fillRect(
           room.x + room.width - HANDLE_SIZE / 2,
@@ -105,6 +113,13 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
           HANDLE_SIZE,
           HANDLE_SIZE
         );
+        ctx.strokeRect(
+          room.x + room.width - HANDLE_SIZE / 2,
+          room.y + room.height - HANDLE_SIZE / 2,
+          HANDLE_SIZE,
+          HANDLE_SIZE
+        );
+        
         // Sud-Ouest
         ctx.fillRect(
           room.x - HANDLE_SIZE / 2,
@@ -112,6 +127,13 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
           HANDLE_SIZE,
           HANDLE_SIZE
         );
+        ctx.strokeRect(
+          room.x - HANDLE_SIZE / 2,
+          room.y + room.height - HANDLE_SIZE / 2,
+          HANDLE_SIZE,
+          HANDLE_SIZE
+        );
+        
         // Nord-Est
         ctx.fillRect(
           room.x + room.width - HANDLE_SIZE / 2,
@@ -119,8 +141,16 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
           HANDLE_SIZE,
           HANDLE_SIZE
         );
+        ctx.strokeRect(
+          room.x + room.width - HANDLE_SIZE / 2,
+          room.y - HANDLE_SIZE / 2,
+          HANDLE_SIZE,
+          HANDLE_SIZE
+        );
+        
         // Nord-Ouest
         ctx.fillRect(room.x - HANDLE_SIZE / 2, room.y - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+        ctx.strokeRect(room.x - HANDLE_SIZE / 2, room.y - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
       }
     });
   }, [canvasRooms, selectedRoomId, gridSize]);
@@ -138,7 +168,7 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
   };
 
   const getResizeHandle = (room: Room, x: number, y: number): DragMode => {
-    const margin = HANDLE_SIZE;
+    const margin = HANDLE_HITBOX / 2;
     // Sud-Est
     if (
       x >= room.x + room.width - margin &&
@@ -171,6 +201,24 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
       return "resize-nw";
     }
     return null;
+  };
+
+  const moveRoomForward = () => {
+    if (!selectedRoomId) return;
+    const maxZ = Math.max(...canvasRooms.map(r => r.zIndex ?? 0));
+    setCanvasRooms(prev => 
+      prev.map(r => r.id === selectedRoomId ? { ...r, zIndex: maxZ + 1 } : r)
+    );
+    onRoomsUpdate(canvasRooms.map(r => r.id === selectedRoomId ? { ...r, zIndex: (r.zIndex ?? 0) + 1 } : r));
+  };
+
+  const moveRoomBackward = () => {
+    if (!selectedRoomId) return;
+    const minZ = Math.min(...canvasRooms.map(r => r.zIndex ?? 0));
+    setCanvasRooms(prev => 
+      prev.map(r => r.id === selectedRoomId ? { ...r, zIndex: Math.max(0, minZ - 1) } : r)
+    );
+    onRoomsUpdate(canvasRooms.map(r => r.id === selectedRoomId ? { ...r, zIndex: Math.max(0, (r.zIndex ?? 0) - 1) } : r));
   };
 
   const handlePointerDown = (clientX: number, clientY: number) => {
@@ -320,7 +368,7 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
   };
 
   return (
-    <div className="flex justify-center">
+    <div className="flex flex-col gap-4">
       <canvas
         ref={canvasRef}
         width={CANVAS_WIDTH}
@@ -333,9 +381,25 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
-        className="border border-border rounded-lg bg-background shadow-lg"
+        className="border border-border rounded-lg bg-background shadow-lg mx-auto"
         style={{ touchAction: 'none' }}
       />
+      {selectedRoomId && (
+        <div className="flex justify-center gap-2">
+          <button
+            onClick={moveRoomBackward}
+            className="px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-md"
+          >
+            Arrière-plan
+          </button>
+          <button
+            onClick={moveRoomForward}
+            className="px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-md"
+          >
+            Premier plan
+          </button>
+        </div>
+      )}
     </div>
   );
 };
