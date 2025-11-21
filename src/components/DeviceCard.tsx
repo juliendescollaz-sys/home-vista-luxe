@@ -1,10 +1,7 @@
 import { Card } from "@/components/ui/card";
-import { Lightbulb, Thermometer, Music, Lock, Camera, MoreVertical, Power, Star } from "lucide-react";
-import type { HAEntity, EntityDomain, HAFloor, HAArea } from "@/types/homeassistant";
+import { Lightbulb, Thermometer, Music, Lock, Camera, MoreVertical, Power } from "lucide-react";
+import type { HAEntity, EntityDomain } from "@/types/homeassistant";
 import { Switch } from "@/components/ui/switch";
-import { useHAStore } from "@/store/useHAStore";
-import { Button } from "@/components/ui/button";
-import { LocationBadge } from "./LocationBadge";
 
 const domainIcons: Partial<Record<EntityDomain, any>> = {
   light: Lightbulb,
@@ -24,30 +21,17 @@ const domainIcons: Partial<Record<EntityDomain, any>> = {
 interface DeviceCardProps {
   entity: HAEntity;
   onToggle?: (entityId: string) => void;
-  floor?: HAFloor | null;
-  area?: HAArea | null;
 }
 
-export const DeviceCard = ({ entity, onToggle, floor, area }: DeviceCardProps) => {
+export const DeviceCard = ({ entity, onToggle }: DeviceCardProps) => {
   const domain = entity.entity_id.split(".")[0] as EntityDomain;
   const Icon = domainIcons[domain] || MoreVertical;
   const isActive = entity.state === "on";
   const name = entity.attributes.friendly_name || entity.entity_id;
-  
-  const favorites = useHAStore((state) => state.favorites);
-  const toggleFavorite = useHAStore((state) => state.toggleFavorite);
-  const isFavorite = favorites.includes(entity.entity_id);
-
-  const handleFavoriteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    toggleFavorite(entity.entity_id);
-  };
 
   return (
     <Card className="group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50">
-      <LocationBadge floor={floor} area={area} />
-      
-      <div className="relative pt-8 p-4">
+      <div className="p-4 pt-10">
         <div className="flex items-start gap-2">
           {/* Icon */}
           <div className={`w-14 h-14 rounded-lg flex-shrink-0 transition-colors flex items-center justify-center ${
@@ -61,16 +45,6 @@ export const DeviceCard = ({ entity, onToggle, floor, area }: DeviceCardProps) =
             <h3 className="font-semibold text-base truncate mb-0.5">{name}</h3>
             <p className="text-sm text-muted-foreground capitalize">{entity.state}</p>
           </div>
-
-          {/* Favorite */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 -mt-1 -mr-1 bg-transparent active:bg-accent/50 active:scale-95 transition-all flex-shrink-0"
-            onClick={handleFavoriteClick}
-          >
-            <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
-          </Button>
         </div>
 
         {/* Switch at bottom */}

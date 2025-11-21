@@ -60,7 +60,7 @@ export function LightTile({ entity, onControl }: LightTileProps) {
   
   return (
     <Card className="glass-card elevated-subtle elevated-active border-border/50 overflow-hidden">
-      <div className="p-4">
+      <div className="p-4 pt-10">
         {/* Header */}
         <div className="flex items-start gap-3 mb-4">
           <div className={`w-14 h-14 rounded-lg flex-shrink-0 transition-all flex items-center justify-center ${
