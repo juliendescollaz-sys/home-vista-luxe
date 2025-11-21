@@ -15,21 +15,23 @@ import Groupes from "@/pages/Groupes";
 import Smart from "@/pages/Smart";
 import Settings from "@/pages/Settings";
 import Dev from "@/pages/Dev";
+import NotFound from "@/pages/NotFound";
 import SonosZones from "@/pages/SonosZones";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
-import NotFound from "@/pages/NotFound";
 
+/**
+ * Layout racine pour l'interface TABLET (iPad, Galaxy Tab)
+ */
 export function TabletRootLayout() {
   return (
     <ConnectionModeProvider>
-      <ScrollToTop />
       <SidebarProvider defaultOpen={true}>
         {/* Layout plein écran : sidebar fixe + header fixe + contenu scrollable */}
         <div className="flex h-screen w-screen overflow-hidden bg-background">
-          {/* Sidebar à gauche */}
+          {/* Sidebar fixe à gauche */}
           <TabletSidebar />
 
-          {/* Colonne centrale */}
+          {/* Colonne principale */}
           <div className="flex flex-1 flex-col min-w-0 min-h-0">
             {/* Header fixe */}
             <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav shrink-0">
@@ -38,6 +40,7 @@ export function TabletRootLayout() {
 
             {/* Contenu : seule zone scrollable */}
             <main className="flex-1 min-h-0 overflow-y-auto">
+              <ScrollToTop />
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/rooms" element={<Rooms />} />
