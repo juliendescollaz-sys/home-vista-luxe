@@ -50,9 +50,9 @@ export const RoomsStep = ({ levels, rooms: initialRooms, onNext, onBack }: Rooms
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="space-y-2 text-center">
-        <h2 className="text-2xl font-semibold">Pièces et zones</h2>
+        <h2 className="text-2xl font-semibold">Quelles pièces avez-vous ?</h2>
         <p className="text-muted-foreground">
-          Dans chaque niveau, ajoutez les pièces ou zones.
+          Ajoutez les pièces de chaque étage. Vous pourrez les placer sur le plan ensuite.
         </p>
       </div>
 
