@@ -89,16 +89,46 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
       ctx.fillRect(room.x, room.y, room.width, room.height);
       ctx.strokeRect(room.x, room.y, room.width, room.height);
 
-      // Nom de la pièce
-      ctx.fillStyle = isSelected ? "hsl(var(--primary-foreground))" : "hsl(var(--foreground))";
+      // Nom de la pièce (bandeau lisible)
+      const label = room.name || "Sans nom";
       ctx.font = isSelected ? "bold 14px sans-serif" : "14px sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(
-        room.name || "Sans nom",
-        room.x + room.width / 2,
-        room.y + room.height / 2
+      const textMetrics = ctx.measureText(label);
+      const labelPaddingX = 8;
+      const labelPaddingY = 4;
+      const labelWidth = textMetrics.width + labelPaddingX * 2;
+      const labelHeight = 22;
+      const labelX = room.x + 8;
+      const labelY = room.y + 8;
+
+      // Fond du bandeau
+      ctx.fillStyle = "hsl(var(--background) / 0.9)";
+      ctx.strokeStyle = "hsl(var(--border))";
+      ctx.lineWidth = 1;
+      const radius = 6;
+      ctx.beginPath();
+      ctx.moveTo(labelX + radius, labelY);
+      ctx.lineTo(labelX + labelWidth - radius, labelY);
+      ctx.quadraticCurveTo(labelX + labelWidth, labelY, labelX + labelWidth, labelY + radius);
+      ctx.lineTo(labelX + labelWidth, labelY + labelHeight - radius);
+      ctx.quadraticCurveTo(
+        labelX + labelWidth,
+        labelY + labelHeight,
+        labelX + labelWidth - radius,
+        labelY + labelHeight
       );
+      ctx.lineTo(labelX + radius, labelY + labelHeight);
+      ctx.quadraticCurveTo(labelX, labelY + labelHeight, labelX, labelY + labelHeight - radius);
+      ctx.lineTo(labelX, labelY + radius);
+      ctx.quadraticCurveTo(labelX, labelY, labelX + radius, labelY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Texte du nom
+      ctx.fillStyle = isSelected ? "hsl(var(--primary-foreground))" : "hsl(var(--foreground))";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, labelX + labelPaddingX, labelY + labelHeight / 2);
 
       // Poignées de redimensionnement si sélectionné
       if (isSelected) {
