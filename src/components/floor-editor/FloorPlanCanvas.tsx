@@ -24,10 +24,11 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
   const [isDragging, setIsDragging] = useState(false);
   const [dragMode, setDragMode] = useState<DragMode>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [initialRoom, setInitialRoom] = useState<Room | null>(null);
   const [gridSize] = useState(20);
 
-  const CANVAS_WIDTH = 800;
-  const CANVAS_HEIGHT = 600;
+  const CANVAS_WIDTH = 600;
+  const CANVAS_HEIGHT = 400;
   const ROOM_MIN_SIZE = 60;
   const HANDLE_SIZE = 8;
 
@@ -183,6 +184,7 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
     const room = getRoomAtPosition(x, y);
     if (room) {
       onRoomSelect(room.id);
+      setInitialRoom({ ...room });
 
       const handle = getResizeHandle(room, x, y);
       if (handle) {
@@ -232,7 +234,7 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
       canvas.style.cursor = "default";
     }
 
-    if (!isDragging || !selectedRoomId) return;
+    if (!isDragging || !selectedRoomId || !initialRoom) return;
 
     const deltaX = x - dragStart.x;
     const deltaY = y - dragStart.y;
@@ -244,36 +246,34 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
         if (dragMode === "move") {
           return {
             ...room,
-            x: Math.max(0, Math.min(CANVAS_WIDTH - room.width, snapToGrid(room.x + deltaX))),
-            y: Math.max(0, Math.min(CANVAS_HEIGHT - room.height, snapToGrid(room.y + deltaY))),
+            x: Math.max(0, Math.min(CANVAS_WIDTH - room.width, snapToGrid(initialRoom.x + deltaX))),
+            y: Math.max(0, Math.min(CANVAS_HEIGHT - room.height, snapToGrid(initialRoom.y + deltaY))),
           };
         } else if (dragMode === "resize-se") {
-          const newWidth = Math.max(ROOM_MIN_SIZE, snapToGrid(room.width + deltaX));
-          const newHeight = Math.max(ROOM_MIN_SIZE, snapToGrid(room.height + deltaY));
+          const newWidth = Math.max(ROOM_MIN_SIZE, snapToGrid(initialRoom.width + deltaX));
+          const newHeight = Math.max(ROOM_MIN_SIZE, snapToGrid(initialRoom.height + deltaY));
           return { ...room, width: newWidth, height: newHeight };
         } else if (dragMode === "resize-sw") {
-          const newWidth = Math.max(ROOM_MIN_SIZE, snapToGrid(room.width - deltaX));
-          const newHeight = Math.max(ROOM_MIN_SIZE, snapToGrid(room.height + deltaY));
-          const newX = room.x + room.width - newWidth;
+          const newWidth = Math.max(ROOM_MIN_SIZE, snapToGrid(initialRoom.width - deltaX));
+          const newHeight = Math.max(ROOM_MIN_SIZE, snapToGrid(initialRoom.height + deltaY));
+          const newX = initialRoom.x + initialRoom.width - newWidth;
           return { ...room, x: newX, width: newWidth, height: newHeight };
         } else if (dragMode === "resize-ne") {
-          const newWidth = Math.max(ROOM_MIN_SIZE, snapToGrid(room.width + deltaX));
-          const newHeight = Math.max(ROOM_MIN_SIZE, snapToGrid(room.height - deltaY));
-          const newY = room.y + room.height - newHeight;
+          const newWidth = Math.max(ROOM_MIN_SIZE, snapToGrid(initialRoom.width + deltaX));
+          const newHeight = Math.max(ROOM_MIN_SIZE, snapToGrid(initialRoom.height - deltaY));
+          const newY = initialRoom.y + initialRoom.height - newHeight;
           return { ...room, y: newY, width: newWidth, height: newHeight };
         } else if (dragMode === "resize-nw") {
-          const newWidth = Math.max(ROOM_MIN_SIZE, snapToGrid(room.width - deltaX));
-          const newHeight = Math.max(ROOM_MIN_SIZE, snapToGrid(room.height - deltaY));
-          const newX = room.x + room.width - newWidth;
-          const newY = room.y + room.height - newHeight;
+          const newWidth = Math.max(ROOM_MIN_SIZE, snapToGrid(initialRoom.width - deltaX));
+          const newHeight = Math.max(ROOM_MIN_SIZE, snapToGrid(initialRoom.height - deltaY));
+          const newX = initialRoom.x + initialRoom.width - newWidth;
+          const newY = initialRoom.y + initialRoom.height - newHeight;
           return { ...room, x: newX, y: newY, width: newWidth, height: newHeight };
         }
 
         return room;
       })
     );
-
-    setDragStart({ x, y });
   };
 
   const handleMouseUp = () => {
@@ -283,6 +283,7 @@ export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId,
     }
     setIsDragging(false);
     setDragMode(null);
+    setInitialRoom(null);
   };
 
   return (

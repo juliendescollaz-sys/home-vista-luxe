@@ -54,32 +54,31 @@ const FloorPlanEditor = () => {
   const levelRooms = project.rooms.filter((r) => r.levelId === activeLevel);
 
   return (
-    <div className={`h-screen overflow-hidden bg-background ${ptClass}`}>
+    <div className={`min-h-screen bg-background ${ptClass}`}>
       <TopBar title="Éditeur de plan" />
 
-      <div className="h-full overflow-y-auto">
-        <div className="max-w-screen-2xl mx-auto px-4 py-4 pb-24">
-        <div className="flex items-center justify-between mb-4">
+      <div className="max-w-screen-xl mx-auto px-4 py-4 space-y-4">
+        <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={() => navigate("/rooms")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour
           </Button>
 
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleSave}>
+            <Button variant="outline" onClick={handleSave} size="sm">
               <Save className="h-4 w-4 mr-2" />
               Sauvegarder
             </Button>
-            <Button onClick={handleContinue}>
+            <Button onClick={handleContinue} size="sm">
               Continuer
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr,300px] gap-4">
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px] gap-4">
+          <div className="space-y-3">
             <Tabs value={activeLevel} onValueChange={setActiveLevel}>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <TabsList>
                   {project.levels.map((level) => (
                     <TabsTrigger key={level.id} value={level.id}>
@@ -95,22 +94,32 @@ const FloorPlanEditor = () => {
               </div>
 
               {project.levels.map((level) => (
-                <TabsContent key={level.id} value={level.id} className="mt-4">
+                <TabsContent key={level.id} value={level.id} className="mt-3">
                   <FloorPlanCanvas
                     rooms={project.rooms}
                     onRoomsUpdate={handleRoomsUpdate}
-                  levelId={level.id}
-                  selectedRoomId={selectedRoomId}
-                  onRoomSelect={setSelectedRoomId}
-                />
+                    levelId={level.id}
+                    selectedRoomId={selectedRoomId}
+                    onRoomSelect={setSelectedRoomId}
+                  />
 
-                  <div className="mt-4 text-center text-sm text-muted-foreground">
+                  <div className="mt-3 text-center text-xs text-muted-foreground space-y-1">
                     <p>Glissez-déposez les pièces pour les positionner</p>
                     <p>Utilisez les poignées aux coins pour redimensionner</p>
                   </div>
                 </TabsContent>
               ))}
             </Tabs>
+
+            {levelRooms.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Aucune pièce dans ce niveau</p>
+                <Button variant="outline" className="mt-4" onClick={handleAddRoom} size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ajouter la première pièce
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="hidden lg:block">
@@ -126,17 +135,6 @@ const FloorPlanEditor = () => {
               }}
             />
           </div>
-        </div>
-
-        {levelRooms.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            <p>Aucune pièce dans ce niveau</p>
-            <Button variant="outline" className="mt-4" onClick={handleAddRoom}>
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter la première pièce
-            </Button>
-          </div>
-        )}
         </div>
       </div>
     </div>
