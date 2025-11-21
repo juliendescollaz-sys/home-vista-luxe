@@ -102,6 +102,35 @@ const App = () => {
   // Détection du mode d'affichage (mobile/tablet/panel)
   const { displayMode } = useDisplayMode();
 
+  // Disable pinch-zoom and double-tap zoom for native-like PWA behavior
+  useEffect(() => {
+    let lastTouchEnd = 0;
+
+    // Prevent pinch-zoom (multi-touch)
+    const preventPinchZoom = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    };
+
+    // Prevent double-tap zoom on iOS
+    const preventDoubleTapZoom = (e: TouchEvent) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    };
+
+    document.addEventListener('touchmove', preventPinchZoom, { passive: false });
+    document.addEventListener('touchend', preventDoubleTapZoom, { passive: false });
+
+    return () => {
+      document.removeEventListener('touchmove', preventPinchZoom);
+      document.removeEventListener('touchend', preventDoubleTapZoom);
+    };
+  }, []);
+
   if (!isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
