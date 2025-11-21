@@ -10,6 +10,9 @@ import NotFound from "@/pages/NotFound";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
 import { hasHaConfig } from "@/services/haConfig";
 
+/**
+ * Layout racine pour l'interface PANEL (écran mural)
+ */
 export function PanelRootLayout() {
   const [hasConfig, setHasConfig] = useState<boolean | null>(null);
 
@@ -32,12 +35,14 @@ export function PanelRootLayout() {
     );
   }
 
+  // Config OK → layout normal
   return (
     <SidebarProvider defaultOpen={true}>
-      <ScrollToTop />
-      <div className="flex h-screen w-screen overflow-hidden bg-background panel-layout">
+      <div className="panel-layout flex h-screen w-screen overflow-hidden bg-background">
+        {/* Sidebar fixe */}
         <TabletSidebar />
 
+        {/* Colonne principale */}
         <div className="flex flex-1 flex-col min-w-0 min-h-0">
           {/* Header fixe */}
           <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav shrink-0">
@@ -46,6 +51,7 @@ export function PanelRootLayout() {
 
           {/* Contenu scrollable uniquement ici */}
           <main className="flex-1 min-h-0 overflow-y-auto">
+            <ScrollToTop />
             <Routes>
               <Route path="/" element={<PanelHome />} />
               <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
