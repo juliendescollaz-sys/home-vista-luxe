@@ -14,6 +14,7 @@ import Settings from "@/pages/Settings";
 import Dev from "@/pages/Dev";
 import NotFound from "@/pages/NotFound";
 import SonosZones from "@/pages/SonosZones";
+import FloorPlanEditor from "@/pages/FloorPlanEditor";
 
 /**
  * Layout racine pour l'interface MOBILE (smartphone)
@@ -36,6 +37,7 @@ export function MobileRootLayout() {
         <Route path="/" element={<Home />} />
         <Route path="/rooms" element={<Rooms />} />
         <Route path="/rooms/:areaId" element={<RoomDetails />} />
+        <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
         <Route path="/media-player/:entityId" element={<MediaPlayerDetails />} />
         <Route path="/favorites" element={<Favorites />} />
         <Route path="/scenes" element={<Scenes />} />
