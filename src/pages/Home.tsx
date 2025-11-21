@@ -161,8 +161,6 @@ const Home = () => {
                     key={entity.entity_id}
                     entity={entity}
                     onToggle={handleDeviceToggle}
-                    floor={floor}
-                    area={area}
                   />
                 );
               })
