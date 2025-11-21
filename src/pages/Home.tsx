@@ -3,8 +3,7 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedWeatherTile } from "@/components/weather/AnimatedWeatherTile";
-import { DeviceCard } from "@/components/DeviceCard";
-import { MediaPlayerCard } from "@/components/MediaPlayerCard";
+import { UniversalEntityTileWrapper } from "@/components/UniversalEntityTileWrapper";
 import { toast } from "sonner";
 import { useEffect, useMemo } from "react";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
@@ -145,25 +144,14 @@ const Home = () => {
             </p>
           ) : (
             groupedDevices.flatMap(([areaId, { area, floor, devices }]) =>
-              devices.map((entity) => {
-                if (entity.entity_id.startsWith("media_player.")) {
-                  return (
-                    <MediaPlayerCard
-                      key={entity.entity_id}
-                      entity={entity}
-                      floor={floor}
-                      area={area}
-                    />
-                  );
-                }
-                return (
-                  <DeviceCard
-                    key={entity.entity_id}
-                    entity={entity}
-                    onToggle={handleDeviceToggle}
-                  />
-                );
-              })
+              devices.map((entity) => (
+                <UniversalEntityTileWrapper
+                  key={entity.entity_id}
+                  entity={entity}
+                  floor={floor}
+                  area={area}
+                />
+              ))
             )
           )}
         </div>
