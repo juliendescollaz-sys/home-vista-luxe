@@ -77,7 +77,7 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
     <Card className="glass-card elevated-subtle elevated-active border-border/50 overflow-hidden">
       <div className="p-4 pt-10">
         {/* Header */}
-        <div className="flex items-start gap-3 mb-3">
+        <div className="flex items-start gap-3 mb-4">
           <div className={`w-14 h-14 rounded-lg flex-shrink-0 transition-all flex items-center justify-center ${
             state === "open" ? 'bg-primary/20 text-primary' : 'bg-muted/50 text-muted-foreground'
           }`}>
@@ -86,41 +86,90 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
           
           <div className="flex-1 min-w-0 pt-0.5">
             <h3 className="font-semibold text-base truncate mb-0.5">{name}</h3>
-            <p className="text-sm text-muted-foreground capitalize">
+            <p className="text-sm text-muted-foreground">
               {state === "open" ? "Ouvert" : state === "closed" ? "Fermé" : state}
               {supportsPosition && ` • ${currentPosition}%`}
             </p>
           </div>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={state === "open" ? handleClose : handleOpen}
+            className="h-10 w-10"
+          >
+            {state === "open" ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
+          </Button>
         </div>
         
-        {/* Action buttons */}
-        <div className="grid grid-cols-3 gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleOpen}
-          >
-            <ChevronUp className="h-4 w-4 mr-1" />
-            Ouvrir
-          </Button>
+        {/* Controls */}
+        <div className="space-y-3 pt-2 border-t border-border/30">
+          {/* Position slider */}
+          {supportsPosition && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Position</span>
+                <span className="font-medium">{position}%</span>
+              </div>
+              <Slider
+                value={[position]}
+                onValueChange={(v) => setPosition(v[0])}
+                onValueCommit={handlePositionCommit}
+                min={0}
+                max={100}
+                step={1}
+                className="py-1"
+              />
+            </div>
+          )}
           
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleStop}
-          >
-            <Square className="h-4 w-4 mr-1" />
-            Stop
-          </Button>
+          {/* Action buttons */}
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpen}
+            >
+              <ChevronUp className="h-4 w-4" />
+            </Button>
+            
+            {supportsStop && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleStop}
+              >
+                <Square className="h-4 w-4" />
+              </Button>
+            )}
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClose}
+            >
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </div>
           
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleClose}
-          >
-            <ChevronDown className="h-4 w-4 mr-1" />
-            Fermer
-          </Button>
+          {/* Tilt slider */}
+          {supportsTilt && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Inclinaison</span>
+                <span className="font-medium">{tilt}%</span>
+              </div>
+              <Slider
+                value={[tilt]}
+                onValueChange={(v) => setTilt(v[0])}
+                onValueCommit={handleTiltCommit}
+                min={0}
+                max={100}
+                step={1}
+                className="py-1"
+              />
+            </div>
+          )}
         </div>
       </div>
     </Card>
