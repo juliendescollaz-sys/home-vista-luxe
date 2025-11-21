@@ -112,9 +112,13 @@ const Home = () => {
     }
   };
 
+  const rootClassName = displayMode === "mobile" 
+    ? `min-h-screen bg-background pb-24 ${ptClass}`
+    : "w-full h-full flex items-center justify-center";
+
   if (!isConnected) {
     return (
-      <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
+      <div className={rootClassName}>
         <TopBar />
         <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
           <Skeleton className="h-64 rounded-2xl" />
@@ -125,7 +129,7 @@ const Home = () => {
   }
 
   return (
-    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
+    <div className={rootClassName}>
       <TopBar title="Accueil" />
       
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">

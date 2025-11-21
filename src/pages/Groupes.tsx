@@ -21,8 +21,12 @@ const Groupes = () => {
   }, [syncSharedGroupsFromHA]);
 
 
+  const rootClassName = displayMode === "mobile" 
+    ? `min-h-screen bg-background pb-24 ${ptClass}`
+    : "w-full h-full flex items-center justify-center";
+
   return (
-    <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
+    <div className={rootClassName}>
       <TopBar title="Groupes" />
       
       <div className="max-w-screen-xl mx-auto px-4 py-4">
