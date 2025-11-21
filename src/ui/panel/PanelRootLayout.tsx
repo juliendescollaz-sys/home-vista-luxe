@@ -7,6 +7,7 @@ import { PanelHome } from "./pages/PanelHome";
 import { PanelOnboarding } from "./PanelOnboarding";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
+import FloorPlanEditor from "@/pages/FloorPlanEditor";
 import { hasHaConfig } from "@/services/haConfig";
 
 /**
@@ -65,6 +66,7 @@ export function PanelRootLayout() {
             <Routes>
               {/* Dashboard principal du panneau */}
               <Route path="/" element={<PanelHome />} />
+              <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
               
               {/* Settings (potentiellement protégés par PIN) */}
               <Route path="/settings" element={<Settings />} />

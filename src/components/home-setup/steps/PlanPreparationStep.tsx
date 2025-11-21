@@ -1,12 +1,22 @@
 import { Button } from "@/components/ui/button";
 import { LayoutGrid } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface PlanPreparationStepProps {
-  onNext: () => void;
+  onNext?: () => void;
   onBack: () => void;
 }
 
 export const PlanPreparationStep = ({ onNext, onBack }: PlanPreparationStepProps) => {
+  const navigate = useNavigate();
+
+  const handleNext = () => {
+    if (onNext) {
+      onNext();
+    }
+    navigate("/floor-plan-editor");
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div className="flex justify-center">
@@ -26,7 +36,7 @@ export const PlanPreparationStep = ({ onNext, onBack }: PlanPreparationStepProps
         <Button variant="outline" onClick={onBack} className="flex-1">
           Retour
         </Button>
-        <Button onClick={onNext} size="lg" className="flex-1">
+        <Button onClick={handleNext} size="lg" className="flex-1">
           Créer le plan
         </Button>
       </div>

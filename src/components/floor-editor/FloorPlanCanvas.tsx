@@ -1,0 +1,302 @@
+import { useEffect, useRef, useState } from "react";
+import { HomeRoom } from "@/store/useHomeProjectStore";
+
+interface Room extends HomeRoom {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface FloorPlanCanvasProps {
+  rooms: HomeRoom[];
+  onRoomsUpdate: (rooms: HomeRoom[]) => void;
+  levelId: string;
+  selectedRoomId: string | null;
+  onRoomSelect: (roomId: string | null) => void;
+}
+
+type DragMode = "move" | "resize-se" | "resize-sw" | "resize-ne" | "resize-nw" | null;
+
+export const FloorPlanCanvas = ({ rooms, onRoomsUpdate, levelId, selectedRoomId, onRoomSelect }: FloorPlanCanvasProps) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [canvasRooms, setCanvasRooms] = useState<Room[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragMode, setDragMode] = useState<DragMode>(null);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [gridSize] = useState(20);
+
+  const CANVAS_WIDTH = 800;
+  const CANVAS_HEIGHT = 600;
+  const ROOM_MIN_SIZE = 60;
+  const HANDLE_SIZE = 8;
+
+  // Initialiser les pièces avec positions par défaut
+  useEffect(() => {
+    const levelRooms = rooms.filter((r) => r.levelId === levelId);
+    const initializedRooms: Room[] = levelRooms.map((room, index) => ({
+      ...room,
+      x: room.x ?? 100 + (index % 3) * 200,
+      y: room.y ?? 100 + Math.floor(index / 3) * 200,
+      width: room.width ?? 150,
+      height: room.height ?? 120,
+      rotation: room.rotation ?? 0,
+    }));
+    setCanvasRooms(initializedRooms);
+  }, [rooms, levelId]);
+
+  // Dessiner le canvas
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Nettoyer
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Grille
+    ctx.strokeStyle = "#e5e7eb";
+    ctx.lineWidth = 0.5;
+    for (let x = 0; x <= CANVAS_WIDTH; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, CANVAS_HEIGHT);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= CANVAS_HEIGHT; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(CANVAS_WIDTH, y);
+      ctx.stroke();
+    }
+
+    // Dessiner les pièces
+    canvasRooms.forEach((room) => {
+      const isSelected = room.id === selectedRoomId;
+
+      // Rectangle de la pièce
+      ctx.fillStyle = isSelected ? "hsl(var(--primary) / 0.15)" : "hsl(var(--muted) / 0.8)";
+      ctx.strokeStyle = isSelected ? "hsl(var(--primary))" : "hsl(var(--border))";
+      ctx.lineWidth = isSelected ? 2 : 1;
+      ctx.fillRect(room.x, room.y, room.width, room.height);
+      ctx.strokeRect(room.x, room.y, room.width, room.height);
+
+      // Nom de la pièce
+      ctx.fillStyle = "hsl(var(--foreground))";
+      ctx.font = "14px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(
+        room.name || "Sans nom",
+        room.x + room.width / 2,
+        room.y + room.height / 2
+      );
+
+      // Poignées de redimensionnement si sélectionné
+      if (isSelected) {
+        ctx.fillStyle = "hsl(var(--primary))";
+        // Sud-Est
+        ctx.fillRect(
+          room.x + room.width - HANDLE_SIZE / 2,
+          room.y + room.height - HANDLE_SIZE / 2,
+          HANDLE_SIZE,
+          HANDLE_SIZE
+        );
+        // Sud-Ouest
+        ctx.fillRect(
+          room.x - HANDLE_SIZE / 2,
+          room.y + room.height - HANDLE_SIZE / 2,
+          HANDLE_SIZE,
+          HANDLE_SIZE
+        );
+        // Nord-Est
+        ctx.fillRect(
+          room.x + room.width - HANDLE_SIZE / 2,
+          room.y - HANDLE_SIZE / 2,
+          HANDLE_SIZE,
+          HANDLE_SIZE
+        );
+        // Nord-Ouest
+        ctx.fillRect(room.x - HANDLE_SIZE / 2, room.y - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+      }
+    });
+  }, [canvasRooms, selectedRoomId, gridSize]);
+
+  const snapToGrid = (value: number) => Math.round(value / gridSize) * gridSize;
+
+  const getRoomAtPosition = (x: number, y: number): Room | null => {
+    for (let i = canvasRooms.length - 1; i >= 0; i--) {
+      const room = canvasRooms[i];
+      if (x >= room.x && x <= room.x + room.width && y >= room.y && y <= room.y + room.height) {
+        return room;
+      }
+    }
+    return null;
+  };
+
+  const getResizeHandle = (room: Room, x: number, y: number): DragMode => {
+    const margin = HANDLE_SIZE;
+    // Sud-Est
+    if (
+      x >= room.x + room.width - margin &&
+      x <= room.x + room.width + margin &&
+      y >= room.y + room.height - margin &&
+      y <= room.y + room.height + margin
+    ) {
+      return "resize-se";
+    }
+    // Sud-Ouest
+    if (
+      x >= room.x - margin &&
+      x <= room.x + margin &&
+      y >= room.y + room.height - margin &&
+      y <= room.y + room.height + margin
+    ) {
+      return "resize-sw";
+    }
+    // Nord-Est
+    if (
+      x >= room.x + room.width - margin &&
+      x <= room.x + room.width + margin &&
+      y >= room.y - margin &&
+      y <= room.y + margin
+    ) {
+      return "resize-ne";
+    }
+    // Nord-Ouest
+    if (x >= room.x - margin && x <= room.x + margin && y >= room.y - margin && y <= room.y + margin) {
+      return "resize-nw";
+    }
+    return null;
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const room = getRoomAtPosition(x, y);
+    if (room) {
+      onRoomSelect(room.id);
+
+      const handle = getResizeHandle(room, x, y);
+      if (handle) {
+        setDragMode(handle);
+      } else {
+        setDragMode("move");
+      }
+
+      setIsDragging(true);
+      setDragStart({ x, y });
+    } else {
+      onRoomSelect(null);
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Changer le curseur selon la position
+    if (selectedRoomId) {
+      const room = canvasRooms.find((r) => r.id === selectedRoomId);
+      if (room) {
+        const handle = getResizeHandle(room, x, y);
+        if (handle) {
+          if (handle === "resize-se" || handle === "resize-nw") {
+            canvas.style.cursor = "nwse-resize";
+          } else {
+            canvas.style.cursor = "nesw-resize";
+          }
+        } else if (
+          x >= room.x &&
+          x <= room.x + room.width &&
+          y >= room.y &&
+          y <= room.y + room.height
+        ) {
+          canvas.style.cursor = "move";
+        } else {
+          canvas.style.cursor = "default";
+        }
+      }
+    } else {
+      canvas.style.cursor = "default";
+    }
+
+    if (!isDragging || !selectedRoomId) return;
+
+    const deltaX = x - dragStart.x;
+    const deltaY = y - dragStart.y;
+
+    setCanvasRooms((prevRooms) =>
+      prevRooms.map((room) => {
+        if (room.id !== selectedRoomId) return room;
+
+        if (dragMode === "move") {
+          return {
+            ...room,
+            x: Math.max(0, Math.min(CANVAS_WIDTH - room.width, snapToGrid(room.x + deltaX))),
+            y: Math.max(0, Math.min(CANVAS_HEIGHT - room.height, snapToGrid(room.y + deltaY))),
+          };
+        } else if (dragMode === "resize-se") {
+          const newWidth = Math.max(ROOM_MIN_SIZE, snapToGrid(room.width + deltaX));
+          const newHeight = Math.max(ROOM_MIN_SIZE, snapToGrid(room.height + deltaY));
+          return { ...room, width: newWidth, height: newHeight };
+        } else if (dragMode === "resize-sw") {
+          const newWidth = Math.max(ROOM_MIN_SIZE, snapToGrid(room.width - deltaX));
+          const newHeight = Math.max(ROOM_MIN_SIZE, snapToGrid(room.height + deltaY));
+          const newX = room.x + room.width - newWidth;
+          return { ...room, x: newX, width: newWidth, height: newHeight };
+        } else if (dragMode === "resize-ne") {
+          const newWidth = Math.max(ROOM_MIN_SIZE, snapToGrid(room.width + deltaX));
+          const newHeight = Math.max(ROOM_MIN_SIZE, snapToGrid(room.height - deltaY));
+          const newY = room.y + room.height - newHeight;
+          return { ...room, y: newY, width: newWidth, height: newHeight };
+        } else if (dragMode === "resize-nw") {
+          const newWidth = Math.max(ROOM_MIN_SIZE, snapToGrid(room.width - deltaX));
+          const newHeight = Math.max(ROOM_MIN_SIZE, snapToGrid(room.height - deltaY));
+          const newX = room.x + room.width - newWidth;
+          const newY = room.y + room.height - newHeight;
+          return { ...room, x: newX, y: newY, width: newWidth, height: newHeight };
+        }
+
+        return room;
+      })
+    );
+
+    setDragStart({ x, y });
+  };
+
+  const handleMouseUp = () => {
+    if (isDragging) {
+      // Sauvegarder les changements
+      onRoomsUpdate(canvasRooms);
+    }
+    setIsDragging(false);
+    setDragMode(null);
+  };
+
+  return (
+    <div className="flex justify-center">
+      <canvas
+        ref={canvasRef}
+        width={CANVAS_WIDTH}
+        height={CANVAS_HEIGHT}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        className="border border-border rounded-lg bg-background shadow-lg"
+      />
+    </div>
+  );
+};
