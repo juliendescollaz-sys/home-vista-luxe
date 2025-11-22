@@ -8,6 +8,7 @@ import { useWeatherData } from "@/hooks/useWeatherData";
 import { useSunState } from "@/hooks/useSunState";
 import { WeatherConfigDialog } from "../WeatherConfigDialog";
 import { useHAStore } from "@/store/useHAStore";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 function pickDominantCondition(weatherData: any): string {
   const current = (weatherData?.condition || "").toLowerCase();
@@ -43,20 +44,30 @@ export function AnimatedWeatherTile() {
   const isNight = useSunState();
   const { weatherData, isLoading, error, refresh } = useWeatherData();
   const { entities, selectedCity } = useHAStore();
+  const { displayMode } = useDisplayMode();
+
+  // Optimisation pour Panel et Tablet
+  const isCompact = displayMode === "panel" || displayMode === "tablet";
+  const padding = isCompact ? "p-4" : "p-6";
+  const minHeight = isCompact ? (isExpanded ? "min-h-[400px]" : "min-h-[160px]") : (isExpanded ? "min-h-[500px]" : "min-h-[200px]");
+  const backdropHeight = isCompact ? "h-[160px]" : "h-[200px]";
+  const titleSize = isCompact ? "text-base" : "text-lg";
+  const tempSize = isCompact ? "text-4xl" : "text-5xl";
+  const iconSize = isCompact ? 20 : 24;
 
   // Si aucune ville n'est sélectionnée, afficher l'état "Choisir une ville"
   if (!selectedCity) {
     return (
-      <div className="relative rounded-3xl p-6 min-h-[200px] glass-card elevated-subtle border-border/50">
+      <div className={`relative rounded-3xl ${padding} ${minHeight} glass-card elevated-subtle border-border/50`}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">Choisir une ville</h2>
+          <h2 className={`${isCompact ? "text-lg" : "text-2xl"} font-bold`}>Choisir une ville</h2>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setShowConfig(true)}
             className="hover-lift"
           >
-            <Settings size={20} />
+            <Settings size={iconSize} />
           </Button>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -73,7 +84,7 @@ export function AnimatedWeatherTile() {
   if (isLoading && !weatherData) {
     return (
       <div 
-        className="relative rounded-3xl p-6 min-h-[200px] animate-pulse glass-card elevated-subtle border-border/50"
+        className={`relative rounded-3xl ${padding} ${minHeight} animate-pulse glass-card elevated-subtle border-border/50`}
       >
         <div className="space-y-3">
           <div className="h-6 w-32 bg-muted/50 rounded" />
@@ -86,7 +97,7 @@ export function AnimatedWeatherTile() {
 
   if (error || !weatherData || weatherData.source === "none") {
     return (
-      <div className="relative rounded-3xl p-6 min-h-[200px] glass-card elevated-subtle border-border/50">
+      <div className={`relative rounded-3xl ${padding} ${minHeight} glass-card elevated-subtle border-border/50`}>
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             {error || "Configuration météo requise"}
@@ -126,13 +137,11 @@ export function AnimatedWeatherTile() {
   return (
     <>
       <div 
-        className={`relative rounded-3xl p-6 cursor-pointer overflow-hidden weather-transition glass-card elevated-subtle elevated-active ${
-          isExpanded ? "min-h-[500px]" : "min-h-[200px]"
-        } border-border/50`}
+        className={`relative rounded-3xl ${padding} cursor-pointer overflow-hidden weather-transition glass-card elevated-subtle elevated-active ${minHeight} border-border/50`}
         onClick={handleToggleExpand}
       >
         {/* Tendance du jour en fond - hauteur fixe pour éviter le déplacement */}
-        <div className="absolute inset-x-0 top-0 h-[200px] overflow-hidden rounded-3xl pointer-events-none">
+        <div className={`absolute inset-x-0 top-0 ${backdropHeight} overflow-hidden rounded-3xl pointer-events-none`}>
           <TrendBackdrop
             dominantCondition={dominant}
             opacity={trendOpacity}
@@ -141,45 +150,45 @@ export function AnimatedWeatherTile() {
         </div>
 
         {/* Contenu */}
-        <div className="relative z-10 space-y-4">
+        <div className={`relative z-10 ${isCompact ? "space-y-2" : "space-y-4"}`}>
           {/* En-tête compact */}
           <div className="flex items-start justify-between">
-            <div className="space-y-1">
+            <div className={isCompact ? "space-y-0.5" : "space-y-1"}>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold text-slate-700 dark:text-white drop-shadow-lg">
+                <h3 className={`${titleSize} font-bold text-slate-700 dark:text-white drop-shadow-lg`}>
                   {location.split(',')[0].trim()}
                 </h3>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-bold text-slate-800 dark:text-white drop-shadow-xl">
+                <span className={`${tempSize} font-bold text-slate-800 dark:text-white drop-shadow-xl`}>
                   {temperature !== undefined && temperature !== null ? Math.round(temperature) : "—"}°
                 </span>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className={`flex ${isCompact ? "gap-1" : "gap-2"}`}>
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-slate-700 hover:bg-transparent bg-white/20 dark:text-white dark:hover:bg-transparent dark:bg-black/20"
+                className={`text-slate-700 hover:bg-transparent bg-white/20 dark:text-white dark:hover:bg-transparent dark:bg-black/20 ${isCompact ? "h-8 w-8" : ""}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   refresh();
                 }}
                 disabled={isLoading}
               >
-                <RefreshCw size={24} className={isLoading ? "animate-spin" : ""} />
+                <RefreshCw size={iconSize} className={isLoading ? "animate-spin" : ""} />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-slate-700 hover:bg-transparent bg-white/20 dark:text-white dark:hover:bg-transparent dark:bg-black/20"
+                className={`text-slate-700 hover:bg-transparent bg-white/20 dark:text-white dark:hover:bg-transparent dark:bg-black/20 ${isCompact ? "h-8 w-8" : ""}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowConfig(true);
                 }}
               >
-                <Settings size={24} />
+                <Settings size={iconSize} />
               </Button>
             </div>
           </div>
@@ -199,7 +208,7 @@ export function AnimatedWeatherTile() {
           {/* Panneau étendu (prévisions) */}
           {isExpanded && (
             <div 
-              className="mt-6 weather-expand text-slate-700 dark:text-white"
+              className={`${isCompact ? "mt-3" : "mt-6"} weather-expand text-slate-700 dark:text-white`}
               onClick={(e) => e.stopPropagation()}
             >
               <ForecastPanel
