@@ -54,11 +54,12 @@ export function AnimatedWeatherTile() {
   const titleSize = isCompact ? "text-2xl" : "text-lg";
   const tempSize = isCompact ? "text-7xl" : "text-5xl";
   const iconSize = isCompact ? 28 : 24;
+  const widthClass = isCompact ? "w-[500px]" : "w-full";
 
   // Si aucune ville n'est sélectionnée, afficher l'état "Choisir une ville"
   if (!selectedCity) {
     return (
-      <div className={`relative rounded-3xl ${padding} ${minHeight} glass-card elevated-subtle border-border/50`}>
+      <div className={`relative rounded-3xl ${padding} ${minHeight} ${widthClass} glass-card elevated-subtle border-border/50`}>
         <div className="flex items-center justify-between mb-4">
           <h2 className={`${isCompact ? "text-lg" : "text-2xl"} font-bold`}>Choisir une ville</h2>
           <Button
@@ -84,7 +85,7 @@ export function AnimatedWeatherTile() {
   if (isLoading && !weatherData) {
     return (
       <div 
-        className={`relative rounded-3xl ${padding} ${minHeight} animate-pulse glass-card elevated-subtle border-border/50`}
+        className={`relative rounded-3xl ${padding} ${minHeight} ${widthClass} animate-pulse glass-card elevated-subtle border-border/50`}
       >
         <div className="space-y-3">
           <div className="h-6 w-32 bg-muted/50 rounded" />
@@ -97,7 +98,7 @@ export function AnimatedWeatherTile() {
 
   if (error || !weatherData || weatherData.source === "none") {
     return (
-      <div className={`relative rounded-3xl ${padding} ${minHeight} glass-card elevated-subtle border-border/50`}>
+      <div className={`relative rounded-3xl ${padding} ${minHeight} ${widthClass} glass-card elevated-subtle border-border/50`}>
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             {error || "Configuration météo requise"}
@@ -137,7 +138,7 @@ export function AnimatedWeatherTile() {
   return (
     <>
       <div 
-        className={`relative rounded-3xl ${padding} cursor-pointer overflow-hidden weather-transition glass-card elevated-subtle elevated-active ${minHeight} border-border/50`}
+        className={`relative rounded-3xl ${padding} ${widthClass} cursor-pointer overflow-hidden weather-transition glass-card elevated-subtle elevated-active ${minHeight} border-border/50`}
         onClick={handleToggleExpand}
       >
         {/* Tendance du jour en fond - hauteur fixe pour éviter le déplacement */}
