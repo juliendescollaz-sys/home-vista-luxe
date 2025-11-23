@@ -128,59 +128,24 @@ const Home = () => {
     );
   }
 
-  // Grille 3 colonnes en Panel/Tablet
-  const contentClass = displayMode === "mobile"
-    ? "max-w-2xl mx-auto px-4 py-4 space-y-6"
-    : "grid grid-cols-3 gap-4 p-4";
-
   return (
     <div className={rootClassName}>
       <TopBar title="Accueil" />
       
-      <div className={contentClass}>
-        {displayMode === "mobile" ? (
-          <>
-            {/* Version Mobile - Layout vertical */}
-            <div className="animate-fade-in">
-              <AnimatedWeatherTile />
-            </div>
+      {displayMode === "mobile" ? (
+        <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
+          {/* Version Mobile - Layout vertical */}
+          <div className="animate-fade-in">
+            <AnimatedWeatherTile />
+          </div>
 
-            <div className="space-y-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              <h2 className="text-xl font-semibold">Appareils actifs</h2>
-              
-              {groupedDevices.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  Aucun appareil actif
-                </p>
-              ) : (
-                groupedDevices.flatMap(([areaId, { area, floor, devices }]) =>
-                  devices.map((entity) => (
-                    <UniversalEntityTileWrapper
-                      key={entity.entity_id}
-                      entity={entity}
-                      floor={floor}
-                      area={area}
-                    />
-                  ))
-                )
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Version Panel/Tablet - Grille 3 colonnes */}
-            {/* Tuile météo - 1 colonne */}
-            <div className="animate-fade-in">
-              <AnimatedWeatherTile />
-            </div>
-
-            {/* Appareils actifs - grille 3 colonnes complète */}
+          <div className="space-y-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <h2 className="text-xl font-semibold">Appareils actifs</h2>
+            
             {groupedDevices.length === 0 ? (
-              <div className="col-span-2 flex items-center justify-center">
-                <p className="text-muted-foreground text-center py-8">
-                  Aucun appareil actif
-                </p>
-              </div>
+              <p className="text-muted-foreground text-center py-8">
+                Aucun appareil actif
+              </p>
             ) : (
               groupedDevices.flatMap(([areaId, { area, floor, devices }]) =>
                 devices.map((entity) => (
@@ -193,9 +158,50 @@ const Home = () => {
                 ))
               )
             )}
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      ) : (
+        <div className="p-4 space-y-6">
+          {/* Version Panel/Tablet */}
+          {/* Tuile météo - 3 colonnes complètes */}
+          <div className="animate-fade-in">
+            <AnimatedWeatherTile />
+          </div>
+
+          {/* Appareils actifs - groupés par localisation */}
+          <div className="space-y-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <h2 className="text-2xl font-semibold">Appareils actifs</h2>
+            
+            {groupedDevices.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">
+                Aucun appareil actif
+              </p>
+            ) : (
+              groupedDevices.map(([areaId, { area, floor, devices }]) => (
+                <div key={areaId} className="space-y-3">
+                  {/* Titre de la section localisation */}
+                  <h3 className="text-lg font-medium text-muted-foreground">
+                    {floor?.name && `${floor.name} • `}
+                    {area?.name || "Sans pièce"}
+                  </h3>
+                  
+                  {/* Grille 3 colonnes pour les appareils de cette localisation */}
+                  <div className="grid grid-cols-3 gap-4">
+                    {devices.map((entity) => (
+                      <UniversalEntityTileWrapper
+                        key={entity.entity_id}
+                        entity={entity}
+                        floor={floor}
+                        area={area}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </div>
