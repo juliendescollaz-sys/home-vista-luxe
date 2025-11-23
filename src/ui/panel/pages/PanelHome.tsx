@@ -80,70 +80,54 @@ export function PanelHome() {
   };
 
   return (
-    <div className="w-full h-full bg-background p-3 overflow-hidden">
-      {/* Header compact */}
-      <header className="flex items-center justify-between mb-3 px-2 flex-shrink-0">
-        <img 
-          src={theme === "light" ? neoliaLogoDark : neoliaLogoLight} 
-          alt="Neolia" 
-          className="h-10 w-auto"
-        />
-        
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/settings")}
-          className="h-12 w-12"
-        >
-          <Settings className="h-6 w-6" />
-        </Button>
-      </header>
-
-      {/* Grille principale dense - 4 colonnes */}
-      <div className="grid grid-cols-4 gap-3 px-2 h-[calc(100%-80px)] overflow-hidden items-start">
-        {/* Météo - 1 colonne */}
-        <div className="col-span-1 flex justify-center self-start">
-          <AnimatedWeatherTile />
-        </div>
-
-        {/* Pièces - 2 colonnes */}
-        <div className="col-span-2 space-y-3">
-          <h2 className="text-2xl font-bold">Pièces</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {areas.slice(0, 6).map((area) => (
-              <PanelRoomCard
-                key={area.area_id}
-                area={area}
-              />
-            ))}
+    <div className="w-full h-full flex items-center justify-center bg-background">
+      <div className="w-full max-w-[1800px] p-6 space-y-6">
+        {/* Grille principale dense - 4 colonnes */}
+        <div className="grid grid-cols-4 gap-6 items-start">
+          {/* Météo - 1 colonne */}
+          <div className="col-span-1 flex justify-center self-start">
+            <AnimatedWeatherTile />
           </div>
-        </div>
 
-        {/* Appareils actifs - 1 colonne */}
-        <div className="col-span-1 space-y-3">
-          <h2 className="text-xl font-bold">Actifs</h2>
-          <div className="space-y-2 max-h-[calc(100vh-120px)] overflow-y-auto scrollbar-hide">
-            {activeDevices.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Aucun appareil actif
-              </p>
-            ) : (
-              activeDevices.map((entity) => {
-                const isMediaPlayer = entity.entity_id.startsWith("media_player.");
-                return isMediaPlayer ? (
-                  <MediaPlayerCard
-                    key={entity.entity_id}
-                    entity={entity}
-                  />
-                ) : (
-                  <DeviceCard
-                    key={entity.entity_id}
-                    entity={entity}
-                    onToggle={handleDeviceToggle}
-                  />
-                );
-              })
-            )}
+          {/* Pièces - 2 colonnes */}
+          <div className="col-span-2 space-y-3">
+            <h2 className="text-2xl font-bold">Pièces</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {areas.slice(0, 6).map((area) => (
+                <PanelRoomCard
+                  key={area.area_id}
+                  area={area}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Appareils actifs - 1 colonne */}
+          <div className="col-span-1 space-y-3">
+            <h2 className="text-xl font-bold">Actifs</h2>
+            <div className="space-y-2">
+              {activeDevices.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Aucun appareil actif
+                </p>
+              ) : (
+                activeDevices.map((entity) => {
+                  const isMediaPlayer = entity.entity_id.startsWith("media_player.");
+                  return isMediaPlayer ? (
+                    <MediaPlayerCard
+                      key={entity.entity_id}
+                      entity={entity}
+                    />
+                  ) : (
+                    <DeviceCard
+                      key={entity.entity_id}
+                      entity={entity}
+                      onToggle={handleDeviceToggle}
+                    />
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       </div>
