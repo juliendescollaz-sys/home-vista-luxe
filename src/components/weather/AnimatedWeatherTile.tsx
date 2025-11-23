@@ -46,15 +46,18 @@ export function AnimatedWeatherTile() {
   const { entities, selectedCity } = useHAStore();
   const { displayMode } = useDisplayMode();
 
-  // Optimisation pour Panel et Tablet - LARGE
+  // Optimisation pour Panel et Tablet - LARGE avec prévisions toujours affichées
   const isCompact = displayMode === "panel" || displayMode === "tablet";
   const padding = isCompact ? "p-8" : "p-6";
-  const minHeight = isCompact ? (isExpanded ? "min-h-[600px]" : "min-h-[300px]") : (isExpanded ? "min-h-[500px]" : "min-h-[200px]");
-  const backdropHeight = isCompact ? "h-[300px]" : "h-[200px]";
-  const titleSize = isCompact ? "text-2xl" : "text-lg";
-  const tempSize = isCompact ? "text-7xl" : "text-5xl";
-  const iconSize = isCompact ? 28 : 24;
-  const widthClass = isCompact ? "w-[500px]" : "w-full";
+  const minHeight = isCompact ? "min-h-[700px]" : (isExpanded ? "min-h-[500px]" : "min-h-[200px]");
+  const backdropHeight = isCompact ? "h-[400px]" : "h-[200px]";
+  const titleSize = isCompact ? "text-3xl" : "text-lg";
+  const tempSize = isCompact ? "text-8xl" : "text-5xl";
+  const iconSize = isCompact ? 32 : 24;
+  const widthClass = isCompact ? "w-[800px]" : "w-full";
+  
+  // En mode compact, les prévisions sont toujours affichées
+  const shouldShowForecast = isCompact || isExpanded;
 
   // Si aucune ville n'est sélectionnée, afficher l'état "Choisir une ville"
   if (!selectedCity) {
@@ -132,13 +135,16 @@ export function AnimatedWeatherTile() {
   const location = selectedCity?.label || weatherEntityData?.attributes?.friendly_name || "Météo";
 
   const handleToggleExpand = () => {
-    setIsExpanded(!isExpanded);
+    // En mode compact, pas besoin de toggle car toujours étendu
+    if (!isCompact) {
+      setIsExpanded(!isExpanded);
+    }
   };
 
   return (
     <>
       <div 
-        className={`relative rounded-3xl ${padding} ${widthClass} cursor-pointer overflow-hidden weather-transition glass-card elevated-subtle elevated-active ${minHeight} border-border/50`}
+        className={`relative rounded-3xl ${padding} ${widthClass} ${isCompact ? '' : 'cursor-pointer'} overflow-hidden weather-transition glass-card elevated-subtle ${isCompact ? '' : 'elevated-active'} ${minHeight} border-border/50`}
         onClick={handleToggleExpand}
       >
         {/* Tendance du jour en fond - hauteur fixe pour éviter le déplacement */}
@@ -151,27 +157,27 @@ export function AnimatedWeatherTile() {
         </div>
 
         {/* Contenu */}
-        <div className={`relative z-10 ${isCompact ? "space-y-6" : "space-y-4"}`}>
+        <div className={`relative z-10 ${isCompact ? "space-y-8" : "space-y-4"}`}>
           {/* En-tête compact */}
           <div className="flex items-start justify-between">
-            <div className={isCompact ? "space-y-2" : "space-y-1"}>
+            <div className={isCompact ? "space-y-3" : "space-y-1"}>
               <div className="flex items-center gap-2">
                 <h3 className={`${titleSize} font-bold text-slate-700 dark:text-white drop-shadow-lg`}>
                   {location.split(',')[0].trim()}
                 </h3>
               </div>
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline gap-3">
                 <span className={`${tempSize} font-bold text-slate-800 dark:text-white drop-shadow-xl`}>
                   {temperature !== undefined && temperature !== null ? Math.round(temperature) : "—"}°
                 </span>
               </div>
             </div>
 
-            <div className={`flex ${isCompact ? "gap-2" : "gap-2"}`}>
+            <div className={`flex ${isCompact ? "gap-3" : "gap-2"}`}>
               <Button
                 variant="ghost"
                 size="icon"
-                className={`text-slate-700 hover:bg-transparent bg-white/20 dark:text-white dark:hover:bg-transparent dark:bg-black/20 ${isCompact ? "h-12 w-12" : ""}`}
+                className={`text-slate-700 hover:bg-transparent bg-white/20 dark:text-white dark:hover:bg-transparent dark:bg-black/20 ${isCompact ? "h-14 w-14" : ""}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   refresh();
@@ -183,7 +189,7 @@ export function AnimatedWeatherTile() {
               <Button
                 variant="ghost"
                 size="icon"
-                className={`text-slate-700 hover:bg-transparent bg-white/20 dark:text-white dark:hover:bg-transparent dark:bg-black/20 ${isCompact ? "h-12 w-12" : ""}`}
+                className={`text-slate-700 hover:bg-transparent bg-white/20 dark:text-white dark:hover:bg-transparent dark:bg-black/20 ${isCompact ? "h-14 w-14" : ""}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowConfig(true);
@@ -206,8 +212,8 @@ export function AnimatedWeatherTile() {
             />
           </div>
 
-          {/* Panneau étendu (prévisions) */}
-          {isExpanded && (
+          {/* Panneau étendu (prévisions) - Toujours affiché en mode compact */}
+          {shouldShowForecast && (
             <div 
               className={`${isCompact ? "mt-8" : "mt-6"} weather-expand text-slate-700 dark:text-white`}
               onClick={(e) => e.stopPropagation()}
@@ -220,12 +226,14 @@ export function AnimatedWeatherTile() {
             </div>
           )}
 
-          {/* Indicateur d'expansion */}
-          <div className="flex justify-center pt-2">
-            <div className={`w-12 h-1 rounded-full bg-slate-700/40 dark:bg-white/40 weather-transition ${
-              isExpanded ? "rotate-180" : ""
-            }`} />
-          </div>
+          {/* Indicateur d'expansion - Seulement en mode non-compact */}
+          {!isCompact && (
+            <div className="flex justify-center pt-2">
+              <div className={`w-12 h-1 rounded-full bg-slate-700/40 dark:bg-white/40 weather-transition ${
+                isExpanded ? "rotate-180" : ""
+              }`} />
+            </div>
+          )}
         </div>
       </div>
 
