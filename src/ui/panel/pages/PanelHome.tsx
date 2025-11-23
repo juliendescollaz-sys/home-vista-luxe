@@ -80,7 +80,7 @@ export function PanelHome() {
   };
 
   return (
-    <div className="w-full h-full flex items-center justify-center bg-background">
+    <div className="w-full flex items-center justify-center bg-background">
       <div className="w-full max-w-[1800px] p-6 space-y-6">
         {/* Grille principale dense - 4 colonnes */}
         <div className="grid grid-cols-4 gap-6 items-start">
