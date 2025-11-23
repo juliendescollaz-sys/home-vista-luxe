@@ -114,7 +114,7 @@ const Home = () => {
 
   const rootClassName = displayMode === "mobile" 
     ? `min-h-screen bg-background pb-24 ${ptClass}`
-    : "w-full h-full flex items-center justify-center";
+    : "w-full flex flex-col items-stretch";
 
   if (!isConnected) {
     return (
