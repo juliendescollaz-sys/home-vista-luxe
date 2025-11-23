@@ -104,17 +104,6 @@ const Settings = () => {
                   <p className="text-sm text-muted-foreground mb-2">Préférence de main</p>
                   <div className="flex gap-3">
                     <Button 
-                      variant={handedness === "right" ? "default" : "outline"} 
-                      className="flex-1"
-                      onClick={() => {
-                        setHandedness("right");
-                        toast.success("Mode droitier activé");
-                      }}
-                    >
-                      <Hand className="mr-2 h-4 w-4" />
-                      Droitier
-                    </Button>
-                    <Button 
                       variant={handedness === "left" ? "default" : "outline"} 
                       className="flex-1"
                       onClick={() => {
@@ -124,6 +113,17 @@ const Settings = () => {
                     >
                       <Hand className="mr-2 h-4 w-4 scale-x-[-1]" />
                       Gaucher
+                    </Button>
+                    <Button 
+                      variant={handedness === "right" ? "default" : "outline"} 
+                      className="flex-1"
+                      onClick={() => {
+                        setHandedness("right");
+                        toast.success("Mode droitier activé");
+                      }}
+                    >
+                      <Hand className="mr-2 h-4 w-4" />
+                      Droitier
                     </Button>
                   </div>
                 </div>
