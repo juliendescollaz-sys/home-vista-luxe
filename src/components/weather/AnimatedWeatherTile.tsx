@@ -58,6 +58,9 @@ export function AnimatedWeatherTile() {
   
   // En mode compact, les prévisions sont toujours affichées
   const shouldShowForecast = isCompact || isExpanded;
+  
+  // Conteneur avec marges égales pour Panel/Tablet
+  const containerClass = isCompact ? "mt-6 mx-6" : "";
 
   // Si aucune ville n'est sélectionnée, afficher l'état "Choisir une ville"
   if (!selectedCity) {
@@ -143,10 +146,11 @@ export function AnimatedWeatherTile() {
 
   return (
     <>
-      <div 
-        className={`relative rounded-3xl ${padding} ${widthClass} ${isCompact ? '' : 'cursor-pointer'} overflow-hidden weather-transition glass-card elevated-subtle ${isCompact ? '' : 'elevated-active'} border-border/50`}
-        onClick={handleToggleExpand}
-      >
+      <div className={containerClass}>
+        <div 
+          className={`relative rounded-3xl ${padding} ${widthClass} ${isCompact ? '' : 'cursor-pointer'} overflow-hidden weather-transition glass-card elevated-subtle ${isCompact ? '' : 'elevated-active'} border-border/50`}
+          onClick={handleToggleExpand}
+        >
         {/* Tendance du jour en fond - hauteur fixe pour éviter le déplacement */}
         <div className={`absolute inset-x-0 top-0 ${backdropHeight} overflow-hidden rounded-3xl pointer-events-none`}>
           <TrendBackdrop
@@ -234,6 +238,7 @@ export function AnimatedWeatherTile() {
               }`} />
             </div>
           )}
+        </div>
         </div>
       </div>
 
