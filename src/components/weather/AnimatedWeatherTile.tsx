@@ -48,19 +48,19 @@ export function AnimatedWeatherTile() {
 
   // Optimisation pour Panel et Tablet - LARGE avec prévisions toujours affichées
   const isCompact = displayMode === "panel" || displayMode === "tablet";
-  const padding = isCompact ? "p-6" : "p-6";
+  const padding = isCompact ? "p-4" : "p-6";
   const minHeight = isCompact ? "min-h-[520px]" : (isExpanded ? "min-h-[500px]" : "min-h-[200px]");
   const backdropHeight = isCompact ? "h-[280px]" : "h-[200px]";
   const titleSize = isCompact ? "text-2xl" : "text-lg";
   const tempSize = isCompact ? "text-7xl" : "text-5xl";
   const iconSize = isCompact ? 28 : 24;
-  const widthClass = isCompact ? "max-w-[700px] w-full mx-auto" : "w-full";
+  const widthClass = isCompact ? "w-full" : "w-full";
   
   // En mode compact, les prévisions sont toujours affichées
   const shouldShowForecast = isCompact || isExpanded;
   
-  // Conteneur avec marges pour Panel/Tablet - centrage dans la zone de contenu
-  const containerClass = isCompact ? "mt-6 px-6" : "";
+  // Pas de conteneur externe en mode compact - la grille gère le positionnement
+  const containerClass = "";
 
   // Si aucune ville n'est sélectionnée, afficher l'état "Choisir une ville"
   if (!selectedCity) {
