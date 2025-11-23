@@ -142,26 +142,24 @@ export function ForecastPanel({
       </TabsContent>
 
       <TabsContent value="daily" className="mt-4">
-        <div className="space-y-2">
+        <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
           {dailyForecast.slice(0, 7).map((item, index) => (
             <div 
               key={index}
-              className="flex items-center justify-between px-4 py-3 rounded-xl bg-background/20 border border-border/20 hover:bg-background/30 transition-colors backdrop-blur-sm"
+              className="flex flex-col items-center gap-2 min-w-[100px] px-4 py-3 rounded-xl bg-background/20 border border-border/20 snap-start backdrop-blur-sm"
             >
-              <div className="flex items-center gap-3 flex-1">
-                <span className="text-sm font-medium w-12">{formatDay(item.datetime)}</span>
-                <div className="flex items-center justify-center w-6">
-                  {getConditionIcon(item.condition)}
-                </div>
-                <span className="text-xs opacity-70 flex-1">
-                  {translateCondition(item.condition)}
-                </span>
+              <span className="text-sm font-medium opacity-90">{formatDay(item.datetime)}</span>
+              <div className="flex items-center justify-center w-8 h-8">
+                {getConditionIcon(item.condition)}
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm opacity-70 w-8 text-right">
+              <span className="text-xs opacity-70 text-center">
+                {translateCondition(item.condition)}
+              </span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs opacity-70">
                   {item.templow !== undefined ? `${Math.round(item.templow)}°` : "—"}
                 </span>
-                <span className="text-sm font-semibold w-8 text-right">
+                <span className="text-sm font-semibold">
                   {item.temperature !== undefined ? `${Math.round(item.temperature)}°` : "—"}
                 </span>
               </div>
