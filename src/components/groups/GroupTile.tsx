@@ -50,7 +50,7 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
   const isLarge = displayMode === "panel" || displayMode === "tablet";
   const iconSize = isLarge ? "h-9 w-9" : "h-8 w-8";
   const iconContainerSize = isLarge ? "w-16 h-16" : "w-14 h-14";
-  const titleSize = isLarge ? "text-2xl" : "text-base";
+  const titleSize = isLarge ? "text-2xl" : "text-lg";
   const countSize = isLarge ? "text-lg" : "text-sm";
 
   // Pour les media_player: calculer état global et volume moyen
