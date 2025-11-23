@@ -49,7 +49,7 @@ export function AnimatedWeatherTile() {
   // Optimisation pour Panel et Tablet - LARGE avec prévisions toujours affichées
   const isCompact = displayMode === "panel" || displayMode === "tablet";
   const padding = isCompact ? "p-6" : "p-6";
-  const minHeight = isCompact ? "h-auto" : (isExpanded ? "min-h-[500px]" : "min-h-[200px]");
+  const minHeight = isCompact ? "" : (isExpanded ? "min-h-[500px]" : "min-h-[200px]");
   const backdropHeight = isCompact ? "h-[280px]" : "h-[200px]";
   const titleSize = isCompact ? "text-2xl" : "text-lg";
   const tempSize = isCompact ? "text-7xl" : "text-5xl";
@@ -144,7 +144,7 @@ export function AnimatedWeatherTile() {
   return (
     <>
       <div 
-        className={`relative rounded-3xl ${padding} ${widthClass} ${isCompact ? '' : 'cursor-pointer'} overflow-hidden weather-transition glass-card elevated-subtle ${isCompact ? '' : 'elevated-active'} ${minHeight} border-border/50`}
+        className={`relative rounded-3xl ${padding} ${widthClass} ${isCompact ? '' : 'cursor-pointer'} overflow-hidden weather-transition glass-card elevated-subtle ${isCompact ? '' : 'elevated-active'} border-border/50`}
         onClick={handleToggleExpand}
       >
         {/* Tendance du jour en fond - hauteur fixe pour éviter le déplacement */}

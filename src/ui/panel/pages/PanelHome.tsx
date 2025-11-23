@@ -100,9 +100,9 @@ export function PanelHome() {
       </header>
 
       {/* Grille principale dense - 4 colonnes */}
-      <div className="grid grid-cols-4 gap-3 px-2 h-[calc(100%-80px)] overflow-hidden">
+      <div className="grid grid-cols-4 gap-3 px-2 h-[calc(100%-80px)] overflow-hidden items-start">
         {/* Météo - 1 colonne */}
-        <div className="col-span-1 flex items-start justify-center">
+        <div className="col-span-1 flex justify-center self-start">
           <AnimatedWeatherTile />
         </div>
 
