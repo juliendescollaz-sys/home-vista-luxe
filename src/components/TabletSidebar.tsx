@@ -43,7 +43,7 @@ export function TabletSidebar() {
 
   return (
     <Sidebar className={isCollapsed ? "w-20" : "w-64"}>
-      <SidebarHeader className="border-b border-border/30 p-4">
+      <SidebarHeader className="h-14 flex items-center justify-center p-4">
         <img 
           src={theme === "light" ? neoliaLogoDark : neoliaLogoLight} 
           alt="Neolia" 
