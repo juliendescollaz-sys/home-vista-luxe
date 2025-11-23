@@ -48,13 +48,13 @@ export function AnimatedWeatherTile() {
 
   // Optimisation pour Panel et Tablet - LARGE avec prévisions toujours affichées
   const isCompact = displayMode === "panel" || displayMode === "tablet";
-  const padding = isCompact ? "p-8" : "p-6";
-  const minHeight = isCompact ? "min-h-[700px]" : (isExpanded ? "min-h-[500px]" : "min-h-[200px]");
-  const backdropHeight = isCompact ? "h-[400px]" : "h-[200px]";
-  const titleSize = isCompact ? "text-3xl" : "text-lg";
-  const tempSize = isCompact ? "text-8xl" : "text-5xl";
-  const iconSize = isCompact ? 32 : 24;
-  const widthClass = isCompact ? "w-[800px]" : "w-full";
+  const padding = isCompact ? "p-6" : "p-6";
+  const minHeight = isCompact ? "h-auto" : (isExpanded ? "min-h-[500px]" : "min-h-[200px]");
+  const backdropHeight = isCompact ? "h-[280px]" : "h-[200px]";
+  const titleSize = isCompact ? "text-2xl" : "text-lg";
+  const tempSize = isCompact ? "text-7xl" : "text-5xl";
+  const iconSize = isCompact ? 28 : 24;
+  const widthClass = isCompact ? "w-[700px]" : "w-full";
   
   // En mode compact, les prévisions sont toujours affichées
   const shouldShowForecast = isCompact || isExpanded;
@@ -157,27 +157,27 @@ export function AnimatedWeatherTile() {
         </div>
 
         {/* Contenu */}
-        <div className={`relative z-10 ${isCompact ? "space-y-8" : "space-y-4"}`}>
+        <div className={`relative z-10 ${isCompact ? "space-y-6" : "space-y-4"}`}>
           {/* En-tête compact */}
           <div className="flex items-start justify-between">
-            <div className={isCompact ? "space-y-3" : "space-y-1"}>
+            <div className={isCompact ? "space-y-2" : "space-y-1"}>
               <div className="flex items-center gap-2">
                 <h3 className={`${titleSize} font-bold text-slate-700 dark:text-white drop-shadow-lg`}>
                   {location.split(',')[0].trim()}
                 </h3>
               </div>
-              <div className="flex items-baseline gap-3">
+              <div className="flex items-baseline gap-2">
                 <span className={`${tempSize} font-bold text-slate-800 dark:text-white drop-shadow-xl`}>
                   {temperature !== undefined && temperature !== null ? Math.round(temperature) : "—"}°
                 </span>
               </div>
             </div>
 
-            <div className={`flex ${isCompact ? "gap-3" : "gap-2"}`}>
+            <div className={`flex ${isCompact ? "gap-2" : "gap-2"}`}>
               <Button
                 variant="ghost"
                 size="icon"
-                className={`text-slate-700 hover:bg-transparent bg-white/20 dark:text-white dark:hover:bg-transparent dark:bg-black/20 ${isCompact ? "h-14 w-14" : ""}`}
+                className={`text-slate-700 hover:bg-transparent bg-white/20 dark:text-white dark:hover:bg-transparent dark:bg-black/20 ${isCompact ? "h-12 w-12" : ""}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   refresh();
@@ -189,7 +189,7 @@ export function AnimatedWeatherTile() {
               <Button
                 variant="ghost"
                 size="icon"
-                className={`text-slate-700 hover:bg-transparent bg-white/20 dark:text-white dark:hover:bg-transparent dark:bg-black/20 ${isCompact ? "h-14 w-14" : ""}`}
+                className={`text-slate-700 hover:bg-transparent bg-white/20 dark:text-white dark:hover:bg-transparent dark:bg-black/20 ${isCompact ? "h-12 w-12" : ""}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowConfig(true);
@@ -215,7 +215,7 @@ export function AnimatedWeatherTile() {
           {/* Panneau étendu (prévisions) - Toujours affiché en mode compact */}
           {shouldShowForecast && (
             <div 
-              className={`${isCompact ? "mt-8" : "mt-6"} weather-expand text-slate-700 dark:text-white`}
+              className={`${isCompact ? "mt-6" : "mt-6"} weather-expand text-slate-700 dark:text-white`}
               onClick={(e) => e.stopPropagation()}
             >
               <ForecastPanel

@@ -80,9 +80,9 @@ export function PanelHome() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-3">
+    <div className="w-full h-full bg-background p-3 overflow-hidden">
       {/* Header compact */}
-      <header className="flex items-center justify-between mb-3 px-2">
+      <header className="flex items-center justify-between mb-3 px-2 flex-shrink-0">
         <img 
           src={theme === "light" ? neoliaLogoDark : neoliaLogoLight} 
           alt="Neolia" 
@@ -100,9 +100,9 @@ export function PanelHome() {
       </header>
 
       {/* Grille principale dense - 4 colonnes */}
-      <div className="grid grid-cols-4 gap-3 px-2">
+      <div className="grid grid-cols-4 gap-3 px-2 h-[calc(100%-80px)] overflow-hidden">
         {/* Météo - 1 colonne */}
-        <div className="col-span-1">
+        <div className="col-span-1 flex items-start justify-center">
           <AnimatedWeatherTile />
         </div>
 
