@@ -11,6 +11,7 @@ import { playMediaGroup, pauseMediaGroup, setGroupVolume } from "@/services/haGr
 import { toast } from "sonner";
 import { GroupBadge } from "./GroupBadge";
 import { GroupEditDialog } from "./GroupEditDialog";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 const DOMAIN_ICONS: Record<HaGroupDomain, any> = {
   light: Lightbulb,
@@ -38,11 +39,19 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
   const [localVolume, setLocalVolume] = useState<number | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const isFavorite = groupFavorites.includes(group.id);
+  const { displayMode } = useDisplayMode();
 
   // Récupérer l'entité de groupe depuis HA (seulement pour les groupes partagés)
   const groupEntity = group.haEntityId ? entities.find((e) => e.entity_id === group.haEntityId) : undefined;
   const isActive = groupEntity?.state === "on" || groupEntity?.state === "open";
   const Icon = DOMAIN_ICONS[group.domain];
+  
+  // Tailles adaptées pour Panel et Tablet
+  const isLarge = displayMode === "panel" || displayMode === "tablet";
+  const iconSize = isLarge ? "h-9 w-9" : "h-8 w-8";
+  const iconContainerSize = isLarge ? "w-16 h-16" : "w-14 h-14";
+  const titleSize = isLarge ? "text-2xl" : "text-base";
+  const countSize = isLarge ? "text-lg" : "text-sm";
 
   // Pour les media_player: calculer état global et volume moyen
   const mediaPlayerState = useMemo(() => {
@@ -149,24 +158,24 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
         <div className="flex items-start gap-3">
           {/* Icon */}
           <div
-            className={`w-14 h-14 rounded-lg flex-shrink-0 transition-colors flex items-center justify-center ${
+            className={`${iconContainerSize} rounded-lg flex-shrink-0 transition-colors flex items-center justify-center ${
               isActive ? "bg-primary/20 text-primary" : "bg-muted/50 text-muted-foreground"
             }`}
           >
-            <Icon className="h-8 w-8" />
+            <Icon className={iconSize} />
           </div>
 
           {/* Info */}
           <div className="flex-1 min-w-0 pt-0.5">
             <div className="flex items-center gap-2 mb-0.5">
-              <h3 className="font-semibold text-base truncate">{group.name}</h3>
+              <h3 className={`font-semibold ${titleSize} truncate`}>{group.name}</h3>
               {group.isShared ? (
                 <Cloud className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" />
               ) : (
                 <Lock className="h-3.5 w-3.5 text-muted-foreground/70 flex-shrink-0" />
               )}
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className={`${countSize} text-muted-foreground`}>
               {group.entityIds.length} appareil{group.entityIds.length > 1 ? "s" : ""}
             </p>
           </div>

@@ -23,13 +23,13 @@ export function getGridColumns(contentType: ContentType, displayMode: DisplayMod
     },
     rooms: {
       mobile: "grid-cols-1",
-      tablet: "grid-cols-2",
+      tablet: "grid-cols-3",
       panel: "grid-cols-3",
     },
     floors: {
       mobile: "grid-cols-1",
-      tablet: "grid-cols-1",
-      panel: "grid-cols-2",
+      tablet: "grid-cols-3",
+      panel: "grid-cols-3",
     },
     cards: {
       mobile: "grid-cols-1",

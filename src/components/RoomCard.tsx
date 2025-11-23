@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Home, Camera } from "lucide-react";
 import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 interface RoomCardProps {
   name: string;
@@ -14,6 +15,13 @@ interface RoomCardProps {
 export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId }: RoomCardProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const { displayMode } = useDisplayMode();
+  
+  // Tailles adaptées pour Panel et Tablet
+  const isLarge = displayMode === "panel" || displayMode === "tablet";
+  const iconSize = isLarge ? "h-16 w-16" : "h-12 w-12";
+  const titleSize = isLarge ? "text-2xl" : "text-lg";
+  const countSize = isLarge ? "text-lg" : "text-sm";
 
   const handlePhotoClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -56,7 +64,7 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
           </>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-muted/30">
-            <Home className="h-12 w-12 text-muted-foreground" />
+            <Home className={iconSize + " text-muted-foreground"} />
           </div>
         )}
         
@@ -80,8 +88,8 @@ export const RoomCard = ({ name, deviceCount, customPhoto, onPhotoChange, areaId
       </div>
       
       <div className="p-4 relative">
-        <h3 className="font-semibold text-lg mb-1">{name}</h3>
-        <p className="text-sm text-muted-foreground">
+        <h3 className={`font-semibold ${titleSize} mb-1`}>{name}</h3>
+        <p className={`${countSize} text-muted-foreground`}>
           {deviceCount} {deviceCount === 1 ? "appareil" : "appareils"}
         </p>
       </div>

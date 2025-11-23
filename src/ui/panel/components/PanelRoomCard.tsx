@@ -3,6 +3,7 @@ import { Home } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { HAArea } from "@/types/homeassistant";
 import { useHAStore } from "@/store/useHAStore";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 interface PanelRoomCardProps {
   area: HAArea;
@@ -12,6 +13,7 @@ export const PanelRoomCard = ({ area }: PanelRoomCardProps) => {
   const navigate = useNavigate();
   const entities = useHAStore((state) => state.entities);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
+  const { displayMode } = useDisplayMode();
 
   // Calculer le nombre d'appareils contrôlables dans cette pièce
   const deviceCount = entities?.filter((entity) => {
@@ -27,6 +29,12 @@ export const PanelRoomCard = ({ area }: PanelRoomCardProps) => {
       entity.entity_id.startsWith("fan.")
     );
   }).length || 0;
+  
+  // Tailles adaptées pour Panel et Tablet
+  const isLarge = displayMode === "panel" || displayMode === "tablet";
+  const iconSize = isLarge ? "h-20 w-20" : "h-16 w-16";
+  const titleSize = isLarge ? "text-2xl" : "text-xl";
+  const countSize = isLarge ? "text-lg" : "text-sm";
 
   return (
     <Card 
@@ -35,13 +43,13 @@ export const PanelRoomCard = ({ area }: PanelRoomCardProps) => {
     >
       <div className="aspect-video relative overflow-hidden">
         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5">
-          <Home className="h-16 w-16 text-muted-foreground/40" />
+          <Home className={`${iconSize} text-muted-foreground/40`} />
         </div>
       </div>
       
       <div className="p-4 relative">
-        <h3 className="font-semibold text-xl mb-1">{area.name}</h3>
-        <p className="text-sm text-muted-foreground">
+        <h3 className={`font-semibold ${titleSize} mb-1`}>{area.name}</h3>
+        <p className={`${countSize} text-muted-foreground`}>
           {deviceCount} {deviceCount === 1 ? "appareil" : "appareils"}
         </p>
       </div>
