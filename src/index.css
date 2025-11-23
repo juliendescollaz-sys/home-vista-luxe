@@ -206,9 +206,16 @@ All colors MUST be HSL.
   body {
     height: 100%;
     margin: 0;
-    overflow: hidden;
     touch-action: manipulation;
     overscroll-behavior: none;
+  }
+
+  /* Overflow hidden UNIQUEMENT pour Tablet et Panel */
+  @media (min-width: 768px) {
+    html,
+    body {
+      overflow: hidden;
+    }
   }
 
   #root {
