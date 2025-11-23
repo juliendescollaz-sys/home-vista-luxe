@@ -202,14 +202,17 @@ All colors MUST be HSL.
     --safe-left: env(safe-area-inset-left, 0px);
   }
 
-  html, body, #root {
-    height: 100%;
-  }
-
   html,
   body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
     touch-action: manipulation;
     overscroll-behavior: none;
+  }
+
+  #root {
+    height: 100%;
   }
 
   html {
@@ -264,11 +267,6 @@ All colors MUST be HSL.
     max-width: var(--text-max-width);
   }
 
-
-  html, body, #root {
-    height: 100%;
-    overflow: hidden;
-  }
 
   body {
     @apply bg-background text-foreground antialiased;
