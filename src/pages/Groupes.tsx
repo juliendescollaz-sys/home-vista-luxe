@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { getGridClasses } from "@/lib/gridLayout";
 
 const Groupes = () => {
   const { displayMode } = useDisplayMode();
@@ -49,7 +50,7 @@ const Groupes = () => {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className={getGridClasses("cards", displayMode)}>
             {groups.map((group) => (
               <GroupTile
                 key={group.id}
