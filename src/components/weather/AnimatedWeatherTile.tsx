@@ -49,7 +49,7 @@ export function AnimatedWeatherTile() {
   // Optimisation pour Panel et Tablet - LARGE avec prévisions toujours affichées
   const isCompact = displayMode === "panel" || displayMode === "tablet";
   const padding = isCompact ? "p-6" : "p-6";
-  const minHeight = isCompact ? "" : (isExpanded ? "min-h-[500px]" : "min-h-[200px]");
+  const minHeight = isCompact ? "min-h-[520px]" : (isExpanded ? "min-h-[500px]" : "min-h-[200px]");
   const backdropHeight = isCompact ? "h-[280px]" : "h-[200px]";
   const titleSize = isCompact ? "text-2xl" : "text-lg";
   const tempSize = isCompact ? "text-7xl" : "text-5xl";
@@ -215,7 +215,7 @@ export function AnimatedWeatherTile() {
           {/* Panneau étendu (prévisions) - Toujours affiché en mode compact */}
           {shouldShowForecast && (
             <div 
-              className={`${isCompact ? "mt-6" : "mt-6"} weather-expand text-slate-700 dark:text-white`}
+              className={`${isCompact ? "mt-6 h-[260px]" : "mt-6"} weather-expand text-slate-700 dark:text-white overflow-hidden`}
               onClick={(e) => e.stopPropagation()}
             >
               <ForecastPanel
