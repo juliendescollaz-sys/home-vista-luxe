@@ -19,7 +19,7 @@ const Home = () => {
   const favorites = useHAStore((state) => state.favorites);
   const isConnected = useHAStore((state) => state.isConnected);
   const { displayMode } = useDisplayMode();
-  const contentPaddingTop = displayMode === "mobile" ? "pt-[138px]" : "pt-0";
+  const contentPaddingTop = displayMode === "mobile" ? "pt-[138px]" : "pt-[26px]";
 
   // Trouver les device_id des media_players pour filtrer leurs entités associées
   const mediaPlayerDeviceIds = new Set(

@@ -3,7 +3,7 @@ import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 const Routines = () => {
   const { displayMode } = useDisplayMode();
-  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
+  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[26px]";
   const rootClassName = displayMode === "mobile" 
     ? `min-h-screen bg-background pb-24 ${ptClass}`
     : "w-full h-full flex items-center justify-center";

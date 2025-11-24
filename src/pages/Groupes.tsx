@@ -11,7 +11,7 @@ import { getGridClasses } from "@/lib/gridLayout";
 
 const Groupes = () => {
   const { displayMode } = useDisplayMode();
-  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
+  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[26px]";
   
   const [wizardOpen, setWizardOpen] = useState(false);
   const { groups, syncSharedGroupsFromHA } = useGroupStore();
