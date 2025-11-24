@@ -93,8 +93,8 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
     >
       <LocationBadge floor={floor} area={area} />
       
-      <div className="relative pt-8 p-4">
-        <div className="flex items-start gap-2">
+      <div className="p-4 pt-10">
+        <div className="mt-1 flex items-start gap-3 mb-4">
           {/* Jaquette */}
           <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted/50 backdrop-blur-sm border border-border/50">
             {albumArt ? (
@@ -121,7 +121,7 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
           </div>
 
           {/* Play/Pause et Favoris */}
-          <div className="flex items-center gap-1 flex-shrink-0 -mt-1 -mr-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <Button
               variant="ghost"
               size="icon"
@@ -141,18 +141,18 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
+              className="h-7 w-7 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
               onClick={handleFavoriteClick}
               data-control
             >
-              <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+              <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
             </Button>
           </div>
         </div>
 
         {/* Timeline interactive */}
         {duration > 0 && (
-          <div className="mt-4 space-y-1.5" data-control>
+          <div className="space-y-1.5 pt-2 border-t border-border/30" data-control>
             <Slider
               value={[position]}
               max={duration}
