@@ -33,7 +33,7 @@ import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { ViewSelector, ViewMode } from "@/components/ViewSelector";
 import { HAFloor, HAArea, HAEntity } from "@/types/homeassistant";
 import { Button } from "@/components/ui/button";
-import { FloorSection } from "@/components/rooms/FloorSection";
+import { FloorSection } from "@/components/FloorSection";
 import { FloorCard } from "@/components/FloorCard";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/imageUtils";
