@@ -10,6 +10,34 @@ import { WeatherConfigDialog } from "../WeatherConfigDialog";
 import { useHAStore } from "@/store/useHAStore";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 
+function translateCondition(condition: string): string {
+  const cond = condition.toLowerCase();
+  const translations: Record<string, string> = {
+    'clear': 'Dégagé',
+    'sunny': 'Ensoleillé',
+    'partlycloudy': 'Partiellement nuageux',
+    'cloudy': 'Nuageux',
+    'overcast': 'Couvert',
+    'fog': 'Brouillard',
+    'mist': 'Brume',
+    'haze': 'Brumeux',
+    'rainy': 'Pluvieux',
+    'rain': 'Pluie',
+    'pouring': 'Pluie battante',
+    'snowy': 'Neigeux',
+    'snow': 'Neige',
+    'thunderstorm': 'Orage',
+    'lightning': 'Éclair',
+    'windy': 'Venteux',
+  };
+  
+  for (const [key, value] of Object.entries(translations)) {
+    if (cond.includes(key)) return value;
+  }
+  
+  return condition.charAt(0).toUpperCase() + condition.slice(1);
+}
+
 function pickDominantCondition(weatherData: any): string {
   const current = (weatherData?.condition || "").toLowerCase();
 
@@ -170,9 +198,12 @@ export function AnimatedWeatherTile() {
                   {location.split(',')[0].trim()}
                 </h3>
               </div>
-              <div className="flex items-baseline gap-2">
+              <div className={`flex ${isCompact ? "items-baseline gap-3" : "items-baseline gap-2"}`}>
                 <span className={`${tempSize} font-bold text-slate-800 dark:text-white drop-shadow-xl`}>
                   {temperature !== undefined && temperature !== null ? Math.round(temperature) : "—"}°
+                </span>
+                <span className={`${isCompact ? "text-xl" : "text-lg"} font-medium text-slate-700 dark:text-white/90 drop-shadow-md`}>
+                  {translateCondition(condition)}
                 </span>
               </div>
             </div>
