@@ -36,7 +36,6 @@ import { Button } from "@/components/ui/button";
 import { FloorSection } from "@/components/FloorSection";
 import { FloorCard } from "@/components/FloorCard";
 import { toast } from "sonner";
-import { compressImage } from "@/lib/imageUtils";
 
 type RoomViewMode = ViewMode;
 
@@ -294,20 +293,20 @@ const Rooms = () => {
 
   const handlePhotoChange = async (areaId: string, file: File) => {
     try {
-      const compressedDataUrl = await compressImage(file);
-      setAreaPhoto(areaId, compressedDataUrl);
-
-      // Debug taille du localStorage
-      setTimeout(() => {
-        const stored = localStorage.getItem("ha-storage");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          console.log("📸 AreaPhotos keys:", Object.keys(parsed.state?.areaPhotos || {}));
-        }
-      }, 100);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setAreaPhoto(areaId, dataUrl);
+      };
+      reader.readAsDataURL(file);
     } catch (error) {
-      console.error("❌ Error compressing image:", error);
+      console.error("❌ Error reading image:", error);
+      toast.error("Erreur lors du chargement de l'image");
     }
+  };
+
+  const getDeviceCount = (areaId: string) => {
+    return devices.filter((device) => device.area_id === areaId && !device.disabled_by).length;
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -321,11 +320,9 @@ const Rooms = () => {
     if (!over || active.id === over.id) return;
 
     if (viewMode === "rooms") {
-      setAreaOrder((items) => {
-        const oldIndex = items.indexOf(active.id as string);
-        const newIndex = items.indexOf(over.id as string);
-        return arrayMove(items, oldIndex, newIndex);
-      });
+      const oldIndex = areaOrder.indexOf(active.id as string);
+      const newIndex = areaOrder.indexOf(over.id as string);
+      setAreaOrder(arrayMove(areaOrder, oldIndex, newIndex));
     }
 
     if (viewMode === "devices") {
@@ -375,25 +372,32 @@ const Rooms = () => {
             {/* Vue Étages */}
             {viewMode === "floors" && hasFloorplans && (
               <div className="space-y-4">
-                <div className="flex flex-wrap gap-4">
-                  {floors.map((floor) => (
-                    <FloorCard
-                      key={floor.floor_id}
-                      floor={floor}
-                      isSelected={selectedFloor === floor.floor_id}
-                      onSelect={() => setSelectedFloor(selectedFloor === floor.floor_id ? null : floor.floor_id)}
-                    />
-                  ))}
-                </div>
-
-                <FloorSection
-                  floors={floors}
-                  areas={areas}
-                  entities={entities}
-                  devices={devices}
-                  entityRegistry={entityRegistry}
-                  selectedFloor={selectedFloor}
-                />
+                {floors.map((floor) => {
+                  const floorAreas = areas.filter((a) => a.floor_id === floor.floor_id);
+                  const floorDeviceCount = floorAreas.reduce((acc, area) => acc + getDeviceCount(area.area_id), 0);
+                  
+                  return (
+                    <div key={floor.floor_id} className="space-y-4">
+                      <FloorCard
+                        floor={floor}
+                        roomCount={floorAreas.length}
+                        deviceCount={floorDeviceCount}
+                        onClick={() => setSelectedFloor(selectedFloor === floor.floor_id ? null : floor.floor_id)}
+                      />
+                      
+                      {selectedFloor === floor.floor_id && (
+                        <FloorSection
+                          floor={floor}
+                          areas={floorAreas}
+                          devices={devices}
+                          areaPhotos={areaPhotos}
+                          onPhotoChange={handlePhotoChange}
+                          displayMode={displayMode}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -415,7 +419,6 @@ const Rooms = () => {
                         deviceCount={getDeviceCount(area.area_id)}
                         customPhoto={areaPhotos[area.area_id]}
                         onPhotoChange={(file) => handlePhotoChange(area.area_id, file)}
-                        displayMode={displayMode}
                       />
                     ))}
                   </SortableContext>
@@ -429,7 +432,6 @@ const Rooms = () => {
                           deviceCount={getDeviceCount(activeArea.area_id)}
                           customPhoto={areaPhotos[activeArea.area_id]}
                           onPhotoChange={() => {}}
-                          displayMode={displayMode}
                         />
                       </div>
                     ) : null}
