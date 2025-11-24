@@ -1,107 +1,55 @@
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useHAStore } from "@/store/useHAStore";
-import { useGroupStore } from "@/store/useGroupStore";
-import { SortableDeviceCard } from "@/components/SortableDeviceCard";
-import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
-import { SortableGroupTile } from "@/components/groups/SortableGroupTile";
-import { GroupTile } from "@/components/groups/GroupTile";
+import { AnimatedWeatherTile } from "@/components/weather/AnimatedWeatherTile";
+import { DeviceCard } from "@/components/DeviceCard";
+import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { getGridClasses } from "@/lib/gridLayout";
-import { FavoritesViewSelector, FavoritesViewMode } from "@/components/FavoritesViewSelector";
-import { getEntityDomain } from "@/lib/entityUtils";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  rectSortingStrategy,
-} from "@dnd-kit/sortable";
 
 const Home = () => {
   const entities = useHAStore((state) => state.entities);
-  const areas = useHAStore((state) => state.areas);
-  const floors = useHAStore((state) => state.floors);
-  const devices = useHAStore((state) => state.devices);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const isConnected = useHAStore((state) => state.isConnected);
-  const entityOrder = useHAStore((state) => state.entityOrder);
-  const setEntityOrder = useHAStore((state) => state.setEntityOrder);
-  const groups = useGroupStore((state) => state.groups);
+  const client = useHAStore((state) => state.client);
   const { displayMode } = useDisplayMode();
   const ptClass = displayMode === "mobile" ? "pt-32" : "pt-10";
 
-  const contextId = "home";
-  
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<FavoritesViewMode>("type");
+  // Trouver les device_id des media_players
+  const mediaPlayerDeviceIds = useMemo(() => {
+    return new Set(
+      entities
+        ?.filter((entity) => entity.entity_id.startsWith("media_player."))
+        .map((entity) => {
+          const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+          return reg?.device_id;
+        })
+        .filter(Boolean) || []
+    );
+  }, [entities, entityRegistry]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 400,
-        tolerance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  // Appareils actifs
+  const activeDevices = useMemo(() => {
+    return entities?.filter(e => {
+      const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
+      const deviceId = reg?.device_id;
+      
+      if (deviceId && mediaPlayerDeviceIds.has(deviceId) && !e.entity_id.startsWith("media_player.")) {
+        return false;
+      }
 
-  // Filtrer les entités contrôlables (exclure sensors, binary_sensors, etc.)
-  const controllableEntities = entities?.filter(e => {
-    const domain = getEntityDomain(e.entity_id);
-    const controllableDomains = ['light', 'switch', 'cover', 'climate', 'fan', 'lock', 'media_player', 'water_heater'];
-    return controllableDomains.includes(domain);
-  }) || [];
-
-  // Créer un tableau unifié de tous les items (groupes + entités)
-  const allItems = useMemo(() => {
-    const groupItems = groups.map(g => ({ type: 'group' as const, id: `group-${g.id}`, data: g }));
-    const entityItems = controllableEntities.map(e => ({ type: 'entity' as const, id: e.entity_id, data: e }));
-    return [...groupItems, ...entityItems];
-  }, [groups, controllableEntities]);
-
-  // Initialiser l'ordre unifié si nécessaire
-  useEffect(() => {
-    const allIds = allItems.map(item => item.id);
-    if (allIds.length > 0 && (!entityOrder[contextId] || entityOrder[contextId].length === 0)) {
-      setEntityOrder(contextId, allIds);
-    }
-  }, [allItems.length, entityOrder, contextId, setEntityOrder]);
-
-  // Trier tous les items selon l'ordre personnalisé unifié
-  const sortedAllItems = useMemo(() => {
-    if (!entityOrder[contextId] || entityOrder[contextId].length === 0) return allItems;
-    
-    const orderMap = new Map(entityOrder[contextId].map((id, index) => [id, index]));
-    return [...allItems].sort((a, b) => {
-      const orderA = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
-      const orderB = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
-      return orderA - orderB;
-    });
-  }, [allItems, entityOrder, contextId]);
-
-  const client = useHAStore((state) => state.client);
+      if (e.entity_id.startsWith("light.") || e.entity_id.startsWith("switch.")) {
+        return e.state === "on";
+      }
+      if (e.entity_id.startsWith("media_player.")) {
+        return e.state === "playing";
+      }
+      return false;
+    }) || [];
+  }, [entities, entityRegistry, mediaPlayerDeviceIds]);
 
   const handleDeviceToggle = async (entityId: string) => {
     if (!client) {
@@ -121,336 +69,107 @@ const Home = () => {
       toast.success(isOn ? "Éteint" : "Allumé");
     } catch (error) {
       console.error("Erreur lors du contrôle:", error);
-      toast.error("Erreur lors du contrôle de l'appareil");
+      toast.error("Erreur lors du contrôle");
     }
   };
-
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      const activeId = active.id as string;
-      const overId = over.id as string;
-
-      const oldIndex = sortedAllItems.findIndex((item) => item.id === activeId);
-      const newIndex = sortedAllItems.findIndex((item) => item.id === overId);
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const newOrder = arrayMove(sortedAllItems, oldIndex, newIndex);
-        setEntityOrder(contextId, newOrder.map(item => item.id));
-      }
-    }
-
-    setActiveId(null);
-  };
-
-  const activeItem = sortedAllItems.find((item) => item.id === activeId);
-  const activeEntity = activeItem?.type === 'entity' ? activeItem.data : null;
-  const activeGroup = activeItem?.type === 'group' ? activeItem.data : null;
-
-  // Grouper les items selon le mode de vue
-  const groupedItems = useMemo(() => {
-    if (viewMode === "type") {
-      const groups: Record<string, typeof sortedAllItems> = {};
-      
-      sortedAllItems.forEach(item => {
-        if (item.type === 'group') {
-          if (!groups['Groupes']) groups['Groupes'] = [];
-          groups['Groupes'].push(item);
-        } else {
-          const domain = getEntityDomain(item.data.entity_id);
-          const typeLabels: Record<string, string> = {
-            light: "Éclairages",
-            switch: "Interrupteurs",
-            cover: "Volets",
-            climate: "Climatisation",
-            fan: "Ventilateurs",
-            lock: "Serrures",
-            media_player: "Lecteurs média",
-            water_heater: "Chauffe-eau",
-          };
-          const label = typeLabels[domain] || "Autres";
-          if (!groups[label]) groups[label] = [];
-          groups[label].push(item);
-        }
-      });
-      
-      return groups;
-    } else {
-      // Mode location
-      const groups: Record<string, typeof sortedAllItems> = {};
-      
-      sortedAllItems.forEach(item => {
-        if (item.type === 'group') {
-          if (!groups['Groupes']) groups['Groupes'] = [];
-          groups['Groupes'].push(item);
-        } else {
-          const entity = item.data;
-          const reg = entityRegistry.find(r => r.entity_id === entity.entity_id);
-          let areaId = reg?.area_id;
-
-          if (!areaId && reg?.device_id) {
-            const dev = devices.find(d => d.id === reg.device_id);
-            if (dev?.area_id) areaId = dev.area_id;
-          }
-
-          if (!areaId && (entity as any).attributes?.area_id) {
-            areaId = (entity as any).attributes.area_id as string;
-          }
-
-          const area = areaId ? areas.find(a => a.area_id === areaId) : null;
-          const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) : null;
-          
-          let label = "Sans localisation";
-          if (floor && area) {
-            label = `${floor.name} - ${area.name}`;
-          } else if (area) {
-            label = area.name;
-          }
-          
-          if (!groups[label]) groups[label] = [];
-          groups[label].push(item);
-        }
-      });
-      
-      return groups;
-    }
-  }, [sortedAllItems, viewMode, entityRegistry, devices, areas, floors]);
-
-  const rootClassName = displayMode === "mobile" 
-    ? `min-h-screen bg-background pb-24 ${ptClass}`
-    : "w-full flex flex-col items-stretch";
 
   if (!isConnected) {
     return (
-      <div className={rootClassName}>
-        <TopBar title="Accueil" />
-        <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
-          <Skeleton className="h-64 rounded-2xl" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Skeleton className="h-8 w-48 mx-auto" />
+          <Skeleton className="h-64 w-96" />
         </div>
-        <BottomNav />
       </div>
     );
   }
+
+  const rootClassName = displayMode === "mobile" 
+    ? `min-h-screen bg-background pb-24 ${ptClass}`
+    : "w-full h-full flex items-center justify-center";
+
+  const contentClassName = displayMode === "mobile"
+    ? "max-w-2xl mx-auto px-4 py-4 space-y-6"
+    : "w-full max-w-[1800px] p-6 space-y-6";
 
   return (
     <div className={rootClassName}>
       <TopBar title="Accueil" />
       
-      {displayMode === "mobile" ? (
-        <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
-          {sortedAllItems.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              Aucun appareil
-            </p>
-          ) : (
-            <>
-              <FavoritesViewSelector 
-                selectedView={viewMode} 
-                onViewChange={setViewMode} 
-              />
-              
-              <div className="space-y-8">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={sortedAllItems.map(item => item.id)}
-                  strategy={rectSortingStrategy}
-                >
-                  {Object.entries(groupedItems).map(([groupName, items]) => (
-                    <div key={groupName} className="space-y-3">
-                      <h3 className="text-lg font-semibold text-foreground px-1">
-                        {groupName}
-                      </h3>
-                      <div className={getGridClasses("devices", displayMode)}>
-                        {items.map((item) => {
-                          if (item.type === 'group') {
-                            return (
-                              <SortableGroupTile key={item.id} group={item.data} hideEditButton />
-                            );
-                          }
+      <div className={contentClassName}>
+        {displayMode === "mobile" ? (
+          // Layout mobile : météo + appareils actifs en colonne
+          <>
+            <div className="flex justify-center">
+              <AnimatedWeatherTile />
+            </div>
 
-                          const entity = item.data;
-                          const reg = entityRegistry.find(r => r.entity_id === entity.entity_id);
-                          let areaId = reg?.area_id;
-
-                          if (!areaId && reg?.device_id) {
-                            const dev = devices.find(d => d.id === reg.device_id);
-                            if (dev?.area_id) {
-                              areaId = dev.area_id;
-                            }
-                          }
-
-                          if (!areaId && (entity as any).attributes?.area_id) {
-                            areaId = (entity as any).attributes.area_id as string;
-                          }
-
-                          const area = areaId ? areas.find(a => a.area_id === areaId) || null : null;
-                          const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) || null : null;
-
-                          if (entity.entity_id.startsWith("media_player.")) {
-                            return (
-                              <SortableMediaPlayerCard
-                                key={entity.entity_id}
-                                entity={entity}
-                                floor={floor}
-                                area={area}
-                              />
-                            );
-                          }
-
-                          return (
-                            <SortableDeviceCard
-                              key={entity.entity_id}
-                              entity={entity}
-                              onToggle={handleDeviceToggle}
-                              floor={floor}
-                              area={area}
-                            />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </SortableContext>
-              
-              <DragOverlay dropAnimation={null}>
-                {activeGroup ? (
-                  <div className="opacity-90 rotate-3 scale-105">
-                    <GroupTile group={activeGroup} showBadge />
-                  </div>
-                ) : activeEntity ? (
-                  <div className="opacity-90 rotate-3 scale-105">
-                    {activeEntity.entity_id.startsWith("media_player.") ? (
-                      <SortableMediaPlayerCard entity={activeEntity} />
-                    ) : (
-                      <SortableDeviceCard
-                        entity={activeEntity}
-                        onToggle={() => {}}
+            <div className="space-y-3">
+              <h2 className="text-2xl font-bold">Appareils actifs</h2>
+              {activeDevices.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  Aucun appareil actif
+                </p>
+              ) : (
+                <div className={getGridClasses("devices", displayMode)}>
+                  {activeDevices.map((entity) => {
+                    const isMediaPlayer = entity.entity_id.startsWith("media_player.");
+                    return isMediaPlayer ? (
+                      <MediaPlayerCard
+                        key={entity.entity_id}
+                        entity={entity}
                       />
-                    )}
-                  </div>
-                ) : null}
-              </DragOverlay>
-              </DndContext>
-              </div>
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="p-4 space-y-6">
-          {sortedAllItems.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              Aucun appareil
-            </p>
-          ) : (
-            <>
-              <FavoritesViewSelector 
-                selectedView={viewMode} 
-                onViewChange={setViewMode} 
-              />
-              
-              <div className="space-y-8">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={sortedAllItems.map(item => item.id)}
-                  strategy={rectSortingStrategy}
-                >
-                  {Object.entries(groupedItems).map(([groupName, items]) => (
-                    <div key={groupName} className="space-y-3">
-                      <h3 className="text-2xl font-semibold text-foreground">
-                        {groupName}
-                      </h3>
-                      <div className={getGridClasses("devices", displayMode)}>
-                        {items.map((item) => {
-                          if (item.type === 'group') {
-                            return (
-                              <SortableGroupTile key={item.id} group={item.data} hideEditButton />
-                            );
-                          }
-
-                          const entity = item.data;
-                          const reg = entityRegistry.find(r => r.entity_id === entity.entity_id);
-                          let areaId = reg?.area_id;
-
-                          if (!areaId && reg?.device_id) {
-                            const dev = devices.find(d => d.id === reg.device_id);
-                            if (dev?.area_id) {
-                              areaId = dev.area_id;
-                            }
-                          }
-
-                          if (!areaId && (entity as any).attributes?.area_id) {
-                            areaId = (entity as any).attributes.area_id as string;
-                          }
-
-                          const area = areaId ? areas.find(a => a.area_id === areaId) || null : null;
-                          const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) || null : null;
-
-                          if (entity.entity_id.startsWith("media_player.")) {
-                            return (
-                              <SortableMediaPlayerCard
-                                key={entity.entity_id}
-                                entity={entity}
-                                floor={floor}
-                                area={area}
-                              />
-                            );
-                          }
-
-                          return (
-                            <SortableDeviceCard
-                              key={entity.entity_id}
-                              entity={entity}
-                              onToggle={handleDeviceToggle}
-                              floor={floor}
-                              area={area}
-                            />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </SortableContext>
-              
-              <DragOverlay dropAnimation={null}>
-                {activeGroup ? (
-                  <div className="opacity-90 rotate-3 scale-105">
-                    <GroupTile group={activeGroup} showBadge />
-                  </div>
-                ) : activeEntity ? (
-                  <div className="opacity-90 rotate-3 scale-105">
-                    {activeEntity.entity_id.startsWith("media_player.") ? (
-                      <SortableMediaPlayerCard entity={activeEntity} />
                     ) : (
-                      <SortableDeviceCard
-                        entity={activeEntity}
-                        onToggle={() => {}}
+                      <DeviceCard
+                        key={entity.entity_id}
+                        entity={entity}
+                        onToggle={handleDeviceToggle}
                       />
-                    )}
-                  </div>
-                ) : null}
-              </DragOverlay>
-              </DndContext>
-              </div>
-            </>
-          )}
-        </div>
-      )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          // Layout tablet/panel : grille avec météo à gauche, appareils actifs à droite
+          <div className="grid grid-cols-4 gap-6 items-start">
+            {/* Météo - 1 colonne */}
+            <div className="col-span-1 flex justify-center self-start">
+              <AnimatedWeatherTile />
+            </div>
 
+            {/* Appareils actifs - 3 colonnes */}
+            <div className="col-span-3 space-y-3">
+              <h2 className="text-2xl font-bold">Appareils actifs</h2>
+              {activeDevices.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  Aucun appareil actif
+                </p>
+              ) : (
+                <div className={getGridClasses("devices", displayMode)}>
+                  {activeDevices.map((entity) => {
+                    const isMediaPlayer = entity.entity_id.startsWith("media_player.");
+                    return isMediaPlayer ? (
+                      <MediaPlayerCard
+                        key={entity.entity_id}
+                        entity={entity}
+                      />
+                    ) : (
+                      <DeviceCard
+                        key={entity.entity_id}
+                        entity={entity}
+                        onToggle={handleDeviceToggle}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      
       <BottomNav />
     </div>
   );
