@@ -3,7 +3,22 @@ import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Lightbulb, Blinds, Power, Fan, Music, ChevronUp, ChevronDown, Pencil, Play, Pause, Star, Volume2, Cloud, Lock } from "lucide-react";
+import {
+  Lightbulb,
+  Blinds,
+  Power,
+  Fan,
+  Music,
+  ChevronUp,
+  ChevronDown,
+  Pencil,
+  Play,
+  Pause,
+  Star,
+  Volume2,
+  Cloud,
+  Lock,
+} from "lucide-react";
 import type { NeoliaGroup, HaGroupDomain } from "@/types/groups";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
@@ -45,28 +60,17 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
   const groupEntity = group.haEntityId ? entities.find((e) => e.entity_id === group.haEntityId) : undefined;
   const isActive = groupEntity?.state === "on" || groupEntity?.state === "open";
   const Icon = DOMAIN_ICONS[group.domain];
-  
-  // Alignement visuel avec LightTile (référence)
-  const isLarge = displayMode === "panel" || displayMode === "tablet";
-  const titleSize = isLarge ? "text-2xl" : "text-base";
-  const countSize = isLarge ? "text-lg" : "text-sm";
 
   // Pour les media_player: calculer état global et volume moyen
   const mediaPlayerState = useMemo(() => {
     if (group.domain !== "media_player") return null;
 
-    const members = group.entityIds
-      .map((id) => entities.find((e) => e.entity_id === id))
-      .filter(Boolean);
+    const members = group.entityIds.map((id) => entities.find((e) => e.entity_id === id)).filter(Boolean);
 
     const isPlaying = members.some((m) => m?.state === "playing");
-    const volumes = members
-      .map((m) => m?.attributes?.volume_level)
-      .filter((v): v is number => typeof v === "number");
-    
-    const avgVolume = volumes.length > 0 
-      ? volumes.reduce((a, b) => a + b, 0) / volumes.length 
-      : 0.5;
+    const volumes = members.map((m) => m?.attributes?.volume_level).filter((v): v is number => typeof v === "number");
+
+    const avgVolume = volumes.length > 0 ? volumes.reduce((a, b) => a + b, 0) / volumes.length : 0.5;
 
     return { isPlaying, avgVolume, members };
   }, [group.domain, group.entityIds, entities]);
@@ -143,15 +147,17 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
   };
 
   return (
-    <Card 
+    <Card
       ref={sortableProps?.setNodeRef}
       style={sortableProps?.style}
       {...sortableProps?.attributes}
       {...sortableProps?.listeners}
-      className={`group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50 ${sortableProps ? 'cursor-grab active:cursor-grabbing touch-none' : ''}`}
+      className={`group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50 ${
+        sortableProps ? "cursor-grab active:cursor-grabbing touch-none" : ""
+      }`}
     >
       {showBadge && <GroupBadge />}
-      
+
       <div className="p-4 pt-10">
         {/* Header - aligné sur LightTile */}
         <div className="flex items-start gap-3 mb-4">
@@ -167,25 +173,22 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
           {/* Info */}
           <div className="flex-1 min-w-0 pt-0.5">
             <div className="flex items-center gap-2">
-              <h3 className={`font-semibold ${titleSize} truncate mb-0.5`}>{group.name}</h3>
+              <h3 className="font-semibold text-base truncate mb-0.5">{group.name}</h3>
               {group.isShared ? (
                 <Cloud className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" />
               ) : (
                 <Lock className="h-3.5 w-3.5 text-muted-foreground/70 flex-shrink-0" />
               )}
             </div>
-            <p className={`${countSize} text-muted-foreground`}>
-              {group.entityIds.length} appareil{group.entityIds.length > 1 ? "s" : ""}
+            <p className="text-sm text-muted-foreground">
+              {group.entityIds.length} appareil
+              {group.entityIds.length > 1 ? "s" : ""}
             </p>
           </div>
 
           {/* Switch pour light/switch/fan - aligné sur LightTile */}
           {group.domain !== "cover" && group.domain !== "media_player" && (
-            <Switch
-              checked={isActive}
-              onCheckedChange={handleToggle}
-              className="scale-125"
-            />
+            <Switch checked={isActive} onCheckedChange={handleToggle} className="scale-125" />
           )}
 
           {/* Favorite & Edit buttons pour cover/media_player */}
@@ -198,7 +201,7 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
                 onClick={handleFavoriteClick}
                 onPointerDown={(e) => e.stopPropagation()}
               >
-                <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+                <Star className={`h-4 w-4 ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground"}`} />
               </Button>
               {!hideEditButton && (
                 <Button
@@ -251,11 +254,7 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
                     onClick={handlePlayPause}
                     onPointerDown={(e) => e.stopPropagation()}
                   >
-                    {mediaPlayerState?.isPlaying ? (
-                      <Pause className="h-5 w-5" />
-                    ) : (
-                      <Play className="h-5 w-5" />
-                    )}
+                    {mediaPlayerState?.isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                   </Button>
                   <div className="flex-1 flex items-center gap-2" onPointerDown={(e) => e.stopPropagation()}>
                     <Volume2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -275,7 +274,7 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
                 </div>
               </div>
             )}
-            
+
             {/* Favorite & Edit en bas pour cover/media_player en mode mobile */}
             {displayMode === "mobile" && (
               <div className="flex items-center justify-end gap-1 pt-2">
@@ -286,7 +285,7 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
                   onClick={handleFavoriteClick}
                   onPointerDown={(e) => e.stopPropagation()}
                 >
-                  <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+                  <Star className={`h-4 w-4 ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground"}`} />
                 </Button>
                 {!hideEditButton && (
                   <Button
@@ -303,7 +302,7 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
             )}
           </div>
         )}
-        
+
         {/* Favorite & Edit en bas pour light/switch/fan en mode mobile */}
         {displayMode === "mobile" && group.domain !== "cover" && group.domain !== "media_player" && (
           <div className="flex items-center justify-end gap-1 pt-2 mt-2 border-t border-border/30">
@@ -314,7 +313,7 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
               onClick={handleFavoriteClick}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+              <Star className={`h-4 w-4 ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground"}`} />
             </Button>
             {!hideEditButton && (
               <Button
@@ -331,11 +330,7 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
         )}
       </div>
 
-      <GroupEditDialog 
-        group={group} 
-        open={editDialogOpen} 
-        onOpenChange={setEditDialogOpen} 
-      />
+      <GroupEditDialog group={group} open={editDialogOpen} onOpenChange={setEditDialogOpen} />
     </Card>
   );
 }
