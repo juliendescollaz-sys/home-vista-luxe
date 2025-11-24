@@ -1,9 +1,6 @@
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useHAStore } from "@/store/useHAStore";
-import { useHomeProjectStore } from "@/store/useHomeProjectStore";
-import { WelcomeScreen } from "@/components/home-setup/WelcomeScreen";
-import { HomeSetupWizard } from "@/components/home-setup/HomeSetupWizard";
 import { Home, ArrowLeft } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -39,7 +36,6 @@ import { toast } from "sonner";
 import { getGridClasses } from "@/lib/gridLayout";
 
 const Rooms = () => {
-  const { project, isSetupComplete, setWizardStep } = useHomeProjectStore();
   const areas = useHAStore((state) => state.areas);
   const floors = useHAStore((state) => state.floors);
   const devices = useHAStore((state) => state.devices);
@@ -60,9 +56,6 @@ const Rooms = () => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [deviceOrder, setDeviceOrder] = useState<string[]>([]);
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
-
-  // Vérifier si le setup est nécessaire
-  const needsSetup = !project || !isSetupComplete;
 
   // Sauvegarder la vue dans sessionStorage
   useEffect(() => {
@@ -401,23 +394,6 @@ const Rooms = () => {
   const rootClassName = displayMode === "mobile" 
     ? `min-h-screen bg-background pb-24 ${ptClass}`
     : "w-full h-full flex items-center justify-center";
-
-  // Afficher l'écran de bienvenue ou le wizard si setup non terminé
-  if (needsSetup) {
-    return (
-      <div className={rootClassName}>
-        <TopBar title="Maison" />
-        
-        {!project ? (
-          <WelcomeScreen />
-        ) : (
-          <HomeSetupWizard />
-        )}
-        
-        <BottomNav />
-      </div>
-    );
-  }
 
   return (
     <div className={rootClassName}>
