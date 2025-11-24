@@ -31,7 +31,7 @@ export function ValveTile({ entity, onControl }: ValveTileProps) {
   return (
     <Card className="glass-card elevated-subtle elevated-active border-border/50 overflow-hidden">
       <div className="p-4">
-        <div className="flex items-start gap-3 mb-4">
+        <div className="mt-1 flex items-start gap-3 mb-4">
           <div className={`w-14 h-14 rounded-lg flex-shrink-0 transition-all flex items-center justify-center ${
             isOpen ? 'bg-primary/20 text-primary' : 'bg-muted/50 text-muted-foreground'
           }`}>
