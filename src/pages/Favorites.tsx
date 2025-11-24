@@ -349,7 +349,7 @@ const Favorites = () => {
           )}
         </div>
       ) : (
-        <div className="p-4 space-y-6">
+        <div className="px-4 pt-[24px] space-y-6">
           {sortedAllItems.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
               Aucun favori
