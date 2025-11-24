@@ -19,7 +19,7 @@ const Home = () => {
   const favorites = useHAStore((state) => state.favorites);
   const isConnected = useHAStore((state) => state.isConnected);
   const { displayMode } = useDisplayMode();
-  const contentPaddingTop = displayMode === "mobile" ? "pt-[138px]" : "pt-[26px]";
+  const contentPaddingTop = displayMode === "mobile" ? "pt-[138px]" : "pt-[30px]";
 
   // Trouver les device_id des media_players pour filtrer leurs entités associées
   const mediaPlayerDeviceIds = new Set(
@@ -127,7 +127,7 @@ const Home = () => {
     return (
       <div className={rootClassName}>
         <TopBar title="Accueil" />
-        <div className={`w-full px-[26px] pb-[26px] ${contentPaddingTop} space-y-4`}>
+        <div className={`w-full ${displayMode === "mobile" ? "px-[26px]" : "px-4"} pb-[26px] ${contentPaddingTop} space-y-4`}>
           <Skeleton className="h-56 w-full rounded-3xl" />
           <div className="space-y-3">
             <Skeleton className="h-6 w-40" />
@@ -144,7 +144,7 @@ const Home = () => {
     <div className={rootClassName}>
       <TopBar title="Accueil" />
 
-      <div className={`w-full px-[26px] pb-[26px] ${contentPaddingTop} space-y-6`}>
+      <div className={`w-full ${displayMode === "mobile" ? "px-[26px]" : "px-4"} pb-[26px] ${contentPaddingTop} space-y-6`}>
         {/* Section météo */}
         <div className="animate-fade-in">
           <AnimatedWeatherTile />
