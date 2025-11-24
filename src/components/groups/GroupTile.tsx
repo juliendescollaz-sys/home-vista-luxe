@@ -46,10 +46,8 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
   const isActive = groupEntity?.state === "on" || groupEntity?.state === "open";
   const Icon = DOMAIN_ICONS[group.domain];
   
-  // Tailles adaptées pour Panel et Tablet
+  // Alignement visuel avec LightTile (référence)
   const isLarge = displayMode === "panel" || displayMode === "tablet";
-  const iconSize = isLarge ? "h-9 w-9" : "h-8 w-8";
-  const iconContainerSize = isLarge ? "w-16 h-16" : "w-14 h-14";
   const titleSize = isLarge ? "text-2xl" : "text-base";
   const countSize = isLarge ? "text-lg" : "text-sm";
 
@@ -155,20 +153,21 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
       {showBadge && <GroupBadge />}
       
       <div className="p-4 pt-10">
-        <div className="flex items-start gap-2">
+        {/* Header - aligné sur LightTile */}
+        <div className="flex items-start gap-3 mb-4">
           {/* Icon */}
           <div
-            className={`${iconContainerSize} rounded-lg flex-shrink-0 transition-colors flex items-center justify-center ${
+            className={`w-14 h-14 rounded-lg flex-shrink-0 transition-all flex items-center justify-center ${
               isActive ? "bg-primary/20 text-primary" : "bg-muted/50 text-muted-foreground"
             }`}
           >
-            <Icon className={iconSize} />
+            <Icon className="h-8 w-8" />
           </div>
 
           {/* Info */}
           <div className="flex-1 min-w-0 pt-0.5">
-            <div className="flex items-center gap-2 mb-0.5">
-              <h3 className={`font-semibold ${titleSize} truncate`}>{group.name}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className={`font-semibold ${titleSize} truncate mb-0.5`}>{group.name}</h3>
               {group.isShared ? (
                 <Cloud className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" />
               ) : (
@@ -180,22 +179,148 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
             </p>
           </div>
 
-          {/* Favorite & Edit buttons */}
-          <div className="flex items-center gap-1 flex-shrink-0 -mt-1 -mr-1">
+          {/* Switch pour light/switch/fan - aligné sur LightTile */}
+          {group.domain !== "cover" && group.domain !== "media_player" && (
+            <Switch
+              checked={isActive}
+              onCheckedChange={handleToggle}
+              className="scale-125"
+            />
+          )}
+
+          {/* Favorite & Edit buttons pour cover/media_player */}
+          {(group.domain === "cover" || group.domain === "media_player") && (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleFavoriteClick}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+              </Button>
+              {!hideEditButton && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                  onClick={handleEditClick}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Controls supplémentaires pour cover et media_player */}
+        {(group.domain === "cover" || group.domain === "media_player") && (
+          <div className="space-y-3 pt-2 border-t border-border/30">
+            {group.domain === "cover" ? (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 flex-1"
+                  onClick={handleOpen}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <ChevronUp className="h-4 w-4" />
+                  Ouvrir
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 flex-1"
+                  onClick={handleClose}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                  Fermer
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 rounded-full flex-shrink-0"
+                    onClick={handlePlayPause}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
+                    {mediaPlayerState?.isPlaying ? (
+                      <Pause className="h-5 w-5" />
+                    ) : (
+                      <Play className="h-5 w-5" />
+                    )}
+                  </Button>
+                  <div className="flex-1 flex items-center gap-2" onPointerDown={(e) => e.stopPropagation()}>
+                    <Volume2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <Slider
+                      value={[localVolume ?? mediaPlayerState?.avgVolume ?? 0.5]}
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      onValueChange={handleVolumeChange}
+                      onValueCommit={handleVolumeCommit}
+                      className="flex-1"
+                    />
+                    <span className="text-sm text-muted-foreground font-medium w-10 text-right flex-shrink-0">
+                      {volumePercentage}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Favorite & Edit en bas pour cover/media_player en mode mobile */}
+            {displayMode === "mobile" && (
+              <div className="flex items-center justify-end gap-1 pt-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={handleFavoriteClick}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+                </Button>
+                {!hideEditButton && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-primary"
+                    onClick={handleEditClick}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Favorite & Edit en bas pour light/switch/fan en mode mobile */}
+        {displayMode === "mobile" && group.domain !== "cover" && group.domain !== "media_player" && (
+          <div className="flex items-center justify-end gap-1 pt-2 mt-2 border-t border-border/30">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
+              className="h-8 w-8"
               onClick={handleFavoriteClick}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+              <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
             </Button>
             {!hideEditButton && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-primary active:bg-primary/10"
+                className="h-8 w-8 text-muted-foreground hover:text-primary"
                 onClick={handleEditClick}
                 onPointerDown={(e) => e.stopPropagation()}
               >
@@ -203,72 +328,7 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
               </Button>
             )}
           </div>
-        </div>
-
-        {/* Controls */}
-        <div className="mt-2 flex items-center justify-end gap-2">
-          {group.domain === "cover" ? (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 flex-1"
-                onClick={handleOpen}
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                <ChevronUp className="h-4 w-4" />
-                Ouvrir
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 flex-1"
-                onClick={handleClose}
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                <ChevronDown className="h-4 w-4" />
-                Fermer
-              </Button>
-            </>
-          ) : group.domain === "media_player" ? (
-            <>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 rounded-full flex-shrink-0"
-                onClick={handlePlayPause}
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                {mediaPlayerState?.isPlaying ? (
-                  <Pause className="h-5 w-5" />
-                ) : (
-                  <Play className="h-5 w-5" />
-                )}
-              </Button>
-              <div className="flex-1 flex items-center gap-2" onPointerDown={(e) => e.stopPropagation()}>
-                <Volume2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <Slider
-                  value={[localVolume ?? mediaPlayerState?.avgVolume ?? 0.5]}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  onValueChange={handleVolumeChange}
-                  onValueCommit={handleVolumeCommit}
-                  className="flex-1"
-                />
-                <span className="text-sm text-muted-foreground font-medium w-10 text-right flex-shrink-0">
-                  {volumePercentage}%
-                </span>
-              </div>
-            </>
-          ) : (
-            <Switch
-              checked={isActive}
-              onCheckedChange={handleToggle}
-              className="data-[state=checked]:bg-primary scale-125"
-            />
-          )}
-        </div>
+        )}
       </div>
 
       <GroupEditDialog 
