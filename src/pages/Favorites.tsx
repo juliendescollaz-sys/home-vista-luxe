@@ -47,7 +47,7 @@ const Favorites = () => {
   const groups = useGroupStore((state) => state.groups);
   const groupFavorites = useGroupStore((state) => state.groupFavorites);
   const { displayMode } = useDisplayMode();
-  const ptClass = displayMode === "mobile" ? "pt-32" : "pt-[26px]";
+  const ptClass = displayMode === "mobile" ? "pt-32" : "pt-[24px]";
 
   const contextId = "favorites";
   
