@@ -50,7 +50,7 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
   const isLarge = displayMode === "panel" || displayMode === "tablet";
   const iconSize = isLarge ? "h-9 w-9" : "h-8 w-8";
   const iconContainerSize = isLarge ? "w-16 h-16" : "w-14 h-14";
-  const titleSize = isLarge ? "text-2xl" : "text-lg";
+  const titleSize = isLarge ? "text-2xl" : "text-base";
   const countSize = isLarge ? "text-lg" : "text-sm";
 
   // Pour les media_player: calculer état global et volume moyen
@@ -154,8 +154,8 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
     >
       {showBadge && <GroupBadge />}
       
-      <div className={`relative ${showBadge ? 'pt-8' : ''} p-4`}>
-        <div className="flex items-start gap-3">
+      <div className="p-4 pt-10">
+        <div className="flex items-start gap-2">
           {/* Icon */}
           <div
             className={`${iconContainerSize} rounded-lg flex-shrink-0 transition-colors flex items-center justify-center ${
@@ -206,7 +206,7 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
         </div>
 
         {/* Controls */}
-        <div className="mt-3 flex items-center justify-end gap-2">
+        <div className="mt-2 flex items-center justify-end gap-2">
           {group.domain === "cover" ? (
             <>
               <Button
