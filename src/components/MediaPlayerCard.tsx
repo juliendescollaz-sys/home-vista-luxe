@@ -91,9 +91,7 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
       className="overflow-hidden cursor-pointer glass-card elevated-subtle elevated-active border-border/50 relative"
       onClick={handleCardClick}
     >
-      <LocationBadge floor={floor} area={area} />
-      
-      <div className="p-4 pt-10">
+      <div className="p-4 pt-[68px]">
         <div className="mt-1 flex items-start gap-3 mb-4">
           {/* Jaquette */}
           <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted/50 backdrop-blur-sm border border-border/50">
