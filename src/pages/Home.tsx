@@ -29,59 +29,84 @@ const Home = () => {
         const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
         return reg?.device_id;
       })
-      .filter(Boolean) || []
+      .filter(Boolean) || [],
   );
 
   // Appareils actifs uniquement (lumières, switches actifs + media_player en lecture)
-  const activeDevices = entities?.filter(e => {
-    const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
-    const deviceId = reg?.device_id;
-    
-    if (deviceId && mediaPlayerDeviceIds.has(deviceId) && !e.entity_id.startsWith("media_player.")) {
-      return false;
-    }
+  const activeDevices =
+    entities?.filter((e) => {
+      const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
+      const deviceId = reg?.device_id;
 
-    if (e.entity_id.startsWith("light.") || e.entity_id.startsWith("switch.")) {
-      return e.state === "on";
-    }
-    if (e.entity_id.startsWith("media_player.")) {
-      return e.state === "playing";
-    }
-    return false;
-  }) || [];
+      const domain = e.entity_id.split(".")[0];
+
+      if (!["light", "switch", "media_player", "cover", "climate", "fan"].includes(domain)) {
+        return false;
+      }
+
+      // Exclure les entités "techniques" liées aux media_players (groupes, volumes, etc.)
+      if (deviceId && mediaPlayerDeviceIds.has(deviceId)) {
+        // On garde seulement l'entité principale media_player.*
+        if (!e.entity_id.startsWith("media_player.")) {
+          return false;
+        }
+      }
+
+      // logiques d'état "actif"
+      if (domain === "light" || domain === "switch" || domain === "fan") {
+        return e.state === "on";
+      }
+      if (domain === "cover") {
+        return e.state !== "closed";
+      }
+      if (domain === "climate") {
+        return e.state !== "off";
+      }
+      if (domain === "media_player") {
+        return e.state === "playing";
+      }
+
+      return false;
+    }) || [];
 
   // Grouper les appareils actifs par pièce/étage
   const groupedDevices = useMemo(() => {
-    const groups: Record<string, { area: typeof areas[0] | null; floor: typeof floors[0] | null; devices: typeof activeDevices }> = {};
-    
-    activeDevices.forEach(device => {
-      const reg = entityRegistry.find(r => r.entity_id === device.entity_id);
+    const groups: Record<
+      string,
+      { area: (typeof areas)[0] | null; floor: (typeof floors)[0] | null; devices: typeof activeDevices }
+    > = {};
+
+    activeDevices.forEach((device) => {
+      const reg = entityRegistry.find((r) => r.entity_id === device.entity_id);
       let areaId = reg?.area_id;
 
       // Si pas d'area_id direct, récupérer l'area via le device
       if (!areaId && reg?.device_id) {
-        const dev = devices.find(d => d.id === reg.device_id);
+        const dev = devices.find((d) => d.id === reg.device_id);
         if (dev?.area_id) {
           areaId = dev.area_id;
         }
       }
-      
+
       // Si toujours rien, tenter les attributs de l'entité
       if (!areaId && (device as any).attributes?.area_id) {
         areaId = (device as any).attributes.area_id;
       }
-      
+
       const groupKey = areaId || "no_area";
-      
+
       if (!groups[groupKey]) {
-        const area = areaId ? areas.find(a => a.area_id === areaId) || null : null;
-        const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) || null : null;
+        const area = areaId ? areas.find((a) => a.area_id === areaId) || null : null;
+
+        // Trouver l'étage associé à cette area
+        const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) || null : null;
+
         groups[groupKey] = { area, floor, devices: [] };
       }
-      
+
       groups[groupKey].devices.push(device);
     });
-    
+
     return Object.entries(groups).sort(([, a], [, b]) => {
       const floorA = a.floor?.level ?? 999;
       const floorB = b.floor?.level ?? 999;
@@ -90,38 +115,25 @@ const Home = () => {
     });
   }, [activeDevices, areas, floors, devices, entityRegistry]);
 
-  const handleDeviceToggle = async (entityId: string) => {
-    if (!client) {
-      toast.error("Client non connecté");
-      return;
+  useEffect(() => {
+    if (!isConnected) {
+      toast.error("Connexion à Home Assistant perdue");
     }
+  }, [isConnected]);
 
-    const entity = entities?.find((e) => e.entity_id === entityId);
-    if (!entity) return;
+  const rootClassName = displayMode === "mobile" ? "min-h-screen bg-background pb-20" : "min-h-screen bg-background";
 
-    const domain = entityId.split(".")[0];
-    const isOn = entity.state === "on";
-    const service = isOn ? "turn_off" : "turn_on";
-
-    try {
-      await client.callService(domain, service, {}, { entity_id: entityId });
-      toast.success(isOn ? "Éteint" : "Allumé");
-    } catch (error) {
-      console.error("Erreur lors du contrôle:", error);
-      toast.error("Erreur lors du contrôle de l'appareil");
-    }
-  };
-
-  const rootClassName = displayMode === "mobile" 
-    ? `min-h-screen bg-background pb-24 ${ptClass}`
-    : "w-full flex flex-col items-stretch";
-
-  if (!isConnected) {
+  if (!client || !entities || entities.length === 0) {
     return (
       <div className={rootClassName}>
-        <TopBar />
-        <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
-          <Skeleton className="h-64 rounded-2xl" />
+        <TopBar title="Accueil" />
+        <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+          <Skeleton className="h-56 w-full rounded-3xl" />
+          <div className="space-y-3">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-20 w-full rounded-2xl" />
+            <Skeleton className="h-20 w-full rounded-2xl" />
+          </div>
         </div>
         <BottomNav />
       </div>
@@ -131,77 +143,28 @@ const Home = () => {
   return (
     <div className={rootClassName}>
       <TopBar title="Accueil" />
-      
-      {displayMode === "mobile" ? (
-        <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
-          {/* Version Mobile - Layout vertical */}
-          <div className="animate-fade-in">
-            <AnimatedWeatherTile />
-          </div>
 
-          <div className="space-y-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            <h2 className="text-xl font-semibold">Appareils actifs</h2>
-            
-            {groupedDevices.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                Aucun appareil actif
-              </p>
-            ) : (
-              groupedDevices.flatMap(([areaId, { area, floor, devices }]) =>
-                devices.map((entity) => (
-                  <UniversalEntityTileWrapper
-                    key={entity.entity_id}
-                    entity={entity}
-                    floor={floor}
-                    area={area}
-                  />
-                ))
-              )
-            )}
-          </div>
+      <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
+        {/* Section météo */}
+        <div className="animate-fade-in">
+          <AnimatedWeatherTile />
         </div>
-      ) : (
-        <div className="p-4 space-y-6">
-          {/* Version Panel/Tablet */}
-          {/* Tuile météo - 3 colonnes complètes */}
-          <div className="animate-fade-in">
-            <AnimatedWeatherTile />
-          </div>
 
-          {/* Appareils actifs - groupés par localisation */}
-          <div className="space-y-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            <h2 className="text-2xl font-semibold">Appareils actifs</h2>
-            
-            {groupedDevices.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                Aucun appareil actif
-              </p>
-            ) : (
-              groupedDevices.map(([areaId, { area, floor, devices }]) => (
-                <div key={areaId} className="space-y-3">
-                  {/* Titre de la section localisation */}
-                  <h3 className="text-lg font-medium text-muted-foreground">
-                    {floor?.name && `${floor.name} • `}
-                    {area?.name || "Sans pièce"}
-                  </h3>
-                  
-                  {/* Grille 3 colonnes pour les appareils de cette localisation */}
-                  <div className="grid grid-cols-3 gap-4">
-                    {devices.map((entity) => (
-                      <UniversalEntityTileWrapper
-                        key={entity.entity_id}
-                        entity={entity}
-                        floor={floor}
-                        area={area}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+        {/* Appareils actifs */}
+        <div className="space-y-3 animate-fade-in" style={{ animationDelay: "0.1s" }}>
+          <h2 className="text-xl font-semibold">Appareils actifs</h2>
+
+          {groupedDevices.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">Aucun appareil actif</p>
+          ) : (
+            groupedDevices.flatMap(([areaId, { area, floor, devices }]) =>
+              devices.map((entity) => (
+                <UniversalEntityTileWrapper key={entity.entity_id} entity={entity} floor={floor} area={area} />
+              )),
+            )
+          )}
         </div>
-      )}
+      </div>
 
       <BottomNav />
     </div>
