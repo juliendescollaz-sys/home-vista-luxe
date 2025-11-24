@@ -5,7 +5,7 @@ import { useDisplayMode } from "@/hooks/useDisplayMode";
 const Rooms = () => {
   const { displayMode } = useDisplayMode();
   const rootClassName = displayMode === "mobile" ? "min-h-screen bg-background pb-20" : "min-h-screen bg-background";
-  const contentPaddingTop = displayMode === "mobile" ? "pt-[138px]" : "pt-0";
+  const contentPaddingTop = displayMode === "mobile" ? "pt-[138px]" : "pt-[26px]";
 
   return (
     <div className={rootClassName}>

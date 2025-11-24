@@ -14,7 +14,7 @@ import { NeoliaCanvasWrapper } from "@/components/NeoliaCanvasWrapper";
 const FloorPlanEditor = () => {
   const navigate = useNavigate();
   const { displayMode } = useDisplayMode();
-  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
+  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[26px]";
 
   const { project, updateProject, updateRoom, removeRoom, addRoom } = useHomeProjectStore();
   const [activeLevel, setActiveLevel] = useState(project?.levels[0]?.id || "");
