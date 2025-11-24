@@ -11,7 +11,7 @@ import { getGridClasses } from "@/lib/gridLayout";
 
 const Groupes = () => {
   const { displayMode } = useDisplayMode();
-  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[26px]";
+  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[24px]";
   
   const [wizardOpen, setWizardOpen] = useState(false);
   const { groups, syncSharedGroupsFromHA } = useGroupStore();
@@ -30,7 +30,7 @@ const Groupes = () => {
     <div className={rootClassName}>
       <TopBar title="Groupes" />
       
-      <div className="max-w-screen-xl mx-auto px-4 py-4">
+      <div className="max-w-screen-xl mx-auto px-4 pt-[24px] pb-4">
         <div className="flex items-center justify-between mb-6">
           <p className="text-muted-foreground">
             Créez des groupes pour contrôler plusieurs appareils simultanément
