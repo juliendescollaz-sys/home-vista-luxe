@@ -155,8 +155,8 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
       {showBadge && <GroupBadge />}
 
       <div className="p-4 pt-10">
-        {/* Header aligné sur LightTile */}
-        <div className="flex items-start gap-3 mb-4">
+        {/* Header aligné sur LightTile, légèrement abaissé */}
+        <div className="mt-1 flex items-start gap-3 mb-4">
           {/* Icône principale */}
           <div
             className={`w-14 h-14 rounded-lg flex-shrink-0 transition-all flex items-center justify-center ${
@@ -274,7 +274,7 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
           </div>
         )}
 
-        {/* Bloc édition mobile (si besoin) */}
+        {/* Bloc édition mobile (pour cover/media_player) */}
         {displayMode === "mobile" &&
           (group.domain === "cover" || group.domain === "media_player") &&
           !hideEditButton && (
