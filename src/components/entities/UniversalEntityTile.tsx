@@ -1,4 +1,4 @@
-import { HAEntity } from "@/types/homeassistant";
+import { HAEntity, HAFloor, HAArea } from "@/types/homeassistant";
 import { getEntityDomain, getBestWidgetForEntity } from "@/lib/entityUtils";
 import { LightTile } from "./LightTile";
 import { CoverTile } from "./CoverTile";
@@ -16,13 +16,15 @@ import { toast } from "sonner";
 
 interface UniversalEntityTileProps {
   entity: HAEntity;
+  floor?: HAFloor | null;
+  area?: HAArea | null;
 }
 
 /**
  * Composant universel qui détecte automatiquement le meilleur widget
  * à utiliser pour une entité donnée
  */
-export function UniversalEntityTile({ entity }: UniversalEntityTileProps) {
+export function UniversalEntityTile({ entity, floor, area }: UniversalEntityTileProps) {
   const client = useHAStore((state) => state.client);
   const domain = getEntityDomain(entity.entity_id);
   const widgetType = getBestWidgetForEntity(entity);
@@ -106,15 +108,15 @@ export function UniversalEntityTile({ entity }: UniversalEntityTileProps) {
           return <ValveTile entity={entity} onControl={handleControl} />;
           
         case "media_player":
-          return <SortableMediaPlayerCard entity={entity} />;
+          return <SortableMediaPlayerCard entity={entity} floor={floor} area={area} />;
           
         default:
           // Fallback vers le DeviceCard existant pour les autres domaines
-          return <SortableDeviceCard entity={entity} onToggle={handleToggle} />;
+          return <SortableDeviceCard entity={entity} onToggle={handleToggle} floor={floor} area={area} />;
       }
       
     default:
       // Fallback pour tous les autres cas
-      return <SortableDeviceCard entity={entity} onToggle={handleToggle} />;
+      return <SortableDeviceCard entity={entity} onToggle={handleToggle} floor={floor} area={area} />;
   }
 }

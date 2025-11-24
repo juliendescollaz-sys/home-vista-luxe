@@ -28,7 +28,6 @@ export const SortableGroupTile = ({ group, hideEditButton }: SortableGroupTilePr
   return (
     <GroupTile 
       group={group} 
-      showBadge 
       hideEditButton={hideEditButton}
       sortableProps={{ attributes, listeners, setNodeRef, style }}
     />

@@ -328,7 +328,7 @@ const Favorites = () => {
               <DragOverlay dropAnimation={null}>
                 {activeGroup ? (
                   <div className="opacity-90 rotate-3 scale-105">
-                    <GroupTile group={activeGroup} showBadge />
+                    <GroupTile group={activeGroup} />
                   </div>
                 ) : activeEntity ? (
                   <div className="opacity-90 rotate-3 scale-105">
@@ -432,7 +432,7 @@ const Favorites = () => {
               <DragOverlay dropAnimation={null}>
                 {activeGroup ? (
                   <div className="opacity-90 rotate-3 scale-105">
-                    <GroupTile group={activeGroup} showBadge />
+                    <GroupTile group={activeGroup} />
                   </div>
                 ) : activeEntity ? (
                   <div className="opacity-90 rotate-3 scale-105">

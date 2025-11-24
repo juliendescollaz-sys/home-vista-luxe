@@ -71,8 +71,8 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
     >
       <LocationBadge floor={floor} area={area} />
       
-      <div className="relative pt-8 p-4">
-        <div className="flex items-start gap-2">
+      <div className="p-4 pt-10">
+        <div className="mt-1 flex items-start gap-3 mb-4">
           <div className={`w-14 h-14 rounded-lg flex-shrink-0 transition-colors flex items-center justify-center ${
             isActive ? 'bg-primary/20 text-primary' : 'bg-muted/50 text-muted-foreground'
           }`}>
@@ -87,15 +87,15 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 -mt-1 -mr-1 bg-transparent active:bg-accent/50 active:scale-95 transition-all flex-shrink-0"
+            className="h-7 w-7 bg-transparent active:bg-accent/50 active:scale-95 transition-all flex-shrink-0"
             onClick={handleFavoriteClick}
           >
-            <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+            <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
           </Button>
         </div>
 
         {(domain === "light" || domain === "switch") && (
-          <div className="mt-2 flex items-center justify-end">
+          <div className="flex items-center justify-end pt-2">
             <Switch
               checked={isActive}
               onCheckedChange={() => onToggle?.(entity.entity_id)}
