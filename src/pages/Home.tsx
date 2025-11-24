@@ -1,107 +1,94 @@
+import { useHAStore } from "@/store/useHAStore";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
-import { useHAStore } from "@/store/useHAStore";
-import { useGroupStore } from "@/store/useGroupStore";
-import { SortableDeviceCard } from "@/components/SortableDeviceCard";
-import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
-import { SortableGroupTile } from "@/components/groups/SortableGroupTile";
-import { GroupTile } from "@/components/groups/GroupTile";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatedWeatherTile } from "@/components/weather/AnimatedWeatherTile";
+import { UniversalEntityTileWrapper } from "@/components/UniversalEntityTileWrapper";
 import { toast } from "sonner";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
-import { getGridClasses } from "@/lib/gridLayout";
-import { FavoritesViewSelector, FavoritesViewMode } from "@/components/FavoritesViewSelector";
-import { getEntityDomain } from "@/lib/entityUtils";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  rectSortingStrategy,
-} from "@dnd-kit/sortable";
+import { Home as HomeIcon } from "lucide-react";
 
 const Home = () => {
+  const client = useHAStore((state) => state.client);
   const entities = useHAStore((state) => state.entities);
   const areas = useHAStore((state) => state.areas);
   const floors = useHAStore((state) => state.floors);
   const devices = useHAStore((state) => state.devices);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
+  const favorites = useHAStore((state) => state.favorites);
   const isConnected = useHAStore((state) => state.isConnected);
-  const entityOrder = useHAStore((state) => state.entityOrder);
-  const setEntityOrder = useHAStore((state) => state.setEntityOrder);
-  const groups = useGroupStore((state) => state.groups);
   const { displayMode } = useDisplayMode();
-  const ptClass = displayMode === "mobile" ? "pt-32" : "pt-10";
+  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-10";
 
-  const contextId = "home";
-  
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<FavoritesViewMode>("type");
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 400,
-        tolerance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+  // Trouver les device_id des media_players pour filtrer leurs entités associées
+  const mediaPlayerDeviceIds = new Set(
+    entities
+      ?.filter((entity) => entity.entity_id.startsWith("media_player."))
+      .map((entity) => {
+        const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+        return reg?.device_id;
+      })
+      .filter(Boolean) || []
   );
 
-  // Filtrer les entités contrôlables (exclure sensors, binary_sensors, etc.)
-  const controllableEntities = entities?.filter(e => {
-    const domain = getEntityDomain(e.entity_id);
-    const controllableDomains = ['light', 'switch', 'cover', 'climate', 'fan', 'lock', 'media_player', 'water_heater'];
-    return controllableDomains.includes(domain);
+  // Appareils actifs uniquement (lumières, switches actifs + media_player en lecture)
+  const activeDevices = entities?.filter(e => {
+    const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
+    const deviceId = reg?.device_id;
+    
+    if (deviceId && mediaPlayerDeviceIds.has(deviceId) && !e.entity_id.startsWith("media_player.")) {
+      return false;
+    }
+
+    if (e.entity_id.startsWith("light.") || e.entity_id.startsWith("switch.")) {
+      return e.state === "on";
+    }
+    if (e.entity_id.startsWith("media_player.")) {
+      return e.state === "playing";
+    }
+    return false;
   }) || [];
 
-  // Créer un tableau unifié de tous les items (groupes + entités)
-  const allItems = useMemo(() => {
-    const groupItems = groups.map(g => ({ type: 'group' as const, id: `group-${g.id}`, data: g }));
-    const entityItems = controllableEntities.map(e => ({ type: 'entity' as const, id: e.entity_id, data: e }));
-    return [...groupItems, ...entityItems];
-  }, [groups, controllableEntities]);
-
-  // Initialiser l'ordre unifié si nécessaire
-  useEffect(() => {
-    const allIds = allItems.map(item => item.id);
-    if (allIds.length > 0 && (!entityOrder[contextId] || entityOrder[contextId].length === 0)) {
-      setEntityOrder(contextId, allIds);
-    }
-  }, [allItems.length, entityOrder, contextId, setEntityOrder]);
-
-  // Trier tous les items selon l'ordre personnalisé unifié
-  const sortedAllItems = useMemo(() => {
-    if (!entityOrder[contextId] || entityOrder[contextId].length === 0) return allItems;
+  // Grouper les appareils actifs par pièce/étage
+  const groupedDevices = useMemo(() => {
+    const groups: Record<string, { area: typeof areas[0] | null; floor: typeof floors[0] | null; devices: typeof activeDevices }> = {};
     
-    const orderMap = new Map(entityOrder[contextId].map((id, index) => [id, index]));
-    return [...allItems].sort((a, b) => {
-      const orderA = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
-      const orderB = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
-      return orderA - orderB;
-    });
-  }, [allItems, entityOrder, contextId]);
+    activeDevices.forEach(device => {
+      const reg = entityRegistry.find(r => r.entity_id === device.entity_id);
+      let areaId = reg?.area_id;
 
-  const client = useHAStore((state) => state.client);
+      // Si pas d'area_id direct, récupérer l'area via le device
+      if (!areaId && reg?.device_id) {
+        const dev = devices.find(d => d.id === reg.device_id);
+        if (dev?.area_id) {
+          areaId = dev.area_id;
+        }
+      }
+      
+      // Si toujours rien, tenter les attributs de l'entité
+      if (!areaId && (device as any).attributes?.area_id) {
+        areaId = (device as any).attributes.area_id;
+      }
+      
+      const groupKey = areaId || "no_area";
+      
+      if (!groups[groupKey]) {
+        const area = areaId ? areas.find(a => a.area_id === areaId) || null : null;
+        const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) || null : null;
+        groups[groupKey] = { area, floor, devices: [] };
+      }
+      
+      groups[groupKey].devices.push(device);
+    });
+    
+    return Object.entries(groups).sort(([, a], [, b]) => {
+      const floorA = a.floor?.level ?? 999;
+      const floorB = b.floor?.level ?? 999;
+      if (floorA !== floorB) return floorA - floorB;
+      return (a.area?.name || "Sans pièce").localeCompare(b.area?.name || "Sans pièce");
+    });
+  }, [activeDevices, areas, floors, devices, entityRegistry]);
 
   const handleDeviceToggle = async (entityId: string) => {
     if (!client) {
@@ -125,102 +112,6 @@ const Home = () => {
     }
   };
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      const activeId = active.id as string;
-      const overId = over.id as string;
-
-      const oldIndex = sortedAllItems.findIndex((item) => item.id === activeId);
-      const newIndex = sortedAllItems.findIndex((item) => item.id === overId);
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const newOrder = arrayMove(sortedAllItems, oldIndex, newIndex);
-        setEntityOrder(contextId, newOrder.map(item => item.id));
-      }
-    }
-
-    setActiveId(null);
-  };
-
-  const activeItem = sortedAllItems.find((item) => item.id === activeId);
-  const activeEntity = activeItem?.type === 'entity' ? activeItem.data : null;
-  const activeGroup = activeItem?.type === 'group' ? activeItem.data : null;
-
-  // Grouper les items selon le mode de vue
-  const groupedItems = useMemo(() => {
-    if (viewMode === "type") {
-      const groups: Record<string, typeof sortedAllItems> = {};
-      
-      sortedAllItems.forEach(item => {
-        if (item.type === 'group') {
-          if (!groups['Groupes']) groups['Groupes'] = [];
-          groups['Groupes'].push(item);
-        } else {
-          const domain = getEntityDomain(item.data.entity_id);
-          const typeLabels: Record<string, string> = {
-            light: "Éclairages",
-            switch: "Interrupteurs",
-            cover: "Volets",
-            climate: "Climatisation",
-            fan: "Ventilateurs",
-            lock: "Serrures",
-            media_player: "Lecteurs média",
-            water_heater: "Chauffe-eau",
-          };
-          const label = typeLabels[domain] || "Autres";
-          if (!groups[label]) groups[label] = [];
-          groups[label].push(item);
-        }
-      });
-      
-      return groups;
-    } else {
-      // Mode location
-      const groups: Record<string, typeof sortedAllItems> = {};
-      
-      sortedAllItems.forEach(item => {
-        if (item.type === 'group') {
-          if (!groups['Groupes']) groups['Groupes'] = [];
-          groups['Groupes'].push(item);
-        } else {
-          const entity = item.data;
-          const reg = entityRegistry.find(r => r.entity_id === entity.entity_id);
-          let areaId = reg?.area_id;
-
-          if (!areaId && reg?.device_id) {
-            const dev = devices.find(d => d.id === reg.device_id);
-            if (dev?.area_id) areaId = dev.area_id;
-          }
-
-          if (!areaId && (entity as any).attributes?.area_id) {
-            areaId = (entity as any).attributes.area_id as string;
-          }
-
-          const area = areaId ? areas.find(a => a.area_id === areaId) : null;
-          const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) : null;
-          
-          let label = "Sans localisation";
-          if (floor && area) {
-            label = `${floor.name} - ${area.name}`;
-          } else if (area) {
-            label = area.name;
-          }
-          
-          if (!groups[label]) groups[label] = [];
-          groups[label].push(item);
-        }
-      });
-      
-      return groups;
-    }
-  }, [sortedAllItems, viewMode, entityRegistry, devices, areas, floors]);
-
   const rootClassName = displayMode === "mobile" 
     ? `min-h-screen bg-background pb-24 ${ptClass}`
     : "w-full flex flex-col items-stretch";
@@ -228,7 +119,7 @@ const Home = () => {
   if (!isConnected) {
     return (
       <div className={rootClassName}>
-        <TopBar title="Accueil" />
+        <TopBar />
         <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
           <Skeleton className="h-64 rounded-2xl" />
         </div>
@@ -243,211 +134,72 @@ const Home = () => {
       
       {displayMode === "mobile" ? (
         <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
-          {sortedAllItems.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              Aucun appareil
-            </p>
-          ) : (
-            <>
-              <FavoritesViewSelector 
-                selectedView={viewMode} 
-                onViewChange={setViewMode} 
-              />
-              
-              <div className="space-y-8">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={sortedAllItems.map(item => item.id)}
-                  strategy={rectSortingStrategy}
-                >
-                  {Object.entries(groupedItems).map(([groupName, items]) => (
-                    <div key={groupName} className="space-y-3">
-                      <h3 className="text-lg font-semibold text-foreground px-1">
-                        {groupName}
-                      </h3>
-                      <div className={getGridClasses("devices", displayMode)}>
-                        {items.map((item) => {
-                          if (item.type === 'group') {
-                            return (
-                              <SortableGroupTile key={item.id} group={item.data} hideEditButton />
-                            );
-                          }
+          {/* Version Mobile - Layout vertical */}
+          <div className="animate-fade-in">
+            <AnimatedWeatherTile />
+          </div>
 
-                          const entity = item.data;
-                          const reg = entityRegistry.find(r => r.entity_id === entity.entity_id);
-                          let areaId = reg?.area_id;
-
-                          if (!areaId && reg?.device_id) {
-                            const dev = devices.find(d => d.id === reg.device_id);
-                            if (dev?.area_id) {
-                              areaId = dev.area_id;
-                            }
-                          }
-
-                          if (!areaId && (entity as any).attributes?.area_id) {
-                            areaId = (entity as any).attributes.area_id as string;
-                          }
-
-                          const area = areaId ? areas.find(a => a.area_id === areaId) || null : null;
-                          const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) || null : null;
-
-                          if (entity.entity_id.startsWith("media_player.")) {
-                            return (
-                              <SortableMediaPlayerCard
-                                key={entity.entity_id}
-                                entity={entity}
-                                floor={floor}
-                                area={area}
-                              />
-                            );
-                          }
-
-                          return (
-                            <SortableDeviceCard
-                              key={entity.entity_id}
-                              entity={entity}
-                              onToggle={handleDeviceToggle}
-                              floor={floor}
-                              area={area}
-                            />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </SortableContext>
-              
-              <DragOverlay dropAnimation={null}>
-                {activeGroup ? (
-                  <div className="opacity-90 rotate-3 scale-105">
-                    <GroupTile group={activeGroup} showBadge />
-                  </div>
-                ) : activeEntity ? (
-                  <div className="opacity-90 rotate-3 scale-105">
-                    {activeEntity.entity_id.startsWith("media_player.") ? (
-                      <SortableMediaPlayerCard entity={activeEntity} />
-                    ) : (
-                      <SortableDeviceCard
-                        entity={activeEntity}
-                        onToggle={() => {}}
-                      />
-                    )}
-                  </div>
-                ) : null}
-              </DragOverlay>
-              </DndContext>
-              </div>
-            </>
-          )}
+          <div className="space-y-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <h2 className="text-xl font-semibold">Appareils actifs</h2>
+            
+            {groupedDevices.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">
+                Aucun appareil actif
+              </p>
+            ) : (
+              groupedDevices.flatMap(([areaId, { area, floor, devices }]) =>
+                devices.map((entity) => (
+                  <UniversalEntityTileWrapper
+                    key={entity.entity_id}
+                    entity={entity}
+                    floor={floor}
+                    area={area}
+                  />
+                ))
+              )
+            )}
+          </div>
         </div>
       ) : (
         <div className="p-4 space-y-6">
-          {sortedAllItems.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              Aucun appareil
-            </p>
-          ) : (
-            <>
-              <FavoritesViewSelector 
-                selectedView={viewMode} 
-                onViewChange={setViewMode} 
-              />
-              
-              <div className="space-y-8">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={sortedAllItems.map(item => item.id)}
-                  strategy={rectSortingStrategy}
-                >
-                  {Object.entries(groupedItems).map(([groupName, items]) => (
-                    <div key={groupName} className="space-y-3">
-                      <h3 className="text-2xl font-semibold text-foreground">
-                        {groupName}
-                      </h3>
-                      <div className={getGridClasses("devices", displayMode)}>
-                        {items.map((item) => {
-                          if (item.type === 'group') {
-                            return (
-                              <SortableGroupTile key={item.id} group={item.data} hideEditButton />
-                            );
-                          }
+          {/* Version Panel/Tablet */}
+          {/* Tuile météo - 3 colonnes complètes */}
+          <div className="animate-fade-in">
+            <AnimatedWeatherTile />
+          </div>
 
-                          const entity = item.data;
-                          const reg = entityRegistry.find(r => r.entity_id === entity.entity_id);
-                          let areaId = reg?.area_id;
-
-                          if (!areaId && reg?.device_id) {
-                            const dev = devices.find(d => d.id === reg.device_id);
-                            if (dev?.area_id) {
-                              areaId = dev.area_id;
-                            }
-                          }
-
-                          if (!areaId && (entity as any).attributes?.area_id) {
-                            areaId = (entity as any).attributes.area_id as string;
-                          }
-
-                          const area = areaId ? areas.find(a => a.area_id === areaId) || null : null;
-                          const floor = area?.floor_id ? floors.find(f => f.floor_id === area.floor_id) || null : null;
-
-                          if (entity.entity_id.startsWith("media_player.")) {
-                            return (
-                              <SortableMediaPlayerCard
-                                key={entity.entity_id}
-                                entity={entity}
-                                floor={floor}
-                                area={area}
-                              />
-                            );
-                          }
-
-                          return (
-                            <SortableDeviceCard
-                              key={entity.entity_id}
-                              entity={entity}
-                              onToggle={handleDeviceToggle}
-                              floor={floor}
-                              area={area}
-                            />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </SortableContext>
-              
-              <DragOverlay dropAnimation={null}>
-                {activeGroup ? (
-                  <div className="opacity-90 rotate-3 scale-105">
-                    <GroupTile group={activeGroup} showBadge />
-                  </div>
-                ) : activeEntity ? (
-                  <div className="opacity-90 rotate-3 scale-105">
-                    {activeEntity.entity_id.startsWith("media_player.") ? (
-                      <SortableMediaPlayerCard entity={activeEntity} />
-                    ) : (
-                      <SortableDeviceCard
-                        entity={activeEntity}
-                        onToggle={() => {}}
+          {/* Appareils actifs - groupés par localisation */}
+          <div className="space-y-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <h2 className="text-2xl font-semibold">Appareils actifs</h2>
+            
+            {groupedDevices.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">
+                Aucun appareil actif
+              </p>
+            ) : (
+              groupedDevices.map(([areaId, { area, floor, devices }]) => (
+                <div key={areaId} className="space-y-3">
+                  {/* Titre de la section localisation */}
+                  <h3 className="text-lg font-medium text-muted-foreground">
+                    {floor?.name && `${floor.name} • `}
+                    {area?.name || "Sans pièce"}
+                  </h3>
+                  
+                  {/* Grille 3 colonnes pour les appareils de cette localisation */}
+                  <div className="grid grid-cols-3 gap-4">
+                    {devices.map((entity) => (
+                      <UniversalEntityTileWrapper
+                        key={entity.entity_id}
+                        entity={entity}
+                        floor={floor}
+                        area={area}
                       />
-                    )}
+                    ))}
                   </div>
-                ) : null}
-              </DragOverlay>
-              </DndContext>
-              </div>
-            </>
-          )}
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 
