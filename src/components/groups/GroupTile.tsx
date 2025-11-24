@@ -48,7 +48,7 @@ interface GroupTileProps {
   };
 }
 
-export function GroupTile({ group, showBadge = true, hideEditButton = false, sortableProps }: GroupTileProps) {
+export function GroupTile({ group, showBadge = false, hideEditButton = false, sortableProps }: GroupTileProps) {
   const entities = useHAStore((state) => state.entities);
   const { toggleGroup, openCover, closeCover, toggleGroupFavorite, groupFavorites } = useGroupStore();
   const [localVolume, setLocalVolume] = useState<number | null>(null);
