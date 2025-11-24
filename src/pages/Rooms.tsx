@@ -25,9 +25,10 @@ import {
   rectSortingStrategy,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { SortableRoomCard } from "@/components/rooms/SortableRoomCard";
-import { SortableDeviceCard } from "@/components/rooms/SortableDeviceCard";
-import { SortableUniversalEntityTile } from "@/components/rooms/SortableUniversalEntityTile";
+import { SortableRoomCard } from "@/components/SortableRoomCard";
+import { SortableDeviceCard } from "@/components/SortableDeviceCard";
+import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
+import { SortableUniversalEntityTile } from "@/components/SortableUniversalEntityTile";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { ViewSelector, ViewMode } from "@/components/ViewSelector";
 import { HAFloor, HAArea, HAEntity } from "@/types/homeassistant";
