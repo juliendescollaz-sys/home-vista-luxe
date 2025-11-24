@@ -56,12 +56,12 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
   const isFavorite = groupFavorites.includes(group.id);
   const { displayMode } = useDisplayMode();
 
-  // Récupérer l'entité de groupe depuis HA (seulement pour les groupes partagés)
+  // Entité HA associée
   const groupEntity = group.haEntityId ? entities.find((e) => e.entity_id === group.haEntityId) : undefined;
   const isActive = groupEntity?.state === "on" || groupEntity?.state === "open";
   const Icon = DOMAIN_ICONS[group.domain];
 
-  // Pour les media_player: calculer état global et volume moyen
+  // État media_player
   const mediaPlayerState = useMemo(() => {
     if (group.domain !== "media_player") return null;
 
@@ -87,7 +87,6 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
   const handleOpen = async () => {
     try {
       await openCover(group.id);
-      toast.success("Ouverture en cours");
     } catch (error) {
       toast.error("Erreur lors de l'ouverture");
     }
@@ -96,7 +95,6 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
   const handleClose = async () => {
     try {
       await closeCover(group.id);
-      toast.success("Fermeture en cours");
     } catch (error) {
       toast.error("Erreur lors de la fermeture");
     }
@@ -159,9 +157,9 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
       {showBadge && <GroupBadge />}
 
       <div className="p-4 pt-10">
-        {/* Header - aligné sur LightTile */}
+        {/* Header aligné sur LightTile */}
         <div className="flex items-start gap-3 mb-4">
-          {/* Icon */}
+          {/* Icône principale */}
           <div
             className={`w-14 h-14 rounded-lg flex-shrink-0 transition-all flex items-center justify-center ${
               isActive ? "bg-primary/20 text-primary" : "bg-muted/50 text-muted-foreground"
@@ -170,55 +168,51 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
             <Icon className="h-8 w-8" />
           </div>
 
-          {/* Info */}
+          {/* Infos + favoris */}
           <div className="flex-1 min-w-0 pt-0.5">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-base truncate mb-0.5">{group.name}</h3>
-              {group.isShared ? (
-                <Cloud className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" />
-              ) : (
-                <Lock className="h-3.5 w-3.5 text-muted-foreground/70 flex-shrink-0" />
-              )}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <h3 className="font-semibold text-base truncate mb-0.5">{group.name}</h3>
+                {group.isShared ? (
+                  <Cloud className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" />
+                ) : (
+                  <Lock className="h-3.5 w-3.5 text-muted-foreground/70 flex-shrink-0" />
+                )}
+              </div>
+
+              {/* Favoris dans le header, comme la tuile Éclairage */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 flex-shrink-0"
+                onClick={handleFavoriteClick}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <Star className={`h-4 w-4 ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+              </Button>
             </div>
+
             <p className="text-sm text-muted-foreground">
               {group.entityIds.length} appareil
               {group.entityIds.length > 1 ? "s" : ""}
             </p>
           </div>
 
-          {/* Switch pour light/switch/fan - aligné sur LightTile */}
-          {group.domain !== "cover" && group.domain !== "media_player" && (
-            <Switch checked={isActive} onCheckedChange={handleToggle} className="scale-125" />
-          )}
-
-          {/* Favorite & Edit buttons pour cover/media_player */}
-          {(group.domain === "cover" || group.domain === "media_player") && (
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleFavoriteClick}
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                <Star className={`h-4 w-4 ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground"}`} />
-              </Button>
-              {!hideEditButton && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-primary"
-                  onClick={handleEditClick}
-                  onPointerDown={(e) => e.stopPropagation()}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
+          {/* Bouton d’édition pour cover / media_player (à droite du header) */}
+          {(group.domain === "cover" || group.domain === "media_player") && !hideEditButton && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-primary flex-shrink-0"
+              onClick={handleEditClick}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
           )}
         </div>
 
-        {/* Controls supplémentaires pour cover et media_player */}
+        {/* Contrôles cover / media_player */}
         {(group.domain === "cover" || group.domain === "media_player") && (
           <div className="space-y-3 pt-2 border-t border-border/30">
             {group.domain === "cover" ? (
@@ -274,48 +268,21 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
                 </div>
               </div>
             )}
-
-            {/* Favorite & Edit en bas pour cover/media_player en mode mobile */}
-            {displayMode === "mobile" && (
-              <div className="flex items-center justify-end gap-1 pt-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={handleFavoriteClick}
-                  onPointerDown={(e) => e.stopPropagation()}
-                >
-                  <Star className={`h-4 w-4 ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground"}`} />
-                </Button>
-                {!hideEditButton && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-primary"
-                    onClick={handleEditClick}
-                    onPointerDown={(e) => e.stopPropagation()}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            )}
           </div>
         )}
 
-        {/* Favorite & Edit en bas pour light/switch/fan en mode mobile */}
-        {displayMode === "mobile" && group.domain !== "cover" && group.domain !== "media_player" && (
-          <div className="flex items-center justify-end gap-1 pt-2 mt-2 border-t border-border/30">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={handleFavoriteClick}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <Star className={`h-4 w-4 ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground"}`} />
-            </Button>
-            {!hideEditButton && (
+        {/* Ligne switch en bas pour light/switch/fan → même logique visuelle pour tous les groupes simples */}
+        {group.domain !== "cover" && group.domain !== "media_player" && (
+          <div className="flex items-center justify-end pt-2 mt-2 border-t border-border/30">
+            <Switch checked={isActive} onCheckedChange={handleToggle} className="scale-125" />
+          </div>
+        )}
+
+        {/* Bloc favoris + édition en bas sur mobile (on conserve) */}
+        {displayMode === "mobile" && (
+          <div className="flex items-center justify-end gap-1 pt-2">
+            {/* Favoris déjà dans le header desktop/panel ; sur mobile on garde la version bas de carte si tu veux, sinon on peut la retirer */}
+            {!hideEditButton && (group.domain === "cover" || group.domain === "media_player") && (
               <Button
                 variant="ghost"
                 size="icon"
