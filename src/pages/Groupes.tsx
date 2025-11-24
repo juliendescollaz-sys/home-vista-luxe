@@ -24,7 +24,7 @@ const Groupes = () => {
 
   const rootClassName = displayMode === "mobile" 
     ? `min-h-screen bg-background pb-24 ${ptClass}`
-    : "w-full h-full flex items-center justify-center";
+    : "min-h-screen bg-background";
 
   return (
     <div className={rootClassName}>
