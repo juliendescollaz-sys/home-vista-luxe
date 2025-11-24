@@ -56,12 +56,10 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
   const isFavorite = groupFavorites.includes(group.id);
   const { displayMode } = useDisplayMode();
 
-  // Entité HA associée
   const groupEntity = group.haEntityId ? entities.find((e) => e.entity_id === group.haEntityId) : undefined;
   const isActive = groupEntity?.state === "on" || groupEntity?.state === "open";
   const Icon = DOMAIN_ICONS[group.domain];
 
-  // État media_player
   const mediaPlayerState = useMemo(() => {
     if (group.domain !== "media_player") return null;
 
@@ -180,7 +178,6 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
                 )}
               </div>
 
-              {/* Favoris dans le header, comme la tuile Éclairage */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -198,7 +195,6 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
             </p>
           </div>
 
-          {/* Bouton d’édition pour cover / media_player (à droite du header) */}
           {(group.domain === "cover" || group.domain === "media_player") && !hideEditButton && (
             <Button
               variant="ghost"
@@ -271,18 +267,18 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
           </div>
         )}
 
-        {/* Ligne switch en bas pour light/switch/fan → même logique visuelle pour tous les groupes simples */}
+        {/* Switch en bas pour light/switch/fan – sans bordure ni marge top */}
         {group.domain !== "cover" && group.domain !== "media_player" && (
-          <div className="flex items-center justify-end pt-2 mt-2 border-t border-border/30">
+          <div className="flex items-center justify-end pt-2">
             <Switch checked={isActive} onCheckedChange={handleToggle} className="scale-125" />
           </div>
         )}
 
-        {/* Bloc favoris + édition en bas sur mobile (on conserve) */}
-        {displayMode === "mobile" && (
-          <div className="flex items-center justify-end gap-1 pt-2">
-            {/* Favoris déjà dans le header desktop/panel ; sur mobile on garde la version bas de carte si tu veux, sinon on peut la retirer */}
-            {!hideEditButton && (group.domain === "cover" || group.domain === "media_player") && (
+        {/* Bloc édition mobile (si besoin) */}
+        {displayMode === "mobile" &&
+          (group.domain === "cover" || group.domain === "media_player") &&
+          !hideEditButton && (
+            <div className="flex items-center justify-end gap-1 pt-2">
               <Button
                 variant="ghost"
                 size="icon"
@@ -292,9 +288,8 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
               >
                 <Pencil className="h-4 w-4" />
               </Button>
-            )}
-          </div>
-        )}
+            </div>
+          )}
       </div>
 
       <GroupEditDialog group={group} open={editDialogOpen} onOpenChange={setEditDialogOpen} />
