@@ -40,7 +40,7 @@ export const DeviceCard = ({ entity, onToggle }: DeviceCardProps) => {
 
   return (
     <Card className="group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50">
-      <div className="p-4 pt-10">
+      <div className="p-4 pt-[68px]">
         <div className="mt-1 flex items-start gap-3 mb-4">
           {/* Icon */}
           <div className={`${iconContainerSize} rounded-lg flex-shrink-0 transition-colors flex items-center justify-center ${
