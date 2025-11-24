@@ -33,7 +33,7 @@ export function LockTile({ entity, onControl }: LockTileProps) {
   
   return (
     <Card className="glass-card elevated-subtle elevated-active border-border/50 overflow-hidden">
-      <div className="p-4">
+      <div className="p-4 pt-10">
         <div className="mt-1 flex items-start gap-3 mb-4">
           <div className={`w-14 h-14 rounded-lg flex-shrink-0 transition-all flex items-center justify-center ${
             isLocked ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'
