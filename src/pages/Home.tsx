@@ -3,7 +3,7 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedWeatherTile } from "@/components/weather/AnimatedWeatherTile";
-import { UniversalEntityTileWrapper } from "@/components/UniversalEntityTileWrapper";
+import { UniversalEntityTile } from "@/components/entities/UniversalEntityTile";
 import { toast } from "sonner";
 import { useEffect, useMemo } from "react";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
@@ -159,7 +159,7 @@ const Home = () => {
           ) : (
             groupedDevices.flatMap(([areaId, { area, floor, devices }]) =>
               devices.map((entity) => (
-                <UniversalEntityTileWrapper key={entity.entity_id} entity={entity} floor={floor} area={area} />
+                <UniversalEntityTile key={entity.entity_id} entity={entity} floor={floor} area={area} />
               )),
             )
           )}

@@ -115,8 +115,8 @@ export const SortableMediaPlayerCard = ({ entity, floor, area }: SortableMediaPl
     >
       <LocationBadge floor={floor} area={area} />
       
-      <div className="relative pt-8 p-4">
-        <div className="flex items-start gap-2">
+      <div className="p-4 pt-10">
+        <div className="mt-1 flex items-start gap-3 mb-4">
           <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted/50 backdrop-blur-sm border border-border/50">
             {albumArt ? (
               <img src={albumArt} alt={mediaTitle} className="w-full h-full object-cover" />
@@ -132,7 +132,7 @@ export const SortableMediaPlayerCard = ({ entity, floor, area }: SortableMediaPl
             {mediaArtist && <p className="text-sm text-muted-foreground truncate">{mediaArtist}</p>}
           </div>
 
-          <div className="flex items-center gap-1 flex-shrink-0 -mt-1 -mr-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <Button variant="ghost" size="icon" onClick={handlePlayPause} disabled={playPauseInFlight} className="h-9 w-9 bg-transparent active:bg-accent/50 active:scale-95 transition-all">
               {playPauseInFlight || isBuffering ? (
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -142,14 +142,14 @@ export const SortableMediaPlayerCard = ({ entity, floor, area }: SortableMediaPl
                 <Play className="h-5 w-5 text-muted-foreground" />
               )}
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 bg-transparent active:bg-accent/50 active:scale-95 transition-all" onClick={handleFavoriteClick}>
-              <Star className={`h-5 w-5 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+            <Button variant="ghost" size="icon" className="h-7 w-7 bg-transparent active:bg-accent/50 active:scale-95 transition-all" onClick={handleFavoriteClick}>
+              <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
             </Button>
           </div>
         </div>
 
         {duration > 0 && (
-          <div className="mt-4 space-y-1.5">
+          <div className="space-y-1.5 pt-2 border-t border-border/30">
             <Slider value={[position]} max={duration} step={1} onPointerDown={handleSeekStart} onValueChange={(values) => handleSeekChange(values[0])} onPointerUp={handleSeekEnd} disabled={isBuffering} className={cn("cursor-pointer", isTimelineDragging && "cursor-grabbing")} style={{ touchAction: "none" }} />
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>{formatTime(position)}</span>

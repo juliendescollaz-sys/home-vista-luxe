@@ -38,7 +38,6 @@ const DOMAIN_ICONS: Record<HaGroupDomain, any> = {
 
 interface GroupTileProps {
   group: NeoliaGroup;
-  showBadge?: boolean;
   hideEditButton?: boolean;
   sortableProps?: {
     attributes?: any;
@@ -48,7 +47,7 @@ interface GroupTileProps {
   };
 }
 
-export function GroupTile({ group, showBadge = false, hideEditButton = false, sortableProps }: GroupTileProps) {
+export function GroupTile({ group, hideEditButton = false, sortableProps }: GroupTileProps) {
   const entities = useHAStore((state) => state.entities);
   const { toggleGroup, openCover, closeCover, toggleGroupFavorite, groupFavorites } = useGroupStore();
   const [localVolume, setLocalVolume] = useState<number | null>(null);
@@ -152,7 +151,7 @@ export function GroupTile({ group, showBadge = false, hideEditButton = false, so
         sortableProps ? "cursor-grab active:cursor-grabbing touch-none" : ""
       }`}
     >
-      {showBadge && <GroupBadge />}
+      <GroupBadge />
 
       <div className="p-4 pt-10">
         {/* Header aligné sur LightTile, légèrement abaissé */}
