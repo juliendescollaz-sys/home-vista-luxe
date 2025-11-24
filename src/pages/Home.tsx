@@ -127,7 +127,7 @@ const Home = () => {
     return (
       <div className={rootClassName}>
         <TopBar title="Accueil" />
-        <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        <div className="max-w-2xl mx-auto px-[26px] py-[26px] space-y-4">
           <Skeleton className="h-56 w-full rounded-3xl" />
           <div className="space-y-3">
             <Skeleton className="h-6 w-40" />
@@ -144,7 +144,7 @@ const Home = () => {
     <div className={rootClassName}>
       <TopBar title="Accueil" />
 
-      <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
+      <div className="max-w-2xl mx-auto px-[26px] py-[26px] space-y-6">
         {/* Section météo */}
         <div className="animate-fade-in">
           <AnimatedWeatherTile />
