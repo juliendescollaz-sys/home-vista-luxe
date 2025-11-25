@@ -141,7 +141,7 @@ const MaisonTabletPanelView = () => {
                       TEST OVERLAY
                     </button>
                   </div>
-                  {/* Overlay des boutons de pièces (même si données partielles) */}
+                  {/* Overlay des boutons de pièces */}
                   {selectedPlan?.hasJson && selectedPlan?.json && selectedPlan.json.polygons && selectedPlan.json.polygons.length > 0 && (
                     <div className="absolute inset-0 pointer-events-none z-30">
                       {(() => {
@@ -152,7 +152,7 @@ const MaisonTabletPanelView = () => {
                         return null;
                       })()}
                       {selectedPlan.json.polygons.map((polygon, index) => {
-                        const points = (polygon as any).relative ?? [];
+                        const points = polygon.relative ?? [];
 
                         // fallback si pas de points
                         if (!points.length) {
@@ -168,7 +168,7 @@ const MaisonTabletPanelView = () => {
 
                         // centroid en coordonnées relatives (0–1)
                         const { cx, cy } = points.reduce(
-                          (acc: { cx: number; cy: number }, [x, y]: [number, number]) => ({
+                          (acc, [x, y]) => ({
                             cx: acc.cx + x,
                             cy: acc.cy + y,
                           }),
@@ -178,7 +178,7 @@ const MaisonTabletPanelView = () => {
                         const cyNorm = cy / points.length;
 
                         const area = selectedPlan.json!.areas.find(
-                          (a: any) => a.area_id === (polygon as any).area_id
+                          (a) => a.areaId === polygon.areaId
                         );
                         const roomName = area?.name ?? `Pièce ${index + 1}`;
 
@@ -186,14 +186,14 @@ const MaisonTabletPanelView = () => {
 
                         return (
                           <button
-                            key={`${(polygon as any).area_id}-${index}`}
+                            key={`${polygon.areaId}-${index}`}
                             type="button"
                             style={{
                               left: `${cxNorm * 100}%`,
                               top: `${cyNorm * 100}%`,
                             }}
                             className="absolute -translate-x-1/2 -translate-y-1/2 px-3 py-1 rounded-full text-[11px] font-medium bg-background/85 text-foreground shadow-sm pointer-events-auto hover:bg-primary hover:text-primary-foreground transition"
-                            onClick={() => setSelectedAreaId((polygon as any).area_id)}
+                            onClick={() => setSelectedAreaId(polygon.areaId)}
                           >
                             {roomName}
                           </button>
