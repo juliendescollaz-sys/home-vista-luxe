@@ -15,15 +15,17 @@ interface RawNeoliaAsset {
 
 /**
  * Construit l'URL de base de l'API HA :
- * - enlève les / de fin
- * - ajoute /api si nécessaire
+ *  - supprime les / de fin
+ *  - ajoute /api si nécessaire
  */
 function buildApiBaseUrl(rawBaseUrl: string): string {
   if (!rawBaseUrl) return "";
   let url = rawBaseUrl.replace(/\/+$/, "");
+
   if (!url.endsWith("/api")) {
     url += "/api";
   }
+
   return url;
 }
 
@@ -79,8 +81,8 @@ async function fetchNeoliaAssetsFromHA(
 }
 
 /**
- * Fonction utilisée par la page Maison pour afficher l'état
- * des PNG/JSON par étage.
+ * Vérifie les assets Neolia pour tous les étages.
+ * `floors` doit être le tableau d'étages provenant du store HA.
  */
 export async function checkAllFloorsNeoliaAssets(
   floors: any[],
@@ -95,16 +97,20 @@ export async function checkAllFloorsNeoliaAssets(
   const assetsMap = await fetchNeoliaAssetsFromHA(baseUrl, token);
 
   return floors.map((floor) => {
-    const floorId: string = floor.floor_id || floor.id || floor.slug || floor.uid;
+    // IMPORTANT : priorité à floor.id, c'est ce que renvoie le client HA
+    const floorId: string = floor.id || floor.floor_id || floor.slug || floor.uid;
+
     const floorName: string = floor.name || floorId;
 
     const fromMap = floorId ? assetsMap[floorId] : undefined;
 
-    return {
+    const result: NeoliaFloorAsset = {
       floorId,
       floorName,
       jsonAvailable: !!fromMap?.json,
       pngAvailable: !!fromMap?.png,
     };
+
+    return result;
   });
 }
