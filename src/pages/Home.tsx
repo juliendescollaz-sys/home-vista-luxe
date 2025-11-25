@@ -5,12 +5,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedWeatherTile } from "@/components/weather/AnimatedWeatherTile";
 import { UniversalEntityTile } from "@/components/entities/UniversalEntityTile";
 import { toast } from "sonner";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
-import { Home as HomeIcon } from "lucide-react";
+import { Home as HomeIcon, FileJson, Image as ImageIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { checkAllFloorsNeoliaAssets, type NeoliaFloorAsset } from "@/services/neoliaFloorAssets";
 
 const Home = () => {
   const client = useHAStore((state) => state.client);
+  const connection = useHAStore((state) => state.connection);
   const entities = useHAStore((state) => state.entities);
   const areas = useHAStore((state) => state.areas);
   const floors = useHAStore((state) => state.floors);
@@ -20,6 +24,9 @@ const Home = () => {
   const isConnected = useHAStore((state) => state.isConnected);
   const { displayMode } = useDisplayMode();
   const contentPaddingTop = displayMode === "mobile" ? "pt-[138px]" : "pt-[24px]";
+  
+  const [neoliaAssets, setNeoliaAssets] = useState<NeoliaFloorAsset[]>([]);
+  const [isLoadingAssets, setIsLoadingAssets] = useState(false);
 
   // Trouver les device_id des media_players pour filtrer leurs entités associées
   const mediaPlayerDeviceIds = new Set(
@@ -121,6 +128,31 @@ const Home = () => {
     }
   }, [isConnected]);
 
+  // Vérifier les assets Neolia au chargement
+  useEffect(() => {
+    const loadNeoliaAssets = async () => {
+      if (!connection || !floors || floors.length === 0) {
+        return;
+      }
+
+      setIsLoadingAssets(true);
+      try {
+        const results = await checkAllFloorsNeoliaAssets(
+          floors,
+          connection.url,
+          connection.token
+        );
+        setNeoliaAssets(results);
+      } catch (error) {
+        console.error("Erreur lors de la vérification des assets Neolia:", error);
+      } finally {
+        setIsLoadingAssets(false);
+      }
+    };
+
+    loadNeoliaAssets();
+  }, [connection, floors]);
+
   const rootClassName = displayMode === "mobile" ? "min-h-screen bg-background pb-20" : "min-h-screen bg-background";
 
   if (!client || !entities || entities.length === 0) {
@@ -149,6 +181,51 @@ const Home = () => {
         <div className="animate-fade-in">
           <AnimatedWeatherTile />
         </div>
+
+        {/* Plans Neolia */}
+        {neoliaAssets.length > 0 && (
+          <Card className="animate-fade-in" style={{ animationDelay: "0.05s" }}>
+            <CardHeader>
+              <CardTitle className="text-xl">Plans Neolia</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {isLoadingAssets ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-16 w-full rounded-lg" />
+                  <Skeleton className="h-16 w-full rounded-lg" />
+                </div>
+              ) : (
+                neoliaAssets.map((asset) => (
+                  <div
+                    key={asset.floorId}
+                    className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-medium">{asset.floorName}</h3>
+                      <p className="text-sm text-muted-foreground">{asset.floorId}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Badge
+                        variant={asset.pngAvailable ? "default" : "destructive"}
+                        className="gap-1"
+                      >
+                        <ImageIcon size={14} />
+                        {asset.pngAvailable ? "PNG OK" : "PNG manquant"}
+                      </Badge>
+                      <Badge
+                        variant={asset.jsonAvailable ? "default" : "destructive"}
+                        className="gap-1"
+                      >
+                        <FileJson size={14} />
+                        {asset.jsonAvailable ? "JSON OK" : "JSON manquant"}
+                      </Badge>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Appareils actifs */}
         <div className="space-y-3 animate-fade-in" style={{ animationDelay: "0.1s" }}>
