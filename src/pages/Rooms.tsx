@@ -11,6 +11,7 @@ import { RoomDevicesGrid } from "@/components/RoomDevicesGrid";
 import { getEntityDomain } from "@/lib/entityUtils";
 import { cn } from "@/lib/utils";
 import { DraggableRoomLabel } from "@/components/DraggableRoomLabel";
+import { HomeOverviewByTypeAndArea } from "@/components/HomeOverviewByTypeAndArea";
 
 // ============== MaisonTabletPanelView ==============
 const MaisonTabletPanelView = () => {
@@ -210,7 +211,7 @@ const MaisonTabletPanelView = () => {
                 <h3 className="text-lg font-semibold bg-background mb-4">
                   Pièce : {selectedArea.name}
                 </h3>
-                <RoomDevicesGrid areaId={selectedAreaId} />
+                <RoomDevicesGrid areaId={selectedAreaId} singleColumn />
               </div>
             ) : (
               <div className="py-2">
@@ -439,9 +440,15 @@ const Rooms = () => {
   const floors = useHAStore((state) => state.floors);
   const isLoadingNeoliaPlans = useHAStore((state) => state.isLoadingNeoliaPlans);
   const loadNeoliaPlans = useHAStore((state) => state.loadNeoliaPlans);
+  const neoliaFloorPlans = useHAStore((state) => state.neoliaFloorPlans);
+  const entities = useHAStore((state) => state.entities);
+  const areas = useHAStore((state) => state.areas);
+  const entityRegistry = useHAStore((state) => state.entityRegistry);
+  const devices = useHAStore((state) => state.devices);
   
   const rootClassName = displayMode === "mobile" ? "min-h-screen bg-background pb-20" : "min-h-screen bg-background";
   const contentPaddingTop = displayMode === "mobile" ? "pt-[138px]" : "pt-[24px]";
+  const hasPlans = neoliaFloorPlans.length > 0;
 
   // Charger les plans Neolia au démarrage
   useEffect(() => {
@@ -462,6 +469,16 @@ const Rooms = () => {
               </p>
             </CardContent>
           </Card>
+        ) : !hasPlans ? (
+          <HomeOverviewByTypeAndArea
+            entities={entities || []}
+            areas={areas}
+            floors={floors}
+            entityRegistry={entityRegistry}
+            devices={devices}
+            contextId="home-overview"
+            filterFavorites={false}
+          />
         ) : displayMode === "mobile" ? (
           <MaisonMobileView />
         ) : (

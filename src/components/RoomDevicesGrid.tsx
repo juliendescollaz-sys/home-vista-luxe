@@ -10,9 +10,10 @@ import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
 interface RoomDevicesGridProps {
   areaId: string;
   className?: string;
+  singleColumn?: boolean;
 }
 
-export const RoomDevicesGrid = ({ areaId, className = "" }: RoomDevicesGridProps) => {
+export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false }: RoomDevicesGridProps) => {
   const entities = useHAStore((state) => state.entities);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const devices = useHAStore((state) => state.devices);
@@ -75,7 +76,7 @@ export const RoomDevicesGrid = ({ areaId, className = "" }: RoomDevicesGridProps
   }
 
   return (
-    <div className={`${getGridClasses("devices", displayMode)} ${className}`}>
+    <div className={singleColumn ? `grid grid-cols-1 gap-4 ${className}` : `${getGridClasses("devices", displayMode)} ${className}`}>
       {roomEntities.map((entity) => {
         const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
         let areaId = reg?.area_id;
