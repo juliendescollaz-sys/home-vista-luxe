@@ -129,60 +129,85 @@ const MaisonTabletPanelView = () => {
                   <img
                     src={selectedPlan.imageUrl}
                     alt={`Plan de ${selectedPlan.floorName}`}
-                    className="w-full h-full object-contain rounded-xl bg-black/20"
+                    className="relative z-10 w-full h-full object-contain rounded-xl bg-black/20"
                   />
-                  {/* Overlay des boutons de pièces */}
-                  {selectedPlan.hasJson &&
-                    selectedPlan.json &&
-                    selectedPlan.json.polygons.length > 0 && (
-                      <>
-                        {selectedPlan.json.polygons.map((polygon, index) => {
-                          const center = getPolygonCenter(polygon.relative);
-                          
-                          // Chercher le nom de la pièce dans le JSON areas d'abord
-                          let roomName = polygon.areaId;
-                          if (selectedPlan.json?.areas) {
-                            const jsonArea = selectedPlan.json.areas.find(
-                              (a) => a.areaId === polygon.areaId
-                            );
-                            if (jsonArea) {
-                              roomName = jsonArea.name;
-                            }
-                          }
-                          
-                          // Sinon, chercher dans les areas HA
-                          if (roomName === polygon.areaId) {
-                            const haArea = areas.find((a) => a.area_id === polygon.areaId);
-                            if (haArea) {
-                              roomName = haArea.name;
-                            }
-                          }
+                  {/* Débug visuel obligatoire */}
+                  <div className="absolute inset-0 pointer-events-none z-20">
+                    <button
+                      type="button"
+                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1 rounded-full bg-red-600 text-white text-xs pointer-events-auto"
+                      onClick={() => console.debug("[Neolia] clic sur bouton de test")}
+                    >
+                      TEST OVERLAY
+                    </button>
+                  </div>
+                  {/* Overlay des boutons de pièces (même si données partielles) */}
+                  {selectedPlan?.hasJson && selectedPlan?.json && selectedPlan.json.polygons && selectedPlan.json.polygons.length > 0 && (
+                    <div className="absolute inset-0 pointer-events-none z-30">
+                      {(() => {
+                        console.debug("[Neolia] currentPlan pour debug", selectedPlan);
+                        console.debug("[Neolia] JSON brut", selectedPlan?.json);
+                        console.debug("[Neolia] polygons", selectedPlan?.json?.polygons);
+                        console.debug("[Neolia] areas", selectedPlan?.json?.areas);
+                        return null;
+                      })()}
+                      {selectedPlan.json.polygons.map((polygon, index) => {
+                        const points = (polygon as any).relative ?? [];
 
+                        // fallback si pas de points
+                        if (!points.length) {
                           return (
-                            <button
-                              key={`${polygon.areaId}-${index}`}
-                              type="button"
-                              onClick={() => setSelectedAreaId(polygon.areaId)}
-                              className={cn(
-                                "absolute -translate-x-1/2 -translate-y-1/2 px-3 py-1 rounded-full text-xs font-medium shadow-md backdrop-blur transition-colors",
-                                selectedAreaId === polygon.areaId
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-background/80 text-foreground hover:bg-primary/80 hover:text-primary-foreground"
-                              )}
-                              style={{
-                                left: `${center.x * 100}%`,
-                                top: `${center.y * 100}%`,
-                              }}
+                            <div
+                              key={`empty-${index}`}
+                              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] text-red-400"
                             >
-                              {roomName}
-                            </button>
+                              POLYGONE SANS POINTS
+                            </div>
                           );
-                        })}
-                      </>
-                    )}
+                        }
+
+                        // centroid en coordonnées relatives (0–1)
+                        const { cx, cy } = points.reduce(
+                          (acc: { cx: number; cy: number }, [x, y]: [number, number]) => ({
+                            cx: acc.cx + x,
+                            cy: acc.cy + y,
+                          }),
+                          { cx: 0, cy: 0 }
+                        );
+                        const cxNorm = cx / points.length;
+                        const cyNorm = cy / points.length;
+
+                        const area = selectedPlan.json!.areas.find(
+                          (a: any) => a.area_id === (polygon as any).area_id
+                        );
+                        const roomName = area?.name ?? `Pièce ${index + 1}`;
+
+                        console.debug("[Neolia] rendu des boutons de pièces OK pour", roomName);
+
+                        return (
+                          <button
+                            key={`${(polygon as any).area_id}-${index}`}
+                            type="button"
+                            style={{
+                              left: `${cxNorm * 100}%`,
+                              top: `${cyNorm * 100}%`,
+                            }}
+                            className="absolute -translate-x-1/2 -translate-y-1/2 px-3 py-1 rounded-full text-[11px] font-medium bg-background/85 text-foreground shadow-sm pointer-events-auto hover:bg-primary hover:text-primary-foreground transition"
+                            onClick={() => setSelectedAreaId((polygon as any).area_id)}
+                          >
+                            {roomName}
+                          </button>
+                        );
+                      })}
+                      {(() => {
+                        console.debug("[Neolia] rendu des boutons de pièces OK");
+                        return null;
+                      })()}
+                    </div>
+                  )}
                   {/* Message si JSON manquant */}
                   {!selectedPlan.hasJson && (
-                    <div className="absolute inset-0 flex items-end justify-center pb-4">
+                    <div className="absolute inset-0 flex items-end justify-center pb-4 z-20">
                       <p className="text-xs text-muted-foreground bg-background/80 backdrop-blur px-3 py-1 rounded-full border border-border/60">
                         Zones non configurées pour cet étage.
                       </p>
