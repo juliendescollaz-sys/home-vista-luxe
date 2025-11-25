@@ -119,14 +119,14 @@ const MaisonTabletPanelView = () => {
         {/* Zone principale : plan + colonne de droite */}
         <div className="flex flex-row gap-4">
           {/* Conteneur plan avec position relative pour l'overlay */}
-          <div className="relative basis-2/3 min-h-[520px] max-h-[620px] rounded-xl overflow-hidden bg-muted/40 border border-border/40">
+          <div className="relative basis-2/3 min-h-[520px] max-h-[620px] overflow-hidden">
             {selectedPlan?.hasPng && selectedPlan?.imageUrl ? (
               <>
                 {/* Image du plan */}
                 <img
                   src={selectedPlan.imageUrl}
                   alt={`Plan de ${selectedPlan.floorName}`}
-                  className="w-full h-full object-contain bg-black/20"
+                  className="w-full h-full object-contain"
                 />
 
                 {/* Overlay des zones cliquables */}
@@ -229,10 +229,10 @@ const MaisonTabletPanelView = () => {
           </div>
 
           {/* Colonne de droite : appareils de la pièce sélectionnée */}
-          <div className="basis-1/3 border-l pl-4 overflow-y-auto">
+          <div className="basis-1/3 overflow-y-auto">
             {selectedAreaId && selectedArea ? (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold sticky top-0 bg-background">
+                <h3 className="text-lg font-semibold bg-background mb-4">
                   Pièce : {selectedArea.name}
                 </h3>
                 <RoomDevicesGrid areaId={selectedAreaId} />
