@@ -5,11 +5,22 @@ type FloorInput = {
   name?: string;
 };
 
+type NeoliaFloorPolygon = {
+  area_id: string;
+  relative: [number, number][];
+};
+
+type NeoliaFloorJson = {
+  floor_id: string;
+  polygons: NeoliaFloorPolygon[];
+};
+
 type NeoliaFloorAsset = {
   floorId: string;
   floorName: string;
   pngAvailable: boolean;
   jsonAvailable: boolean;
+  jsonData?: NeoliaFloorJson | null;
 };
 
 const corsHeaders: Record<string, string> = {
@@ -75,7 +86,7 @@ serve(async (req: Request): Promise<Response> => {
     );
   }
 
-  const { haBaseUrl, haToken, floors } = body ?? {};
+  const { haBaseUrl, haToken, floors, includeJson } = body ?? {};
 
   if (!haBaseUrl || !Array.isArray(floors)) {
     return new Response(
@@ -109,11 +120,35 @@ serve(async (req: Request): Promise<Response> => {
       checkUrl(jsonUrl, haToken),
     ]);
 
+    let jsonData: NeoliaFloorJson | null = null;
+
+    // Si includeJson est demandé et que le JSON existe, on le récupère
+    if (includeJson && jsonAvailable) {
+      try {
+        const headers: Record<string, string> = {};
+        if (haToken) {
+          headers["Authorization"] = `Bearer ${haToken}`;
+        }
+
+        const jsonRes = await fetch(jsonUrl, {
+          method: "GET",
+          headers,
+        });
+
+        if (jsonRes.ok) {
+          jsonData = await jsonRes.json();
+        }
+      } catch (e) {
+        console.error(`[Neolia] Erreur lors de la récupération du JSON pour ${floorId}:`, e);
+      }
+    }
+
     assets.push({
       floorId,
       floorName,
       pngAvailable,
       jsonAvailable,
+      jsonData,
     });
   }
 
