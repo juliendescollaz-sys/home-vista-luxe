@@ -35,40 +35,38 @@ const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-client-info",
 };
 
-// --------------------------------------------------------
-// CHECK URL AVEC TOKEN OBLIGATOIRE
-// --------------------------------------------------------
-async function checkUrl(url: string, token?: string): Promise<boolean> {
+// =========================
+// Utilitaire : appel sécurisé API Home Assistant
+// =========================
+async function haFetch(url: string, token: string): Promise<Response | null> {
   try {
-    const headers: Record<string, string> = {
-      Accept: "application/json",
-    };
-
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
     const res = await fetch(url, {
       method: "GET",
-      headers,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
-
-    return res.ok;
-  } catch (_e) {
-    return false;
+    return res.ok ? res : null;
+  } catch {
+    return null;
   }
 }
 
-// --------------------------------------------------------
-// MAIN FUNCTION
-// --------------------------------------------------------
+// =========================
+// Nouveau chemin API HA (accès aux fichiers /local)
+// =========================
+function toApiLocal(baseUrl: string, file: string): string {
+  const clean = baseUrl.replace(/\/$/, "");
+  return `${clean}/api/hassio/app/entrypoint/local/neolia/${file}`;
+}
+
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Only POST is allowed" }), {
+    return new Response(JSON.stringify({ error: "Only POST allowed" }), {
       status: 405,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -77,7 +75,7 @@ serve(async (req: Request): Promise<Response> => {
   let body: any;
   try {
     body = await req.json();
-  } catch (_e) {
+  } catch {
     return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -85,64 +83,39 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   const { haBaseUrl, haToken, floors, includeJson } = body ?? {};
-
   if (!haBaseUrl || !Array.isArray(floors)) {
-    return new Response(
-      JSON.stringify({
-        error: "Missing 'haBaseUrl' or 'floors' in body",
-      }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    return new Response(JSON.stringify({ error: "Missing haBaseUrl or floors" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
-  const base = haBaseUrl.replace(/\/$/, "");
-  const floorsInput: FloorInput[] = floors;
   const assets: NeoliaFloorAsset[] = [];
 
-  for (const floor of floorsInput) {
+  for (const floor of floors) {
     const floorId = floor.id;
     const floorName = floor.name ?? floorId;
 
-    const pngUrl = `${base}/local/neolia/${floorId}.png`;
-    const jsonUrl = `${base}/local/neolia/${floorId}.json`;
+    const pngApiUrl = toApiLocal(haBaseUrl, `${floorId}.png`);
+    const jsonApiUrl = toApiLocal(haBaseUrl, `${floorId}.json`);
 
-    const [pngAvailable, jsonAvailable] = await Promise.all([checkUrl(pngUrl, haToken), checkUrl(jsonUrl, haToken)]);
+    const pngRes = await haFetch(pngApiUrl, haToken);
+    const jsonRes = includeJson ? await haFetch(jsonApiUrl, haToken) : null;
 
     let jsonData: NeoliaFloorJson | null = null;
-
-    if (includeJson && jsonAvailable) {
+    if (jsonRes) {
       try {
-        const headers: Record<string, string> = {
-          Accept: "application/json",
-        };
-
-        if (haToken) {
-          headers["Authorization"] = `Bearer ${haToken}`;
-        }
-
-        const jsonRes = await fetch(jsonUrl, {
-          method: "GET",
-          headers,
-        });
-
-        if (jsonRes.ok) {
-          jsonData = await jsonRes.json();
-        } else {
-          console.error(`[Neolia] JSON fetch error for ${floorId}:`, jsonRes.status);
-        }
-      } catch (err) {
-        console.error(`[Neolia] Exception while fetching JSON for ${floorId}:`, err);
+        jsonData = await jsonRes.json();
+      } catch (e) {
+        console.error("[Neolia] JSON parse error:", e);
       }
     }
 
     assets.push({
       floorId,
       floorName,
-      pngAvailable,
-      jsonAvailable,
+      pngAvailable: !!pngRes,
+      jsonAvailable: !!jsonRes,
       jsonData,
     });
   }
