@@ -30,29 +30,71 @@ function buildApiBaseUrl(rawBaseUrl: string): string {
 }
 
 /**
+ * Vérifie si l'origine courante est la même que celle de Home Assistant.
+ * Si oui, on peut appeler directement HA (panel ou iFrame intégré).
+ * Si non, on doit passer par le proxy Next.js pour éviter le CORS.
+ */
+function isSameOriginAsHA(rawBaseUrl: string): boolean {
+  if (typeof window === "undefined") return false;
+
+  try {
+    const apiBase = buildApiBaseUrl(rawBaseUrl);
+    const haUrl = new URL(apiBase);
+    const here = new URL(window.location.origin);
+
+    return haUrl.protocol === here.protocol && haUrl.host === here.host;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Récupère la liste des assets Neolia exposés par Home Assistant
  * via /api/neolia/assets.
+ *
+ * - Si l'app tourne DANS HA (même origine) → appel direct à HA
+ * - Si l'app tourne sur lovable.app → appel à /api/neolia/assets-proxy
  */
 async function fetchNeoliaAssetsFromHA(
   baseUrl: string,
   token: string,
 ): Promise<Record<string, { png: boolean; json: boolean }>> {
+  if (!baseUrl || !token) {
+    console.warn("[Neolia] URL ou token manquant pour fetchNeoliaAssetsFromHA");
+    return {};
+  }
+
   const apiBase = buildApiBaseUrl(baseUrl);
-  const url = `${apiBase}/neolia/assets`;
+  const haEndpoint = `${apiBase}/neolia/assets`;
 
-  const headers: HeadersInit = {
-    Authorization: `Bearer ${token}`,
-  };
+  let response: Response;
 
-  console.debug("[Neolia] Appel /api/neolia/assets :", url);
-
-  const response = await fetch(url, {
-    method: "GET",
-    headers,
-  });
+  if (isSameOriginAsHA(baseUrl)) {
+    // ✅ Cas panel HA : on peut attaquer HA directement
+    console.debug("[Neolia] Appel direct HA /api/neolia/assets :", haEndpoint);
+    response = await fetch(haEndpoint, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  } else {
+    // ✅ Cas lovable.app : on passe par le proxy Next.js
+    console.debug("[Neolia] Appel proxy /api/neolia/assets-proxy pour éviter le CORS");
+    response = await fetch("/api/neolia/assets-proxy", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        baseUrl,
+        token,
+      }),
+    });
+  }
 
   if (!response.ok) {
-    console.warn("[Neolia] /api/neolia/assets a retourné un statut non OK :", response.status);
+    console.warn("[Neolia] Réponse non OK pour les assets Neolia :", response.status);
     return {};
   }
 
@@ -62,7 +104,7 @@ async function fetchNeoliaAssetsFromHA(
   };
 
   if (data.status !== "ok" || !Array.isArray(data.assets)) {
-    console.warn("[Neolia] Réponse inattendue de /api/neolia/assets :", data);
+    console.warn("[Neolia] Réponse inattendue pour les assets Neolia :", data);
     return {};
   }
 
@@ -76,7 +118,7 @@ async function fetchNeoliaAssetsFromHA(
     };
   }
 
-  console.debug("[Neolia] Assets reçus depuis HA :", map);
+  console.debug("[Neolia] Assets Neolia mappés :", map);
   return map;
 }
 
@@ -97,7 +139,7 @@ export async function checkAllFloorsNeoliaAssets(
   const assetsMap = await fetchNeoliaAssetsFromHA(baseUrl, token);
 
   return floors.map((floor) => {
-    // IMPORTANT : priorité à floor.id, c'est ce que renvoie le client HA
+    // ⚠️ IMPORTANT : le client HA expose généralement "id"
     const floorId: string = floor.id || floor.floor_id || floor.slug || floor.uid;
 
     const floorName: string = floor.name || floorId;
