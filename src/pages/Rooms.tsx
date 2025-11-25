@@ -22,9 +22,19 @@ const Rooms = () => {
   // Vérifier les assets Neolia au chargement
   useEffect(() => {
     const loadNeoliaAssets = async () => {
-      if (!connection || !floors || floors.length === 0) {
+      if (!connection) {
+        console.warn("⚠️ Connexion HA non disponible, impossible de vérifier les assets Neolia");
         return;
       }
+
+      if (!floors || floors.length === 0) {
+        console.debug("ℹ️ Aucun étage configuré");
+        return;
+      }
+
+      console.log("🔄 Démarrage de la vérification des assets Neolia...");
+      console.debug("Connection URL:", connection.url);
+      console.debug("Nombre d'étages:", floors.length);
 
       setIsLoadingAssets(true);
       try {
@@ -34,8 +44,9 @@ const Rooms = () => {
           connection.token
         );
         setNeoliaAssets(results);
+        console.log("✅ Assets Neolia chargés:", results);
       } catch (error) {
-        console.error("Erreur lors de la vérification des assets Neolia:", error);
+        console.error("❌ Erreur lors de la vérification des assets Neolia:", error);
       } finally {
         setIsLoadingAssets(false);
       }
@@ -49,7 +60,7 @@ const Rooms = () => {
       <TopBar title="Maison" />
       <div className={`w-full ${displayMode === "mobile" ? "px-[26px]" : "px-4"} pb-[26px] ${contentPaddingTop} space-y-6`}>
         {/* Plans Neolia */}
-        {neoliaAssets.length > 0 && (
+        {connection && floors && floors.length > 0 ? (
           <Card className="animate-fade-in">
             <CardHeader>
               <CardTitle className="text-xl">Plans Neolia</CardTitle>
@@ -60,6 +71,10 @@ const Rooms = () => {
                   <Skeleton className="h-16 w-full rounded-lg" />
                   <Skeleton className="h-16 w-full rounded-lg" />
                 </div>
+              ) : neoliaAssets.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  Aucun plan disponible. Configurez vos plans avec Neolia Configurator dans Home Assistant.
+                </p>
               ) : (
                 neoliaAssets.map((asset) => (
                   <div
@@ -91,7 +106,7 @@ const Rooms = () => {
               )}
             </CardContent>
           </Card>
-        )}
+        ) : null}
       </div>
       <BottomNav />
     </div>
