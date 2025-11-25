@@ -185,6 +185,7 @@ export function AnimatedWeatherTile() {
             dominantCondition={dominant}
             opacity={trendOpacity}
             isNight={isNight}
+            isMobile={displayMode === "mobile"}
           />
         </div>
 
