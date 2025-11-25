@@ -8,6 +8,26 @@ export interface NeoliaFloorAsset {
 }
 
 /**
+ * Normalise l'URL de base de Home Assistant :
+ * - supprime les / de fin
+ * - supprime un éventuel suffixe /api
+ *   (ex: http://host:8123/api -> http://host:8123)
+ */
+function normalizeBaseUrl(rawBaseUrl: string): string {
+  if (!rawBaseUrl) return "";
+
+  // On enlève les / de fin
+  let url = rawBaseUrl.replace(/\/+$/, "");
+
+  // Si ça se termine par /api, on le retire
+  if (url.endsWith("/api")) {
+    url = url.slice(0, -4); // retire les 4 caractères de "/api"
+  }
+
+  return url;
+}
+
+/**
  * Vérifie si une URL /local/... existe sur Home Assistant.
  * Retourne true si status === 200, false sinon (404, erreur réseau, etc.).
  */
@@ -15,7 +35,7 @@ async function checkUrlExists(url: string, token?: string): Promise<boolean> {
   try {
     const headers: HeadersInit = {};
 
-    // Le /local ne nécessite normalement pas de token,
+    // /local ne nécessite normalement pas de token,
     // mais on le passe éventuellement si déjà disponible.
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
@@ -51,13 +71,14 @@ export async function checkNeoliaAssetsForFloor(
   baseUrl: string,
   token?: string,
 ): Promise<{ floorId: string; jsonAvailable: boolean; pngAvailable: boolean }> {
-  // On nettoie la base URL pour éviter les doubles //
-  const trimmedBaseUrl = baseUrl.replace(/\/+$/, "");
+  const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
 
-  const jsonUrl = `${trimmedBaseUrl}/local/neolia/${floorId}.json`;
-  const pngUrl = `${trimmedBaseUrl}/local/neolia/${floorId}.png`;
+  const jsonUrl = `${normalizedBaseUrl}/local/neolia/${floorId}.json`;
+  const pngUrl = `${normalizedBaseUrl}/local/neolia/${floorId}.png`;
 
   console.debug("[Neolia] Vérification des assets pour", floorId, {
+    baseUrl,
+    normalizedBaseUrl,
     jsonUrl,
     pngUrl,
   });
@@ -88,7 +109,10 @@ export async function checkAllFloorsNeoliaAssets(
     return [];
   }
 
-  const trimmedBaseUrl = baseUrl.replace(/\/+$/, "");
+  const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+
+  console.debug("[Neolia] checkAllFloorsNeoliaAssets baseUrl:", baseUrl);
+  console.debug("[Neolia] baseUrl normalisée:", normalizedBaseUrl);
 
   const results = await Promise.all(
     floors.map(async (floor) => {
@@ -100,7 +124,7 @@ export async function checkAllFloorsNeoliaAssets(
         return null;
       }
 
-      const assets = await checkNeoliaAssetsForFloor(floorId, trimmedBaseUrl, token);
+      const assets = await checkNeoliaAssetsForFloor(floorId, normalizedBaseUrl, token);
 
       const result: NeoliaFloorAsset = {
         floorId,
