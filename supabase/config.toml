@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.pair-redeem]
 verify_jwt = false  # Public endpoint for QR code redemption
+
+[functions.neolia-assets]
+verify_jwt = false  # Public endpoint for asset verification
