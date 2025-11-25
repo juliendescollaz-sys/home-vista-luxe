@@ -1,5 +1,4 @@
-import { logger } from "@/lib/logger";
-import type { HAFloor } from "@/types/homeassistant";
+// src/services/neoliaFloorAssets.ts
 
 export interface NeoliaFloorAsset {
   floorId: string;
@@ -9,81 +8,63 @@ export interface NeoliaFloorAsset {
 }
 
 /**
- * Normalise l'URL de base Home Assistant
+ * Vérifie si une URL /local/... existe sur Home Assistant.
+ * Retourne true si status === 200, false sinon (404, erreur réseau, etc.).
  */
-function normalizeBaseUrl(baseUrl: string): string {
-  // Enlever les trailing slashes
-  let normalized = baseUrl.replace(/\/+$/, "");
-  
-  // Si c'est une URL WebSocket, la convertir en HTTP(S)
-  if (normalized.startsWith("wss://")) {
-    normalized = normalized.replace("wss://", "https://");
-  } else if (normalized.startsWith("ws://")) {
-    normalized = normalized.replace("ws://", "http://");
-  }
-  
-  // Enlever /api/websocket si présent
-  normalized = normalized.replace(/\/api\/websocket$/, "");
-  
-  return normalized;
-}
-
-/**
- * Vérifie la disponibilité d'un asset Neolia via GET
- */
-async function checkAssetAvailability(
-  url: string,
-  token: string,
-  assetType: string,
-  floorId: string
-): Promise<boolean> {
-  console.debug(`🔍 Vérification ${assetType} pour ${floorId}:`, url);
-  
+async function checkUrlExists(url: string, token?: string): Promise<boolean> {
   try {
+    const headers: HeadersInit = {};
+
+    // Le /local ne nécessite normalement pas de token,
+    // mais on le passe éventuellement si déjà disponible.
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(url, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      // Utiliser cache pour éviter de télécharger le fichier complet
-      cache: "no-cache",
+      headers,
     });
-    
-    const available = response.status === 200;
-    
-    if (available) {
-      console.debug(`✅ ${assetType} disponible pour ${floorId} (${response.status})`);
-    } else {
-      console.debug(`❌ ${assetType} non disponible pour ${floorId} (${response.status})`);
+
+    console.debug("[Neolia][checkUrlExists]", url, "->", response.status);
+
+    if (response.status === 200) {
+      return true;
     }
-    
-    return available;
+    if (response.status === 404) {
+      return false;
+    }
+
+    console.warn("[Neolia] Statut inattendu pour", url, "status:", response.status);
+    return false;
   } catch (error) {
-    console.warn(`⚠️ Erreur lors de la vérification ${assetType} pour ${floorId}:`, error);
+    console.warn("[Neolia] Erreur réseau pour", url, error);
     return false;
   }
 }
 
 /**
- * Vérifie la disponibilité des assets Neolia pour un étage donné
+ * Vérifie la présence du PNG et du JSON pour un étage donné.
  */
 export async function checkNeoliaAssetsForFloor(
   floorId: string,
   baseUrl: string,
-  token: string
+  token?: string,
 ): Promise<{ floorId: string; jsonAvailable: boolean; pngAvailable: boolean }> {
-  const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
-  
-  console.debug(`🏠 Vérification assets Neolia pour l'étage: ${floorId}`);
-  console.debug(`📍 Base URL normalisée: ${normalizedBaseUrl}`);
+  // On nettoie la base URL pour éviter les doubles //
+  const trimmedBaseUrl = baseUrl.replace(/\/+$/, "");
 
-  const jsonUrl = `${normalizedBaseUrl}/local/neolia/${floorId}.json`;
-  const pngUrl = `${normalizedBaseUrl}/local/neolia/${floorId}.png`;
+  const jsonUrl = `${trimmedBaseUrl}/local/neolia/${floorId}.json`;
+  const pngUrl = `${trimmedBaseUrl}/local/neolia/${floorId}.png`;
 
-  // Vérifier les deux assets en parallèle
+  console.debug("[Neolia] Vérification des assets pour", floorId, {
+    jsonUrl,
+    pngUrl,
+  });
+
   const [jsonAvailable, pngAvailable] = await Promise.all([
-    checkAssetAvailability(jsonUrl, token, "JSON", floorId),
-    checkAssetAvailability(pngUrl, token, "PNG", floorId),
+    checkUrlExists(jsonUrl, token),
+    checkUrlExists(pngUrl, token),
   ]);
 
   return {
@@ -94,44 +75,44 @@ export async function checkNeoliaAssetsForFloor(
 }
 
 /**
- * Vérifie la disponibilité des assets Neolia pour tous les étages
+ * Vérifie les assets Neolia pour tous les étages.
+ * `floors` doit être le tableau d'étages provenant du store HA.
  */
 export async function checkAllFloorsNeoliaAssets(
-  floors: HAFloor[],
+  floors: any[],
   baseUrl: string,
-  token: string
+  token?: string,
 ): Promise<NeoliaFloorAsset[]> {
-  if (!baseUrl || !token) {
-    console.warn("⚠️ BaseURL ou token manquant pour la vérification des assets Neolia");
-    return [];
-  }
-
   if (!floors || floors.length === 0) {
-    console.debug("ℹ️ Aucun étage à vérifier");
+    console.debug("[Neolia] Aucun étage fourni à checkAllFloorsNeoliaAssets");
     return [];
   }
 
-  console.log(`🔄 Vérification des assets Neolia pour ${floors.length} étage(s)...`);
+  const trimmedBaseUrl = baseUrl.replace(/\/+$/, "");
 
   const results = await Promise.all(
     floors.map(async (floor) => {
-      const { jsonAvailable, pngAvailable } = await checkNeoliaAssetsForFloor(
-        floor.floor_id,
-        baseUrl,
-        token
-      );
+      const floorId: string = floor.floor_id || floor.id || floor.slug || floor.uid;
+      const floorName: string = floor.name || floorId;
 
-      return {
-        floorId: floor.floor_id,
-        floorName: floor.name,
-        jsonAvailable,
-        pngAvailable,
+      if (!floorId) {
+        console.warn("[Neolia] Étape sans floor_id détectée :", floor);
+        return null;
+      }
+
+      const assets = await checkNeoliaAssetsForFloor(floorId, trimmedBaseUrl, token);
+
+      const result: NeoliaFloorAsset = {
+        floorId,
+        floorName,
+        jsonAvailable: assets.jsonAvailable,
+        pngAvailable: assets.pngAvailable,
       };
-    })
+
+      return result;
+    }),
   );
 
-  console.log("✅ Vérification des assets Neolia terminée");
-  console.table(results);
-  
-  return results;
+  // On filtre les null éventuels
+  return results.filter((r): r is NeoliaFloorAsset => r !== null);
 }
