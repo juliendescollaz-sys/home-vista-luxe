@@ -7,136 +7,104 @@ export interface NeoliaFloorAsset {
   pngAvailable: boolean;
 }
 
+interface RawNeoliaAsset {
+  floor_id: string;
+  png: boolean;
+  json: boolean;
+}
+
 /**
- * Normalise l'URL de base de Home Assistant :
- * - supprime les / de fin
- * - supprime un éventuel suffixe /api
- *   (ex: http://host:8123/api -> http://host:8123)
+ * Construit l'URL de base de l'API HA :
+ * - enlève les / de fin
+ * - ajoute /api si nécessaire
  */
-function normalizeBaseUrl(rawBaseUrl: string): string {
+function buildApiBaseUrl(rawBaseUrl: string): string {
   if (!rawBaseUrl) return "";
-
-  // On enlève les / de fin
   let url = rawBaseUrl.replace(/\/+$/, "");
-
-  // Si ça se termine par /api, on le retire
-  if (url.endsWith("/api")) {
-    url = url.slice(0, -4); // retire les 4 caractères de "/api"
+  if (!url.endsWith("/api")) {
+    url += "/api";
   }
-
   return url;
 }
 
 /**
- * Vérifie si une URL /local/... existe sur Home Assistant.
- * Retourne true si status === 200, false sinon (404, erreur réseau, etc.).
+ * Récupère la liste des assets Neolia exposés par Home Assistant
+ * via /api/neolia/assets.
  */
-async function checkUrlExists(url: string, token?: string): Promise<boolean> {
-  try {
-    const headers: HeadersInit = {};
-
-    // /local ne nécessite normalement pas de token,
-    // mais on le passe éventuellement si déjà disponible.
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(url, {
-      method: "GET",
-      headers,
-    });
-
-    console.debug("[Neolia][checkUrlExists]", url, "->", response.status);
-
-    if (response.status === 200) {
-      return true;
-    }
-    if (response.status === 404) {
-      return false;
-    }
-
-    console.warn("[Neolia] Statut inattendu pour", url, "status:", response.status);
-    return false;
-  } catch (error) {
-    console.warn("[Neolia] Erreur réseau pour", url, error);
-    return false;
-  }
-}
-
-/**
- * Vérifie la présence du PNG et du JSON pour un étage donné.
- */
-export async function checkNeoliaAssetsForFloor(
-  floorId: string,
+async function fetchNeoliaAssetsFromHA(
   baseUrl: string,
-  token?: string,
-): Promise<{ floorId: string; jsonAvailable: boolean; pngAvailable: boolean }> {
-  const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+  token: string,
+): Promise<Record<string, { png: boolean; json: boolean }>> {
+  const apiBase = buildApiBaseUrl(baseUrl);
+  const url = `${apiBase}/neolia/assets`;
 
-  const jsonUrl = `${normalizedBaseUrl}/local/neolia/${floorId}.json`;
-  const pngUrl = `${normalizedBaseUrl}/local/neolia/${floorId}.png`;
+  const headers: HeadersInit = {
+    Authorization: `Bearer ${token}`,
+  };
 
-  console.debug("[Neolia] Vérification des assets pour", floorId, {
-    baseUrl,
-    normalizedBaseUrl,
-    jsonUrl,
-    pngUrl,
+  console.debug("[Neolia] Appel /api/neolia/assets :", url);
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers,
   });
 
-  const [jsonAvailable, pngAvailable] = await Promise.all([
-    checkUrlExists(jsonUrl, token),
-    checkUrlExists(pngUrl, token),
-  ]);
+  if (!response.ok) {
+    console.warn("[Neolia] /api/neolia/assets a retourné un statut non OK :", response.status);
+    return {};
+  }
 
-  return {
-    floorId,
-    jsonAvailable,
-    pngAvailable,
+  const data = (await response.json()) as {
+    status?: string;
+    assets?: RawNeoliaAsset[];
   };
+
+  if (data.status !== "ok" || !Array.isArray(data.assets)) {
+    console.warn("[Neolia] Réponse inattendue de /api/neolia/assets :", data);
+    return {};
+  }
+
+  const map: Record<string, { png: boolean; json: boolean }> = {};
+
+  for (const asset of data.assets) {
+    if (!asset.floor_id) continue;
+    map[asset.floor_id] = {
+      png: !!asset.png,
+      json: !!asset.json,
+    };
+  }
+
+  console.debug("[Neolia] Assets reçus depuis HA :", map);
+  return map;
 }
 
 /**
- * Vérifie les assets Neolia pour tous les étages.
- * `floors` doit être le tableau d'étages provenant du store HA.
+ * Fonction utilisée par la page Maison pour afficher l'état
+ * des PNG/JSON par étage.
  */
 export async function checkAllFloorsNeoliaAssets(
   floors: any[],
   baseUrl: string,
-  token?: string,
+  token: string,
 ): Promise<NeoliaFloorAsset[]> {
   if (!floors || floors.length === 0) {
     console.debug("[Neolia] Aucun étage fourni à checkAllFloorsNeoliaAssets");
     return [];
   }
 
-  const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+  const assetsMap = await fetchNeoliaAssetsFromHA(baseUrl, token);
 
-  console.debug("[Neolia] checkAllFloorsNeoliaAssets baseUrl:", baseUrl);
-  console.debug("[Neolia] baseUrl normalisée:", normalizedBaseUrl);
+  return floors.map((floor) => {
+    const floorId: string = floor.floor_id || floor.id || floor.slug || floor.uid;
+    const floorName: string = floor.name || floorId;
 
-  const results = await Promise.all(
-    floors.map(async (floor) => {
-      const floorId: string = floor.floor_id || floor.id || floor.slug || floor.uid;
-      const floorName: string = floor.name || floorId;
+    const fromMap = floorId ? assetsMap[floorId] : undefined;
 
-      if (!floorId) {
-        console.warn("[Neolia] Étape sans floor_id détectée :", floor);
-        return null;
-      }
-
-      const assets = await checkNeoliaAssetsForFloor(floorId, normalizedBaseUrl, token);
-
-      const result: NeoliaFloorAsset = {
-        floorId,
-        floorName,
-        jsonAvailable: assets.jsonAvailable,
-        pngAvailable: assets.pngAvailable,
-      };
-
-      return result;
-    }),
-  );
-
-  // On filtre les null éventuels
-  return results.filter((r): r is NeoliaFloorAsset => r !== null);
+    return {
+      floorId,
+      floorName,
+      jsonAvailable: !!fromMap?.json,
+      pngAvailable: !!fromMap?.png,
+    };
+  });
 }
