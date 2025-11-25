@@ -5,8 +5,14 @@ export interface NeoliaFloorPolygon {
   relative: [number, number][];
 }
 
+export interface NeoliaFloorArea {
+  area_id: string;
+  name: string;
+}
+
 export interface NeoliaFloorJson {
   floor_id: string;
+  areas?: NeoliaFloorArea[];
   polygons: NeoliaFloorPolygon[];
 }
 

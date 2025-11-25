@@ -2,66 +2,39 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useHAStore } from "@/store/useHAStore";
-import { useState, useEffect, useMemo } from "react";
-import { FileJson, Image as ImageIcon, MapPin, Grid3x3 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { MapPin, Grid3x3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { checkAllFloorsNeoliaAssets, type NeoliaFloorAsset } from "@/services/neoliaFloorAssets";
 import { RoomDevicesGrid } from "@/components/RoomDevicesGrid";
 import { getEntityDomain } from "@/lib/entityUtils";
-import type { HAConnection, HAFloor, HAArea } from "@/types/homeassistant";
 import { cn } from "@/lib/utils";
 
 // ============== MaisonTabletPanelView ==============
-interface MaisonTabletPanelViewProps {
-  connection: HAConnection | null;
-  floors: HAFloor[];
-  neoliaAssets: NeoliaFloorAsset[];
-}
-
-const MaisonTabletPanelView = ({
-  connection,
-  floors,
-  neoliaAssets,
-}: MaisonTabletPanelViewProps) => {
+const MaisonTabletPanelView = () => {
+  const connection = useHAStore((state) => state.connection);
+  const floors = useHAStore((state) => state.floors);
   const areas = useHAStore((state) => state.areas);
-  const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null);
-  const [selectedAreaId, setSelectedAreaId] = useState<string | undefined>(undefined);
-
-  // Initialiser la sélection d'étage
-  useEffect(() => {
-    if (neoliaAssets.length > 0 && !selectedFloorId) {
-      // Sélectionner le premier étage avec PNG disponible
-      const withPng = neoliaAssets.find((a) => a.pngAvailable);
-      if (withPng) {
-        setSelectedFloorId(withPng.floorId);
-      } else {
-        // Sinon, le premier étage
-        setSelectedFloorId(neoliaAssets[0].floorId);
-      }
-    }
-  }, [neoliaAssets, selectedFloorId]);
+  const neoliaFloorPlans = useHAStore((state) => state.neoliaFloorPlans);
+  const selectedFloorId = useHAStore((state) => state.selectedFloorId);
+  const selectedAreaId = useHAStore((state) => state.selectedAreaId);
+  const setSelectedFloorId = useHAStore((state) => state.setSelectedFloorId);
+  const setSelectedAreaId = useHAStore((state) => state.setSelectedAreaId);
 
   // Réinitialiser selectedAreaId quand on change d'étage
   useEffect(() => {
-    setSelectedAreaId(undefined);
-  }, [selectedFloorId]);
+    setSelectedAreaId(null);
+  }, [selectedFloorId, setSelectedAreaId]);
 
-  const selectedAsset = useMemo(() => {
-    return neoliaAssets.find((a) => a.floorId === selectedFloorId);
-  }, [neoliaAssets, selectedFloorId]);
+  const selectedPlan = useMemo(() => {
+    return neoliaFloorPlans.find((p) => p.floorId === selectedFloorId);
+  }, [neoliaFloorPlans, selectedFloorId]);
 
   const selectedArea = useMemo(() => {
     if (!selectedAreaId) return null;
     return areas.find((a) => a.area_id === selectedAreaId) || null;
   }, [selectedAreaId, areas]);
-
-  const planImageUrl = useMemo(() => {
-    if (!connection || !selectedAsset?.pngAvailable) return null;
-    return `${connection.url}/local/neolia/${selectedAsset.floorId}.png`;
-  }, [connection, selectedAsset]);
 
   if (!connection || floors.length === 0) {
     return (
@@ -75,7 +48,7 @@ const MaisonTabletPanelView = ({
     );
   }
 
-  if (neoliaAssets.length === 0) {
+  if (neoliaFloorPlans.length === 0) {
     return (
       <Card className="animate-fade-in">
         <CardHeader>
@@ -83,12 +56,22 @@ const MaisonTabletPanelView = ({
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-center py-4">
-            Impossible de vérifier les plans Neolia pour le moment.
+            Impossible de charger les plans Neolia pour le moment.
           </p>
         </CardContent>
       </Card>
     );
   }
+
+  // Calculer le centroïde d'un polygon
+  const getPolygonCenter = (relative: [number, number][]): { x: number; y: number } => {
+    const sumX = relative.reduce((sum, [x]) => sum + x, 0);
+    const sumY = relative.reduce((sum, [, y]) => sum + y, 0);
+    return {
+      x: sumX / relative.length,
+      y: sumY / relative.length,
+    };
+  };
 
   return (
     <Card className="animate-fade-in">
@@ -98,24 +81,27 @@ const MaisonTabletPanelView = ({
       <CardContent className="space-y-4">
         {/* Ligne des boutons d'étage */}
         <div className="flex flex-wrap gap-2">
-          {neoliaAssets.map((asset) => {
-            const isSelected = asset.floorId === selectedFloorId;
-            const incomplete = !asset.pngAvailable || !asset.jsonAvailable;
+          {neoliaFloorPlans.map((plan) => {
+            const isSelected = plan.floorId === selectedFloorId;
+            const isIncomplete = !plan.hasPng || !plan.hasJson;
 
             return (
               <button
-                key={asset.floorId}
+                key={plan.floorId}
                 type="button"
-                onClick={() => setSelectedFloorId(asset.floorId)}
+                onClick={() => setSelectedFloorId(plan.floorId)}
+                disabled={isIncomplete}
                 className={cn(
                   "px-4 py-2 rounded-lg font-medium transition-all border relative",
                   isSelected
                     ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : isIncomplete
+                    ? "bg-muted text-muted-foreground border-border opacity-60 cursor-not-allowed"
                     : "bg-background text-foreground border-border hover:bg-muted"
                 )}
               >
-                {asset.floorName}
-                {incomplete && (
+                {plan.floorName}
+                {isIncomplete && (
                   <Badge
                     variant="destructive"
                     className="ml-2 text-xs"
@@ -129,88 +115,100 @@ const MaisonTabletPanelView = ({
         </div>
 
         {/* Zone principale : plan + colonne de droite */}
-        <div className="flex gap-4">
+        <div className="flex flex-row gap-4">
           {/* Conteneur plan */}
-          <div className="flex-1 relative aspect-[16/9] max-h-[70vh] rounded-xl overflow-hidden bg-muted/40 border border-border/40">
-            {selectedAsset?.pngAvailable && planImageUrl ? (
-              <>
-                <img
-                  src={planImageUrl}
-                  alt={`Plan de ${selectedAsset.floorName}`}
-                  className="w-full h-full object-contain"
-                />
-                {/* Overlay des boutons de pièces */}
-                {selectedAsset.jsonAvailable &&
-                  selectedAsset.jsonData &&
-                  selectedAsset.jsonData.polygons.length > 0 && (
-                    <>
-                      {selectedAsset.jsonData.polygons.map((polygon, index) => {
-                        // Calculer le centre du polygone
-                        const centerX =
-                          polygon.relative.reduce((sum, point) => sum + point[0], 0) /
-                          polygon.relative.length;
-                        const centerY =
-                          polygon.relative.reduce((sum, point) => sum + point[1], 0) /
-                          polygon.relative.length;
+          <div className="basis-2/3 min-h-[520px] max-h-[620px] flex items-center justify-center">
+            <div className="relative w-full h-full rounded-xl overflow-hidden bg-muted/40 border border-border/40">
+              {selectedPlan?.hasPng && selectedPlan?.imageUrl ? (
+                <>
+                  <img
+                    src={selectedPlan.imageUrl}
+                    alt={`Plan de ${selectedPlan.floorName}`}
+                    className="w-full h-full object-contain rounded-xl bg-black/20"
+                  />
+                  {/* Overlay des boutons de pièces */}
+                  {selectedPlan.hasJson &&
+                    selectedPlan.json &&
+                    selectedPlan.json.polygons.length > 0 && (
+                      <>
+                        {selectedPlan.json.polygons.map((polygon, index) => {
+                          const center = getPolygonCenter(polygon.relative);
+                          
+                          // Chercher le nom de la pièce dans le JSON areas d'abord
+                          let roomName = polygon.areaId;
+                          if (selectedPlan.json?.areas) {
+                            const jsonArea = selectedPlan.json.areas.find(
+                              (a) => a.areaId === polygon.areaId
+                            );
+                            if (jsonArea) {
+                              roomName = jsonArea.name;
+                            }
+                          }
+                          
+                          // Sinon, chercher dans les areas HA
+                          if (roomName === polygon.areaId) {
+                            const haArea = areas.find((a) => a.area_id === polygon.areaId);
+                            if (haArea) {
+                              roomName = haArea.name;
+                            }
+                          }
 
-                        const area = areas.find((a) => a.area_id === polygon.area_id);
-                        const roomName = area?.name || polygon.area_id;
-
-                        return (
-                          <button
-                            key={`${polygon.area_id}-${index}`}
-                            type="button"
-                            onClick={() => setSelectedAreaId(polygon.area_id)}
-                            className={cn(
-                              "px-3 py-1 rounded-full text-xs font-medium backdrop-blur border shadow-sm transition-colors",
-                              selectedAreaId === polygon.area_id
-                                ? "bg-primary text-primary-foreground border-primary"
-                                : "bg-background/80 border-border/60 hover:bg-primary hover:text-primary-foreground"
-                            )}
-                            style={{
-                              position: "absolute",
-                              left: `${centerX * 100}%`,
-                              top: `${centerY * 100}%`,
-                              transform: "translate(-50%, -50%)",
-                            }}
-                          >
-                            {roomName}
-                          </button>
-                        );
-                      })}
-                    </>
+                          return (
+                            <button
+                              key={`${polygon.areaId}-${index}`}
+                              type="button"
+                              onClick={() => setSelectedAreaId(polygon.areaId)}
+                              className={cn(
+                                "absolute -translate-x-1/2 -translate-y-1/2 px-3 py-1 rounded-full text-xs font-medium shadow-md backdrop-blur transition-colors",
+                                selectedAreaId === polygon.areaId
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-background/80 text-foreground hover:bg-primary/80 hover:text-primary-foreground"
+                              )}
+                              style={{
+                                left: `${center.x * 100}%`,
+                                top: `${center.y * 100}%`,
+                              }}
+                            >
+                              {roomName}
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+                  {/* Message si JSON manquant */}
+                  {!selectedPlan.hasJson && (
+                    <div className="absolute inset-0 flex items-end justify-center pb-4">
+                      <p className="text-xs text-muted-foreground bg-background/80 backdrop-blur px-3 py-1 rounded-full border border-border/60">
+                        Zones non configurées pour cet étage.
+                      </p>
+                    </div>
                   )}
-                {/* Message si JSON manquant */}
-                {!selectedAsset.jsonAvailable && (
-                  <div className="absolute inset-0 flex items-end justify-center pb-4">
-                    <p className="text-xs text-muted-foreground bg-background/80 backdrop-blur px-3 py-1 rounded-full border border-border/60">
-                      Zones non configurées pour cet étage.
-                    </p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <p className="text-muted-foreground text-center px-4">
-                  Plan PNG manquant pour cet étage. Exportez le plan depuis Neolia Configurator.
-                </p>
-              </div>
-            )}
+                </>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <p className="text-muted-foreground text-center px-4">
+                    Plan non disponible pour cet étage (PNG/JSON manquant).
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Colonne de droite : appareils de la pièce sélectionnée */}
-          <div className="w-[320px] max-w-[35%] flex-shrink-0 space-y-4">
+          <div className="basis-1/3 border-l pl-4 overflow-y-auto space-y-4">
             {selectedAreaId && selectedArea ? (
               <>
-                <h3 className="text-lg font-semibold">
+                <h3 className="text-lg font-semibold sticky top-0 bg-background py-2">
                   Pièce : {selectedArea.name}
                 </h3>
                 <RoomDevicesGrid areaId={selectedAreaId} />
               </>
             ) : (
-              <p className="text-muted-foreground text-center py-4">
-                Sélectionnez une pièce sur le plan pour voir les appareils.
-              </p>
+              <div className="flex items-center justify-center h-full">
+                <p className="text-muted-foreground text-center py-4">
+                  Sélectionnez une pièce sur le plan pour voir les appareils.
+                </p>
+              </div>
             )}
           </div>
         </div>
@@ -220,21 +218,13 @@ const MaisonTabletPanelView = ({
 };
 
 // ============== MaisonMobileView ==============
-interface MaisonMobileViewProps {
-  connection: HAConnection | null;
-  floors: HAFloor[];
-  neoliaAssets: NeoliaFloorAsset[];
-}
-
-const MaisonMobileView = ({
-  connection,
-  floors,
-  neoliaAssets,
-}: MaisonMobileViewProps) => {
+const MaisonMobileView = () => {
+  const floors = useHAStore((state) => state.floors);
   const areas = useHAStore((state) => state.areas);
   const entities = useHAStore((state) => state.entities);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const devices = useHAStore((state) => state.devices);
+  const neoliaFloorPlans = useHAStore((state) => state.neoliaFloorPlans);
 
   const [selectedAreaId, setSelectedAreaId] = useState<string | undefined>(undefined);
   const [viewMode, setViewMode] = useState<"room" | "type">("room");
@@ -265,7 +255,7 @@ const MaisonMobileView = ({
     return groups;
   }, [entities]);
 
-  if (!connection || floors.length === 0) {
+  if (floors.length === 0) {
     return (
       <Card className="animate-fade-in">
         <CardContent className="py-8">
@@ -280,46 +270,40 @@ const MaisonMobileView = ({
   return (
     <div className="space-y-6">
       {/* Infos sur les plans */}
-      <Card className="animate-fade-in">
-        <CardHeader>
-          <CardTitle className="text-xl">Plans Neolia</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {neoliaAssets.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">
-              Aucun plan disponible. Configurez vos plans avec Neolia Configurator dans Home Assistant.
-            </p>
-          ) : (
-            neoliaAssets.map((asset) => (
+      {neoliaFloorPlans.length > 0 && (
+        <Card className="animate-fade-in">
+          <CardHeader>
+            <CardTitle className="text-xl">Plans Neolia</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {neoliaFloorPlans.map((plan) => (
               <div
-                key={asset.floorId}
+                key={plan.floorId}
                 className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors"
               >
                 <div className="flex-1">
-                  <h3 className="font-medium">{asset.floorName}</h3>
-                  <p className="text-sm text-muted-foreground">{asset.floorId}</p>
+                  <h3 className="font-medium">{plan.floorName}</h3>
+                  <p className="text-sm text-muted-foreground">{plan.floorId}</p>
                 </div>
                 <div className="flex gap-2">
                   <Badge
-                    variant={asset.pngAvailable ? "default" : "destructive"}
-                    className="gap-1"
+                    variant={plan.hasPng ? "default" : "destructive"}
+                    className="gap-1 text-xs"
                   >
-                    <ImageIcon size={14} />
-                    {asset.pngAvailable ? "PNG OK" : "PNG manquant"}
+                    {plan.hasPng ? "PNG ✓" : "PNG ✗"}
                   </Badge>
                   <Badge
-                    variant={asset.jsonAvailable ? "default" : "destructive"}
-                    className="gap-1"
+                    variant={plan.hasJson ? "default" : "destructive"}
+                    className="gap-1 text-xs"
                   >
-                    <FileJson size={14} />
-                    {asset.jsonAvailable ? "JSON OK" : "JSON manquant"}
+                    {plan.hasJson ? "JSON ✓" : "JSON ✗"}
                   </Badge>
                 </div>
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Onglets Par pièce / Par type */}
       <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "room" | "type")}>
@@ -444,71 +428,35 @@ const Rooms = () => {
   const { displayMode } = useDisplayMode();
   const connection = useHAStore((state) => state.connection);
   const floors = useHAStore((state) => state.floors);
+  const isLoadingNeoliaPlans = useHAStore((state) => state.isLoadingNeoliaPlans);
+  const loadNeoliaPlans = useHAStore((state) => state.loadNeoliaPlans);
+  
   const rootClassName = displayMode === "mobile" ? "min-h-screen bg-background pb-20" : "min-h-screen bg-background";
   const contentPaddingTop = displayMode === "mobile" ? "pt-[138px]" : "pt-[24px]";
 
-  const [neoliaAssets, setNeoliaAssets] = useState<NeoliaFloorAsset[]>([]);
-  const [isLoadingAssets, setIsLoadingAssets] = useState(false);
-
-  // Vérifier les assets Neolia au chargement
+  // Charger les plans Neolia au démarrage
   useEffect(() => {
-    const loadNeoliaAssets = async () => {
-      if (!connection) {
-        console.warn("⚠️ Connexion HA non disponible, impossible de vérifier les assets Neolia");
-        return;
-      }
-
-      if (!floors || floors.length === 0) {
-        console.debug("ℹ️ Aucun étage configuré");
-        return;
-      }
-
-      console.log("🔄 Démarrage de la vérification des assets Neolia...");
-      console.debug("Connection URL:", connection.url);
-      console.debug("Nombre d'étages:", floors.length);
-
-      setIsLoadingAssets(true);
-      try {
-        const results = await checkAllFloorsNeoliaAssets(
-          floors,
-          connection.url,
-          connection.token,
-          true // includeJson
-        );
-        setNeoliaAssets(results);
-        console.log("✅ Assets Neolia chargés:", results);
-      } catch (error) {
-        console.error("❌ Erreur lors de la vérification des assets Neolia:", error);
-      } finally {
-        setIsLoadingAssets(false);
-      }
-    };
-
-    loadNeoliaAssets();
-  }, [connection, floors]);
+    if (connection && floors.length > 0) {
+      loadNeoliaPlans(connection, floors);
+    }
+  }, [connection, floors, loadNeoliaPlans]);
 
   return (
     <div className={rootClassName}>
       <TopBar title="Maison" />
       <div className={`w-full ${displayMode === "mobile" ? "px-[26px]" : "px-4"} pb-[26px] ${contentPaddingTop}`}>
-        {isLoadingAssets ? (
+        {isLoadingNeoliaPlans ? (
           <Card className="animate-fade-in">
             <CardContent className="py-8">
-              <Skeleton className="h-64 w-full rounded-lg" />
+              <p className="text-muted-foreground text-center">
+                Chargement des plans Neolia...
+              </p>
             </CardContent>
           </Card>
         ) : displayMode === "mobile" ? (
-          <MaisonMobileView
-            connection={connection}
-            floors={floors}
-            neoliaAssets={neoliaAssets}
-          />
+          <MaisonMobileView />
         ) : (
-          <MaisonTabletPanelView
-            connection={connection}
-            floors={floors}
-            neoliaAssets={neoliaAssets}
-          />
+          <MaisonTabletPanelView />
         )}
       </div>
       <BottomNav />

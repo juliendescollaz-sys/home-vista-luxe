@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { HAConnection, HAEntity, HAArea, HAFloor, HADevice } from "@/types/homeassistant";
 import type { HAClient } from "@/lib/haClient";
+import type { NeoliaFloorPlan } from "@/services/neoliaFloorPlans";
+import { loadNeoliaFloorPlans } from "@/services/neoliaFloorPlans";
 
 interface EntityRegistry {
   entity_id: string;
@@ -26,6 +28,12 @@ interface HAStore {
   weatherEntity: string | null;
   selectedCity: { label: string; lat: number; lon: number } | null;
   
+  // Neolia floor plans
+  neoliaFloorPlans: NeoliaFloorPlan[];
+  selectedFloorId: string | null;
+  selectedAreaId: string | null;
+  isLoadingNeoliaPlans: boolean;
+  
   setConnection: (connection: HAConnection) => void;
   setClient: (client: HAClient | null) => void;
   setEntities: (entities: HAEntity[]) => void;
@@ -40,12 +48,15 @@ interface HAStore {
   setEntityOrder: (contextId: string, order: string[]) => void;
   setWeatherEntity: (entityId: string | null) => void;
   setSelectedCity: (city: { label: string; lat: number; lon: number } | null) => void;
+  setSelectedFloorId: (floorId: string | null) => void;
+  setSelectedAreaId: (areaId: string | null) => void;
+  loadNeoliaPlans: (connection: HAConnection, floors: HAFloor[]) => Promise<void>;
   disconnect: () => void;
 }
 
 export const useHAStore = create<HAStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       connection: null,
       client: null,
       entities: [],
@@ -60,6 +71,12 @@ export const useHAStore = create<HAStore>()(
       entityOrder: {},
       weatherEntity: null,
       selectedCity: null,
+      
+      // Neolia state
+      neoliaFloorPlans: [],
+      selectedFloorId: null,
+      selectedAreaId: null,
+      isLoadingNeoliaPlans: false,
 
       setConnection: (connection) => set({ connection }),
       setClient: (client) => set({ client }),
@@ -93,11 +110,42 @@ export const useHAStore = create<HAStore>()(
 
       setSelectedCity: (city) => set({ selectedCity: city }),
       
+      setSelectedFloorId: (floorId) => set({ selectedFloorId: floorId }),
+      
+      setSelectedAreaId: (areaId) => set({ selectedAreaId: areaId }),
+      
+      loadNeoliaPlans: async (connection, floors) => {
+        // Ne pas recharger si déjà chargé
+        const state = get();
+        if (state.neoliaFloorPlans.length > 0 && !state.isLoadingNeoliaPlans) {
+          console.debug("[Neolia Store] Plans déjà chargés, pas de rechargement");
+          return;
+        }
+        
+        set({ isLoadingNeoliaPlans: true });
+        try {
+          const plans = await loadNeoliaFloorPlans(connection, floors);
+          set({ 
+            neoliaFloorPlans: plans,
+            isLoadingNeoliaPlans: false,
+            // Sélectionner le premier étage avec PNG+JSON OK
+            selectedFloorId: plans.find(p => p.hasPng && p.hasJson)?.floorId || plans[0]?.floorId || null,
+            selectedAreaId: null,
+          });
+        } catch (error) {
+          console.error("[Neolia Store] Erreur lors du chargement des plans:", error);
+          set({ isLoadingNeoliaPlans: false });
+        }
+      },
+      
       disconnect: () =>
         set({
           connection: null,
           entities: [],
           isConnected: false,
+          neoliaFloorPlans: [],
+          selectedFloorId: null,
+          selectedAreaId: null,
         }),
     }),
     {
