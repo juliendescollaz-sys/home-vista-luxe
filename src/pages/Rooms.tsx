@@ -238,8 +238,8 @@ const MaisonTabletPanelView = () => {
                 <RoomDevicesGrid areaId={selectedAreaId} />
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-muted-foreground text-center py-4">
+              <div className="py-2">
+                <p className="text-muted-foreground text-center">
                   Sélectionnez une pièce sur le plan pour voir les appareils.
                 </p>
               </div>
