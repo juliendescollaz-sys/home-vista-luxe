@@ -28,7 +28,12 @@ const MaisonTabletPanelView = () => {
   }, [selectedFloorId, setSelectedAreaId]);
 
   const selectedPlan = useMemo(() => {
-    return neoliaFloorPlans.find((p) => p.floorId === selectedFloorId);
+    const plan = neoliaFloorPlans.find((p) => p.floorId === selectedFloorId);
+    if (plan) {
+      console.debug("[Neolia] currentPlan", plan);
+      console.debug("[Neolia] polygons pour l'étage sélectionné", plan.json?.polygons);
+    }
+    return plan;
   }, [neoliaFloorPlans, selectedFloorId]);
 
   const selectedArea = useMemo(() => {
