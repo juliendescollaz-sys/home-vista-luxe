@@ -18,8 +18,6 @@ const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-client-info",
 };
 
-};
-
 async function checkUrl(url: string, token?: string): Promise<boolean> {
   try {
     const headers: Record<string, string> = {};
