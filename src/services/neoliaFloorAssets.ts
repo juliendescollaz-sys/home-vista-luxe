@@ -1,10 +1,21 @@
 // src/services/neoliaFloorAssets.ts
 
+export interface NeoliaFloorPolygon {
+  area_id: string;
+  relative: [number, number][];
+}
+
+export interface NeoliaFloorJson {
+  floor_id: string;
+  polygons: NeoliaFloorPolygon[];
+}
+
 export interface NeoliaFloorAsset {
   floorId: string;
   floorName: string;
-  jsonAvailable: boolean;
   pngAvailable: boolean;
+  jsonAvailable: boolean;
+  jsonData?: NeoliaFloorJson | null;
 }
 
 // Type minimal pour les étages venant du store HA
@@ -17,11 +28,13 @@ type FloorLike = {
 /**
  * Vérifie les assets Neolia pour tous les étages via l'Edge Function Supabase.
  * `floors` doit être le tableau d'étages provenant du store HA.
+ * Si `includeJson` est true, récupère aussi le contenu JSON des plans.
  */
 export async function checkAllFloorsNeoliaAssets(
   floors: FloorLike[],
   haBaseUrl: string,
-  haToken: string
+  haToken: string,
+  includeJson = true
 ): Promise<NeoliaFloorAsset[]> {
   if (!haBaseUrl || !floors || floors.length === 0) {
     console.debug("[Neolia] Paramètres manquants pour checkAllFloorsNeoliaAssets");
@@ -35,6 +48,7 @@ export async function checkAllFloorsNeoliaAssets(
   const payload = {
     haBaseUrl,
     haToken,
+    includeJson,
     floors: floors.map((f) => ({
       id: f.floor_id || f.id || "",
       name: f.name,
