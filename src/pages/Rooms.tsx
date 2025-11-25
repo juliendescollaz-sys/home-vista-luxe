@@ -80,10 +80,7 @@ const MaisonTabletPanelView = () => {
 
   return (
     <Card className="animate-fade-in">
-      <CardHeader>
-        <CardTitle className="text-2xl">Plans Neolia</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         {/* Ligne des boutons d'étage */}
         <div className="flex flex-wrap gap-2">
           {neoliaFloorPlans.map((plan) => {
@@ -131,18 +128,6 @@ const MaisonTabletPanelView = () => {
                   alt={`Plan de ${selectedPlan.floorName}`}
                   className="w-full h-full object-contain bg-black/20"
                 />
-                
-                {/* Badge de debug en haut à gauche */}
-                <div className="absolute top-3 left-3 z-40 flex gap-2">
-                  <div className="px-2 py-1 rounded-md bg-background/90 backdrop-blur text-xs font-medium shadow-sm border border-border/60">
-                    {selectedPlan.floorName}
-                  </div>
-                  {selectedPlan?.hasJson && selectedPlan?.json?.polygons && (
-                    <div className="px-2 py-1 rounded-md bg-background/90 backdrop-blur text-xs font-medium shadow-sm border border-border/60">
-                      Zones: {selectedPlan.json.polygons.length}
-                    </div>
-                  )}
-                </div>
 
                 {/* Overlay des zones cliquables */}
                 {selectedPlan?.hasJson && selectedPlan?.json?.polygons ? (
@@ -244,14 +229,14 @@ const MaisonTabletPanelView = () => {
           </div>
 
           {/* Colonne de droite : appareils de la pièce sélectionnée */}
-          <div className="basis-1/3 border-l pl-4 overflow-y-auto space-y-4">
+          <div className="basis-1/3 border-l pl-4 overflow-y-auto">
             {selectedAreaId && selectedArea ? (
-              <>
-                <h3 className="text-lg font-semibold sticky top-0 bg-background py-2">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold sticky top-0 bg-background">
                   Pièce : {selectedArea.name}
                 </h3>
                 <RoomDevicesGrid areaId={selectedAreaId} />
-              </>
+              </div>
             ) : (
               <div className="flex items-center justify-center h-full">
                 <p className="text-muted-foreground text-center py-4">
