@@ -34,6 +34,9 @@ interface HAStore {
   selectedAreaId: string | null;
   isLoadingNeoliaPlans: boolean;
   
+  // Positions custom des labels de pièces sur les plans
+  labelPositions: Record<string, { x: number; y: number }>;
+  
   setConnection: (connection: HAConnection) => void;
   setClient: (client: HAClient | null) => void;
   setEntities: (entities: HAEntity[]) => void;
@@ -51,6 +54,7 @@ interface HAStore {
   setSelectedFloorId: (floorId: string | null) => void;
   setSelectedAreaId: (areaId: string | null) => void;
   loadNeoliaPlans: (connection: HAConnection, floors: HAFloor[]) => Promise<void>;
+  setLabelPosition: (floorId: string, areaId: string, x: number, y: number) => void;
   disconnect: () => void;
 }
 
@@ -77,6 +81,7 @@ export const useHAStore = create<HAStore>()(
       selectedFloorId: null,
       selectedAreaId: null,
       isLoadingNeoliaPlans: false,
+      labelPositions: {},
 
       setConnection: (connection) => set({ connection }),
       setClient: (client) => set({ client }),
@@ -113,6 +118,17 @@ export const useHAStore = create<HAStore>()(
       setSelectedFloorId: (floorId) => set({ selectedFloorId: floorId }),
       
       setSelectedAreaId: (areaId) => set({ selectedAreaId: areaId }),
+      
+      setLabelPosition: (floorId, areaId, x, y) =>
+        set((state) => {
+          const key = `${floorId}:${areaId}`;
+          return {
+            labelPositions: {
+              ...state.labelPositions,
+              [key]: { x, y },
+            },
+          };
+        }),
       
       loadNeoliaPlans: async (connection, floors) => {
         // Ne pas recharger si déjà chargé
@@ -158,6 +174,7 @@ export const useHAStore = create<HAStore>()(
         entityOrder: state.entityOrder,
         weatherEntity: state.weatherEntity,
         selectedCity: state.selectedCity,
+        labelPositions: state.labelPositions,
       }),
       version: 4,
     }

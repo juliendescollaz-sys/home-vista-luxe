@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RoomDevicesGrid } from "@/components/RoomDevicesGrid";
 import { getEntityDomain } from "@/lib/entityUtils";
 import { cn } from "@/lib/utils";
+import { DraggableRoomLabel } from "@/components/DraggableRoomLabel";
 
 // ============== MaisonTabletPanelView ==============
 const MaisonTabletPanelView = () => {
@@ -21,6 +22,8 @@ const MaisonTabletPanelView = () => {
   const selectedAreaId = useHAStore((state) => state.selectedAreaId);
   const setSelectedFloorId = useHAStore((state) => state.setSelectedFloorId);
   const setSelectedAreaId = useHAStore((state) => state.setSelectedAreaId);
+  const labelPositions = useHAStore((state) => state.labelPositions);
+  const setLabelPosition = useHAStore((state) => state.setLabelPosition);
 
   // Réinitialiser selectedAreaId quand on change d'étage
   useEffect(() => {
@@ -131,84 +134,56 @@ const MaisonTabletPanelView = () => {
 
                 {/* Overlay des zones cliquables */}
                 {selectedPlan?.hasJson && selectedPlan?.json?.polygons ? (
-                  <>
-                    {(() => {
-                      const polygons = selectedPlan.json.polygons;
-                      const areas = selectedPlan.json.areas;
-                      
-                      console.debug("[Neolia Plans] Plan sélectionné:", selectedPlan.floorName);
-                      console.debug("[Neolia Plans] Nombre de polygones:", polygons.length);
-                      console.debug("[Neolia Plans] Données polygones:", polygons);
-                      console.debug("[Neolia Plans] Données areas:", areas);
-                      
-                      if (polygons.length === 0) {
-                        console.warn("[Neolia Plans] Aucun polygone trouvé pour ce plan");
-                        return null;
-                      }
-                      
-                      return (
-                        <div className="absolute inset-0 z-30 pointer-events-none">
-                          {polygons.map((polygon, index) => {
-                            const points = polygon.relative ?? [];
-                            
-                            // Vérification des points
-                            if (points.length === 0) {
-                              console.warn(`[Neolia Plans] Polygone ${index} sans points:`, polygon);
-                              return (
-                                <div
-                                  key={`empty-${index}`}
-                                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] text-red-400 bg-red-100 px-2 py-1 rounded pointer-events-auto"
-                                >
-                                  POLYGONE SANS POINTS
-                                </div>
-                              );
-                            }
-                            
-                            // Calcul du centroïde
-                            let sumX = 0;
-                            let sumY = 0;
-                            points.forEach(([x, y]) => {
-                              sumX += x;
-                              sumY += y;
-                            });
-                            const cxNorm = sumX / points.length;
-                            const cyNorm = sumY / points.length;
-                            
-                            // Trouver le nom de la pièce
-                            const area = areas.find((a) => a.areaId === polygon.areaId);
-                            const roomName = area?.name ?? `Pièce ${index + 1}`;
-                            
-                            console.debug(`[Neolia Plans] Bouton ${index}: ${roomName} à (${(cxNorm * 100).toFixed(1)}%, ${(cyNorm * 100).toFixed(1)}%)`);
-                            
-                            return (
-                              <button
-                                key={`${polygon.areaId}-${index}`}
-                                type="button"
-                                style={{
-                                  left: `${cxNorm * 100}%`,
-                                  top: `${cyNorm * 100}%`,
-                                }}
-                                className={cn(
-                                  "absolute -translate-x-1/2 -translate-y-1/2",
-                                  "px-3 py-1.5 rounded-full text-[11px] font-medium",
-                                  "shadow-lg border pointer-events-auto transition-all",
-                                  selectedAreaId === polygon.areaId
-                                    ? "bg-primary text-primary-foreground border-primary scale-110"
-                                    : "bg-background/90 text-foreground border-border/60 hover:bg-primary hover:text-primary-foreground hover:scale-105 backdrop-blur"
-                                )}
-                                onClick={() => {
-                                  console.log(`[Neolia Plans] Sélection de la pièce: ${roomName} (${polygon.areaId})`);
-                                  setSelectedAreaId(polygon.areaId);
-                                }}
-                              >
-                                {roomName}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
-                  </>
+                  (() => {
+                    const polygons = selectedPlan.json.polygons;
+                    const areasFromJson = selectedPlan.json.areas;
+
+                    return (
+                      <div className="absolute inset-0 z-30 pointer-events-none">
+                        {polygons.map((polygon, index) => {
+                          const points = polygon.relative ?? [];
+                          if (points.length === 0) return null;
+
+                          // centroïde (position de base)
+                          let sumX = 0;
+                          let sumY = 0;
+                          points.forEach(([x, y]) => {
+                            sumX += x;
+                            sumY += y;
+                          });
+                          const baseX = sumX / points.length;
+                          const baseY = sumY / points.length;
+
+                          const area = areasFromJson.find(
+                            (a) => a.areaId === polygon.areaId,
+                          );
+                          const roomName = area?.name ?? `Pièce ${index + 1}`;
+
+                          const key = `${selectedPlan.floorId}:${polygon.areaId}`;
+                          const overridePos = labelPositions[key];
+
+                          return (
+                            <DraggableRoomLabel
+                              key={key}
+                              floorId={selectedPlan.floorId}
+                              areaId={polygon.areaId}
+                              roomName={roomName}
+                              baseX={baseX}
+                              baseY={baseY}
+                              overridePos={overridePos}
+                              isSelected={selectedAreaId === polygon.areaId}
+                              onPositionChange={(x, y) => {
+                                setLabelPosition(selectedPlan.floorId, polygon.areaId, x, y);
+                              }}
+                              onClickRoom={() => {
+                                setSelectedAreaId(polygon.areaId);
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    );
+                  })()
                 ) : (
                   <div className="absolute inset-0 flex items-end justify-center pb-4 z-20">
                     <p className="text-xs text-muted-foreground bg-background/90 backdrop-blur px-3 py-1.5 rounded-full border border-border/60 shadow-sm">
@@ -228,8 +203,8 @@ const MaisonTabletPanelView = () => {
             )}
           </div>
 
-          {/* Colonne de droite : appareils de la pièce sélectionnée */}
-          <div className="basis-1/3 overflow-y-auto">
+          {/* Colonne de droite : une seule colonne fixe */}
+          <div className="w-[360px] shrink-0 border-l pl-4 overflow-y-auto space-y-4">
             {selectedAreaId && selectedArea ? (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold bg-background mb-4">
