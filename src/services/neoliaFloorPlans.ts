@@ -42,10 +42,7 @@ function preloadImage(url: string): Promise<void> {
 /**
  * Charge et précharge tous les plans Neolia disponibles
  */
-export async function loadNeoliaFloorPlans(
-  connection: HAConnection,
-  floors: HAFloor[]
-): Promise<NeoliaFloorPlan[]> {
+export async function loadNeoliaFloorPlans(connection: HAConnection, floors: HAFloor[]): Promise<NeoliaFloorPlan[]> {
   if (!connection || !floors || floors.length === 0) {
     console.debug("[Neolia Plans] Pas de connexion ou d'étages disponibles");
     return [];
@@ -59,7 +56,7 @@ export async function loadNeoliaFloorPlans(
       floors,
       connection.url,
       connection.token,
-      true // includeJson
+      true, // includeJson
     );
 
     console.debug("[Neolia Plans] Assets récupérés:", assets);
@@ -83,11 +80,12 @@ export async function loadNeoliaFloorPlans(
         preloadPromises.push(
           preloadImage(plan.imageUrl).catch((err) => {
             console.warn(`[Neolia Plans] Échec du préchargement de l'image pour ${asset.floorId}:`, err);
-          })
+          }),
         );
       }
 
       // Convertir le JSON au format interne
+      console.log("JSON_DATA:", asset.floorId, asset.jsonData);
       if (asset.jsonAvailable && asset.jsonData) {
         plan.json = {
           floorId: asset.jsonData.floor_id,
