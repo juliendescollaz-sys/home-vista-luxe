@@ -10,8 +10,14 @@ type NeoliaFloorPolygon = {
   relative: [number, number][];
 };
 
+type NeoliaFloorArea = {
+  area_id: string;
+  name: string;
+};
+
 type NeoliaFloorJson = {
   floor_id: string;
+  areas?: NeoliaFloorArea[];
   polygons: NeoliaFloorPolygon[];
 };
 
