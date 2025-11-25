@@ -121,107 +121,126 @@ const MaisonTabletPanelView = () => {
 
         {/* Zone principale : plan + colonne de droite */}
         <div className="flex flex-row gap-4">
-          {/* Conteneur plan */}
-          <div className="basis-2/3 min-h-[520px] max-h-[620px] flex items-center justify-center">
-            <div className="relative w-full h-full rounded-xl overflow-hidden bg-muted/40 border border-border/40">
-              {selectedPlan?.hasPng && selectedPlan?.imageUrl ? (
-                <>
-                  <img
-                    src={selectedPlan.imageUrl}
-                    alt={`Plan de ${selectedPlan.floorName}`}
-                    className="relative z-10 w-full h-full object-contain rounded-xl bg-black/20"
-                  />
-                  {/* Débug visuel obligatoire */}
-                  <div className="absolute inset-0 pointer-events-none z-20">
-                    <button
-                      type="button"
-                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1 rounded-full bg-red-600 text-white text-xs pointer-events-auto"
-                      onClick={() => console.debug("[Neolia] clic sur bouton de test")}
-                    >
-                      TEST OVERLAY
-                    </button>
+          {/* Conteneur plan avec position relative pour l'overlay */}
+          <div className="relative basis-2/3 min-h-[520px] max-h-[620px] rounded-xl overflow-hidden bg-muted/40 border border-border/40">
+            {selectedPlan?.hasPng && selectedPlan?.imageUrl ? (
+              <>
+                {/* Image du plan */}
+                <img
+                  src={selectedPlan.imageUrl}
+                  alt={`Plan de ${selectedPlan.floorName}`}
+                  className="w-full h-full object-contain bg-black/20"
+                />
+                
+                {/* Badge de debug en haut à gauche */}
+                <div className="absolute top-3 left-3 z-40 flex gap-2">
+                  <div className="px-2 py-1 rounded-md bg-background/90 backdrop-blur text-xs font-medium shadow-sm border border-border/60">
+                    {selectedPlan.floorName}
                   </div>
-                  {/* Overlay des boutons de pièces */}
-                  {selectedPlan?.hasJson && selectedPlan?.json && selectedPlan.json.polygons && selectedPlan.json.polygons.length > 0 && (
-                    <div className="absolute inset-0 pointer-events-none z-30">
-                      {(() => {
-                        console.debug("[Neolia] currentPlan pour debug", selectedPlan);
-                        console.debug("[Neolia] JSON brut", selectedPlan?.json);
-                        console.debug("[Neolia] polygons", selectedPlan?.json?.polygons);
-                        console.debug("[Neolia] areas", selectedPlan?.json?.areas);
-                        return null;
-                      })()}
-                      {selectedPlan.json.polygons.map((polygon, index) => {
-                        const points = polygon.relative ?? [];
-
-                        // fallback si pas de points
-                        if (!points.length) {
-                          return (
-                            <div
-                              key={`empty-${index}`}
-                              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] text-red-400"
-                            >
-                              POLYGONE SANS POINTS
-                            </div>
-                          );
-                        }
-
-                        // centroid en coordonnées relatives (0–1)
-                        const { cx, cy } = points.reduce(
-                          (acc, [x, y]) => ({
-                            cx: acc.cx + x,
-                            cy: acc.cy + y,
-                          }),
-                          { cx: 0, cy: 0 }
-                        );
-                        const cxNorm = cx / points.length;
-                        const cyNorm = cy / points.length;
-
-                        const area = selectedPlan.json!.areas.find(
-                          (a) => a.areaId === polygon.areaId
-                        );
-                        const roomName = area?.name ?? `Pièce ${index + 1}`;
-
-                        console.debug("[Neolia] rendu des boutons de pièces OK pour", roomName);
-
-                        return (
-                          <button
-                            key={`${polygon.areaId}-${index}`}
-                            type="button"
-                            style={{
-                              left: `${cxNorm * 100}%`,
-                              top: `${cyNorm * 100}%`,
-                            }}
-                            className="absolute -translate-x-1/2 -translate-y-1/2 px-3 py-1 rounded-full text-[11px] font-medium bg-background/85 text-foreground shadow-sm pointer-events-auto hover:bg-primary hover:text-primary-foreground transition"
-                            onClick={() => setSelectedAreaId(polygon.areaId)}
-                          >
-                            {roomName}
-                          </button>
-                        );
-                      })}
-                      {(() => {
-                        console.debug("[Neolia] rendu des boutons de pièces OK");
-                        return null;
-                      })()}
+                  {selectedPlan?.hasJson && selectedPlan?.json?.polygons && (
+                    <div className="px-2 py-1 rounded-md bg-background/90 backdrop-blur text-xs font-medium shadow-sm border border-border/60">
+                      Zones: {selectedPlan.json.polygons.length}
                     </div>
                   )}
-                  {/* Message si JSON manquant */}
-                  {!selectedPlan.hasJson && (
-                    <div className="absolute inset-0 flex items-end justify-center pb-4 z-20">
-                      <p className="text-xs text-muted-foreground bg-background/80 backdrop-blur px-3 py-1 rounded-full border border-border/60">
-                        Zones non configurées pour cet étage.
-                      </p>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <p className="text-muted-foreground text-center px-4">
-                    Plan non disponible pour cet étage (PNG/JSON manquant).
-                  </p>
                 </div>
-              )}
-            </div>
+
+                {/* Overlay des zones cliquables */}
+                {selectedPlan?.hasJson && selectedPlan?.json?.polygons ? (
+                  <>
+                    {(() => {
+                      const polygons = selectedPlan.json.polygons;
+                      const areas = selectedPlan.json.areas;
+                      
+                      console.debug("[Neolia Plans] Plan sélectionné:", selectedPlan.floorName);
+                      console.debug("[Neolia Plans] Nombre de polygones:", polygons.length);
+                      console.debug("[Neolia Plans] Données polygones:", polygons);
+                      console.debug("[Neolia Plans] Données areas:", areas);
+                      
+                      if (polygons.length === 0) {
+                        console.warn("[Neolia Plans] Aucun polygone trouvé pour ce plan");
+                        return null;
+                      }
+                      
+                      return (
+                        <div className="absolute inset-0 z-30 pointer-events-none">
+                          {polygons.map((polygon, index) => {
+                            const points = polygon.relative ?? [];
+                            
+                            // Vérification des points
+                            if (points.length === 0) {
+                              console.warn(`[Neolia Plans] Polygone ${index} sans points:`, polygon);
+                              return (
+                                <div
+                                  key={`empty-${index}`}
+                                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] text-red-400 bg-red-100 px-2 py-1 rounded pointer-events-auto"
+                                >
+                                  POLYGONE SANS POINTS
+                                </div>
+                              );
+                            }
+                            
+                            // Calcul du centroïde
+                            let sumX = 0;
+                            let sumY = 0;
+                            points.forEach(([x, y]) => {
+                              sumX += x;
+                              sumY += y;
+                            });
+                            const cxNorm = sumX / points.length;
+                            const cyNorm = sumY / points.length;
+                            
+                            // Trouver le nom de la pièce
+                            const area = areas.find((a) => a.areaId === polygon.areaId);
+                            const roomName = area?.name ?? `Pièce ${index + 1}`;
+                            
+                            console.debug(`[Neolia Plans] Bouton ${index}: ${roomName} à (${(cxNorm * 100).toFixed(1)}%, ${(cyNorm * 100).toFixed(1)}%)`);
+                            
+                            return (
+                              <button
+                                key={`${polygon.areaId}-${index}`}
+                                type="button"
+                                style={{
+                                  left: `${cxNorm * 100}%`,
+                                  top: `${cyNorm * 100}%`,
+                                }}
+                                className={cn(
+                                  "absolute -translate-x-1/2 -translate-y-1/2",
+                                  "px-3 py-1.5 rounded-full text-[11px] font-medium",
+                                  "shadow-lg border pointer-events-auto transition-all",
+                                  selectedAreaId === polygon.areaId
+                                    ? "bg-primary text-primary-foreground border-primary scale-110"
+                                    : "bg-background/90 text-foreground border-border/60 hover:bg-primary hover:text-primary-foreground hover:scale-105 backdrop-blur"
+                                )}
+                                onClick={() => {
+                                  console.log(`[Neolia Plans] Sélection de la pièce: ${roomName} (${polygon.areaId})`);
+                                  setSelectedAreaId(polygon.areaId);
+                                }}
+                              >
+                                {roomName}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  <div className="absolute inset-0 flex items-end justify-center pb-4 z-20">
+                    <p className="text-xs text-muted-foreground bg-background/90 backdrop-blur px-3 py-1.5 rounded-full border border-border/60 shadow-sm">
+                      {selectedPlan?.hasJson === false 
+                        ? "Aucune zone définie pour ce plan (JSON manquant)"
+                        : "Zones non configurées pour cet étage"}
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <p className="text-muted-foreground text-center px-4">
+                  Plan non disponible pour cet étage (PNG manquant).
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Colonne de droite : appareils de la pièce sélectionnée */}
