@@ -12,6 +12,12 @@ import { getEntityDomain } from "@/lib/entityUtils";
 import { cn } from "@/lib/utils";
 import { DraggableRoomLabel } from "@/components/DraggableRoomLabel";
 import { HomeOverviewByTypeAndArea } from "@/components/HomeOverviewByTypeAndArea";
+import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter, DragOverlay } from "@dnd-kit/core";
+import { SortableContext, arrayMove, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { SortableDeviceCard } from "@/components/SortableDeviceCard";
+import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
+import { useOptimisticToggle } from "@/hooks/useOptimisticToggle";
 
 // ============== MaisonTabletPanelView ==============
 const MaisonTabletPanelView = () => {
@@ -251,6 +257,64 @@ const MaisonTabletPanelView = () => {
   );
 };
 
+// Sortable Item for Areas
+const SortableAreaItem = ({ area, floor, deviceCount, onClick }: any) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: area.area_id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-none">
+      <button
+        type="button"
+        onClick={onClick}
+        className="w-full p-4 rounded-lg border border-border/50 bg-background text-left active:scale-[0.98] transition-transform"
+      >
+        <h3 className="font-medium">{area.name}</h3>
+        <div className="flex items-center gap-2 mt-1">
+          {floor && <p className="text-sm text-muted-foreground">{floor.name}</p>}
+          {deviceCount > 0 && (
+            <>
+              {floor && <span className="text-muted-foreground">•</span>}
+              <p className="text-sm text-muted-foreground">{deviceCount} appareil{deviceCount > 1 ? 's' : ''}</p>
+            </>
+          )}
+        </div>
+      </button>
+    </div>
+  );
+};
+
+// Sortable Item for Types
+const SortableTypeItem = ({ typeName, count, onClick }: any) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: typeName });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-none">
+      <button
+        type="button"
+        onClick={onClick}
+        className="w-full p-4 rounded-lg border border-border/50 bg-background text-left active:scale-[0.98] transition-transform"
+      >
+        <h3 className="font-medium">{typeName}</h3>
+        <p className="text-xs text-muted-foreground mt-1">
+          {count} appareil{count > 1 ? 's' : ''}
+        </p>
+      </button>
+    </div>
+  );
+};
+
 // ============== MaisonMobileView ==============
 const MaisonMobileView = () => {
   const floors = useHAStore((state) => state.floors);
@@ -262,12 +326,52 @@ const MaisonMobileView = () => {
   const [selectedAreaId, setSelectedAreaId] = useState<string | undefined>(undefined);
   const [selectedTypeName, setSelectedTypeName] = useState<string | undefined>(undefined);
   const [viewMode, setViewMode] = useState<"room" | "type">("room");
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   
   // Order states
   const [areaOrder, setAreaOrder] = useState<string[]>([]);
   const [deviceOrderByArea, setDeviceOrderByArea] = useState<Record<string, string[]>>({});
   const [typeOrder, setTypeOrder] = useState<string[]>([]);
   const [deviceOrderByType, setDeviceOrderByType] = useState<Record<string, string[]>>({});
+
+  // Long press sensor (500ms)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: 500,
+        tolerance: 5,
+      },
+    })
+  );
+
+  const { toggleEntity } = useOptimisticToggle();
+  const pendingActions = useHAStore((state) => state.pendingActions);
+
+  // Grouper les entités par type
+  const entitiesByType = useMemo(() => {
+    if (!entities) return {};
+    const groups: Record<string, typeof entities> = {};
+
+    entities.forEach((entity) => {
+      const domain = getEntityDomain(entity.entity_id);
+      const typeLabels: Record<string, string> = {
+        light: "Éclairages",
+        switch: "Interrupteurs",
+        cover: "Volets",
+        climate: "Climatisation",
+        fan: "Ventilateurs",
+        lock: "Serrures",
+        media_player: "Lecteurs média",
+        sensor: "Capteurs",
+        binary_sensor: "Détecteurs",
+      };
+      const label = typeLabels[domain] || "Autres";
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(entity);
+    });
+
+    return groups;
+  }, [entities]);
 
   // Load orders from localStorage
   useEffect(() => {
@@ -307,31 +411,46 @@ const MaisonMobileView = () => {
     }
   }, [deviceOrderByType]);
 
-  // Grouper les entités par type
-  const entitiesByType = useMemo(() => {
-    if (!entities) return {};
-    const groups: Record<string, typeof entities> = {};
+  // Initialize area order if not set
+  useEffect(() => {
+    if (areaOrder.length === 0 && areas.length > 0) {
+      setAreaOrder(areas.map(a => a.area_id));
+    }
+  }, [areas, areaOrder.length]);
 
-    entities.forEach((entity) => {
-      const domain = getEntityDomain(entity.entity_id);
-      const typeLabels: Record<string, string> = {
-        light: "Éclairages",
-        switch: "Interrupteurs",
-        cover: "Volets",
-        climate: "Climatisation",
-        fan: "Ventilateurs",
-        lock: "Serrures",
-        media_player: "Lecteurs média",
-        sensor: "Capteurs",
-        binary_sensor: "Détecteurs",
-      };
-      const label = typeLabels[domain] || "Autres";
-      if (!groups[label]) groups[label] = [];
-      groups[label].push(entity);
-    });
+  // Initialize type order if not set
+  useEffect(() => {
+    const typeNames = Object.keys(entitiesByType);
+    if (typeOrder.length === 0 && typeNames.length > 0) {
+      setTypeOrder(typeNames);
+    }
+  }, [entitiesByType, typeOrder.length]);
 
-    return groups;
-  }, [entities]);
+  // Initialize device orders for area if not set
+  useEffect(() => {
+    if (selectedAreaId && !deviceOrderByArea[selectedAreaId]) {
+      const areaEntities = getOrderedEntitiesForArea(selectedAreaId);
+      if (areaEntities.length > 0) {
+        setDeviceOrderByArea(prev => ({
+          ...prev,
+          [selectedAreaId]: areaEntities.map(e => e.entity_id)
+        }));
+      }
+    }
+  }, [selectedAreaId, deviceOrderByArea]);
+
+  // Initialize device orders for type if not set
+  useEffect(() => {
+    if (selectedTypeName && !deviceOrderByType[selectedTypeName]) {
+      const typeEntities = getOrderedEntitiesForType(selectedTypeName);
+      if (typeEntities.length > 0) {
+        setDeviceOrderByType(prev => ({
+          ...prev,
+          [selectedTypeName]: typeEntities.map(e => e.entity_id)
+        }));
+      }
+    }
+  }, [selectedTypeName, deviceOrderByType]);
 
   // Ordered areas
   const orderedAreas = useMemo(() => {
@@ -390,6 +509,19 @@ const MaisonMobileView = () => {
     return ordered;
   };
 
+  // Get device count for an area
+  const getDeviceCountForArea = (areaId: string) => {
+    return entities?.filter((entity) => {
+      const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+      let entityAreaId = reg?.area_id;
+      if (!entityAreaId && reg?.device_id) {
+        const dev = devices.find((d) => d.id === reg.device_id);
+        if (dev?.area_id) entityAreaId = dev.area_id;
+      }
+      return entityAreaId === areaId;
+    }).length || 0;
+  };
+
   // Get ordered entities for a type
   const getOrderedEntitiesForType = (typeName: string) => {
     const typeEntities = entitiesByType[typeName] || [];
@@ -411,6 +543,64 @@ const MaisonMobileView = () => {
     if (!selectedAreaId) return null;
     return areas.find((a) => a.area_id === selectedAreaId) || null;
   }, [selectedAreaId, areas]);
+
+  // Handle drag events for areas
+  const handleDragEndAreas = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    
+    if (!over || active.id === over.id) return;
+    
+    setAreaOrder((items) => {
+      const oldIndex = items.indexOf(active.id as string);
+      const newIndex = items.indexOf(over.id as string);
+      return arrayMove(items, oldIndex, newIndex);
+    });
+  };
+
+  // Handle drag events for types
+  const handleDragEndTypes = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    
+    if (!over || active.id === over.id) return;
+    
+    setTypeOrder((items) => {
+      const oldIndex = items.indexOf(active.id as string);
+      const newIndex = items.indexOf(over.id as string);
+      return arrayMove(items, oldIndex, newIndex);
+    });
+  };
+
+  // Handle drag events for devices
+  const handleDragEndDevices = (event: DragEndEvent, context: 'area' | 'type', contextId: string) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    
+    if (!over || active.id === over.id) return;
+    
+    if (context === 'area') {
+      setDeviceOrderByArea((prev) => {
+        const currentOrder = prev[contextId] || [];
+        const oldIndex = currentOrder.indexOf(active.id as string);
+        const newIndex = currentOrder.indexOf(over.id as string);
+        return {
+          ...prev,
+          [contextId]: arrayMove(currentOrder, oldIndex, newIndex),
+        };
+      });
+    } else {
+      setDeviceOrderByType((prev) => {
+        const currentOrder = prev[contextId] || [];
+        const oldIndex = currentOrder.indexOf(active.id as string);
+        const newIndex = currentOrder.indexOf(over.id as string);
+        return {
+          ...prev,
+          [contextId]: arrayMove(currentOrder, oldIndex, newIndex),
+        };
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -445,60 +635,77 @@ const MaisonMobileView = () => {
                   {selectedArea?.name}
                 </h2>
               </div>
-              <div className="space-y-2">
-                {getOrderedEntitiesForArea(selectedAreaId).map((entity, idx) => {
-                  const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
-                  return (
-                    <div
-                      key={entity.entity_id}
-                      className="w-full p-4 rounded-lg border border-border/50 bg-background flex items-center justify-between"
-                    >
-                      <div className="flex-1">
-                        <h3 className="font-medium">
-                          {entity.attributes.friendly_name || entity.entity_id}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">{entity.state}</p>
-                      </div>
-                      <button
-                        className="ml-3 cursor-grab text-muted-foreground text-xl"
-                        aria-label="Réorganiser"
-                      >
-                        ⋮⋮
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={(e) => setActiveDragId(e.active.id as string)}
+                onDragEnd={(e) => handleDragEndDevices(e, 'area', selectedAreaId)}
+              >
+                <SortableContext
+                  items={getOrderedEntitiesForArea(selectedAreaId).map((e) => e.entity_id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-3">
+                    {getOrderedEntitiesForArea(selectedAreaId).map((entity) => {
+                      const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+                      let areaId = reg?.area_id;
+                      if (!areaId && reg?.device_id) {
+                        const dev = devices.find((d) => d.id === reg.device_id);
+                        if (dev?.area_id) areaId = dev.area_id;
+                      }
+                      const area = areaId ? areas.find((a) => a.area_id === areaId) : null;
+                      const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) : null;
+                      const domain = getEntityDomain(entity.entity_id);
+
+                      return domain === "media_player" ? (
+                        <SortableMediaPlayerCard
+                          key={entity.entity_id}
+                          entity={entity}
+                          floor={floor}
+                          area={area}
+                        />
+                      ) : (
+                        <SortableDeviceCard
+                          key={entity.entity_id}
+                          entity={entity}
+                          onToggle={toggleEntity}
+                          floor={floor}
+                          area={area}
+                        />
+                      );
+                    })}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </>
           ) : (
-            <div className="space-y-2">
-              {orderedAreas.map((area) => {
-                const floor = floors.find((f) => f.floor_id === area.floor_id);
-                return (
-                  <div
-                    key={area.area_id}
-                    className="w-full p-4 rounded-lg border border-border/50 bg-background flex items-center justify-between"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setSelectedAreaId(area.area_id)}
-                      className="flex-1 text-left"
-                    >
-                      <h3 className="font-medium">{area.name}</h3>
-                      {floor && (
-                        <p className="text-sm text-muted-foreground">{floor.name}</p>
-                      )}
-                    </button>
-                    <button
-                      className="ml-3 cursor-grab text-muted-foreground text-xl"
-                      aria-label="Réorganiser"
-                    >
-                      ⋮⋮
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={(e) => setActiveDragId(e.active.id as string)}
+              onDragEnd={handleDragEndAreas}
+            >
+              <SortableContext
+                items={orderedAreas.map((a) => a.area_id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-2">
+                  {orderedAreas.map((area) => {
+                    const floor = floors.find((f) => f.floor_id === area.floor_id);
+                    const deviceCount = getDeviceCountForArea(area.area_id);
+                    return (
+                      <SortableAreaItem
+                        key={area.area_id}
+                        area={area}
+                        floor={floor}
+                        deviceCount={deviceCount}
+                        onClick={() => setSelectedAreaId(area.area_id)}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </TabsContent>
 
@@ -521,70 +728,75 @@ const MaisonMobileView = () => {
                   {selectedTypeName}
                 </h2>
               </div>
-              <div className="space-y-2">
-                {getOrderedEntitiesForType(selectedTypeName).map((entity) => {
-                  const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
-                  let areaId = reg?.area_id;
-                  if (!areaId && reg?.device_id) {
-                    const dev = devices.find((d) => d.id === reg.device_id);
-                    if (dev?.area_id) areaId = dev.area_id;
-                  }
-                  const area = areaId ? areas.find((a) => a.area_id === areaId) : null;
-                  const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) : null;
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={(e) => setActiveDragId(e.active.id as string)}
+                onDragEnd={(e) => handleDragEndDevices(e, 'type', selectedTypeName)}
+              >
+                <SortableContext
+                  items={getOrderedEntitiesForType(selectedTypeName).map((e) => e.entity_id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-3">
+                    {getOrderedEntitiesForType(selectedTypeName).map((entity) => {
+                      const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+                      let areaId = reg?.area_id;
+                      if (!areaId && reg?.device_id) {
+                        const dev = devices.find((d) => d.id === reg.device_id);
+                        if (dev?.area_id) areaId = dev.area_id;
+                      }
+                      const area = areaId ? areas.find((a) => a.area_id === areaId) : null;
+                      const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) : null;
+                      const domain = getEntityDomain(entity.entity_id);
 
-                  return (
-                    <div
-                      key={entity.entity_id}
-                      className="w-full p-4 rounded-lg border border-border/50 bg-background flex items-center justify-between"
-                    >
-                      <div className="flex-1">
-                        <h3 className="font-medium">
-                          {entity.attributes.friendly_name || entity.entity_id}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">
-                          {floor && area ? `${floor.name} - ${area.name}` : area?.name || entity.state}
-                        </p>
-                      </div>
-                      <button
-                        className="ml-3 cursor-grab text-muted-foreground text-xl"
-                        aria-label="Réorganiser"
-                      >
-                        ⋮⋮
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+                      return domain === "media_player" ? (
+                        <SortableMediaPlayerCard
+                          key={entity.entity_id}
+                          entity={entity}
+                          floor={floor}
+                          area={area}
+                        />
+                      ) : (
+                        <SortableDeviceCard
+                          key={entity.entity_id}
+                          entity={entity}
+                          onToggle={toggleEntity}
+                          floor={floor}
+                          area={area}
+                        />
+                      );
+                    })}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </>
           ) : (
-            <div className="space-y-2">
-              {orderedTypes.map((typeName) => {
-                const typeEntities = entitiesByType[typeName] || [];
-                return (
-                  <div
-                    key={typeName}
-                    className="w-full p-4 rounded-lg border border-border/50 bg-background flex items-center justify-between"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setSelectedTypeName(typeName)}
-                      className="flex-1 text-left"
-                    >
-                      <h3 className="font-medium">{typeName}</h3>
-                      <p className="text-xs text-muted-foreground">
-                        {typeEntities.length} appareil(s)
-                      </p>
-                    </button>
-                    <button
-                      className="ml-3 cursor-grab text-muted-foreground text-xl"
-                      aria-label="Réorganiser"
-                    >
-                      ⋮⋮
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={(e) => setActiveDragId(e.active.id as string)}
+              onDragEnd={handleDragEndTypes}
+            >
+              <SortableContext
+                items={orderedTypes}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-2">
+                  {orderedTypes.map((typeName) => {
+                    const typeEntities = entitiesByType[typeName] || [];
+                    return (
+                      <SortableTypeItem
+                        key={typeName}
+                        typeName={typeName}
+                        count={typeEntities.length}
+                        onClick={() => setSelectedTypeName(typeName)}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </TabsContent>
       </Tabs>
