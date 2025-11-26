@@ -6,6 +6,8 @@ import { Slider } from "@/components/ui/slider";
 import { useState, useEffect } from "react";
 import { supportsFeature, COVER_FEATURES } from "@/lib/entityUtils";
 import { toast } from "sonner";
+import { useHAStore } from "@/store/useHAStore";
+import { cn } from "@/lib/utils";
 
 interface CoverTileProps {
   entity: HAEntity;
@@ -17,6 +19,8 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
   const name = entity.attributes.friendly_name || entity.entity_id;
   const currentPosition = entity.attributes.current_position || 0;
   const currentTilt = entity.attributes.current_tilt_position || 0;
+  const pendingActions = useHAStore((state) => state.pendingActions);
+  const isPending = !!pendingActions[entity.entity_id];
   
   const supportsPosition = supportsFeature(entity, COVER_FEATURES.SUPPORT_SET_POSITION);
   const supportsStop = supportsFeature(entity, COVER_FEATURES.SUPPORT_STOP);
@@ -74,7 +78,10 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
   };
   
   return (
-    <Card className="glass-card elevated-subtle elevated-active border-border/50 overflow-hidden">
+    <Card className={cn(
+      "glass-card elevated-subtle elevated-active border-border/50 overflow-hidden transition-opacity",
+      isPending && "opacity-70"
+    )}>
       <div className="p-4 pt-10">
         {/* Header */}
         <div className="mt-1 flex items-start gap-3 mb-4">

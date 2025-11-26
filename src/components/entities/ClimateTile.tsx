@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState, useEffect } from "react";
 import { supportsFeature, CLIMATE_FEATURES } from "@/lib/entityUtils";
 import { toast } from "sonner";
+import { useHAStore } from "@/store/useHAStore";
+import { cn } from "@/lib/utils";
 
 interface ClimateTileProps {
   entity: HAEntity;
@@ -19,6 +21,8 @@ export function ClimateTile({ entity, onControl }: ClimateTileProps) {
   const targetTemp = entity.attributes.temperature;
   const hvacMode = entity.state;
   const hvacModes = entity.attributes.hvac_modes || [];
+  const pendingActions = useHAStore((state) => state.pendingActions);
+  const isPending = !!pendingActions[entity.entity_id];
   
   const supportsTarget = supportsFeature(entity, CLIMATE_FEATURES.SUPPORT_TARGET_TEMPERATURE);
   const supportsFanMode = supportsFeature(entity, CLIMATE_FEATURES.SUPPORT_FAN_MODE);
@@ -60,7 +64,10 @@ export function ClimateTile({ entity, onControl }: ClimateTileProps) {
   };
   
   return (
-    <Card className="glass-card elevated-subtle elevated-active border-border/50 overflow-hidden">
+    <Card className={cn(
+      "glass-card elevated-subtle elevated-active border-border/50 overflow-hidden transition-opacity",
+      isPending && "opacity-70"
+    )}>
       <div className="p-4 pt-10">
         {/* Header */}
         <div className="mt-1 flex items-start gap-3 mb-4">

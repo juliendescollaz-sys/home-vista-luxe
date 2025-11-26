@@ -38,7 +38,9 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
   
   const favorites = useHAStore((state) => state.favorites);
   const toggleFavorite = useHAStore((state) => state.toggleFavorite);
+  const pendingActions = useHAStore((state) => state.pendingActions);
   const isFavorite = favorites.includes(entity.entity_id);
+  const isPending = !!pendingActions[entity.entity_id];
 
   const {
     attributes,
@@ -52,7 +54,7 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.3 : 1,
+    opacity: isDragging ? 0.3 : (isPending ? 0.7 : 1),
     zIndex: isDragging ? 50 : 'auto',
   };
 

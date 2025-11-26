@@ -4,7 +4,7 @@ import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { getGridClasses } from "@/lib/gridLayout";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
-import { toast } from "sonner";
+import { useOptimisticToggle } from "@/hooks/useOptimisticToggle";
 import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
 
 interface RoomDevicesGridProps {
@@ -19,8 +19,8 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false }
   const devices = useHAStore((state) => state.devices);
   const areas = useHAStore((state) => state.areas);
   const floors = useHAStore((state) => state.floors);
-  const client = useHAStore((state) => state.client);
   const { displayMode } = useDisplayMode();
+  const { toggleEntity } = useOptimisticToggle();
 
   // Filtrer les entités de cette pièce
   const roomEntities = useMemo(() => {
@@ -46,25 +46,7 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false }
   }, [entities, entityRegistry, devices, areaId]);
 
   const handleDeviceToggle = async (entityId: string) => {
-    if (!client) {
-      toast.error("Client non connecté");
-      return;
-    }
-
-    const entity = entities?.find((e) => e.entity_id === entityId);
-    if (!entity) return;
-
-    const domain = entityId.split(".")[0];
-    const isOn = entity.state === "on";
-    const service = isOn ? "turn_off" : "turn_on";
-
-    try {
-      await client.callService(domain, service, {}, { entity_id: entityId });
-      toast.success(isOn ? "Éteint" : "Allumé");
-    } catch (error) {
-      console.error("Erreur lors du contrôle:", error);
-      toast.error("Erreur lors du contrôle de l'appareil");
-    }
+    await toggleEntity(entityId);
   };
 
   if (roomEntities.length === 0) {
