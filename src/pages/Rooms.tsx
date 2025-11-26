@@ -83,143 +83,152 @@ const MaisonTabletPanelView = () => {
   };
 
   return (
-    <Card className="animate-fade-in">
-      <CardContent className="space-y-4 pt-6">
-        {/* Ligne des boutons d'étage */}
-        <div className="flex flex-wrap gap-2">
-          {neoliaFloorPlans.map((plan) => {
-            const isSelected = plan.floorId === selectedFloorId;
-            const isIncomplete = !plan.hasPng || !plan.hasJson;
+    <Card className="animate-fade-in flex flex-col h-full">
+      <CardContent className="flex flex-col flex-1 pt-6 overflow-hidden">
+        {/* Header : boutons d'étage + titre de la pièce */}
+        <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
+          {/* Boutons d'étage */}
+          <div className="flex flex-wrap gap-2">
+            {neoliaFloorPlans.map((plan) => {
+              const isSelected = plan.floorId === selectedFloorId;
+              const isIncomplete = !plan.hasPng || !plan.hasJson;
 
-            return (
-              <button
-                key={plan.floorId}
-                type="button"
-                onClick={() => setSelectedFloorId(plan.floorId)}
-                disabled={isIncomplete}
-                className={cn(
-                  "px-4 py-2 rounded-lg font-medium transition-all border relative",
-                  isSelected
-                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                    : isIncomplete
-                    ? "bg-muted text-muted-foreground border-border opacity-60 cursor-not-allowed"
-                    : "bg-background text-foreground border-border hover:bg-muted"
-                )}
-              >
-                {plan.floorName}
-                {isIncomplete && (
-                  <Badge
-                    variant="destructive"
-                    className="ml-2 text-xs"
-                  >
-                    Incomplet
-                  </Badge>
-                )}
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={plan.floorId}
+                  type="button"
+                  onClick={() => setSelectedFloorId(plan.floorId)}
+                  disabled={isIncomplete}
+                  className={cn(
+                    "px-4 py-2 rounded-lg font-medium transition-all border relative",
+                    isSelected
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : isIncomplete
+                      ? "bg-muted text-muted-foreground border-border opacity-60 cursor-not-allowed"
+                      : "bg-background text-foreground border-border hover:bg-muted"
+                  )}
+                >
+                  {plan.floorName}
+                  {isIncomplete && (
+                    <Badge
+                      variant="destructive"
+                      className="ml-2 text-xs"
+                    >
+                      Incomplet
+                    </Badge>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Titre de la pièce sélectionnée */}
+          {selectedArea && (
+            <div className="px-4 py-2 rounded-xl bg-muted/40 border border-border/40 text-sm font-medium text-muted-foreground shrink-0">
+              Pièce : <span className="text-foreground">{selectedArea.name}</span>
+            </div>
+          )}
         </div>
 
         {/* Zone principale : plan + colonne de droite */}
-        <div className="flex flex-row gap-4">
+        <div className="flex flex-1 gap-6 overflow-hidden">
           {/* Conteneur plan avec position relative pour l'overlay */}
-          <div className="relative basis-2/3 min-h-[520px] max-h-[620px] overflow-hidden">
-            {selectedPlan?.hasPng && selectedPlan?.imageUrl ? (
-              <>
-                {/* Image du plan */}
-                <img
-                  src={selectedPlan.imageUrl}
-                  alt={`Plan de ${selectedPlan.floorName}`}
-                  className="w-full h-full object-contain"
-                />
+          <div className="basis-2/3 flex items-center justify-center">
+            <div className="relative w-full h-full rounded-xl overflow-hidden bg-muted/40 border border-border/40">
+              {selectedPlan?.hasPng && selectedPlan?.imageUrl ? (
+                <>
+                  {/* Image du plan */}
+                  <img
+                    src={selectedPlan.imageUrl}
+                    alt={`Plan de ${selectedPlan.floorName}`}
+                    className="w-full h-full object-contain"
+                  />
 
-                {/* Overlay des zones cliquables */}
-                {selectedPlan?.hasJson && selectedPlan?.json?.polygons ? (
-                  (() => {
-                    const polygons = selectedPlan.json.polygons;
-                    const areasFromJson = selectedPlan.json.areas;
+                  {/* Overlay des zones cliquables */}
+                  {selectedPlan?.hasJson && selectedPlan?.json?.polygons ? (
+                    (() => {
+                      const polygons = selectedPlan.json.polygons;
+                      const areasFromJson = selectedPlan.json.areas;
 
-                    return (
-                      <div className="absolute inset-0 z-30 pointer-events-none">
-                        {polygons.map((polygon, index) => {
-                          const points = polygon.relative ?? [];
-                          if (points.length === 0) return null;
+                      return (
+                        <div className="absolute inset-0 z-30 pointer-events-none">
+                          {polygons.map((polygon, index) => {
+                            const points = polygon.relative ?? [];
+                            if (points.length === 0) return null;
 
-                          // centroïde (position de base)
-                          let sumX = 0;
-                          let sumY = 0;
-                          points.forEach(([x, y]) => {
-                            sumX += x;
-                            sumY += y;
-                          });
-                          const baseX = sumX / points.length;
-                          const baseY = sumY / points.length;
+                            // centroïde (position de base)
+                            let sumX = 0;
+                            let sumY = 0;
+                            points.forEach(([x, y]) => {
+                              sumX += x;
+                              sumY += y;
+                            });
+                            const baseX = sumX / points.length;
+                            const baseY = sumY / points.length;
 
-                          const area = areasFromJson.find(
-                            (a) => a.areaId === polygon.areaId,
-                          );
-                          const roomName = area?.name ?? `Pièce ${index + 1}`;
+                            const area = areasFromJson.find(
+                              (a) => a.areaId === polygon.areaId,
+                            );
+                            const roomName = area?.name ?? `Pièce ${index + 1}`;
 
-                          const key = `${selectedPlan.floorId}:${polygon.areaId}`;
-                          const overridePos = labelPositions[key];
+                            const key = `${selectedPlan.floorId}:${polygon.areaId}`;
+                            const overridePos = labelPositions[key];
 
-                          return (
-                            <DraggableRoomLabel
-                              key={key}
-                              floorId={selectedPlan.floorId}
-                              areaId={polygon.areaId}
-                              roomName={roomName}
-                              baseX={baseX}
-                              baseY={baseY}
-                              overridePos={overridePos}
-                              isSelected={selectedAreaId === polygon.areaId}
-                              onPositionChange={(x, y) => {
-                                setLabelPosition(selectedPlan.floorId, polygon.areaId, x, y);
-                              }}
-                              onClickRoom={() => {
-                                setSelectedAreaId(polygon.areaId);
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                    );
-                  })()
-                ) : (
-                  <div className="absolute inset-0 flex items-end justify-center pb-4 z-20">
-                    <p className="text-xs text-muted-foreground bg-background/90 backdrop-blur px-3 py-1.5 rounded-full border border-border/60 shadow-sm">
-                      {selectedPlan?.hasJson === false 
-                        ? "Aucune zone définie pour ce plan (JSON manquant)"
-                        : "Zones non configurées pour cet étage"}
-                    </p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <p className="text-muted-foreground text-center px-4">
-                  Plan non disponible pour cet étage (PNG manquant).
-                </p>
-              </div>
-            )}
+                            return (
+                              <DraggableRoomLabel
+                                key={key}
+                                floorId={selectedPlan.floorId}
+                                areaId={polygon.areaId}
+                                roomName={roomName}
+                                baseX={baseX}
+                                baseY={baseY}
+                                overridePos={overridePos}
+                                isSelected={selectedAreaId === polygon.areaId}
+                                onPositionChange={(x, y) => {
+                                  setLabelPosition(selectedPlan.floorId, polygon.areaId, x, y);
+                                }}
+                                onClickRoom={() => {
+                                  setSelectedAreaId(polygon.areaId);
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <div className="absolute inset-0 flex items-end justify-center pb-4 z-20">
+                      <p className="text-xs text-muted-foreground bg-background/90 backdrop-blur px-3 py-1.5 rounded-full border border-border/60 shadow-sm">
+                        {selectedPlan?.hasJson === false 
+                          ? "Aucune zone définie pour ce plan (JSON manquant)"
+                          : "Zones non configurées pour cet étage"}
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <p className="text-muted-foreground text-center px-4">
+                    Plan non disponible pour cet étage (PNG manquant).
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Colonne de droite : une seule colonne fixe */}
-          <div className="w-[360px] shrink-0 border-l pl-4 overflow-y-auto space-y-4">
-            {selectedAreaId && selectedArea ? (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold bg-background mb-4">
-                  Pièce : {selectedArea.name}
-                </h3>
+          {/* Colonne de droite : liste scrollable d'appareils */}
+          <div className="basis-1/3 flex flex-col h-full">
+            <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+              {selectedAreaId && selectedArea ? (
                 <RoomDevicesGrid areaId={selectedAreaId} singleColumn />
-              </div>
-            ) : (
-              <div className="py-2">
-                <p className="text-muted-foreground text-center">
-                  Sélectionnez une pièce sur le plan pour voir les appareils.
-                </p>
-              </div>
-            )}
+              ) : (
+                <div className="py-8">
+                  <p className="text-muted-foreground text-center">
+                    Sélectionnez une pièce sur le plan pour voir les appareils.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </CardContent>
