@@ -232,10 +232,16 @@ export function HomeOverviewByTypeAndArea({
   }, [sortedAllItems, viewMode, entityRegistry, devices, areas, floors]);
 
   if (sortedAllItems.length === 0) {
+    const emptyMessage = filterFavorites 
+      ? "Vos appareils Favoris apparaîtront ici..." 
+      : "Aucune entité disponible";
+    
     return (
-      <p className="text-muted-foreground text-center py-8">
-        Aucune entité disponible
-      </p>
+      <div className={displayMode === "mobile" ? "py-8 text-center" : "w-full h-full flex items-center justify-center"}>
+        <div className="max-w-screen-xl mx-auto px-6 py-6 text-center">
+          <p className="text-muted-foreground">{emptyMessage}</p>
+        </div>
+      </div>
     );
   }
 
