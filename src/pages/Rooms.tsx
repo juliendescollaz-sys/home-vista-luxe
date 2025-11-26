@@ -258,10 +258,54 @@ const MaisonMobileView = () => {
   const entities = useHAStore((state) => state.entities);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const devices = useHAStore((state) => state.devices);
-  const neoliaFloorPlans = useHAStore((state) => state.neoliaFloorPlans);
 
   const [selectedAreaId, setSelectedAreaId] = useState<string | undefined>(undefined);
+  const [selectedTypeName, setSelectedTypeName] = useState<string | undefined>(undefined);
   const [viewMode, setViewMode] = useState<"room" | "type">("room");
+  
+  // Order states
+  const [areaOrder, setAreaOrder] = useState<string[]>([]);
+  const [deviceOrderByArea, setDeviceOrderByArea] = useState<Record<string, string[]>>({});
+  const [typeOrder, setTypeOrder] = useState<string[]>([]);
+  const [deviceOrderByType, setDeviceOrderByType] = useState<Record<string, string[]>>({});
+
+  // Load orders from localStorage
+  useEffect(() => {
+    const savedAreaOrder = localStorage.getItem('neolia_mobile_area_order');
+    const savedDeviceOrderByArea = localStorage.getItem('neolia_mobile_devices_order');
+    const savedTypeOrder = localStorage.getItem('neolia_mobile_type_order');
+    const savedDeviceOrderByType = localStorage.getItem('neolia_mobile_devices_by_type_order');
+    
+    if (savedAreaOrder) setAreaOrder(JSON.parse(savedAreaOrder));
+    if (savedDeviceOrderByArea) setDeviceOrderByArea(JSON.parse(savedDeviceOrderByArea));
+    if (savedTypeOrder) setTypeOrder(JSON.parse(savedTypeOrder));
+    if (savedDeviceOrderByType) setDeviceOrderByType(JSON.parse(savedDeviceOrderByType));
+  }, []);
+
+  // Save orders to localStorage
+  useEffect(() => {
+    if (areaOrder.length > 0) {
+      localStorage.setItem('neolia_mobile_area_order', JSON.stringify(areaOrder));
+    }
+  }, [areaOrder]);
+
+  useEffect(() => {
+    if (Object.keys(deviceOrderByArea).length > 0) {
+      localStorage.setItem('neolia_mobile_devices_order', JSON.stringify(deviceOrderByArea));
+    }
+  }, [deviceOrderByArea]);
+
+  useEffect(() => {
+    if (typeOrder.length > 0) {
+      localStorage.setItem('neolia_mobile_type_order', JSON.stringify(typeOrder));
+    }
+  }, [typeOrder]);
+
+  useEffect(() => {
+    if (Object.keys(deviceOrderByType).length > 0) {
+      localStorage.setItem('neolia_mobile_devices_by_type_order', JSON.stringify(deviceOrderByType));
+    }
+  }, [deviceOrderByType]);
 
   // Grouper les entités par type
   const entitiesByType = useMemo(() => {
@@ -289,66 +333,96 @@ const MaisonMobileView = () => {
     return groups;
   }, [entities]);
 
-  if (floors.length === 0) {
-    return (
-      <Card className="animate-fade-in">
-        <CardContent className="py-8">
-          <p className="text-muted-foreground text-center">
-            Aucun étage disponible. Vérifiez la configuration Home Assistant.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Ordered areas
+  const orderedAreas = useMemo(() => {
+    if (!areas || areas.length === 0) return [];
+    if (areaOrder.length === 0) return areas;
+    const areaMap = new Map(areas.map(a => [a.area_id, a]));
+    const ordered: typeof areas = [];
+    areaOrder.forEach(id => {
+      const a = areaMap.get(id);
+      if (a) ordered.push(a);
+      areaMap.delete(id);
+    });
+    areaMap.forEach(a => ordered.push(a));
+    return ordered;
+  }, [areas, areaOrder]);
+
+  // Ordered types
+  const orderedTypes = useMemo(() => {
+    const typeNames = Object.keys(entitiesByType);
+    if (typeOrder.length === 0) return typeNames;
+    const set = new Set(typeNames);
+    const ordered: string[] = [];
+    typeOrder.forEach((name) => {
+      if (set.has(name)) {
+        ordered.push(name);
+        set.delete(name);
+      }
+    });
+    set.forEach((name) => ordered.push(name));
+    return ordered;
+  }, [entitiesByType, typeOrder]);
+
+  // Get ordered entities for an area
+  const getOrderedEntitiesForArea = (areaId: string) => {
+    const areaEntities = entities?.filter((entity) => {
+      const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+      let entityAreaId = reg?.area_id;
+      if (!entityAreaId && reg?.device_id) {
+        const dev = devices.find((d) => d.id === reg.device_id);
+        if (dev?.area_id) entityAreaId = dev.area_id;
+      }
+      return entityAreaId === areaId;
+    }) || [];
+
+    const order = deviceOrderByArea[areaId] || [];
+    if (order.length === 0) return areaEntities;
+
+    const entityMap = new Map(areaEntities.map(e => [e.entity_id, e]));
+    const ordered: typeof areaEntities = [];
+    order.forEach(id => {
+      const e = entityMap.get(id);
+      if (e) ordered.push(e);
+      entityMap.delete(id);
+    });
+    entityMap.forEach(e => ordered.push(e));
+    return ordered;
+  };
+
+  // Get ordered entities for a type
+  const getOrderedEntitiesForType = (typeName: string) => {
+    const typeEntities = entitiesByType[typeName] || [];
+    const order = deviceOrderByType[typeName] || [];
+    if (order.length === 0) return typeEntities;
+
+    const entityMap = new Map(typeEntities.map(e => [e.entity_id, e]));
+    const ordered: typeof typeEntities = [];
+    order.forEach(id => {
+      const e = entityMap.get(id);
+      if (e) ordered.push(e);
+      entityMap.delete(id);
+    });
+    entityMap.forEach(e => ordered.push(e));
+    return ordered;
+  };
+
+  const selectedArea = useMemo(() => {
+    if (!selectedAreaId) return null;
+    return areas.find((a) => a.area_id === selectedAreaId) || null;
+  }, [selectedAreaId, areas]);
 
   return (
     <div className="space-y-6">
-      {/* Infos sur les plans */}
-      {neoliaFloorPlans.length > 0 && (
-        <Card className="animate-fade-in">
-          <CardHeader>
-            <CardTitle className="text-xl">Plans Neolia</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {neoliaFloorPlans.map((plan) => (
-              <div
-                key={plan.floorId}
-                className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex-1">
-                  <h3 className="font-medium">{plan.floorName}</h3>
-                  <p className="text-sm text-muted-foreground">{plan.floorId}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Badge
-                    variant={plan.hasPng ? "default" : "destructive"}
-                    className="gap-1 text-xs"
-                  >
-                    {plan.hasPng ? "PNG ✓" : "PNG ✗"}
-                  </Badge>
-                  <Badge
-                    variant={plan.hasJson ? "default" : "destructive"}
-                    className="gap-1 text-xs"
-                  >
-                    {plan.hasJson ? "JSON ✓" : "JSON ✗"}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Onglets Par pièce / Par type */}
       <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "room" | "type")}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="room" className="flex items-center gap-2">
             <MapPin className="h-4 w-4" />
-            Par pièce
+            Pièces
           </TabsTrigger>
           <TabsTrigger value="type" className="flex items-center gap-2">
             <Grid3x3 className="h-4 w-4" />
-            Par type
+            Types
           </TabsTrigger>
         </TabsList>
 
@@ -359,98 +433,159 @@ const MaisonMobileView = () => {
             </p>
           ) : selectedAreaId ? (
             <>
-              <button
-                type="button"
-                onClick={() => setSelectedAreaId(undefined)}
-                className="text-sm text-primary hover:underline"
-              >
-                ← Retour à la liste des pièces
-              </button>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">
-                    {areas.find((a) => a.area_id === selectedAreaId)?.name || selectedAreaId}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <RoomDevicesGrid areaId={selectedAreaId} />
-                </CardContent>
-              </Card>
+              <div className="flex items-center gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setSelectedAreaId(undefined)}
+                  className="text-sm text-primary hover:underline"
+                >
+                  ← Retour aux pièces
+                </button>
+                <h2 className="font-semibold text-base truncate">
+                  {selectedArea?.name}
+                </h2>
+              </div>
+              <div className="space-y-2">
+                {getOrderedEntitiesForArea(selectedAreaId).map((entity, idx) => {
+                  const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+                  return (
+                    <div
+                      key={entity.entity_id}
+                      className="w-full p-4 rounded-lg border border-border/50 bg-background flex items-center justify-between"
+                    >
+                      <div className="flex-1">
+                        <h3 className="font-medium">
+                          {entity.attributes.friendly_name || entity.entity_id}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">{entity.state}</p>
+                      </div>
+                      <button
+                        className="ml-3 cursor-grab text-muted-foreground text-xl"
+                        aria-label="Réorganiser"
+                      >
+                        ⋮⋮
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </>
           ) : (
             <div className="space-y-2">
-              {areas.map((area) => {
+              {orderedAreas.map((area) => {
                 const floor = floors.find((f) => f.floor_id === area.floor_id);
                 return (
-                  <button
+                  <div
                     key={area.area_id}
-                    type="button"
-                    onClick={() => setSelectedAreaId(area.area_id)}
-                    className="w-full p-4 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors text-left"
+                    className="w-full p-4 rounded-lg border border-border/50 bg-background flex items-center justify-between"
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium">{area.name}</h3>
-                        {floor && (
-                          <p className="text-sm text-muted-foreground">{floor.name}</p>
-                        )}
-                      </div>
-                      <MapPin className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAreaId(area.area_id)}
+                      className="flex-1 text-left"
+                    >
+                      <h3 className="font-medium">{area.name}</h3>
+                      {floor && (
+                        <p className="text-sm text-muted-foreground">{floor.name}</p>
+                      )}
+                    </button>
+                    <button
+                      className="ml-3 cursor-grab text-muted-foreground text-xl"
+                      aria-label="Réorganiser"
+                    >
+                      ⋮⋮
+                    </button>
+                  </div>
                 );
               })}
             </div>
           )}
         </TabsContent>
 
-        <TabsContent value="type" className="space-y-6 mt-4">
-          {Object.entries(entitiesByType).map(([typeName, typeEntities]) => (
-            <Card key={typeName}>
-              <CardHeader>
-                <CardTitle className="text-lg">{typeName}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {typeEntities.map((entity) => {
-                    const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
-                    let areaId = reg?.area_id;
+        <TabsContent value="type" className="space-y-4 mt-4">
+          {Object.keys(entitiesByType).length === 0 ? (
+            <p className="text-muted-foreground text-center py-4">
+              Aucun type d'appareil trouvé.
+            </p>
+          ) : selectedTypeName ? (
+            <>
+              <div className="flex items-center gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTypeName(undefined)}
+                  className="text-sm text-primary hover:underline"
+                >
+                  ← Retour aux types
+                </button>
+                <h2 className="font-semibold text-base truncate">
+                  {selectedTypeName}
+                </h2>
+              </div>
+              <div className="space-y-2">
+                {getOrderedEntitiesForType(selectedTypeName).map((entity) => {
+                  const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+                  let areaId = reg?.area_id;
+                  if (!areaId && reg?.device_id) {
+                    const dev = devices.find((d) => d.id === reg.device_id);
+                    if (dev?.area_id) areaId = dev.area_id;
+                  }
+                  const area = areaId ? areas.find((a) => a.area_id === areaId) : null;
+                  const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) : null;
 
-                    if (!areaId && reg?.device_id) {
-                      const dev = devices.find((d) => d.id === reg.device_id);
-                      if (dev?.area_id) {
-                        areaId = dev.area_id;
-                      }
-                    }
-
-                    const area = areaId ? areas.find((a) => a.area_id === areaId) : null;
-                    const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) : null;
-
-                    return (
-                      <div
-                        key={entity.entity_id}
-                        className="p-3 rounded-lg border border-border/50"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-medium">
-                              {entity.attributes.friendly_name || entity.entity_id}
-                            </h4>
-                            {area && (
-                              <p className="text-sm text-muted-foreground">
-                                {floor ? `${floor.name} - ` : ""}{area.name}
-                              </p>
-                            )}
-                          </div>
-                          <Badge variant="secondary">{entity.state}</Badge>
-                        </div>
+                  return (
+                    <div
+                      key={entity.entity_id}
+                      className="w-full p-4 rounded-lg border border-border/50 bg-background flex items-center justify-between"
+                    >
+                      <div className="flex-1">
+                        <h3 className="font-medium">
+                          {entity.attributes.friendly_name || entity.entity_id}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          {floor && area ? `${floor.name} - ${area.name}` : area?.name || entity.state}
+                        </p>
                       </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                      <button
+                        className="ml-3 cursor-grab text-muted-foreground text-xl"
+                        aria-label="Réorganiser"
+                      >
+                        ⋮⋮
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              {orderedTypes.map((typeName) => {
+                const typeEntities = entitiesByType[typeName] || [];
+                return (
+                  <div
+                    key={typeName}
+                    className="w-full p-4 rounded-lg border border-border/50 bg-background flex items-center justify-between"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTypeName(typeName)}
+                      className="flex-1 text-left"
+                    >
+                      <h3 className="font-medium">{typeName}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {typeEntities.length} appareil(s)
+                      </p>
+                    </button>
+                    <button
+                      className="ml-3 cursor-grab text-muted-foreground text-xl"
+                      aria-label="Réorganiser"
+                    >
+                      ⋮⋮
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
