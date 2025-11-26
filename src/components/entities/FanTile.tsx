@@ -16,7 +16,7 @@ interface FanTileProps {
 }
 
 export function FanTile({ entity, onControl }: FanTileProps) {
-  const isOn = entity.state === "on";
+  const realIsOn = entity.state === "on";
   const name = entity.attributes.friendly_name || entity.entity_id;
   const percentage = entity.attributes.percentage || 0;
   const presetMode = entity.attributes.preset_mode;
@@ -27,25 +27,41 @@ export function FanTile({ entity, onControl }: FanTileProps) {
   const supportsSpeed = supportsFeature(entity, FAN_FEATURES.SUPPORT_SET_SPEED);
   const supportsPreset = supportsFeature(entity, FAN_FEATURES.SUPPORT_PRESET_MODE);
   
+  // État optimiste local pour le toggle ON/OFF
+  const [optimisticOn, setOptimisticOn] = useState(realIsOn);
   const [speed, setSpeed] = useState(percentage);
+  
+  // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
+  useEffect(() => {
+    if (!isPending) {
+      setOptimisticOn(realIsOn);
+    }
+  }, [realIsOn, isPending]);
   
   useEffect(() => {
     setSpeed(percentage);
   }, [percentage]);
   
   const handleToggle = async (checked: boolean) => {
+    const previous = optimisticOn;
+    setOptimisticOn(checked); // Update optimiste immédiat
+
     try {
       await onControl(checked ? "turn_on" : "turn_off");
     } catch (error) {
-      // Erreur déjà gérée par useOptimisticToggle
+      // Rollback en cas d'erreur
+      setOptimisticOn(previous);
+      toast.error("Impossible de changer l'état du ventilateur");
     }
   };
   
   const handleSpeedCommit = async (value: number[]) => {
+    const previous = speed;
     try {
       await onControl("set_percentage", { percentage: value[0] });
     } catch (error) {
-      // Erreur déjà gérée par useOptimisticToggle
+      setSpeed(previous);
+      toast.error("Impossible de régler la vitesse");
     }
   };
   
@@ -53,9 +69,11 @@ export function FanTile({ entity, onControl }: FanTileProps) {
     try {
       await onControl("set_preset_mode", { preset_mode: preset });
     } catch (error) {
-      // Erreur déjà gérée par useOptimisticToggle
+      toast.error("Impossible de changer le mode");
     }
   };
+  
+  const isOn = optimisticOn; // Utiliser l'état optimiste pour l'affichage
   
   return (
     <Card className={cn(

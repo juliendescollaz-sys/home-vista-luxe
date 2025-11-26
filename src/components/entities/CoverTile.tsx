@@ -15,7 +15,7 @@ interface CoverTileProps {
 }
 
 export function CoverTile({ entity, onControl }: CoverTileProps) {
-  const state = entity.state;
+  const realState = entity.state;
   const name = entity.attributes.friendly_name || entity.entity_id;
   const currentPosition = entity.attributes.current_position || 0;
   const currentTilt = entity.attributes.current_tilt_position || 0;
@@ -26,8 +26,17 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
   const supportsStop = supportsFeature(entity, COVER_FEATURES.SUPPORT_STOP);
   const supportsTilt = supportsFeature(entity, COVER_FEATURES.SUPPORT_SET_TILT_POSITION);
   
+  // État optimiste local pour l'état du cover
+  const [optimisticState, setOptimisticState] = useState(realState);
   const [position, setPosition] = useState(currentPosition);
   const [tilt, setTilt] = useState(currentTilt);
+  
+  // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
+  useEffect(() => {
+    if (!isPending) {
+      setOptimisticState(realState);
+    }
+  }, [realState, isPending]);
   
   useEffect(() => {
     setPosition(currentPosition);
@@ -35,18 +44,26 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
   }, [currentPosition, currentTilt]);
   
   const handleOpen = async () => {
+    const previous = optimisticState;
+    setOptimisticState("opening"); // Update optimiste immédiat
+
     try {
       await onControl("open_cover");
     } catch (error) {
-      // Erreur déjà gérée par useOptimisticToggle
+      setOptimisticState(previous);
+      toast.error("Impossible d'ouvrir le volet");
     }
   };
   
   const handleClose = async () => {
+    const previous = optimisticState;
+    setOptimisticState("closing"); // Update optimiste immédiat
+
     try {
       await onControl("close_cover");
     } catch (error) {
-      // Erreur déjà gérée par useOptimisticToggle
+      setOptimisticState(previous);
+      toast.error("Impossible de fermer le volet");
     }
   };
   
@@ -54,25 +71,31 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
     try {
       await onControl("stop_cover");
     } catch (error) {
-      // Erreur déjà gérée par useOptimisticToggle
+      toast.error("Impossible d'arrêter le volet");
     }
   };
   
   const handlePositionCommit = async (value: number[]) => {
+    const previous = position;
     try {
       await onControl("set_cover_position", { position: value[0] });
     } catch (error) {
-      // Erreur déjà gérée par useOptimisticToggle
+      setPosition(previous);
+      toast.error("Impossible de régler la position");
     }
   };
   
   const handleTiltCommit = async (value: number[]) => {
+    const previous = tilt;
     try {
       await onControl("set_cover_tilt_position", { tilt_position: value[0] });
     } catch (error) {
-      // Erreur déjà gérée par useOptimisticToggle
+      setTilt(previous);
+      toast.error("Impossible de régler l'inclinaison");
     }
   };
+  
+  const state = optimisticState; // Utiliser l'état optimiste pour l'affichage
   
   return (
     <Card className={cn(

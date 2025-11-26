@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -58,11 +58,24 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
   const { displayMode } = useDisplayMode();
 
   const groupEntity = group.haEntityId ? entities.find((e) => e.entity_id === group.haEntityId) : undefined;
-  const isActive = groupEntity?.state === "on" || groupEntity?.state === "open";
+  const realIsActive = groupEntity?.state === "on" || groupEntity?.state === "open";
   const Icon = DOMAIN_ICONS[group.domain];
   
   // Indicateur "en cours" pour les groupes avec haEntityId (groupes partagés)
   const isPending = group.haEntityId ? !!pendingActions[group.haEntityId] : false;
+
+  // État optimiste local pour le toggle ON/OFF (sauf media_player)
+  const [optimisticActive, setOptimisticActive] = useState(realIsActive);
+
+  // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
+  useEffect(() => {
+    if (!isPending && group.domain !== "media_player") {
+      setOptimisticActive(realIsActive);
+    }
+  }, [realIsActive, isPending, group.domain]);
+
+  // Pour media_player, toujours utiliser l'état réel
+  const isActive = group.domain === "media_player" ? realIsActive : optimisticActive;
 
   const mediaPlayerState = useMemo(() => {
     if (group.domain !== "media_player") return null;
@@ -78,27 +91,46 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
   }, [group.domain, group.entityIds, entities]);
 
   const handleToggle = async () => {
-    try {
-      await toggleGroup(group.id, groupEntity?.state || "off", group.domain);
-      // Pas de toast ici - géré par le store
-    } catch (error) {
-      // Erreur déjà gérée par le store
+    if (group.domain !== "media_player") {
+      const previous = optimisticActive;
+      setOptimisticActive(!optimisticActive); // Update optimiste immédiat
+      
+      try {
+        await toggleGroup(group.id, groupEntity?.state || "off", group.domain);
+      } catch (error) {
+        setOptimisticActive(previous);
+        toast.error("Impossible de changer l'état du groupe");
+      }
+    } else {
+      try {
+        await toggleGroup(group.id, groupEntity?.state || "off", group.domain);
+      } catch (error) {
+        toast.error("Impossible de changer l'état du groupe");
+      }
     }
   };
 
   const handleOpen = async () => {
+    const previous = optimisticActive;
+    setOptimisticActive(true); // Update optimiste immédiat
+
     try {
       await openCover(group.id);
     } catch (error) {
-      // Erreur déjà gérée par le store
+      setOptimisticActive(previous);
+      toast.error("Impossible d'ouvrir les volets");
     }
   };
 
   const handleClose = async () => {
+    const previous = optimisticActive;
+    setOptimisticActive(false); // Update optimiste immédiat
+
     try {
       await closeCover(group.id);
     } catch (error) {
-      // Erreur déjà gérée par le store
+      setOptimisticActive(previous);
+      toast.error("Impossible de fermer les volets");
     }
   };
 
