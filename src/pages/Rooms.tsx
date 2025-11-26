@@ -458,7 +458,7 @@ const Rooms = () => {
   const ptClass = displayMode === "mobile" ? "pt-32" : "pt-[24px]";
   const rootClassName = displayMode === "mobile" 
     ? `min-h-screen bg-background pb-24 ${ptClass}`
-    : "w-full flex flex-col items-stretch";
+    : "w-full h-full flex flex-col overflow-hidden";
   // Vérifier si au moins un plan est complet (PNG + JSON)
   const hasUsablePlans = neoliaFloorPlans.some((plan) => plan.hasPng && plan.hasJson);
 
@@ -472,7 +472,11 @@ const Rooms = () => {
   return (
     <div className={rootClassName}>
       <TopBar title="Maison" />
-      <div className={`w-full ${displayMode === "mobile" ? "px-[26px] py-[26px]" : "px-4"} ${!displayMode || displayMode !== "mobile" ? ptClass : ""}`}>
+      <div className={cn(
+        "flex-1 flex flex-col overflow-hidden",
+        displayMode === "mobile" ? "px-[26px] py-[26px]" : "px-4",
+        displayMode !== "mobile" && ptClass
+      )}>
         {isLoadingNeoliaPlans ? (
           <Card className="animate-fade-in">
             <CardContent className="py-8">
