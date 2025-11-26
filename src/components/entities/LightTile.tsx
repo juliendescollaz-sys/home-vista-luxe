@@ -4,7 +4,7 @@ import { Lightbulb, Palette, Sun } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supportsFeature, LIGHT_FEATURES } from "@/lib/entityUtils";
 import { toast } from "sonner";
 import { useHAStore } from "@/store/useHAStore";
@@ -29,6 +29,7 @@ export function LightTile({ entity, onControl }: LightTileProps) {
   const [optimisticOn, setOptimisticOn] = useState(realIsOn);
   const [brightness, setBrightness] = useState(entity.attributes.brightness || 0);
   const [colorTemp, setColorTemp] = useState(entity.attributes.color_temp || 0);
+  const lastToggleRef = useRef<number>(0);
 
   // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
   useEffect(() => {
@@ -43,8 +44,21 @@ export function LightTile({ entity, onControl }: LightTileProps) {
   }, [entity.attributes.brightness, entity.attributes.color_temp]);
 
   const handleToggle = async (checked: boolean) => {
+    // Garde-fou 1: bloquer si action en cours
+    if (isPending) {
+      return;
+    }
+
+    // Garde-fou 2: anti double-clic (300ms)
+    const now = Date.now();
+    if (now - lastToggleRef.current < 300) {
+      return;
+    }
+    lastToggleRef.current = now;
+
+    // Update optimiste immédiat
     const previous = optimisticOn;
-    setOptimisticOn(checked); // Update optimiste immédiat
+    setOptimisticOn(checked);
 
     try {
       await onControl(checked ? "turn_on" : "turn_off");
