@@ -446,8 +446,10 @@ const Rooms = () => {
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const devices = useHAStore((state) => state.devices);
   
-  const rootClassName = displayMode === "mobile" ? "min-h-screen bg-background pb-20" : "min-h-screen bg-background";
-  const contentPaddingTop = displayMode === "mobile" ? "pt-[138px]" : "pt-[24px]";
+  const ptClass = displayMode === "mobile" ? "pt-32" : "pt-[24px]";
+  const rootClassName = displayMode === "mobile" 
+    ? `min-h-screen bg-background pb-24 ${ptClass}`
+    : "w-full flex flex-col items-stretch";
   // Vérifier si au moins un plan est complet (PNG + JSON)
   const hasUsablePlans = neoliaFloorPlans.some((plan) => plan.hasPng && plan.hasJson);
 
@@ -461,7 +463,7 @@ const Rooms = () => {
   return (
     <div className={rootClassName}>
       <TopBar title="Maison" />
-      <div className={`w-full ${displayMode === "mobile" ? "px-[26px]" : "px-4"} pb-[26px] ${contentPaddingTop}`}>
+      <div className={`w-full ${displayMode === "mobile" ? "px-[26px] py-[26px]" : "px-4"} ${!displayMode || displayMode !== "mobile" ? ptClass : ""}`}>
         {isLoadingNeoliaPlans ? (
           <Card className="animate-fade-in">
             <CardContent className="py-8">
