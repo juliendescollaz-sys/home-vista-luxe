@@ -4,7 +4,7 @@ import { Lightbulb, Palette, Sun } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supportsFeature, LIGHT_FEATURES } from "@/lib/entityUtils";
 import { toast } from "sonner";
 import { useHAStore } from "@/store/useHAStore";
@@ -19,7 +19,10 @@ export function LightTile({ entity, onControl }: LightTileProps) {
   const realIsOn = entity.state === "on";
   const name = entity.attributes.friendly_name || entity.entity_id;
   const pendingActions = useHAStore((state) => state.pendingActions);
-  const isPending = !!pendingActions[entity.entity_id];
+  const triggerEntityToggle = useHAStore((state) => state.triggerEntityToggle);
+  const pending = pendingActions[entity.entity_id];
+  const isPending = !!(pending && !pending.cooldownUntil);
+  const isInCooldown = !!(pending?.cooldownUntil && Date.now() < pending.cooldownUntil);
 
   const supportsBrightness = supportsFeature(entity, LIGHT_FEATURES.SUPPORT_BRIGHTNESS);
   const supportsColor = supportsFeature(entity, LIGHT_FEATURES.SUPPORT_COLOR);
@@ -29,14 +32,13 @@ export function LightTile({ entity, onControl }: LightTileProps) {
   const [optimisticOn, setOptimisticOn] = useState(realIsOn);
   const [brightness, setBrightness] = useState(entity.attributes.brightness || 0);
   const [colorTemp, setColorTemp] = useState(entity.attributes.color_temp || 0);
-  const lastToggleRef = useRef<number>(0);
 
   // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
   useEffect(() => {
-    if (!isPending) {
+    if (!isPending && !isInCooldown) {
       setOptimisticOn(realIsOn);
     }
-  }, [realIsOn, isPending]);
+  }, [realIsOn, isPending, isInCooldown]);
 
   useEffect(() => {
     setBrightness(entity.attributes.brightness || 0);
@@ -44,29 +46,26 @@ export function LightTile({ entity, onControl }: LightTileProps) {
   }, [entity.attributes.brightness, entity.attributes.color_temp]);
 
   const handleToggle = async (checked: boolean) => {
-    // Garde-fou 1: bloquer si action en cours
-    if (isPending) {
+    // Bloquer si action en cours ou cooldown actif
+    if (isPending || isInCooldown) {
       return;
     }
-
-    // Garde-fou 2: anti double-clic (300ms)
-    const now = Date.now();
-    if (now - lastToggleRef.current < 300) {
-      return;
-    }
-    lastToggleRef.current = now;
 
     // Update optimiste immédiat
     const previous = optimisticOn;
     setOptimisticOn(checked);
 
-    try {
-      await onControl(checked ? "turn_on" : "turn_off");
-    } catch (error) {
-      // Rollback en cas d'erreur
-      setOptimisticOn(previous);
-      toast.error("Impossible de changer l'état de la lumière");
-    }
+    await triggerEntityToggle(
+      entity.entity_id,
+      checked ? "on" : "off",
+      async () => {
+        await onControl(checked ? "turn_on" : "turn_off");
+      },
+      () => {
+        // Rollback en cas de timeout
+        setOptimisticOn(previous);
+      }
+    );
   };
 
   const handleBrightnessChange = (value: number[]) => {

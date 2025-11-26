@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { useHAStore } from "@/store/useHAStore";
 import { Button } from "@/components/ui/button";
 import { LocationBadge } from "./LocationBadge";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 const domainIcons: Partial<Record<EntityDomain, any>> = {
@@ -41,19 +41,21 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
   const favorites = useHAStore((state) => state.favorites);
   const toggleFavorite = useHAStore((state) => state.toggleFavorite);
   const pendingActions = useHAStore((state) => state.pendingActions);
+  const triggerEntityToggle = useHAStore((state) => state.triggerEntityToggle);
   const isFavorite = favorites.includes(entity.entity_id);
-  const isPending = !!pendingActions[entity.entity_id];
+  const pending = pendingActions[entity.entity_id];
+  const isPending = !!(pending && !pending.cooldownUntil);
+  const isInCooldown = !!(pending?.cooldownUntil && Date.now() < pending.cooldownUntil);
 
   // État optimiste local pour le toggle ON/OFF
   const [optimisticActive, setOptimisticActive] = useState(realIsActive);
-  const lastToggleRef = useRef<number>(0);
 
   // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
   useEffect(() => {
-    if (!isPending) {
+    if (!isPending && !isInCooldown) {
       setOptimisticActive(realIsActive);
     }
-  }, [realIsActive, isPending]);
+  }, [realIsActive, isPending, isInCooldown]);
 
   const isActive = optimisticActive;
 
@@ -78,25 +80,29 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
     toggleFavorite(entity.entity_id);
   };
 
-  const handleToggle = () => {
-    // Garde-fou 1: bloquer si action en cours
-    if (isPending) {
+  const handleToggle = async () => {
+    // Bloquer si action en cours ou cooldown actif
+    if (isPending || isInCooldown) {
       return;
     }
-
-    // Garde-fou 2: anti double-clic (300ms)
-    const now = Date.now();
-    if (now - lastToggleRef.current < 300) {
-      return;
-    }
-    lastToggleRef.current = now;
 
     // Update optimiste immédiat
     const previous = optimisticActive;
-    setOptimisticActive(!optimisticActive);
+    const next = !optimisticActive;
+    setOptimisticActive(next);
 
-    // Appeler onToggle qui utilise useOptimisticToggle
-    onToggle?.(entity.entity_id);
+    // Appeler triggerEntityToggle qui gère le pending, timeout, cooldown et rollback
+    await triggerEntityToggle(
+      entity.entity_id,
+      next ? "on" : "off",
+      async () => {
+        await onToggle?.(entity.entity_id);
+      },
+      () => {
+        // Rollback en cas de timeout
+        setOptimisticActive(previous);
+      }
+    );
   };
 
   return (

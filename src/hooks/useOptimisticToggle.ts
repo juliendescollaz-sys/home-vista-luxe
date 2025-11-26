@@ -3,24 +3,21 @@ import { toast } from "sonner";
 import { getEntityDomain } from "@/lib/entityUtils";
 
 /**
- * Hook pour gérer les toggles optimistes des entités HA avec timeout et rollback automatique
+ * Hook pour gérer les toggles optimistes des entités HA avec système centralisé
  * 
  * Comportement :
- * - Mise à jour immédiate de l'UI (optimistic update)
- * - Envoi de la commande à Home Assistant
- * - Timeout de 5 secondes : si aucune confirmation WebSocket, rollback automatique
- * - Rollback immédiat en cas d'erreur réseau
+ * - Mise à jour immédiate de l'UI (optimistic update) gérée par le composant
+ * - Envoi de la commande à Home Assistant via triggerEntityToggle du store
+ * - Le store gère : timeout 2s, confirmation WebSocket, cooldown 50ms, rollback automatique
  * 
  * Exception : media_player conserve son comportement non-optimiste
  */
 export function useOptimisticToggle() {
   const client = useHAStore((state) => state.client);
   const entities = useHAStore((state) => state.entities);
-  const setPendingAction = useHAStore((state) => state.setPendingAction);
-  const clearPendingAction = useHAStore((state) => state.clearPendingAction);
-  const setEntities = useHAStore((state) => state.setEntities);
+  const triggerEntityToggle = useHAStore((state) => state.triggerEntityToggle);
 
-  const toggleEntity = async (entityId: string) => {
+  const toggleEntity = async (entityId: string, onRollback?: () => void) => {
     if (!client) {
       toast.error("Client non connecté");
       return;
@@ -47,63 +44,26 @@ export function useOptimisticToggle() {
     }
 
     // UI optimiste pour les autres domaines
-    const prevState = entity.state;
-    const isOn = prevState === "on";
+    const isOn = entity.state === "on";
     const targetState = isOn ? "off" : "on";
     const service = isOn ? "turn_off" : "turn_on";
 
-    // 1. Marquer l'action comme en attente (avec timeout de 5 secondes)
-    setPendingAction(entityId, targetState, 5000);
-
-    // 2. Mettre à jour immédiatement l'UI locale
-    const updatedEntities = entities?.map((e) =>
-      e.entity_id === entityId ? { ...e, state: targetState } : e
-    ) || [];
-    setEntities(updatedEntities);
-
-    // 3. Programmer le rollback automatique si pas de confirmation WebSocket dans 5s
-    const timeoutId = setTimeout(() => {
-      const currentEntity = useHAStore.getState().entities?.find((e) => e.entity_id === entityId);
-      
-      // Si l'état n'a toujours pas été confirmé par HA (encore en pending)
-      if (currentEntity && useHAStore.getState().pendingActions[entityId]) {
-        console.warn(`⏱️ Timeout pour ${entityId}, rollback automatique`);
-        clearPendingAction(entityId);
-        
-        const rolledBackEntities = useHAStore.getState().entities?.map((e) =>
-          e.entity_id === entityId ? { ...e, state: prevState } : e
-        ) || [];
-        setEntities(rolledBackEntities);
-        
-        toast.error("Commande expirée - état restauré");
-      }
-    }, 5000);
-
-    // 4. Envoyer la commande à HA
-    try {
-      await client.callService(domain, service, {}, { entity_id: entityId });
-      // Pas de toast de succès ici - on attend la confirmation WebSocket
-      clearTimeout(timeoutId);
-    } catch (error) {
-      console.error("❌ Erreur réseau lors du contrôle:", error);
-      clearTimeout(timeoutId);
-      
-      // Rollback immédiat en cas d'erreur réseau
-      clearPendingAction(entityId);
-      const rolledBackEntities = entities?.map((e) =>
-        e.entity_id === entityId ? { ...e, state: prevState } : e
-      ) || [];
-      setEntities(rolledBackEntities);
-      
-      toast.error("Erreur de connexion - état restauré");
-    }
+    await triggerEntityToggle(
+      entityId,
+      targetState,
+      async () => {
+        await client.callService(domain, service, {}, { entity_id: entityId });
+      },
+      onRollback
+    );
   };
 
   const controlEntity = async (
     entityId: string,
     service: string,
     data?: any,
-    targetState?: string
+    targetState?: string,
+    onRollback?: () => void
   ) => {
     if (!client) {
       toast.error("Client non connecté");
@@ -128,52 +88,14 @@ export function useOptimisticToggle() {
 
     // UI optimiste pour les autres domaines (si targetState fourni)
     if (targetState) {
-      const prevState = entity.state;
-      
-      // 1. Marquer l'action comme en attente (avec timeout de 5 secondes)
-      setPendingAction(entityId, targetState, 5000);
-
-      // 2. Mettre à jour immédiatement l'UI locale
-      const updatedEntities = entities?.map((e) =>
-        e.entity_id === entityId ? { ...e, state: targetState } : e
-      ) || [];
-      setEntities(updatedEntities);
-
-      // 3. Programmer le rollback automatique si pas de confirmation dans 5s
-      const timeoutId = setTimeout(() => {
-        const currentEntity = useHAStore.getState().entities?.find((e) => e.entity_id === entityId);
-        
-        if (currentEntity && useHAStore.getState().pendingActions[entityId]) {
-          console.warn(`⏱️ Timeout pour ${entityId}, rollback automatique`);
-          clearPendingAction(entityId);
-          
-          const rolledBackEntities = useHAStore.getState().entities?.map((e) =>
-            e.entity_id === entityId ? { ...e, state: prevState } : e
-          ) || [];
-          setEntities(rolledBackEntities);
-          
-          toast.error("Commande expirée - état restauré");
-        }
-      }, 5000);
-
-      // 4. Envoyer la commande à HA
-      try {
-        await client.callService(domain, service, data, { entity_id: entityId });
-        clearTimeout(timeoutId);
-      } catch (error) {
-        console.error("❌ Erreur réseau lors du contrôle:", error);
-        clearTimeout(timeoutId);
-        
-        // Rollback immédiat en cas d'erreur réseau
-        clearPendingAction(entityId);
-        const rolledBackEntities = entities?.map((e) =>
-          e.entity_id === entityId ? { ...e, state: prevState } : e
-        ) || [];
-        setEntities(rolledBackEntities);
-        
-        toast.error("Erreur de connexion - état restauré");
-        throw error;
-      }
+      await triggerEntityToggle(
+        entityId,
+        targetState,
+        async () => {
+          await client.callService(domain, service, data, { entity_id: entityId });
+        },
+        onRollback
+      );
     } else {
       // Pas d'UI optimiste si on ne connaît pas l'état cible
       try {
