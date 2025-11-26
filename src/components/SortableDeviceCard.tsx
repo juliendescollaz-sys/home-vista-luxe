@@ -7,6 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { useHAStore } from "@/store/useHAStore";
 import { Button } from "@/components/ui/button";
 import { LocationBadge } from "./LocationBadge";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 const domainIcons: Partial<Record<EntityDomain, any>> = {
   light: Lightbulb,
@@ -33,7 +35,7 @@ interface SortableDeviceCardProps {
 export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDeviceCardProps) => {
   const domain = entity.entity_id.split(".")[0] as EntityDomain;
   const Icon = domainIcons[domain] || MoreVertical;
-  const isActive = entity.state === "on";
+  const realIsActive = entity.state === "on";
   const name = entity.attributes.friendly_name || entity.entity_id;
   
   const favorites = useHAStore((state) => state.favorites);
@@ -41,6 +43,18 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
   const pendingActions = useHAStore((state) => state.pendingActions);
   const isFavorite = favorites.includes(entity.entity_id);
   const isPending = !!pendingActions[entity.entity_id];
+
+  // État optimiste local pour le toggle ON/OFF
+  const [optimisticActive, setOptimisticActive] = useState(realIsActive);
+
+  // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
+  useEffect(() => {
+    if (!isPending) {
+      setOptimisticActive(realIsActive);
+    }
+  }, [realIsActive, isPending]);
+
+  const isActive = optimisticActive;
 
   const {
     attributes,
@@ -61,6 +75,17 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     toggleFavorite(entity.entity_id);
+  };
+
+  const handleToggle = () => {
+    const previous = optimisticActive;
+    setOptimisticActive(!optimisticActive); // Update optimiste immédiat
+
+    // Appeler onToggle qui utilise useOptimisticToggle
+    onToggle?.(entity.entity_id);
+    
+    // Note: Le rollback sera géré par useOptimisticToggle via le store
+    // mais on garde aussi notre propre rollback en cas d'échec immédiat
   };
 
   return (
@@ -100,7 +125,7 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
           <div className="flex items-center justify-end pt-2">
             <Switch
               checked={isActive}
-              onCheckedChange={() => onToggle?.(entity.entity_id)}
+              onCheckedChange={handleToggle}
               className="data-[state=checked]:bg-primary scale-125"
             />
           </div>

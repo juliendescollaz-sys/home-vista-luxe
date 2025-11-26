@@ -16,7 +16,7 @@ interface LightTileProps {
 }
 
 export function LightTile({ entity, onControl }: LightTileProps) {
-  const isOn = entity.state === "on";
+  const realIsOn = entity.state === "on";
   const name = entity.attributes.friendly_name || entity.entity_id;
   const pendingActions = useHAStore((state) => state.pendingActions);
   const isPending = !!pendingActions[entity.entity_id];
@@ -25,8 +25,17 @@ export function LightTile({ entity, onControl }: LightTileProps) {
   const supportsColor = supportsFeature(entity, LIGHT_FEATURES.SUPPORT_COLOR);
   const supportsColorTemp = supportsFeature(entity, LIGHT_FEATURES.SUPPORT_COLOR_TEMP);
 
+  // État optimiste local pour le toggle ON/OFF
+  const [optimisticOn, setOptimisticOn] = useState(realIsOn);
   const [brightness, setBrightness] = useState(entity.attributes.brightness || 0);
   const [colorTemp, setColorTemp] = useState(entity.attributes.color_temp || 0);
+
+  // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
+  useEffect(() => {
+    if (!isPending) {
+      setOptimisticOn(realIsOn);
+    }
+  }, [realIsOn, isPending]);
 
   useEffect(() => {
     setBrightness(entity.attributes.brightness || 0);
@@ -34,11 +43,15 @@ export function LightTile({ entity, onControl }: LightTileProps) {
   }, [entity.attributes.brightness, entity.attributes.color_temp]);
 
   const handleToggle = async (checked: boolean) => {
+    const previous = optimisticOn;
+    setOptimisticOn(checked); // Update optimiste immédiat
+
     try {
       await onControl(checked ? "turn_on" : "turn_off");
-      // Pas de toast ici - géré par useOptimisticToggle
     } catch (error) {
-      // Erreur déjà gérée par useOptimisticToggle
+      // Rollback en cas d'erreur
+      setOptimisticOn(previous);
+      toast.error("Impossible de changer l'état de la lumière");
     }
   };
 
@@ -47,20 +60,26 @@ export function LightTile({ entity, onControl }: LightTileProps) {
   };
 
   const handleBrightnessCommit = async (value: number[]) => {
+    const previous = brightness;
     try {
       await onControl("turn_on", { brightness: value[0] });
     } catch (error) {
-      // Erreur déjà gérée par useOptimisticToggle
+      setBrightness(previous);
+      toast.error("Impossible de régler la luminosité");
     }
   };
 
   const handleColorTempCommit = async (value: number[]) => {
+    const previous = colorTemp;
     try {
       await onControl("turn_on", { color_temp: value[0] });
     } catch (error) {
-      // Erreur déjà gérée par useOptimisticToggle
+      setColorTemp(previous);
+      toast.error("Impossible de régler la température");
     }
   };
+
+  const isOn = optimisticOn; // Utiliser l'état optimiste pour l'affichage
 
   return (
     <Card className={cn(
