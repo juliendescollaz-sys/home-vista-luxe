@@ -13,12 +13,15 @@ import { getEntityDomain } from "@/lib/entityUtils";
 import { cn } from "@/lib/utils";
 import { DraggableRoomLabel } from "@/components/DraggableRoomLabel";
 import { HomeOverviewByTypeAndArea } from "@/components/HomeOverviewByTypeAndArea";
-import { DndContext, DragEndEvent, PointerSensor, TouchSensor, useSensor, useSensors, closestCenter, DragOverlay } from "@dnd-kit/core";
-import { SortableContext, arrayMove, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, closestCenter, DragOverlay } from "@dnd-kit/core";
+import { SortableContext, arrayMove, verticalListSortingStrategy, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { SortableRoomCard } from "@/components/SortableRoomCard";
 import { SortableUniversalEntityTile } from "@/components/SortableUniversalEntityTile";
+import { SortableAreaCard } from "@/components/SortableAreaCard";
+import { SortableTypeCard } from "@/components/SortableTypeCard";
 import { useOptimisticToggle } from "@/hooks/useOptimisticToggle";
+import { toast } from "sonner";
 
 // ============== MaisonTabletPanelView ==============
 const MaisonTabletPanelView = () => {
@@ -282,18 +285,38 @@ const MaisonMobileView = () => {
   const entities = useHAStore((state) => state.entities);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const devices = useHAStore((state) => state.devices);
+  const client = useHAStore((state) => state.client);
 
   const [viewMode, setViewMode] = useState<"room" | "type">("room");
 
   // Sélection courante
   const [selectedAreaId, setSelectedAreaId] = useState<string | undefined>();
   const [selectedTypeName, setSelectedTypeName] = useState<string | undefined>();
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   // Ordres persistés
   const [areaOrder, setAreaOrder] = useState<string[]>([]);
   const [typeOrder, setTypeOrder] = useState<string[]>([]);
   const [deviceOrderByArea, setDeviceOrderByArea] = useState<Record<string, string[]>>({});
   const [deviceOrderByType, setDeviceOrderByType] = useState<Record<string, string[]>>({});
+
+  // Sensors dnd-kit avec long-press
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 400,
+        tolerance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // --- Utils persistence localStorage ---
   const LS_AREA_ORDER = "neolia_mobile_area_order";
@@ -344,17 +367,81 @@ const MaisonMobileView = () => {
     } catch {}
   }, [deviceOrderByType]);
 
-  // --- Helpers génériques drag & drop ---
+  // --- Helpers génériques drag & drop (dnd-kit) ---
 
-  const moveInArray = (arr: string[], from: number, to: number): string[] => {
-    const copy = [...arr];
-    const item = copy.splice(from, 1)[0];
-    copy.splice(to, 0, item);
-    return copy;
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over || active.id === over.id) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Déterminer quel type de liste on réorganise
+    if (!selectedAreaId && !selectedTypeName) {
+      // Liste principale (pièces ou types)
+      if (viewMode === "room") {
+        const oldIndex = orderedAreas.findIndex((a) => a.area_id === activeId);
+        const newIndex = orderedAreas.findIndex((a) => a.area_id === overId);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const ids = orderedAreas.map((a) => a.area_id);
+          const newOrder = arrayMove(ids, oldIndex, newIndex);
+          setAreaOrder(newOrder);
+        }
+      } else {
+        const oldIndex = orderedTypeNames.findIndex((t) => t === activeId);
+        const newIndex = orderedTypeNames.findIndex((t) => t === overId);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(orderedTypeNames, oldIndex, newIndex);
+          setTypeOrder(newOrder);
+        }
+      }
+    } else if (selectedAreaId) {
+      // Liste des appareils d'une pièce
+      const oldIndex = devicesForArea.findIndex((e) => e.entity_id === activeId);
+      const newIndex = devicesForArea.findIndex((e) => e.entity_id === overId);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const ids = devicesForArea.map((e) => e.entity_id);
+        const newOrder = arrayMove(ids, oldIndex, newIndex);
+        setDeviceOrderByArea((prev) => ({ ...prev, [selectedAreaId]: newOrder }));
+      }
+    } else if (selectedTypeName) {
+      // Liste des appareils d'un type
+      const oldIndex = devicesForType.findIndex((e) => e.entity_id === activeId);
+      const newIndex = devicesForType.findIndex((e) => e.entity_id === overId);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const ids = devicesForType.map((e) => e.entity_id);
+        const newOrder = arrayMove(ids, oldIndex, newIndex);
+        setDeviceOrderByType((prev) => ({ ...prev, [selectedTypeName]: newOrder }));
+      }
+    }
+  };
+
+  const handleDeviceToggle = async (entityId: string) => {
+    if (!client) {
+      toast.error("Client non connecté");
+      return;
+    }
+
+    const entity = entities?.find((e) => e.entity_id === entityId);
+    if (!entity) return;
+
+    const domain = entityId.split(".")[0];
+    const isOn = entity.state === "on";
+    const service = isOn ? "turn_off" : "turn_on";
+
+    try {
+      await client.callService(domain, service, {}, { entity_id: entityId });
+      toast.success(isOn ? "Éteint" : "Allumé");
+    } catch (error) {
+      console.error("Erreur lors du contrôle:", error);
+      toast.error("Erreur lors du contrôle de l'appareil");
+    }
   };
 
   // --- Ordre des pièces ---
@@ -375,11 +462,24 @@ const MaisonMobileView = () => {
     return ordered;
   }, [areas, areaOrder]);
 
-  const onDropArea = (fromIndex: number, toIndex: number) => {
-    const ids = orderedAreas.map((a) => a.area_id);
-    const newOrder = moveInArray(ids, fromIndex, toIndex);
-    setAreaOrder(newOrder);
-  };
+  // Calculer le nombre d'appareils par pièce
+  const deviceCountByArea = useMemo(() => {
+    const counts: Record<string, number> = {};
+    entities?.forEach((entity) => {
+      const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+      let areaId = reg?.area_id;
+
+      if (!areaId && reg?.device_id) {
+        const dev = devices.find((d) => d.id === reg.device_id);
+        if (dev?.area_id) areaId = dev.area_id;
+      }
+
+      if (areaId) {
+        counts[areaId] = (counts[areaId] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [entities, entityRegistry, devices]);
 
   // --- Groupement par type ---
 
@@ -421,11 +521,6 @@ const MaisonMobileView = () => {
     return ordered;
   }, [entitiesByType, typeOrder]);
 
-  const onDropType = (fromIndex: number, toIndex: number) => {
-    const newOrder = moveInArray(orderedTypeNames, fromIndex, toIndex);
-    setTypeOrder(newOrder);
-  };
-
   // --- Appareils d'une pièce ---
 
   const devicesForArea = useMemo(() => {
@@ -457,15 +552,6 @@ const MaisonMobileView = () => {
     return ordered;
   }, [entities, selectedAreaId, entityRegistry, devices, deviceOrderByArea]);
 
-  const onDropDeviceInArea = (fromIndex: number, toIndex: number) => {
-    if (!selectedAreaId) return;
-    const ids = devicesForArea.map((e) => e.entity_id);
-    const newOrder = moveInArray(ids, fromIndex, toIndex);
-    setDeviceOrderByArea((prev) => ({
-      ...prev,
-      [selectedAreaId]: newOrder,
-    }));
-  };
 
   // --- Appareils d'un type ---
 
@@ -488,15 +574,6 @@ const MaisonMobileView = () => {
     return ordered;
   }, [entitiesByType, selectedTypeName, deviceOrderByType]);
 
-  const onDropDeviceInType = (fromIndex: number, toIndex: number) => {
-    if (!selectedTypeName) return;
-    const ids = devicesForType.map((e) => e.entity_id);
-    const newOrder = moveInArray(ids, fromIndex, toIndex);
-    setDeviceOrderByType((prev) => ({
-      ...prev,
-      [selectedTypeName]: newOrder,
-    }));
-  };
 
   if (floors.length === 0) {
     return (
@@ -514,209 +591,272 @@ const MaisonMobileView = () => {
 
   return (
     <div className="space-y-6">
-      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "room" | "type")}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="room">Pièces</TabsTrigger>
-          <TabsTrigger value="type">Types</TabsTrigger>
-        </TabsList>
+      {/* Sélecteur de vue style Favoris */}
+      <div className="flex gap-2 p-1 bg-muted/50 rounded-xl backdrop-blur-sm border border-border/50">
+        <button
+          onClick={() => setViewMode("room")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all",
+            viewMode === "room"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground active:bg-accent/50"
+          )}
+        >
+          <MapPin className="h-4 w-4" />
+          <span className="text-sm">Pièces</span>
+        </button>
+        <button
+          onClick={() => setViewMode("type")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all",
+            viewMode === "type"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground active:bg-accent/50"
+          )}
+        >
+          <Grid3x3 className="h-4 w-4" />
+          <span className="text-sm">Types</span>
+        </button>
+      </div>
 
-        {/* ---- Vue PIÈCES ---- */}
-        <TabsContent value="room" className="mt-4 space-y-4">
+      {/* ---- Vue PIÈCES ---- */}
+      {viewMode === "room" && (
+        <div className="space-y-4">
           {selectedAreaId ? (
             <>
               {/* Header retour + nom pièce */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-4">
                 <button
                   type="button"
                   onClick={() => setSelectedAreaId(undefined)}
-                  className="text-sm text-primary hover:underline"
+                  className="text-sm text-primary hover:underline font-medium"
                 >
                   ← Retour aux pièces
                 </button>
-                <span className="font-semibold truncate">
-                  {areas.find((a) => a.area_id === selectedAreaId)?.name || selectedAreaId}
-                </span>
               </div>
+              <h3 className="text-lg font-semibold text-foreground px-1">
+                {areas.find((a) => a.area_id === selectedAreaId)?.name || selectedAreaId}
+              </h3>
 
-              {/* Liste des appareils de la pièce (drag & drop) */}
-              <div className="space-y-3 mt-4">
-                {devicesForArea.map((entity, index) => (
-                  <div
-                    key={entity.entity_id}
-                    draggable
-                    onDragStart={(e) => e.dataTransfer.setData("text/plain", String(index))}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => {
-                      const from = Number(e.dataTransfer.getData("text/plain"));
-                      onDropDeviceInArea(from, index);
-                    }}
-                    className="p-3 rounded-lg border border-border/50 bg-background/80 flex items-center justify-between cursor-grab active:cursor-grabbing"
-                  >
-                    <div>
-                      <div className="font-medium">
-                        {entity.attributes.friendly_name || entity.entity_id}
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {entity.state}
-                    </Badge>
-                  </div>
-                ))}
-                {devicesForArea.length === 0 && (
-                  <p className="text-center text-muted-foreground text-sm mt-4">
-                    Aucun appareil dans cette pièce.
-                  </p>
-                )}
-              </div>
-            </>
-          ) : (
-            // Liste des pièces (drag & drop)
-            <div className="space-y-3">
-              {orderedAreas.map((area, index) => {
-                const floor = area.floor_id
-                  ? floors.find((f) => f.floor_id === area.floor_id)
-                  : undefined;
-                return (
-                  <div
-                    key={area.area_id}
-                    draggable
-                    onDragStart={(e) => e.dataTransfer.setData("text/plain", String(index))}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => {
-                      const from = Number(e.dataTransfer.getData("text/plain"));
-                      onDropArea(from, index);
-                    }}
-                    className="p-4 rounded-lg border border-border/60 bg-background/80 flex items-center justify-between cursor-grab active:cursor-grabbing"
-                  >
-                    <button
-                      type="button"
-                      className="flex-1 text-left"
-                      onClick={() => setSelectedAreaId(area.area_id)}
-                    >
-                      <div className="font-medium">{area.name}</div>
-                      {floor && (
-                        <div className="text-xs text-muted-foreground">{floor.name}</div>
-                      )}
-                    </button>
-                    <span className="ml-3 text-muted-foreground text-lg">⋮⋮</span>
-                  </div>
-                );
-              })}
-              {orderedAreas.length === 0 && (
-                <p className="text-center text-muted-foreground text-sm mt-4">
-                  Aucune pièce configurée.
+              {/* Liste des appareils de la pièce (drag & drop dnd-kit) */}
+              {devicesForArea.length === 0 ? (
+                <p className="text-center text-muted-foreground text-sm mt-8">
+                  Aucun appareil dans cette pièce.
                 </p>
-              )}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ---- Vue TYPES ---- */}
-        <TabsContent value="type" className="mt-4 space-y-4">
-          {selectedTypeName ? (
-            <>
-              {/* Header retour + nom du type */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedTypeName(undefined)}
-                  className="text-sm text-primary hover:underline"
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
                 >
-                  ← Retour aux types
-                </button>
-                <span className="font-semibold truncate">{selectedTypeName}</span>
-              </div>
-
-              {/* Liste des appareils du type (drag & drop) */}
-              <div className="space-y-3 mt-4">
-                {devicesForType.map((entity, index) => (
-                  <div
-                    key={entity.entity_id}
-                    draggable
-                    onDragStart={(e) => e.dataTransfer.setData("text/plain", String(index))}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => {
-                      const from = Number(e.dataTransfer.getData("text/plain"));
-                      onDropDeviceInType(from, index);
-                    }}
-                    className="p-3 rounded-lg border border-border/50 bg-background/80 flex items-center justify-between cursor-grab active:cursor-grabbing"
-                  >
-                    <div>
-                      <div className="font-medium">
-                        {entity.attributes.friendly_name || entity.entity_id}
-                      </div>
-                      {/* On peut afficher la pièce associée */}
-                      {(() => {
-                        const reg = entityRegistry.find(
-                          (r) => r.entity_id === entity.entity_id,
-                        );
+                  <SortableContext items={devicesForArea.map((e) => e.entity_id)} strategy={rectSortingStrategy}>
+                    <div className="grid grid-cols-1 gap-4">
+                      {devicesForArea.map((entity) => {
+                        const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
                         let areaId = reg?.area_id;
+
                         if (!areaId && reg?.device_id) {
                           const dev = devices.find((d) => d.id === reg.device_id);
                           if (dev?.area_id) areaId = dev.area_id;
                         }
-                        const area = areaId
-                          ? areas.find((a) => a.area_id === areaId)
-                          : null;
-                        const floor =
-                          area?.floor_id && floors.find((f) => f.floor_id === area.floor_id);
-                        return area ? (
-                          <div className="text-xs text-muted-foreground">
-                            {floor ? `${floor.name} · ` : ""}
-                            {area.name}
-                          </div>
-                        ) : null;
-                      })()}
+
+                        const area = areaId ? areas.find((a) => a.area_id === areaId) || null : null;
+                        const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) || null : null;
+
+                        return (
+                          <SortableUniversalEntityTile
+                            key={entity.entity_id}
+                            entity={entity}
+                            floor={floor}
+                            area={area}
+                          />
+                        );
+                      })}
                     </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {entity.state}
-                    </Badge>
-                  </div>
-                ))}
-                {devicesForType.length === 0 && (
-                  <p className="text-center text-muted-foreground text-sm mt-4">
-                    Aucun appareil pour ce type.
-                  </p>
-                )}
-              </div>
+                  </SortableContext>
+
+                  <DragOverlay dropAnimation={null}>
+                    {activeId && devicesForArea.find((e) => e.entity_id === activeId) ? (
+                      <div className="opacity-90 rotate-3 scale-105">
+                        <SortableUniversalEntityTile
+                          entity={devicesForArea.find((e) => e.entity_id === activeId)!}
+                        />
+                      </div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
+              )}
             </>
           ) : (
-            // Liste des types (drag & drop)
-            <div className="space-y-3">
-              {orderedTypeNames.map((typeName, index) => (
-                <div
-                  key={typeName}
-                  draggable
-                  onDragStart={(e) => e.dataTransfer.setData("text/plain", String(index))}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => {
-                    const from = Number(e.dataTransfer.getData("text/plain"));
-                    onDropType(from, index);
-                  }}
-                  className="p-4 rounded-lg border border-border/60 bg-background/80 flex items-center justify-between cursor-grab active:cursor-grabbing"
+            // Liste des pièces (drag & drop dnd-kit)
+            <>
+              {orderedAreas.length === 0 ? (
+                <p className="text-center text-muted-foreground text-sm mt-8">
+                  Aucune pièce configurée.
+                </p>
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
                 >
-                  <button
-                    type="button"
-                    className="flex-1 text-left"
-                    onClick={() => setSelectedTypeName(typeName)}
-                  >
-                    <div className="font-medium">{typeName}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {entitiesByType[typeName]?.length || 0} appareil(s)
+                  <SortableContext items={orderedAreas.map((a) => a.area_id)} strategy={rectSortingStrategy}>
+                    <div className="space-y-3">
+                      {orderedAreas.map((area) => {
+                        const floor = area.floor_id ? floors.find((f) => f.floor_id === area.floor_id) : undefined;
+                        const deviceCount = deviceCountByArea[area.area_id] || 0;
+                        return (
+                          <SortableAreaCard
+                            key={area.area_id}
+                            area={area}
+                            floor={floor}
+                            deviceCount={deviceCount}
+                            onClick={() => setSelectedAreaId(area.area_id)}
+                          />
+                        );
+                      })}
                     </div>
-                  </button>
-                  <span className="ml-3 text-muted-foreground text-lg">⋮⋮</span>
-                </div>
-              ))}
-              {orderedTypeNames.length === 0 && (
-                <p className="text-center text-muted-foreground text-sm mt-4">
+                  </SortableContext>
+
+                  <DragOverlay dropAnimation={null}>
+                    {activeId && orderedAreas.find((a) => a.area_id === activeId) ? (
+                      <div className="opacity-90 rotate-3 scale-105">
+                        <SortableAreaCard
+                          area={orderedAreas.find((a) => a.area_id === activeId)!}
+                          floor={orderedAreas.find((a) => a.area_id === activeId)?.floor_id 
+                            ? floors.find((f) => f.floor_id === orderedAreas.find((a) => a.area_id === activeId)!.floor_id) 
+                            : undefined}
+                          deviceCount={deviceCountByArea[activeId] || 0}
+                          onClick={() => {}}
+                        />
+                      </div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ---- Vue TYPES ---- */}
+      {viewMode === "type" && (
+        <div className="space-y-4">
+          {selectedTypeName ? (
+            <>
+              {/* Header retour + nom du type */}
+              <div className="flex items-center gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTypeName(undefined)}
+                  className="text-sm text-primary hover:underline font-medium"
+                >
+                  ← Retour aux types
+                </button>
+              </div>
+              <h3 className="text-lg font-semibold text-foreground px-1">
+                {selectedTypeName}
+              </h3>
+
+              {/* Liste des appareils du type (drag & drop dnd-kit) */}
+              {devicesForType.length === 0 ? (
+                <p className="text-center text-muted-foreground text-sm mt-8">
+                  Aucun appareil pour ce type.
+                </p>
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext items={devicesForType.map((e) => e.entity_id)} strategy={rectSortingStrategy}>
+                    <div className="grid grid-cols-1 gap-4">
+                      {devicesForType.map((entity) => {
+                        const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+                        let areaId = reg?.area_id;
+
+                        if (!areaId && reg?.device_id) {
+                          const dev = devices.find((d) => d.id === reg.device_id);
+                          if (dev?.area_id) areaId = dev.area_id;
+                        }
+
+                        const area = areaId ? areas.find((a) => a.area_id === areaId) || null : null;
+                        const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) || null : null;
+
+                        return (
+                          <SortableUniversalEntityTile
+                            key={entity.entity_id}
+                            entity={entity}
+                            floor={floor}
+                            area={area}
+                          />
+                        );
+                      })}
+                    </div>
+                  </SortableContext>
+
+                  <DragOverlay dropAnimation={null}>
+                    {activeId && devicesForType.find((e) => e.entity_id === activeId) ? (
+                      <div className="opacity-90 rotate-3 scale-105">
+                        <SortableUniversalEntityTile
+                          entity={devicesForType.find((e) => e.entity_id === activeId)!}
+                        />
+                      </div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
+              )}
+            </>
+          ) : (
+            // Liste des types (drag & drop dnd-kit)
+            <>
+              {orderedTypeNames.length === 0 ? (
+                <p className="text-center text-muted-foreground text-sm mt-8">
                   Aucun appareil disponible.
                 </p>
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext items={orderedTypeNames} strategy={rectSortingStrategy}>
+                    <div className="space-y-3">
+                      {orderedTypeNames.map((typeName) => {
+                        const deviceCount = entitiesByType[typeName]?.length || 0;
+                        return (
+                          <SortableTypeCard
+                            key={typeName}
+                            typeName={typeName}
+                            deviceCount={deviceCount}
+                            onClick={() => setSelectedTypeName(typeName)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </SortableContext>
+
+                  <DragOverlay dropAnimation={null}>
+                    {activeId && orderedTypeNames.includes(activeId) ? (
+                      <div className="opacity-90 rotate-3 scale-105">
+                        <SortableTypeCard
+                          typeName={activeId}
+                          deviceCount={entitiesByType[activeId]?.length || 0}
+                          onClick={() => {}}
+                        />
+                      </div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
               )}
-            </div>
+            </>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 };
