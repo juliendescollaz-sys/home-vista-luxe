@@ -4,7 +4,7 @@ import { Fan } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supportsFeature, FAN_FEATURES } from "@/lib/entityUtils";
 import { toast } from "sonner";
 import { useHAStore } from "@/store/useHAStore";
@@ -30,6 +30,7 @@ export function FanTile({ entity, onControl }: FanTileProps) {
   // État optimiste local pour le toggle ON/OFF
   const [optimisticOn, setOptimisticOn] = useState(realIsOn);
   const [speed, setSpeed] = useState(percentage);
+  const lastToggleRef = useRef<number>(0);
   
   // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
   useEffect(() => {
@@ -43,8 +44,21 @@ export function FanTile({ entity, onControl }: FanTileProps) {
   }, [percentage]);
   
   const handleToggle = async (checked: boolean) => {
+    // Garde-fou 1: bloquer si action en cours
+    if (isPending) {
+      return;
+    }
+
+    // Garde-fou 2: anti double-clic (300ms)
+    const now = Date.now();
+    if (now - lastToggleRef.current < 300) {
+      return;
+    }
+    lastToggleRef.current = now;
+
+    // Update optimiste immédiat
     const previous = optimisticOn;
-    setOptimisticOn(checked); // Update optimiste immédiat
+    setOptimisticOn(checked);
 
     try {
       await onControl(checked ? "turn_on" : "turn_off");

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -66,6 +66,7 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
 
   // État optimiste local pour le toggle ON/OFF (sauf media_player)
   const [optimisticActive, setOptimisticActive] = useState(realIsActive);
+  const lastActionRef = useRef<number>(0);
 
   // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
   useEffect(() => {
@@ -91,9 +92,22 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
   }, [group.domain, group.entityIds, entities]);
 
   const handleToggle = async () => {
+    // Garde-fou 1: bloquer si action en cours
+    if (isPending) {
+      return;
+    }
+
+    // Garde-fou 2: anti double-clic (300ms)
+    const now = Date.now();
+    if (now - lastActionRef.current < 300) {
+      return;
+    }
+    lastActionRef.current = now;
+
     if (group.domain !== "media_player") {
+      // Update optimiste immédiat
       const previous = optimisticActive;
-      setOptimisticActive(!optimisticActive); // Update optimiste immédiat
+      setOptimisticActive(!optimisticActive);
       
       try {
         await toggleGroup(group.id, groupEntity?.state || "off", group.domain);
@@ -111,8 +125,21 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
   };
 
   const handleOpen = async () => {
+    // Garde-fou 1: bloquer si action en cours
+    if (isPending) {
+      return;
+    }
+
+    // Garde-fou 2: anti double-clic (300ms)
+    const now = Date.now();
+    if (now - lastActionRef.current < 300) {
+      return;
+    }
+    lastActionRef.current = now;
+
+    // Update optimiste immédiat
     const previous = optimisticActive;
-    setOptimisticActive(true); // Update optimiste immédiat
+    setOptimisticActive(true);
 
     try {
       await openCover(group.id);
@@ -123,8 +150,21 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
   };
 
   const handleClose = async () => {
+    // Garde-fou 1: bloquer si action en cours
+    if (isPending) {
+      return;
+    }
+
+    // Garde-fou 2: anti double-clic (300ms)
+    const now = Date.now();
+    if (now - lastActionRef.current < 300) {
+      return;
+    }
+    lastActionRef.current = now;
+
+    // Update optimiste immédiat
     const previous = optimisticActive;
-    setOptimisticActive(false); // Update optimiste immédiat
+    setOptimisticActive(false);
 
     try {
       await closeCover(group.id);

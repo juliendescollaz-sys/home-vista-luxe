@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { useHAStore } from "@/store/useHAStore";
 import { Button } from "@/components/ui/button";
 import { LocationBadge } from "./LocationBadge";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 const domainIcons: Partial<Record<EntityDomain, any>> = {
@@ -46,6 +46,7 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
 
   // État optimiste local pour le toggle ON/OFF
   const [optimisticActive, setOptimisticActive] = useState(realIsActive);
+  const lastToggleRef = useRef<number>(0);
 
   // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
   useEffect(() => {
@@ -78,14 +79,24 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDe
   };
 
   const handleToggle = () => {
+    // Garde-fou 1: bloquer si action en cours
+    if (isPending) {
+      return;
+    }
+
+    // Garde-fou 2: anti double-clic (300ms)
+    const now = Date.now();
+    if (now - lastToggleRef.current < 300) {
+      return;
+    }
+    lastToggleRef.current = now;
+
+    // Update optimiste immédiat
     const previous = optimisticActive;
-    setOptimisticActive(!optimisticActive); // Update optimiste immédiat
+    setOptimisticActive(!optimisticActive);
 
     // Appeler onToggle qui utilise useOptimisticToggle
     onToggle?.(entity.entity_id);
-    
-    // Note: Le rollback sera géré par useOptimisticToggle via le store
-    // mais on garde aussi notre propre rollback en cas d'échec immédiat
   };
 
   return (

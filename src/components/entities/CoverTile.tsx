@@ -3,7 +3,7 @@ import { HAEntity } from "@/types/homeassistant";
 import { ChevronUp, ChevronDown, Square, Blinds } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supportsFeature, COVER_FEATURES } from "@/lib/entityUtils";
 import { toast } from "sonner";
 import { useHAStore } from "@/store/useHAStore";
@@ -30,6 +30,7 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
   const [optimisticState, setOptimisticState] = useState(realState);
   const [position, setPosition] = useState(currentPosition);
   const [tilt, setTilt] = useState(currentTilt);
+  const lastActionRef = useRef<number>(0);
   
   // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
   useEffect(() => {
@@ -44,8 +45,21 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
   }, [currentPosition, currentTilt]);
   
   const handleOpen = async () => {
+    // Garde-fou 1: bloquer si action en cours
+    if (isPending) {
+      return;
+    }
+
+    // Garde-fou 2: anti double-clic (300ms)
+    const now = Date.now();
+    if (now - lastActionRef.current < 300) {
+      return;
+    }
+    lastActionRef.current = now;
+
+    // Update optimiste immédiat
     const previous = optimisticState;
-    setOptimisticState("opening"); // Update optimiste immédiat
+    setOptimisticState("opening");
 
     try {
       await onControl("open_cover");
@@ -56,8 +70,21 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
   };
   
   const handleClose = async () => {
+    // Garde-fou 1: bloquer si action en cours
+    if (isPending) {
+      return;
+    }
+
+    // Garde-fou 2: anti double-clic (300ms)
+    const now = Date.now();
+    if (now - lastActionRef.current < 300) {
+      return;
+    }
+    lastActionRef.current = now;
+
+    // Update optimiste immédiat
     const previous = optimisticState;
-    setOptimisticState("closing"); // Update optimiste immédiat
+    setOptimisticState("closing");
 
     try {
       await onControl("close_cover");
