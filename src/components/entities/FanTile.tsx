@@ -36,9 +36,8 @@ export function FanTile({ entity, onControl }: FanTileProps) {
   const handleToggle = async (checked: boolean) => {
     try {
       await onControl(checked ? "turn_on" : "turn_off");
-      toast.success(checked ? "Allumé" : "Éteint");
     } catch (error) {
-      toast.error("Erreur");
+      // Erreur déjà gérée par useOptimisticToggle
     }
   };
   
@@ -46,7 +45,7 @@ export function FanTile({ entity, onControl }: FanTileProps) {
     try {
       await onControl("set_percentage", { percentage: value[0] });
     } catch (error) {
-      toast.error("Erreur");
+      // Erreur déjà gérée par useOptimisticToggle
     }
   };
   
@@ -54,7 +53,7 @@ export function FanTile({ entity, onControl }: FanTileProps) {
     try {
       await onControl("set_preset_mode", { preset_mode: preset });
     } catch (error) {
-      toast.error("Erreur");
+      // Erreur déjà gérée par useOptimisticToggle
     }
   };
   

@@ -39,10 +39,10 @@ const EntityControl = memo(({ entity, client, mediaPlayerName }: EntityControlPr
 
     try {
       await client.callService(domain, service, data, { entity_id: entity.entity_id });
-      toast.success("Commande envoyée");
+      // Pas de toast de succès - feedback visuel direct
     } catch (error) {
       console.error("Erreur lors du contrôle:", error);
-      toast.error("Erreur lors du contrôle");
+      toast.error("Erreur de connexion");
     }
   };
 

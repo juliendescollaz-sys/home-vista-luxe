@@ -37,27 +37,24 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
   const handleOpen = async () => {
     try {
       await onControl("open_cover");
-      toast.success("Ouverture");
     } catch (error) {
-      toast.error("Erreur");
+      // Erreur déjà gérée par useOptimisticToggle
     }
   };
   
   const handleClose = async () => {
     try {
       await onControl("close_cover");
-      toast.success("Fermeture");
     } catch (error) {
-      toast.error("Erreur");
+      // Erreur déjà gérée par useOptimisticToggle
     }
   };
   
   const handleStop = async () => {
     try {
       await onControl("stop_cover");
-      toast.success("Arrêt");
     } catch (error) {
-      toast.error("Erreur");
+      // Erreur déjà gérée par useOptimisticToggle
     }
   };
   
@@ -65,7 +62,7 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
     try {
       await onControl("set_cover_position", { position: value[0] });
     } catch (error) {
-      toast.error("Erreur");
+      // Erreur déjà gérée par useOptimisticToggle
     }
   };
   
@@ -73,7 +70,7 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
     try {
       await onControl("set_cover_tilt_position", { tilt_position: value[0] });
     } catch (error) {
-      toast.error("Erreur");
+      // Erreur déjà gérée par useOptimisticToggle
     }
   };
   
