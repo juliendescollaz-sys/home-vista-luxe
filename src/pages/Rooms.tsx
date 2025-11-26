@@ -130,10 +130,10 @@ const MaisonTabletPanelView = () => {
           )}
         </div>
 
-        {/* Zone principale : plan + colonne de droite */}
-        <div className="flex flex-1 gap-6 overflow-hidden min-h-0">
-          {/* Conteneur plan avec position relative pour l'overlay */}
-          <div className="flex-1 min-h-0 flex items-start justify-center">
+        {/* Zone principale : plan plein écran + sidebar slide-over */}
+        <div className="relative flex-1 overflow-hidden">
+          {/* Conteneur plan */}
+          <div className="w-full h-full flex items-start justify-center">
             <div className="relative w-full h-full rounded-xl overflow-hidden bg-muted/40 border border-border/40">
               {selectedPlan?.hasPng && selectedPlan?.imageUrl ? (
                 <>
@@ -216,19 +216,41 @@ const MaisonTabletPanelView = () => {
             </div>
           </div>
 
-          {/* Colonne de droite : liste scrollable d'appareils */}
-          <div className="w-[360px] flex flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto pr-2 space-y-3">
-              {selectedAreaId && selectedArea ? (
-                <RoomDevicesGrid areaId={selectedAreaId} singleColumn />
-              ) : (
-                <div className="py-8">
-                  <p className="text-muted-foreground text-center">
-                    Sélectionnez une pièce sur le plan pour voir les appareils.
-                  </p>
+          {/* Overlay semi-transparent */}
+          {selectedAreaId && (
+            <div
+              className="absolute inset-0 bg-black/20 backdrop-blur-sm z-40"
+              onClick={() => setSelectedAreaId(null)}
+            />
+          )}
+
+          {/* Sidebar slide-over */}
+          <div
+            className={cn(
+              "absolute top-0 right-0 h-full w-[380px] bg-background/95 backdrop-blur-xl border-l border-border shadow-xl z-50 flex flex-col transition-transform duration-300 ease-out",
+              selectedAreaId ? "translate-x-0" : "translate-x-full"
+            )}
+          >
+            {selectedArea && (
+              <>
+                <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+                  <h2 className="font-semibold text-lg">
+                    {selectedArea.name}
+                  </h2>
+                  <button
+                    onClick={() => setSelectedAreaId(null)}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Fermer"
+                  >
+                    ✕
+                  </button>
                 </div>
-              )}
-            </div>
+
+                <div className="flex-1 overflow-y-auto p-4">
+                  <RoomDevicesGrid areaId={selectedAreaId} singleColumn />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </CardContent>
