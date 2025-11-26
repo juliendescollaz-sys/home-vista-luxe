@@ -13,10 +13,10 @@ import { useAuth } from "./hooks/useAuth";
 import { useInitializeConnection } from "./hooks/useInitializeConnection";
 import { useHAClient } from "./hooks/useHAClient";
 import { useHARefreshOnForeground } from "./hooks/useHARefreshOnForeground";
-import { useReloadOnForegroundIOS } from "./hooks/useReloadOnForegroundIOS";
 import { useDisplayMode } from "./hooks/useDisplayMode";
 import { useOrientationLock } from "./hooks/useOrientationLock";
 import { OrientationOverlay } from "./components/OrientationOverlay";
+import { IOSVisibilityGuard } from "./components/IOSVisibilityGuard";
 import { MobileRootLayout } from "./ui/mobile/MobileRootLayout";
 import { TabletRootLayout } from "./ui/tablet/TabletRootLayout";
 import { PanelRootLayout } from "./ui/panel/PanelRootLayout";
@@ -90,19 +90,15 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => {
-  // Sur iOS uniquement : force un reload complet au retour au premier plan
-  useReloadOnForegroundIOS();
-  
+  // Tous les hooks appelés inconditionnellement au début
   const isInitialized = useInitializeConnection();
+  const { displayMode } = useDisplayMode();
   
   // Établir la connexion WebSocket dès que les credentials sont restaurés
   useHAClient();
   
   // Rafraîchir les entités au retour au premier plan
   useHARefreshOnForeground();
-
-  // Détection du mode d'affichage (mobile/tablet/panel)
-  const { displayMode } = useDisplayMode();
 
   // Disable pinch-zoom and double-tap zoom for native-like PWA behavior
   useEffect(() => {
@@ -146,6 +142,7 @@ const App = () => {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <TooltipProvider>
+            <IOSVisibilityGuard />
             <div className={`mode-${displayMode}`}>
               <Toaster />
               <Sonner />
