@@ -26,6 +26,8 @@ const MediaPlayerDetails = () => {
   const entities = useHAStore((state) => state.entities);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const connection = useHAStore((state) => state.connection);
+  const areas = useHAStore((state) => state.areas);
+  const devices = useHAStore((state) => state.devices);
   const { displayMode } = useDisplayMode();
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[26px]";
   
@@ -277,9 +279,35 @@ const MediaPlayerDetails = () => {
 
   const { attributes, isPlaying, isMuted, mediaTitle, mediaArtist, mediaAlbum, albumArt, canPause, canPlay, canSetVolume, canMute, canPrevious, canNext, canShuffle, canRepeat } = entityData;
 
+  // Récupérer le nom de la pièce
+  const areaName = useMemo(() => {
+    if (!entityReg) return null;
+    
+    // D'abord essayer area_id directement
+    let areaId = entityReg.area_id;
+    
+    // Sinon chercher via device_id
+    if (!areaId && entityReg.device_id) {
+      const device = devices.find((d) => d.id === entityReg.device_id);
+      if (device) {
+        areaId = device.area_id;
+      }
+    }
+    
+    // Trouver l'area correspondante
+    if (areaId) {
+      const area = areas.find((a) => a.area_id === areaId);
+      return area?.name || null;
+    }
+    
+    return null;
+  }, [entityReg, devices, areas]);
+
+  const title = areaName || (entity?.attributes.friendly_name ?? "Chambre");
+
   return (
     <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
-      <TopBar title={attributes?.friendly_name || entity.entity_id.split('.')[1]} />
+      <TopBar title={title} />
       
       <div className="max-w-screen-xl mx-auto px-6 py-4">
         <Button
