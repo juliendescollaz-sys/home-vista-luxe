@@ -15,6 +15,7 @@ interface EntityRegistry {
 type PendingAction = {
   targetState: string;
   timeoutId: number;
+  lockUntil: number; // timestamp ms - ignore les mises à jour HA avant ce moment
 };
 
 interface HAStore {
@@ -63,7 +64,7 @@ interface HAStore {
   setSelectedAreaId: (areaId: string | null) => void;
   loadNeoliaPlans: (connection: HAConnection, floors: HAFloor[]) => Promise<void>;
   setLabelPosition: (floorId: string, areaId: string, x: number, y: number) => void;
-  setPendingAction: (entityId: string, targetState: string, timeoutMs?: number) => void;
+  setPendingAction: (entityId: string, targetState: string, timeoutMs?: number, lockWindowMs?: number) => void;
   clearPendingAction: (entityId: string) => void;
   disconnect: () => void;
 }
@@ -100,16 +101,28 @@ export const useHAStore = create<HAStore>()(
       setClient: (client) => set({ client }),
       setEntities: (entities) => {
         const state = get();
+        const now = Date.now();
         
-        // Vérifier les actions en attente et les nettoyer si confirmées
-        entities.forEach((entity) => {
+        // Filtrer les entités à mettre à jour en ignorant celles en verrouillage
+        const filteredEntities = entities.map((entity) => {
           const pending = state.pendingActions[entity.entity_id];
+          
+          // Si action en attente avec fenêtre de verrouillage active
+          if (pending && now < pending.lockUntil) {
+            // Ignorer la mise à jour HA, conserver l'état local optimiste
+            const existingEntity = state.entities?.find((e) => e.entity_id === entity.entity_id);
+            return existingEntity || entity;
+          }
+          
+          // Sinon, vérifier si l'action est confirmée
           if (pending && entity.state === pending.targetState) {
             get().clearPendingAction(entity.entity_id);
           }
+          
+          return entity;
         });
         
-        set({ entities });
+        set({ entities: filteredEntities });
       },
       setEntityRegistry: (registry) => set({ entityRegistry: registry }),
       setAreas: (areas) => set({ areas }),
@@ -179,12 +192,14 @@ export const useHAStore = create<HAStore>()(
         }
       },
       
-      setPendingAction: (entityId, targetState, timeoutMs = 5000) => {
+      setPendingAction: (entityId, targetState, timeoutMs = 5000, lockWindowMs = 400) => {
         // Nettoyer un éventuel timeout précédent
         const existing = get().pendingActions[entityId];
         if (existing) {
           window.clearTimeout(existing.timeoutId);
         }
+
+        const lockUntil = Date.now() + lockWindowMs;
 
         const timeoutId = window.setTimeout(() => {
           const state = get();
@@ -206,7 +221,7 @@ export const useHAStore = create<HAStore>()(
         set((state) => ({
           pendingActions: {
             ...state.pendingActions,
-            [entityId]: { targetState, timeoutId },
+            [entityId]: { targetState, timeoutId, lockUntil },
           },
         }));
       },
