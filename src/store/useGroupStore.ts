@@ -155,66 +155,22 @@ export const useGroupStore = create<GroupStore>()(
           const isOn = currentState === "on";
           const targetState = isOn ? "off" : "on";
           
-          // UI optimiste si le groupe a un haEntityId (groupe partagé)
+          // Groupe partagé : utiliser triggerEntityToggle
           if (group.isShared && group.haEntityId) {
             const { useHAStore: HAStore } = await import("@/store/useHAStore");
             const haStore = HAStore.getState();
-            const entities = haStore.entities;
-            const setPendingAction = haStore.setPendingAction;
-            const clearPendingAction = haStore.clearPendingAction;
-            const setEntities = haStore.setEntities;
             
-            // 1. Marquer l'action comme en attente (avec timeout de 5 secondes)
-            setPendingAction(group.haEntityId, targetState, 5000);
-            
-            // 2. Mettre à jour immédiatement l'UI locale
-            const updatedEntities = entities?.map((e) =>
-              e.entity_id === group.haEntityId ? { ...e, state: targetState } : e
-            ) || [];
-            setEntities(updatedEntities);
-            
-            // 3. Programmer le rollback automatique si pas de confirmation dans 5s
-            const timeoutId = setTimeout(async () => {
-              const currentStore = HAStore.getState();
-              const currentEntity = currentStore.entities?.find((e) => e.entity_id === group.haEntityId);
-              
-              if (currentEntity && currentStore.pendingActions[group.haEntityId!]) {
-                console.warn(`⏱️ Timeout pour ${group.haEntityId}, rollback automatique`);
-                clearPendingAction(group.haEntityId!);
-                
-                const rolledBackEntities = currentStore.entities?.map((e) =>
-                  e.entity_id === group.haEntityId ? { ...e, state: currentState } : e
-                ) || [];
-                setEntities(rolledBackEntities);
-                
-                const { toast } = await import("sonner");
-                toast.error("Commande expirée - état restauré");
+            await haStore.triggerEntityToggle(
+              group.haEntityId,
+              targetState,
+              async () => {
+                if (isOn) {
+                  await turnOffGroup(group.haEntityId!, domain);
+                } else {
+                  await turnOnGroup(group.haEntityId!, domain);
+                }
               }
-            }, 5000);
-            
-            try {
-              // Groupe partagé : utiliser l'entité group
-              if (isOn) {
-                await turnOffGroup(group.haEntityId, domain);
-              } else {
-                await turnOnGroup(group.haEntityId, domain);
-              }
-              clearTimeout(timeoutId);
-            } catch (error) {
-              console.error("❌ Erreur réseau lors du contrôle du groupe:", error);
-              clearTimeout(timeoutId);
-              
-              // Rollback immédiat en cas d'erreur réseau
-              clearPendingAction(group.haEntityId);
-              const rolledBackEntities = entities?.map((e) =>
-                e.entity_id === group.haEntityId ? { ...e, state: currentState } : e
-              ) || [];
-              setEntities(rolledBackEntities);
-              
-              const { toast } = await import("sonner");
-              toast.error("Erreur de connexion - état restauré");
-              throw error;
-            }
+            );
           } else {
             // Groupe privé : gérer manuellement toutes les entités membres
             const { useHAStore: HAStore } = await import("@/store/useHAStore");

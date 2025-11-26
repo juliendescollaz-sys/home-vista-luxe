@@ -3,7 +3,7 @@ import { HAEntity } from "@/types/homeassistant";
 import { ChevronUp, ChevronDown, Square, Blinds } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supportsFeature, COVER_FEATURES } from "@/lib/entityUtils";
 import { toast } from "sonner";
 import { useHAStore } from "@/store/useHAStore";
@@ -20,7 +20,10 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
   const currentPosition = entity.attributes.current_position || 0;
   const currentTilt = entity.attributes.current_tilt_position || 0;
   const pendingActions = useHAStore((state) => state.pendingActions);
-  const isPending = !!pendingActions[entity.entity_id];
+  const triggerEntityToggle = useHAStore((state) => state.triggerEntityToggle);
+  const pending = pendingActions[entity.entity_id];
+  const isPending = !!(pending && !pending.cooldownUntil);
+  const isInCooldown = !!(pending?.cooldownUntil && Date.now() < pending.cooldownUntil);
   
   const supportsPosition = supportsFeature(entity, COVER_FEATURES.SUPPORT_SET_POSITION);
   const supportsStop = supportsFeature(entity, COVER_FEATURES.SUPPORT_STOP);
@@ -30,14 +33,13 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
   const [optimisticState, setOptimisticState] = useState(realState);
   const [position, setPosition] = useState(currentPosition);
   const [tilt, setTilt] = useState(currentTilt);
-  const lastActionRef = useRef<number>(0);
   
   // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
   useEffect(() => {
-    if (!isPending) {
+    if (!isPending && !isInCooldown) {
       setOptimisticState(realState);
     }
-  }, [realState, isPending]);
+  }, [realState, isPending, isInCooldown]);
   
   useEffect(() => {
     setPosition(currentPosition);
@@ -45,53 +47,47 @@ export function CoverTile({ entity, onControl }: CoverTileProps) {
   }, [currentPosition, currentTilt]);
   
   const handleOpen = async () => {
-    // Garde-fou 1: bloquer si action en cours
-    if (isPending) {
+    // Bloquer si action en cours ou cooldown actif
+    if (isPending || isInCooldown) {
       return;
     }
-
-    // Garde-fou 2: anti double-clic (300ms)
-    const now = Date.now();
-    if (now - lastActionRef.current < 300) {
-      return;
-    }
-    lastActionRef.current = now;
 
     // Update optimiste immédiat
     const previous = optimisticState;
     setOptimisticState("opening");
 
-    try {
-      await onControl("open_cover");
-    } catch (error) {
-      setOptimisticState(previous);
-      toast.error("Impossible d'ouvrir le volet");
-    }
+    await triggerEntityToggle(
+      entity.entity_id,
+      "opening",
+      async () => {
+        await onControl("open_cover");
+      },
+      () => {
+        setOptimisticState(previous);
+      }
+    );
   };
   
   const handleClose = async () => {
-    // Garde-fou 1: bloquer si action en cours
-    if (isPending) {
+    // Bloquer si action en cours ou cooldown actif
+    if (isPending || isInCooldown) {
       return;
     }
-
-    // Garde-fou 2: anti double-clic (300ms)
-    const now = Date.now();
-    if (now - lastActionRef.current < 300) {
-      return;
-    }
-    lastActionRef.current = now;
 
     // Update optimiste immédiat
     const previous = optimisticState;
     setOptimisticState("closing");
 
-    try {
-      await onControl("close_cover");
-    } catch (error) {
-      setOptimisticState(previous);
-      toast.error("Impossible de fermer le volet");
-    }
+    await triggerEntityToggle(
+      entity.entity_id,
+      "closing",
+      async () => {
+        await onControl("close_cover");
+      },
+      () => {
+        setOptimisticState(previous);
+      }
+    );
   };
   
   const handleStop = async () => {

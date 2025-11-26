@@ -4,7 +4,7 @@ import { Fan } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supportsFeature, FAN_FEATURES } from "@/lib/entityUtils";
 import { toast } from "sonner";
 import { useHAStore } from "@/store/useHAStore";
@@ -22,7 +22,10 @@ export function FanTile({ entity, onControl }: FanTileProps) {
   const presetMode = entity.attributes.preset_mode;
   const presetModes = entity.attributes.preset_modes || [];
   const pendingActions = useHAStore((state) => state.pendingActions);
-  const isPending = !!pendingActions[entity.entity_id];
+  const triggerEntityToggle = useHAStore((state) => state.triggerEntityToggle);
+  const pending = pendingActions[entity.entity_id];
+  const isPending = !!(pending && !pending.cooldownUntil);
+  const isInCooldown = !!(pending?.cooldownUntil && Date.now() < pending.cooldownUntil);
   
   const supportsSpeed = supportsFeature(entity, FAN_FEATURES.SUPPORT_SET_SPEED);
   const supportsPreset = supportsFeature(entity, FAN_FEATURES.SUPPORT_PRESET_MODE);
@@ -30,43 +33,39 @@ export function FanTile({ entity, onControl }: FanTileProps) {
   // État optimiste local pour le toggle ON/OFF
   const [optimisticOn, setOptimisticOn] = useState(realIsOn);
   const [speed, setSpeed] = useState(percentage);
-  const lastToggleRef = useRef<number>(0);
   
   // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
   useEffect(() => {
-    if (!isPending) {
+    if (!isPending && !isInCooldown) {
       setOptimisticOn(realIsOn);
     }
-  }, [realIsOn, isPending]);
+  }, [realIsOn, isPending, isInCooldown]);
   
   useEffect(() => {
     setSpeed(percentage);
   }, [percentage]);
   
   const handleToggle = async (checked: boolean) => {
-    // Garde-fou 1: bloquer si action en cours
-    if (isPending) {
+    // Bloquer si action en cours ou cooldown actif
+    if (isPending || isInCooldown) {
       return;
     }
-
-    // Garde-fou 2: anti double-clic (300ms)
-    const now = Date.now();
-    if (now - lastToggleRef.current < 300) {
-      return;
-    }
-    lastToggleRef.current = now;
 
     // Update optimiste immédiat
     const previous = optimisticOn;
     setOptimisticOn(checked);
 
-    try {
-      await onControl(checked ? "turn_on" : "turn_off");
-    } catch (error) {
-      // Rollback en cas d'erreur
-      setOptimisticOn(previous);
-      toast.error("Impossible de changer l'état du ventilateur");
-    }
+    await triggerEntityToggle(
+      entity.entity_id,
+      checked ? "on" : "off",
+      async () => {
+        await onControl(checked ? "turn_on" : "turn_off");
+      },
+      () => {
+        // Rollback en cas de timeout
+        setOptimisticOn(previous);
+      }
+    );
   };
   
   const handleSpeedCommit = async (value: number[]) => {

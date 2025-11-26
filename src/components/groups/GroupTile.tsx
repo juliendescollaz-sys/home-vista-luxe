@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,7 @@ interface GroupTileProps {
 export function GroupTile({ group, hideEditButton = false, sortableProps }: GroupTileProps) {
   const entities = useHAStore((state) => state.entities);
   const pendingActions = useHAStore((state) => state.pendingActions);
+  const triggerEntityToggle = useHAStore((state) => state.triggerEntityToggle);
   const { toggleGroup, openCover, closeCover, toggleGroupFavorite, groupFavorites } = useGroupStore();
   const [localVolume, setLocalVolume] = useState<number | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -62,18 +63,19 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
   const Icon = DOMAIN_ICONS[group.domain];
   
   // Indicateur "en cours" pour les groupes avec haEntityId (groupes partagés)
-  const isPending = group.haEntityId ? !!pendingActions[group.haEntityId] : false;
+  const pending = group.haEntityId ? pendingActions[group.haEntityId] : undefined;
+  const isPending = !!(pending && !pending.cooldownUntil);
+  const isInCooldown = !!(pending?.cooldownUntil && Date.now() < pending.cooldownUntil);
 
   // État optimiste local pour le toggle ON/OFF (sauf media_player)
   const [optimisticActive, setOptimisticActive] = useState(realIsActive);
-  const lastActionRef = useRef<number>(0);
 
   // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
   useEffect(() => {
-    if (!isPending && group.domain !== "media_player") {
+    if (!isPending && !isInCooldown && group.domain !== "media_player") {
       setOptimisticActive(realIsActive);
     }
-  }, [realIsActive, isPending, group.domain]);
+  }, [realIsActive, isPending, isInCooldown, group.domain]);
 
   // Pour media_player, toujours utiliser l'état réel
   const isActive = group.domain === "media_player" ? realIsActive : optimisticActive;
@@ -92,28 +94,37 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
   }, [group.domain, group.entityIds, entities]);
 
   const handleToggle = async () => {
-    // Garde-fou 1: bloquer si action en cours
-    if (isPending) {
+    // Bloquer si action en cours ou cooldown actif
+    if (isPending || isInCooldown) {
       return;
     }
-
-    // Garde-fou 2: anti double-clic (300ms)
-    const now = Date.now();
-    if (now - lastActionRef.current < 300) {
-      return;
-    }
-    lastActionRef.current = now;
 
     if (group.domain !== "media_player") {
       // Update optimiste immédiat
       const previous = optimisticActive;
       setOptimisticActive(!optimisticActive);
       
-      try {
-        await toggleGroup(group.id, groupEntity?.state || "off", group.domain);
-      } catch (error) {
-        setOptimisticActive(previous);
-        toast.error("Impossible de changer l'état du groupe");
+      if (group.haEntityId) {
+        // Groupe avec entité HA : utiliser triggerEntityToggle
+        await triggerEntityToggle(
+          group.haEntityId,
+          !optimisticActive ? "on" : "off",
+          async () => {
+            await toggleGroup(group.id, groupEntity?.state || "off", group.domain);
+          },
+          () => {
+            // Rollback en cas de timeout
+            setOptimisticActive(previous);
+          }
+        );
+      } else {
+        // Groupe sans entité HA : appel direct
+        try {
+          await toggleGroup(group.id, groupEntity?.state || "off", group.domain);
+        } catch (error) {
+          setOptimisticActive(previous);
+          toast.error("Impossible de changer l'état du groupe");
+        }
       }
     } else {
       try {
@@ -125,52 +136,64 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
   };
 
   const handleOpen = async () => {
-    // Garde-fou 1: bloquer si action en cours
-    if (isPending) {
+    // Bloquer si action en cours ou cooldown actif
+    if (isPending || isInCooldown) {
       return;
     }
-
-    // Garde-fou 2: anti double-clic (300ms)
-    const now = Date.now();
-    if (now - lastActionRef.current < 300) {
-      return;
-    }
-    lastActionRef.current = now;
 
     // Update optimiste immédiat
     const previous = optimisticActive;
     setOptimisticActive(true);
 
-    try {
-      await openCover(group.id);
-    } catch (error) {
-      setOptimisticActive(previous);
-      toast.error("Impossible d'ouvrir les volets");
+    if (group.haEntityId) {
+      await triggerEntityToggle(
+        group.haEntityId,
+        "open",
+        async () => {
+          await openCover(group.id);
+        },
+        () => {
+          setOptimisticActive(previous);
+        }
+      );
+    } else {
+      try {
+        await openCover(group.id);
+      } catch (error) {
+        setOptimisticActive(previous);
+        toast.error("Impossible d'ouvrir les volets");
+      }
     }
   };
 
   const handleClose = async () => {
-    // Garde-fou 1: bloquer si action en cours
-    if (isPending) {
+    // Bloquer si action en cours ou cooldown actif
+    if (isPending || isInCooldown) {
       return;
     }
-
-    // Garde-fou 2: anti double-clic (300ms)
-    const now = Date.now();
-    if (now - lastActionRef.current < 300) {
-      return;
-    }
-    lastActionRef.current = now;
 
     // Update optimiste immédiat
     const previous = optimisticActive;
     setOptimisticActive(false);
 
-    try {
-      await closeCover(group.id);
-    } catch (error) {
-      setOptimisticActive(previous);
-      toast.error("Impossible de fermer les volets");
+    if (group.haEntityId) {
+      await triggerEntityToggle(
+        group.haEntityId,
+        "closed",
+        async () => {
+          await closeCover(group.id);
+        },
+        () => {
+          setOptimisticActive(previous);
+        }
+      );
+    } else {
+      try {
+        await closeCover(group.id);
+      } catch (error) {
+        setOptimisticActive(previous);
+        toast.error("Impossible de fermer les volets");
+      }
     }
   };
 

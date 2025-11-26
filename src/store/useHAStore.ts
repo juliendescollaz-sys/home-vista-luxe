@@ -4,6 +4,7 @@ import type { HAConnection, HAEntity, HAArea, HAFloor, HADevice } from "@/types/
 import type { HAClient } from "@/lib/haClient";
 import type { NeoliaFloorPlan } from "@/services/neoliaFloorPlans";
 import { loadNeoliaFloorPlans } from "@/services/neoliaFloorPlans";
+import { toast } from "sonner";
 
 interface EntityRegistry {
   entity_id: string;
@@ -13,9 +14,10 @@ interface EntityRegistry {
 }
 
 type PendingAction = {
+  startedAt: number;
   targetState: string;
   timeoutId: number;
-  lockUntil: number; // timestamp ms - ignore les mises à jour HA avant ce moment
+  cooldownUntil?: number;
 };
 
 interface HAStore {
@@ -64,7 +66,7 @@ interface HAStore {
   setSelectedAreaId: (areaId: string | null) => void;
   loadNeoliaPlans: (connection: HAConnection, floors: HAFloor[]) => Promise<void>;
   setLabelPosition: (floorId: string, areaId: string, x: number, y: number) => void;
-  setPendingAction: (entityId: string, targetState: string, timeoutMs?: number, lockWindowMs?: number) => void;
+  triggerEntityToggle: (entityId: string, targetState: string, action: () => Promise<void>, onRollback?: () => void) => Promise<void>;
   clearPendingAction: (entityId: string) => void;
   disconnect: () => void;
 }
@@ -103,26 +105,31 @@ export const useHAStore = create<HAStore>()(
         const state = get();
         const now = Date.now();
         
-        // Filtrer les entités à mettre à jour en ignorant celles en verrouillage
-        const filteredEntities = entities.map((entity) => {
+        entities.forEach((entity) => {
           const pending = state.pendingActions[entity.entity_id];
           
-          // Si action en attente avec fenêtre de verrouillage active
-          if (pending && now < pending.lockUntil) {
-            // Ignorer la mise à jour HA, conserver l'état local optimiste
-            const existingEntity = state.entities?.find((e) => e.entity_id === entity.entity_id);
-            return existingEntity || entity;
-          }
-          
-          // Sinon, vérifier si l'action est confirmée
           if (pending && entity.state === pending.targetState) {
-            get().clearPendingAction(entity.entity_id);
+            // Action confirmée par HA ! Annuler le timeout et mettre en cooldown
+            window.clearTimeout(pending.timeoutId);
+            
+            set((s) => ({
+              pendingActions: {
+                ...s.pendingActions,
+                [entity.entity_id]: {
+                  ...pending,
+                  cooldownUntil: now + 50,
+                },
+              },
+            }));
+            
+            // Nettoyer complètement après le cooldown
+            setTimeout(() => {
+              get().clearPendingAction(entity.entity_id);
+            }, 50);
           }
-          
-          return entity;
         });
         
-        set({ entities: filteredEntities });
+        set({ entities });
       },
       setEntityRegistry: (registry) => set({ entityRegistry: registry }),
       setAreas: (areas) => set({ areas }),
@@ -192,38 +199,66 @@ export const useHAStore = create<HAStore>()(
         }
       },
       
-      setPendingAction: (entityId, targetState, timeoutMs = 5000, lockWindowMs = 400) => {
-        // Nettoyer un éventuel timeout précédent
-        const existing = get().pendingActions[entityId];
-        if (existing) {
-          window.clearTimeout(existing.timeoutId);
+      triggerEntityToggle: async (entityId, targetState, action, onRollback) => {
+        const state = get();
+        const pending = state.pendingActions[entityId];
+        const now = Date.now();
+        
+        // Bloquer si action en cours
+        if (pending && !pending.cooldownUntil) {
+          return;
         }
-
-        const lockUntil = Date.now() + lockWindowMs;
-
+        
+        // Bloquer si cooldown actif
+        if (pending?.cooldownUntil && now < pending.cooldownUntil) {
+          return;
+        }
+        
+        // Nettoyer un éventuel ancien pending
+        if (pending) {
+          window.clearTimeout(pending.timeoutId);
+        }
+        
+        // Créer le timeout de 2s
         const timeoutId = window.setTimeout(() => {
-          const state = get();
-          const pending = state.pendingActions[entityId];
-          if (!pending) return;
-
-          const entity = state.entities?.find((e) => e.entity_id === entityId);
-
-          // Si après timeout l'état réel ne correspond pas à l'état cible → rollback + erreur
-          if (entity && entity.state !== pending.targetState) {
-            console.error("[Neolia] Action non confirmée pour", entityId);
-            // Le rollback visuel se fait automatiquement via setEntities
+          const currentState = get();
+          const currentPending = currentState.pendingActions[entityId];
+          if (!currentPending) return;
+          
+          const entity = currentState.entities?.find((e) => e.entity_id === entityId);
+          
+          // Si après 2s l'état réel ne correspond pas à l'état cible → rollback
+          if (entity && entity.state !== currentPending.targetState) {
+            console.error("[Neolia] Timeout - pas de confirmation HA pour", entityId);
+            onRollback?.();
+            toast.error("L'appareil ne répond pas (timeout)");
           }
-
-          // Dans tous les cas, on nettoie le pending
+          
           get().clearPendingAction(entityId);
-        }, timeoutMs);
-
-        set((state) => ({
+        }, 2000);
+        
+        // Enregistrer l'action pending
+        set((s) => ({
           pendingActions: {
-            ...state.pendingActions,
-            [entityId]: { targetState, timeoutId, lockUntil },
+            ...s.pendingActions,
+            [entityId]: {
+              startedAt: now,
+              targetState,
+              timeoutId,
+            },
           },
         }));
+        
+        // Exécuter l'action
+        try {
+          await action();
+        } catch (error) {
+          console.error("[Neolia] Erreur lors de l'action:", error);
+          window.clearTimeout(timeoutId);
+          get().clearPendingAction(entityId);
+          onRollback?.();
+          toast.error("Erreur de connexion");
+        }
       },
 
       clearPendingAction: (entityId) => {
