@@ -36,9 +36,9 @@ export function LightTile({ entity, onControl }: LightTileProps) {
   const handleToggle = async (checked: boolean) => {
     try {
       await onControl(checked ? "turn_on" : "turn_off");
-      toast.success(checked ? "Allumé" : "Éteint");
+      // Pas de toast ici - géré par useOptimisticToggle
     } catch (error) {
-      toast.error("Erreur lors du contrôle");
+      // Erreur déjà gérée par useOptimisticToggle
     }
   };
 
@@ -50,7 +50,7 @@ export function LightTile({ entity, onControl }: LightTileProps) {
     try {
       await onControl("turn_on", { brightness: value[0] });
     } catch (error) {
-      toast.error("Erreur lors du réglage");
+      // Erreur déjà gérée par useOptimisticToggle
     }
   };
 
@@ -58,7 +58,7 @@ export function LightTile({ entity, onControl }: LightTileProps) {
     try {
       await onControl("turn_on", { color_temp: value[0] });
     } catch (error) {
-      toast.error("Erreur lors du réglage");
+      // Erreur déjà gérée par useOptimisticToggle
     }
   };
 

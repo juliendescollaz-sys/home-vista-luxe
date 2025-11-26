@@ -80,9 +80,9 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
   const handleToggle = async () => {
     try {
       await toggleGroup(group.id, groupEntity?.state || "off", group.domain);
-      toast.success(isActive ? "Éteint" : "Allumé");
+      // Pas de toast ici - géré par le store
     } catch (error) {
-      toast.error("Erreur lors du contrôle du groupe");
+      // Erreur déjà gérée par le store
     }
   };
 
@@ -90,7 +90,7 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
     try {
       await openCover(group.id);
     } catch (error) {
-      toast.error("Erreur lors de l'ouverture");
+      // Erreur déjà gérée par le store
     }
   };
 
@@ -98,7 +98,7 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
     try {
       await closeCover(group.id);
     } catch (error) {
-      toast.error("Erreur lors de la fermeture");
+      // Erreur déjà gérée par le store
     }
   };
 
@@ -116,11 +116,10 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
     try {
       if (mediaPlayerState?.isPlaying) {
         await pauseMediaGroup(group.entityIds);
-        toast.success("Pause");
       } else {
         await playMediaGroup(group.entityIds);
-        toast.success("Lecture");
       }
+      // Pas de toast - feedback visuel direct
     } catch (error) {
       toast.error("Erreur lors du contrôle de la lecture");
     }

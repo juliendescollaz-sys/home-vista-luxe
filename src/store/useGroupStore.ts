@@ -164,14 +164,33 @@ export const useGroupStore = create<GroupStore>()(
             const clearPendingAction = haStore.clearPendingAction;
             const setEntities = haStore.setEntities;
             
-            // Marquer l'action comme en attente
-            setPendingAction(group.haEntityId, targetState);
+            // 1. Marquer l'action comme en attente (avec timeout de 5 secondes)
+            setPendingAction(group.haEntityId, targetState, 5000);
             
-            // Mettre à jour immédiatement l'UI locale
+            // 2. Mettre à jour immédiatement l'UI locale
             const updatedEntities = entities?.map((e) =>
               e.entity_id === group.haEntityId ? { ...e, state: targetState } : e
             ) || [];
             setEntities(updatedEntities);
+            
+            // 3. Programmer le rollback automatique si pas de confirmation dans 5s
+            const timeoutId = setTimeout(async () => {
+              const currentStore = HAStore.getState();
+              const currentEntity = currentStore.entities?.find((e) => e.entity_id === group.haEntityId);
+              
+              if (currentEntity && currentStore.pendingActions[group.haEntityId!]) {
+                console.warn(`⏱️ Timeout pour ${group.haEntityId}, rollback automatique`);
+                clearPendingAction(group.haEntityId!);
+                
+                const rolledBackEntities = currentStore.entities?.map((e) =>
+                  e.entity_id === group.haEntityId ? { ...e, state: currentState } : e
+                ) || [];
+                setEntities(rolledBackEntities);
+                
+                const { toast } = await import("sonner");
+                toast.error("Commande expirée - état restauré");
+              }
+            }, 5000);
             
             try {
               // Groupe partagé : utiliser l'entité group
@@ -180,27 +199,40 @@ export const useGroupStore = create<GroupStore>()(
               } else {
                 await turnOnGroup(group.haEntityId, domain);
               }
+              clearTimeout(timeoutId);
             } catch (error) {
-              // Rollback en cas d'erreur
+              console.error("❌ Erreur réseau lors du contrôle du groupe:", error);
+              clearTimeout(timeoutId);
+              
+              // Rollback immédiat en cas d'erreur réseau
               clearPendingAction(group.haEntityId);
               const rolledBackEntities = entities?.map((e) =>
                 e.entity_id === group.haEntityId ? { ...e, state: currentState } : e
               ) || [];
               setEntities(rolledBackEntities);
+              
+              const { toast } = await import("sonner");
+              toast.error("Erreur de connexion - état restauré");
               throw error;
             }
           } else {
-            // Groupe privé : contrôler directement les entités via le client HA (pas d'UI optimiste)
+            // Groupe privé : gérer manuellement toutes les entités membres
             const { useHAStore: HAStore } = await import("@/store/useHAStore");
             const client = HAStore.getState().client;
-            if (!client) throw new Error("Client non connecté");
+            
+            if (!client) {
+              throw new Error("Client non connecté");
+            }
             
             const service = isOn ? "turn_off" : "turn_on";
-            await client.callService("homeassistant", service, {}, {
-              entity_id: group.entityIds,
-            });
+            
+            for (const entityId of group.entityIds) {
+              const entityDomain = entityId.split(".")[0];
+              await client.callService(entityDomain, service, {}, { entity_id: entityId });
+            }
           }
         } catch (error: any) {
+          console.error("Erreur toggleGroup:", error);
           set({ error: error.message || "Erreur lors du contrôle du groupe" });
           throw error;
         }
