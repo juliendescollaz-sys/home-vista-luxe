@@ -17,9 +17,11 @@ import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, TouchSensor, K
 import { SortableContext, arrayMove, verticalListSortingStrategy, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { SortableRoomCard } from "@/components/SortableRoomCard";
-import { SortableUniversalEntityTile } from "@/components/SortableUniversalEntityTile";
 import { SortableAreaCard } from "@/components/SortableAreaCard";
 import { SortableTypeCard } from "@/components/SortableTypeCard";
+import { SortableDeviceCard } from "@/components/SortableDeviceCard";
+import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
+import { getGridClasses } from "@/lib/gridLayout";
 import { useOptimisticToggle } from "@/hooks/useOptimisticToggle";
 import { toast } from "sonner";
 
@@ -651,7 +653,7 @@ const MaisonMobileView = () => {
                   onDragEnd={handleDragEnd}
                 >
                   <SortableContext items={devicesForArea.map((e) => e.entity_id)} strategy={rectSortingStrategy}>
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className={getGridClasses("devices", "mobile")}>
                       {devicesForArea.map((entity) => {
                         const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
                         let areaId = reg?.area_id;
@@ -664,10 +666,22 @@ const MaisonMobileView = () => {
                         const area = areaId ? areas.find((a) => a.area_id === areaId) || null : null;
                         const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) || null : null;
 
+                        if (entity.entity_id.startsWith("media_player.")) {
+                          return (
+                            <SortableMediaPlayerCard
+                              key={entity.entity_id}
+                              entity={entity}
+                              floor={floor}
+                              area={area}
+                            />
+                          );
+                        }
+
                         return (
-                          <SortableUniversalEntityTile
+                          <SortableDeviceCard
                             key={entity.entity_id}
                             entity={entity}
+                            onToggle={handleDeviceToggle}
                             floor={floor}
                             area={area}
                           />
@@ -679,9 +693,13 @@ const MaisonMobileView = () => {
                   <DragOverlay dropAnimation={null}>
                     {activeId && devicesForArea.find((e) => e.entity_id === activeId) ? (
                       <div className="opacity-90 rotate-3 scale-105">
-                        <SortableUniversalEntityTile
-                          entity={devicesForArea.find((e) => e.entity_id === activeId)!}
-                        />
+                        {(() => {
+                          const entity = devicesForArea.find((e) => e.entity_id === activeId)!;
+                          if (entity.entity_id.startsWith("media_player.")) {
+                            return <SortableMediaPlayerCard entity={entity} />;
+                          }
+                          return <SortableDeviceCard entity={entity} onToggle={() => {}} />;
+                        })()}
                       </div>
                     ) : null}
                   </DragOverlay>
@@ -773,7 +791,7 @@ const MaisonMobileView = () => {
                   onDragEnd={handleDragEnd}
                 >
                   <SortableContext items={devicesForType.map((e) => e.entity_id)} strategy={rectSortingStrategy}>
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className={getGridClasses("devices", "mobile")}>
                       {devicesForType.map((entity) => {
                         const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
                         let areaId = reg?.area_id;
@@ -786,10 +804,22 @@ const MaisonMobileView = () => {
                         const area = areaId ? areas.find((a) => a.area_id === areaId) || null : null;
                         const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) || null : null;
 
+                        if (entity.entity_id.startsWith("media_player.")) {
+                          return (
+                            <SortableMediaPlayerCard
+                              key={entity.entity_id}
+                              entity={entity}
+                              floor={floor}
+                              area={area}
+                            />
+                          );
+                        }
+
                         return (
-                          <SortableUniversalEntityTile
+                          <SortableDeviceCard
                             key={entity.entity_id}
                             entity={entity}
+                            onToggle={handleDeviceToggle}
                             floor={floor}
                             area={area}
                           />
@@ -801,9 +831,13 @@ const MaisonMobileView = () => {
                   <DragOverlay dropAnimation={null}>
                     {activeId && devicesForType.find((e) => e.entity_id === activeId) ? (
                       <div className="opacity-90 rotate-3 scale-105">
-                        <SortableUniversalEntityTile
-                          entity={devicesForType.find((e) => e.entity_id === activeId)!}
-                        />
+                        {(() => {
+                          const entity = devicesForType.find((e) => e.entity_id === activeId)!;
+                          if (entity.entity_id.startsWith("media_player.")) {
+                            return <SortableMediaPlayerCard entity={entity} />;
+                          }
+                          return <SortableDeviceCard entity={entity} onToggle={() => {}} />;
+                        })()}
                       </div>
                     ) : null}
                   </DragOverlay>
@@ -898,9 +932,9 @@ const Rooms = () => {
     <div className={rootClassName}>
       <TopBar title="Maison" />
       <div className={cn(
-        "flex-1 flex flex-col overflow-hidden",
-        displayMode === "mobile" ? "px-[26px] py-[26px]" : "px-4",
-        displayMode !== "mobile" && ptClass
+        displayMode === "mobile" 
+          ? "max-w-2xl mx-auto px-4 py-4" 
+          : `w-full px-4 ${ptClass}`
       )}>
         {displayMode === "mobile" ? (
           <MaisonMobileView />
