@@ -333,6 +333,7 @@ const MaisonMobileView = () => {
   const [deviceOrderByArea, setDeviceOrderByArea] = useState<Record<string, string[]>>({});
   const [typeOrder, setTypeOrder] = useState<string[]>([]);
   const [deviceOrderByType, setDeviceOrderByType] = useState<Record<string, string[]>>({});
+  const [hasLoadedOrderFromStorage, setHasLoadedOrderFromStorage] = useState(false);
 
   // Long press sensor (500ms)
   const sensors = useSensors(
@@ -384,6 +385,8 @@ const MaisonMobileView = () => {
     if (savedDeviceOrderByArea) setDeviceOrderByArea(JSON.parse(savedDeviceOrderByArea));
     if (savedTypeOrder) setTypeOrder(JSON.parse(savedTypeOrder));
     if (savedDeviceOrderByType) setDeviceOrderByType(JSON.parse(savedDeviceOrderByType));
+    
+    setHasLoadedOrderFromStorage(true);
   }, []);
 
   // Save orders to localStorage
@@ -413,18 +416,20 @@ const MaisonMobileView = () => {
 
   // Initialize area order if not set
   useEffect(() => {
+    if (!hasLoadedOrderFromStorage) return;
     if (areaOrder.length === 0 && areas.length > 0) {
       setAreaOrder(areas.map(a => a.area_id));
     }
-  }, [areas, areaOrder.length]);
+  }, [areas, areaOrder.length, hasLoadedOrderFromStorage]);
 
   // Initialize type order if not set
   useEffect(() => {
+    if (!hasLoadedOrderFromStorage) return;
     const typeNames = Object.keys(entitiesByType);
     if (typeOrder.length === 0 && typeNames.length > 0) {
       setTypeOrder(typeNames);
     }
-  }, [entitiesByType, typeOrder.length]);
+  }, [entitiesByType, typeOrder.length, hasLoadedOrderFromStorage]);
 
   // Initialize device orders for area if not set
   useEffect(() => {
@@ -827,12 +832,16 @@ const Rooms = () => {
   // Vérifier si au moins un plan est complet (PNG + JSON)
   const hasUsablePlans = neoliaFloorPlans.some((plan) => plan.hasPng && plan.hasJson);
 
-  // Charger les plans Neolia au démarrage
+  // Charger les plans Neolia au démarrage (sauf en mode mobile)
   useEffect(() => {
+    if (displayMode === "mobile") {
+      return;
+    }
+    
     if (connection && floors.length > 0) {
       loadNeoliaPlans(connection, floors);
     }
-  }, [connection, floors, loadNeoliaPlans]);
+  }, [connection, floors, loadNeoliaPlans, displayMode]);
 
   return (
     <div className={rootClassName}>
