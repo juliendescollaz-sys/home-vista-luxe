@@ -824,12 +824,12 @@ const Rooms = () => {
   // Vérifier si au moins un plan est complet (PNG + JSON)
   const hasUsablePlans = neoliaFloorPlans.some((plan) => plan.hasPng && plan.hasJson);
 
-  // Charger les plans Neolia au démarrage (sauf en mode mobile)
+  // Charger les plans Neolia au démarrage
   useEffect(() => {
-    if (displayMode !== "mobile" && connection && floors.length > 0) {
+    if (connection && floors.length > 0) {
       loadNeoliaPlans(connection, floors);
     }
-  }, [displayMode, connection, floors, loadNeoliaPlans]);
+  }, [connection, floors, loadNeoliaPlans]);
 
   return (
     <div className={rootClassName}>
