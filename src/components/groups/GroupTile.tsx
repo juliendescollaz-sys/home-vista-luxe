@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { GroupBadge } from "./GroupBadge";
 import { GroupEditDialog } from "./GroupEditDialog";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
+import { cn } from "@/lib/utils";
 
 const DOMAIN_ICONS: Record<HaGroupDomain, any> = {
   light: Lightbulb,
@@ -49,6 +50,7 @@ interface GroupTileProps {
 
 export function GroupTile({ group, hideEditButton = false, sortableProps }: GroupTileProps) {
   const entities = useHAStore((state) => state.entities);
+  const pendingActions = useHAStore((state) => state.pendingActions);
   const { toggleGroup, openCover, closeCover, toggleGroupFavorite, groupFavorites } = useGroupStore();
   const [localVolume, setLocalVolume] = useState<number | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -58,6 +60,9 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
   const groupEntity = group.haEntityId ? entities.find((e) => e.entity_id === group.haEntityId) : undefined;
   const isActive = groupEntity?.state === "on" || groupEntity?.state === "open";
   const Icon = DOMAIN_ICONS[group.domain];
+  
+  // Indicateur "en cours" pour les groupes avec haEntityId (groupes partagés)
+  const isPending = group.haEntityId ? !!pendingActions[group.haEntityId] : false;
 
   const mediaPlayerState = useMemo(() => {
     if (group.domain !== "media_player") return null;
@@ -147,9 +152,11 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
       style={sortableProps?.style}
       {...sortableProps?.attributes}
       {...sortableProps?.listeners}
-      className={`group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50 ${
-        sortableProps ? "cursor-grab active:cursor-grabbing touch-none" : ""
-      }`}
+      className={cn(
+        "group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50 transition-opacity",
+        sortableProps && "cursor-grab active:cursor-grabbing touch-none",
+        isPending && "opacity-70"
+      )}
     >
       <GroupBadge />
 

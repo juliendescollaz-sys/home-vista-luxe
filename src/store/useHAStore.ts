@@ -12,6 +12,11 @@ interface EntityRegistry {
   platform: string;
 }
 
+type PendingAction = {
+  targetState: string;
+  timeoutId: number;
+};
+
 interface HAStore {
   connection: HAConnection | null;
   client: HAClient | null;
@@ -37,6 +42,9 @@ interface HAStore {
   // Positions custom des labels de pièces sur les plans
   labelPositions: Record<string, { x: number; y: number }>;
   
+  // Actions optimistes
+  pendingActions: Record<string, PendingAction | undefined>;
+  
   setConnection: (connection: HAConnection) => void;
   setClient: (client: HAClient | null) => void;
   setEntities: (entities: HAEntity[]) => void;
@@ -55,6 +63,8 @@ interface HAStore {
   setSelectedAreaId: (areaId: string | null) => void;
   loadNeoliaPlans: (connection: HAConnection, floors: HAFloor[]) => Promise<void>;
   setLabelPosition: (floorId: string, areaId: string, x: number, y: number) => void;
+  setPendingAction: (entityId: string, targetState: string, timeoutMs?: number) => void;
+  clearPendingAction: (entityId: string) => void;
   disconnect: () => void;
 }
 
@@ -82,10 +92,25 @@ export const useHAStore = create<HAStore>()(
       selectedAreaId: null,
       isLoadingNeoliaPlans: false,
       labelPositions: {},
+      
+      // Actions optimistes
+      pendingActions: {},
 
       setConnection: (connection) => set({ connection }),
       setClient: (client) => set({ client }),
-      setEntities: (entities) => set({ entities }),
+      setEntities: (entities) => {
+        const state = get();
+        
+        // Vérifier les actions en attente et les nettoyer si confirmées
+        entities.forEach((entity) => {
+          const pending = state.pendingActions[entity.entity_id];
+          if (pending && entity.state === pending.targetState) {
+            get().clearPendingAction(entity.entity_id);
+          }
+        });
+        
+        set({ entities });
+      },
       setEntityRegistry: (registry) => set({ entityRegistry: registry }),
       setAreas: (areas) => set({ areas }),
       setFloors: (floors) => set({ floors }),
@@ -154,6 +179,50 @@ export const useHAStore = create<HAStore>()(
         }
       },
       
+      setPendingAction: (entityId, targetState, timeoutMs = 5000) => {
+        // Nettoyer un éventuel timeout précédent
+        const existing = get().pendingActions[entityId];
+        if (existing) {
+          window.clearTimeout(existing.timeoutId);
+        }
+
+        const timeoutId = window.setTimeout(() => {
+          const state = get();
+          const pending = state.pendingActions[entityId];
+          if (!pending) return;
+
+          const entity = state.entities?.find((e) => e.entity_id === entityId);
+
+          // Si après timeout l'état réel ne correspond pas à l'état cible → rollback + erreur
+          if (entity && entity.state !== pending.targetState) {
+            console.error("[Neolia] Action non confirmée pour", entityId);
+            // Le rollback visuel se fait automatiquement via setEntities
+          }
+
+          // Dans tous les cas, on nettoie le pending
+          get().clearPendingAction(entityId);
+        }, timeoutMs);
+
+        set((state) => ({
+          pendingActions: {
+            ...state.pendingActions,
+            [entityId]: { targetState, timeoutId },
+          },
+        }));
+      },
+
+      clearPendingAction: (entityId) => {
+        const pending = get().pendingActions[entityId];
+        if (pending) {
+          window.clearTimeout(pending.timeoutId);
+        }
+        set((state) => {
+          const copy = { ...state.pendingActions };
+          delete copy[entityId];
+          return { pendingActions: copy };
+        });
+      },
+      
       disconnect: () =>
         set({
           connection: null,
@@ -162,6 +231,7 @@ export const useHAStore = create<HAStore>()(
           neoliaFloorPlans: [],
           selectedFloorId: null,
           selectedAreaId: null,
+          pendingActions: {},
         }),
     }),
     {

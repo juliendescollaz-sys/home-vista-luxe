@@ -13,6 +13,7 @@ import { SortableDeviceCard } from "../SortableDeviceCard";
 import { SortableMediaPlayerCard } from "../SortableMediaPlayerCard";
 import { useHAStore } from "@/store/useHAStore";
 import { toast } from "sonner";
+import { useOptimisticToggle } from "@/hooks/useOptimisticToggle";
 
 interface UniversalEntityTileProps {
   entity: HAEntity;
@@ -28,15 +29,22 @@ export function UniversalEntityTile({ entity, floor, area }: UniversalEntityTile
   const client = useHAStore((state) => state.client);
   const domain = getEntityDomain(entity.entity_id);
   const widgetType = getBestWidgetForEntity(entity);
+  const { toggleEntity, controlEntity } = useOptimisticToggle();
   
   const handleControl = async (service: string, data?: any) => {
-    if (!client) {
-      toast.error("Client non connecté");
-      return;
+    // Déterminer l'état cible pour l'UI optimiste (sauf media_player)
+    let targetState: string | undefined;
+    
+    if (domain !== "media_player") {
+      if (service === "turn_on" || service === "open" || service === "unlock") {
+        targetState = "on";
+      } else if (service === "turn_off" || service === "close" || service === "lock") {
+        targetState = "off";
+      }
     }
     
     try {
-      await client.callService(domain, service, data, { entity_id: entity.entity_id });
+      await controlEntity(entity.entity_id, service, data, targetState);
     } catch (error) {
       console.error("Erreur lors du contrôle:", error);
       throw error;
@@ -44,21 +52,7 @@ export function UniversalEntityTile({ entity, floor, area }: UniversalEntityTile
   };
   
   const handleToggle = async (entityId: string) => {
-    if (!client) {
-      toast.error("Client non connecté");
-      return;
-    }
-    
-    const isOn = entity.state === "on";
-    const service = isOn ? "turn_off" : "turn_on";
-    
-    try {
-      await client.callService(domain, service, {}, { entity_id: entityId });
-      toast.success(isOn ? "Éteint" : "Allumé");
-    } catch (error) {
-      console.error("Erreur lors du contrôle:", error);
-      toast.error("Erreur lors du contrôle");
-    }
+    await toggleEntity(entityId);
   };
   
   const handleUpdate = async () => {

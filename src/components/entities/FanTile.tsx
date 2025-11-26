@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState, useEffect } from "react";
 import { supportsFeature, FAN_FEATURES } from "@/lib/entityUtils";
 import { toast } from "sonner";
+import { useHAStore } from "@/store/useHAStore";
+import { cn } from "@/lib/utils";
 
 interface FanTileProps {
   entity: HAEntity;
@@ -19,6 +21,8 @@ export function FanTile({ entity, onControl }: FanTileProps) {
   const percentage = entity.attributes.percentage || 0;
   const presetMode = entity.attributes.preset_mode;
   const presetModes = entity.attributes.preset_modes || [];
+  const pendingActions = useHAStore((state) => state.pendingActions);
+  const isPending = !!pendingActions[entity.entity_id];
   
   const supportsSpeed = supportsFeature(entity, FAN_FEATURES.SUPPORT_SET_SPEED);
   const supportsPreset = supportsFeature(entity, FAN_FEATURES.SUPPORT_PRESET_MODE);
@@ -55,7 +59,10 @@ export function FanTile({ entity, onControl }: FanTileProps) {
   };
   
   return (
-    <Card className="glass-card elevated-subtle elevated-active border-border/50 overflow-hidden">
+    <Card className={cn(
+      "glass-card elevated-subtle elevated-active border-border/50 overflow-hidden transition-opacity",
+      isPending && "opacity-70"
+    )}>
       <div className="p-4 pt-10">
         <div className="mt-1 flex items-start gap-3 mb-4">
           <div className={`w-14 h-14 rounded-lg flex-shrink-0 transition-all flex items-center justify-center ${

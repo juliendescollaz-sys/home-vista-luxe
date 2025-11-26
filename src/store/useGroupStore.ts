@@ -153,16 +153,44 @@ export const useGroupStore = create<GroupStore>()(
 
         try {
           const isOn = currentState === "on";
+          const targetState = isOn ? "off" : "on";
           
+          // UI optimiste si le groupe a un haEntityId (groupe partagé)
           if (group.isShared && group.haEntityId) {
-            // Groupe partagé : utiliser l'entité group
-            if (isOn) {
-              await turnOffGroup(group.haEntityId, domain);
-            } else {
-              await turnOnGroup(group.haEntityId, domain);
+            const { useHAStore: HAStore } = await import("@/store/useHAStore");
+            const haStore = HAStore.getState();
+            const entities = haStore.entities;
+            const setPendingAction = haStore.setPendingAction;
+            const clearPendingAction = haStore.clearPendingAction;
+            const setEntities = haStore.setEntities;
+            
+            // Marquer l'action comme en attente
+            setPendingAction(group.haEntityId, targetState);
+            
+            // Mettre à jour immédiatement l'UI locale
+            const updatedEntities = entities?.map((e) =>
+              e.entity_id === group.haEntityId ? { ...e, state: targetState } : e
+            ) || [];
+            setEntities(updatedEntities);
+            
+            try {
+              // Groupe partagé : utiliser l'entité group
+              if (isOn) {
+                await turnOffGroup(group.haEntityId, domain);
+              } else {
+                await turnOnGroup(group.haEntityId, domain);
+              }
+            } catch (error) {
+              // Rollback en cas d'erreur
+              clearPendingAction(group.haEntityId);
+              const rolledBackEntities = entities?.map((e) =>
+                e.entity_id === group.haEntityId ? { ...e, state: currentState } : e
+              ) || [];
+              setEntities(rolledBackEntities);
+              throw error;
             }
           } else {
-            // Groupe privé : contrôler directement les entités via le client HA
+            // Groupe privé : contrôler directement les entités via le client HA (pas d'UI optimiste)
             const { useHAStore: HAStore } = await import("@/store/useHAStore");
             const client = HAStore.getState().client;
             if (!client) throw new Error("Client non connecté");
