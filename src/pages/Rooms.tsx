@@ -121,13 +121,6 @@ const MaisonTabletPanelView = () => {
               );
             })}
           </div>
-
-          {/* Titre de la pièce sélectionnée */}
-          {selectedArea && (
-            <div className="px-4 py-2 rounded-xl bg-muted/40 border border-border/40 text-sm font-medium text-muted-foreground shrink-0">
-              Pièce : <span className="text-foreground">{selectedArea.name}</span>
-            </div>
-          )}
         </div>
 
         {/* Zone principale : plan plein écran + sidebar slide-over */}
