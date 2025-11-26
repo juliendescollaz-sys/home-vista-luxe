@@ -551,11 +551,13 @@ const MaisonMobileView = () => {
     
     if (!over || active.id === over.id) return;
     
-    setAreaOrder((items) => {
-      const oldIndex = items.indexOf(active.id as string);
-      const newIndex = items.indexOf(over.id as string);
-      return arrayMove(items, oldIndex, newIndex);
-    });
+    // Utiliser l'ordre courant (déduit) si l'état est encore vide
+    const currentOrder = areaOrder.length > 0 ? areaOrder : orderedAreas.map((a) => a.area_id);
+    const oldIndex = currentOrder.indexOf(active.id as string);
+    const newIndex = currentOrder.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    setAreaOrder(arrayMove(currentOrder, oldIndex, newIndex));
   };
 
   // Handle drag events for types
@@ -565,11 +567,12 @@ const MaisonMobileView = () => {
     
     if (!over || active.id === over.id) return;
     
-    setTypeOrder((items) => {
-      const oldIndex = items.indexOf(active.id as string);
-      const newIndex = items.indexOf(over.id as string);
-      return arrayMove(items, oldIndex, newIndex);
-    });
+    const currentOrder = typeOrder.length > 0 ? typeOrder : orderedTypes;
+    const oldIndex = currentOrder.indexOf(active.id as string);
+    const newIndex = currentOrder.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    setTypeOrder(arrayMove(currentOrder, oldIndex, newIndex));
   };
 
   // Handle drag events for devices
