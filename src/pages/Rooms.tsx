@@ -481,7 +481,7 @@ const Rooms = () => {
           <Card className="animate-fade-in">
             <CardContent className="py-8">
               <p className="text-muted-foreground text-center">
-                Chargement des plans Neolia...
+                Chargement des plans...
               </p>
             </CardContent>
           </Card>
