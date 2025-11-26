@@ -448,7 +448,8 @@ const Rooms = () => {
   
   const rootClassName = displayMode === "mobile" ? "min-h-screen bg-background pb-20" : "min-h-screen bg-background";
   const contentPaddingTop = displayMode === "mobile" ? "pt-[138px]" : "pt-[24px]";
-  const hasPlans = neoliaFloorPlans.length > 0;
+  // Vérifier si au moins un plan est complet (PNG + JSON)
+  const hasUsablePlans = neoliaFloorPlans.some((plan) => plan.hasPng && plan.hasJson);
 
   // Charger les plans Neolia au démarrage
   useEffect(() => {
@@ -469,7 +470,7 @@ const Rooms = () => {
               </p>
             </CardContent>
           </Card>
-        ) : !hasPlans ? (
+        ) : !hasUsablePlans ? (
           <HomeOverviewByTypeAndArea
             entities={entities || []}
             areas={areas}
