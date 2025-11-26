@@ -131,9 +131,9 @@ const MaisonTabletPanelView = () => {
         </div>
 
         {/* Zone principale : plan + colonne de droite */}
-        <div className="flex flex-1 gap-6 overflow-hidden">
+        <div className="flex flex-1 gap-6 overflow-hidden min-h-0">
           {/* Conteneur plan avec position relative pour l'overlay */}
-          <div className="basis-2/3 flex items-center justify-center">
+          <div className="flex-1 min-h-0 flex items-start justify-center">
             <div className="relative w-full h-full rounded-xl overflow-hidden bg-muted/40 border border-border/40">
               {selectedPlan?.hasPng && selectedPlan?.imageUrl ? (
                 <>
@@ -217,7 +217,7 @@ const MaisonTabletPanelView = () => {
           </div>
 
           {/* Colonne de droite : liste scrollable d'appareils */}
-          <div className="basis-1/3 flex flex-col h-full">
+          <div className="w-[360px] flex flex-col min-h-0">
             <div className="flex-1 overflow-y-auto pr-2 space-y-3">
               {selectedAreaId && selectedArea ? (
                 <RoomDevicesGrid areaId={selectedAreaId} singleColumn />
