@@ -35,7 +35,7 @@ export const SortableTypeCard = ({ typeName, deviceCount, onClick }: SortableTyp
       className="cursor-grab active:cursor-grabbing"
     >
       <Card
-        className="p-4 hover:bg-accent/50 transition-colors"
+        className="p-4 hover:bg-accent/50 transition-colors glass-card elevated-subtle elevated-active border-border/50"
         onClick={(e) => {
           if (!isDragging) {
             onClick();

@@ -37,7 +37,7 @@ export const SortableAreaCard = ({ area, floor, deviceCount, onClick }: Sortable
       className="cursor-grab active:cursor-grabbing"
     >
       <Card
-        className="p-4 hover:bg-accent/50 transition-colors"
+        className="p-4 hover:bg-accent/50 transition-colors glass-card elevated-subtle elevated-active border-border/50"
         onClick={(e) => {
           // Ne pas déclencher le clic si on est en train de drag
           if (!isDragging) {
