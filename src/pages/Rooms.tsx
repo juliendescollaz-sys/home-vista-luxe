@@ -233,7 +233,10 @@ const MaisonTabletPanelView = () => {
           >
             {selectedArea && (
               <>
-                <div className="flex items-center justify-end p-4 border-b border-border shrink-0">
+                <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+                  <h2 className="font-semibold text-lg">
+                    {selectedArea.name}
+                  </h2>
                   <button
                     onClick={() => setSelectedAreaId(null)}
                     className="text-muted-foreground hover:text-foreground transition-colors"
