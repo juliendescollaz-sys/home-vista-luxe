@@ -246,7 +246,7 @@ const MaisonTabletPanelView = () => {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4">
-                  <RoomDevicesGrid areaId={selectedAreaId} singleColumn />
+                  <RoomDevicesGrid areaId={selectedAreaId} singleColumn enableDragAndDrop />
                 </div>
               </>
             )}
