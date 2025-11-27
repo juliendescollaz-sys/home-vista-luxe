@@ -80,6 +80,82 @@ interface EntityRegistry {
   device_id?: string;
   area_id?: string;
   platform: string;
+  entity_category?: string;
+  hidden_by?: string;
+  disabled_by?: string;
+}
+
+/**
+ * Vérifie si une entité est contrôlable et principale (pas diagnostic/config/mesure)
+ */
+function isControllablePrimaryEntity(
+  entity: HAEntity,
+  reg?: EntityRegistry
+): boolean {
+  const domain = entity.entity_id.split(".")[0];
+
+  // 1) Domaine contrôlable
+  const controllableDomains = ["light", "switch", "cover", "fan", "valve", "climate", "media_player", "lock"];
+  if (!controllableDomains.includes(domain)) return false;
+
+  // 2) Pas une entité de diagnostic / config / cachée / désactivée
+  if (reg?.entity_category === "diagnostic" || reg?.entity_category === "config") return false;
+  if (reg?.hidden_by) return false;
+  if (reg?.disabled_by) return false;
+
+  // 3) Exclure les mesures (power, energy, temperature, etc.)
+  const lowerName = (entity.attributes?.friendly_name || entity.entity_id).toLowerCase();
+  const measureKeywords = [
+    "power", "énergie", "energy", "consommation", "puissance",
+    "température", "temperature", "voltage", "current", "courant",
+    "watt", "kwh", "ampere"
+  ];
+  if (measureKeywords.some((kw) => lowerName.includes(kw))) return false;
+
+  return true;
+}
+
+/**
+ * Filtre les entités pour gérer les double-modules (multi-canaux)
+ * Garde les canaux individuels, ignore l'entité "maître" si des canaux existent
+ */
+function filterDoubleModuleEntities(
+  entities: HAEntity[],
+  entityRegistry: EntityRegistry[]
+): HAEntity[] {
+  // Regrouper par device_id
+  const byDevice = new Map<string, HAEntity[]>();
+
+  for (const e of entities) {
+    const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
+    const deviceId = reg?.device_id || "__no_device__";
+    if (!byDevice.has(deviceId)) byDevice.set(deviceId, []);
+    byDevice.get(deviceId)!.push(e);
+  }
+
+  const result: HAEntity[] = [];
+
+  for (const [deviceId, deviceEntities] of byDevice.entries()) {
+    if (deviceId === "__no_device__") {
+      // Pas de device_id, on garde tout
+      result.push(...deviceEntities);
+      continue;
+    }
+
+    // Détecter les entités "canal" (patterns: _1, _2, _channel_1, _ch1, etc.)
+    const channelPattern = /(_channel_?\d+|_ch\d+|_[1-4])$/i;
+    const channelEntities = deviceEntities.filter((e) => channelPattern.test(e.entity_id));
+
+    if (channelEntities.length > 1) {
+      // Multi-canal détecté : garder uniquement les canaux individuels
+      result.push(...channelEntities);
+    } else {
+      // Pas de multi-canal ou un seul canal : garder tout
+      result.push(...deviceEntities);
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -119,6 +195,7 @@ export function getDeviceDisplayInfo(
 
 /**
  * Filtre les entités par domaines et retourne les infos d'affichage
+ * Applique le filtrage des entités contrôlables et la gestion des double-modules
  */
 export function getEntitiesForDomains(
   entities: HAEntity[],
@@ -128,11 +205,23 @@ export function getEntitiesForDomains(
   areas: HAArea[],
   floors: HAFloor[]
 ): DeviceDisplayInfo[] {
-  return entities
-    .filter((e) => {
-      const domain = e.entity_id.split(".")[0];
-      return domains.includes(domain);
-    })
+  // 1) Filtrer par domaines sélectionnés
+  const domainFiltered = entities.filter((e) => {
+    const domain = e.entity_id.split(".")[0];
+    return domains.includes(domain);
+  });
+
+  // 2) Filtrer les entités contrôlables principales (pas diagnostic/config/mesures)
+  const controllableFiltered = domainFiltered.filter((e) => {
+    const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
+    return isControllablePrimaryEntity(e, reg);
+  });
+
+  // 3) Gérer les double-modules (garder canaux individuels, ignorer maître)
+  const finalFiltered = filterDoubleModuleEntities(controllableFiltered, entityRegistry);
+
+  // 4) Enrichir avec infos de localisation et trier
+  return finalFiltered
     .map((e) => getDeviceDisplayInfo(e, entityRegistry, devices, areas, floors))
     .sort((a, b) => a.friendlyName.localeCompare(b.friendlyName));
 }
