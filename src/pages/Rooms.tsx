@@ -425,6 +425,8 @@ const MaisonMobileView = () => {
   };
 
   const handleDeviceToggle = async (entityId: string) => {
+    console.info("[Neolia Maison] onToggle appelé (MaisonMobileView)", { entityId, domain: entityId.split(".")[0] });
+    
     if (!client) {
       toast.error("Client non connecté");
       return;
@@ -441,7 +443,7 @@ const MaisonMobileView = () => {
       await client.callService(domain, service, {}, { entity_id: entityId });
       toast.success(isOn ? "Éteint" : "Allumé");
     } catch (error) {
-      console.error("Erreur lors du contrôle:", error);
+      console.error("[Neolia Maison] Erreur lors du contrôle:", error);
       toast.error("Erreur lors du contrôle de l'appareil");
     }
   };
