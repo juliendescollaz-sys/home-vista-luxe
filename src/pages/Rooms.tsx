@@ -13,6 +13,7 @@ import { getEntityDomain, filterPrimaryControlEntities } from "@/lib/entityUtils
 import { cn } from "@/lib/utils";
 import { DraggableRoomLabel } from "@/components/DraggableRoomLabel";
 import { HomeOverviewByTypeAndArea } from "@/components/HomeOverviewByTypeAndArea";
+import { DeviceEntitiesDrawer } from "@/components/DeviceEntitiesDrawer";
 import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, closestCenter, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -24,6 +25,7 @@ import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { getGridClasses } from "@/lib/gridLayout";
 import { useOptimisticToggle } from "@/hooks/useOptimisticToggle";
 import { toast } from "sonner";
+import type { HAEntity } from "@/types/homeassistant";
 
 // ============== MaisonTabletPanelView ==============
 const MaisonTabletPanelView = () => {
@@ -277,6 +279,7 @@ const MaisonMobileView = () => {
   const [selectedAreaId, setSelectedAreaId] = useState<string | undefined>();
   const [selectedTypeName, setSelectedTypeName] = useState<string | undefined>();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [selectedEntityForDetails, setSelectedEntityForDetails] = useState<HAEntity | null>(null);
 
   // --- Utils persistence localStorage ---
   const LS_AREA_ORDER = "neolia_mobile_area_order";
@@ -671,6 +674,7 @@ const MaisonMobileView = () => {
                               entity={entity}
                               floor={floor}
                               area={area}
+                              onOpenDetails={(e) => setSelectedEntityForDetails(e)}
                             />
                           );
                         }
@@ -682,6 +686,7 @@ const MaisonMobileView = () => {
                             onToggle={handleDeviceToggle}
                             floor={floor}
                             area={area}
+                            onOpenDetails={(e) => setSelectedEntityForDetails(e)}
                           />
                         );
                       })}
@@ -809,6 +814,7 @@ const MaisonMobileView = () => {
                               entity={entity}
                               floor={floor}
                               area={area}
+                              onOpenDetails={(e) => setSelectedEntityForDetails(e)}
                             />
                           );
                         }
@@ -820,6 +826,7 @@ const MaisonMobileView = () => {
                             onToggle={handleDeviceToggle}
                             floor={floor}
                             area={area}
+                            onOpenDetails={(e) => setSelectedEntityForDetails(e)}
                           />
                         );
                       })}
@@ -888,6 +895,17 @@ const MaisonMobileView = () => {
             </>
           )}
         </div>
+      )}
+
+      {/* Drawer détails device */}
+      {selectedEntityForDetails && entities && (
+        <DeviceEntitiesDrawer
+          primaryEntity={selectedEntityForDetails}
+          entities={entities}
+          entityRegistry={entityRegistry}
+          devices={devices}
+          onClose={() => setSelectedEntityForDetails(null)}
+        />
       )}
     </div>
   );
