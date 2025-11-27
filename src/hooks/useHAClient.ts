@@ -51,8 +51,19 @@ export function useHAClient() {
 
       const stateChangedUnsubscribe = client.on("state_changed", (data: any) => {
         if (data?.new_state) {
+          const entityId = data.new_state.entity_id;
+          const newState = data.new_state.state;
+          const oldState = data.old_state?.state;
+          
+          console.info("[Neolia] state_changed reçu", {
+            entity_id: entityId,
+            oldState,
+            newState,
+            hasPending: !!useHAStore.getState().pendingActions[entityId],
+          });
+          
           const currentEntities = useHAStore.getState().entities;
-          const index = currentEntities.findIndex((e: HAEntity) => e.entity_id === data.new_state.entity_id);
+          const index = currentEntities.findIndex((e: HAEntity) => e.entity_id === entityId);
           if (index >= 0) {
             const newEntities = [...currentEntities];
             newEntities[index] = data.new_state;

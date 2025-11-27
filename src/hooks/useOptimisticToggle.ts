@@ -18,13 +18,25 @@ export function useOptimisticToggle() {
   const triggerEntityToggle = useHAStore((state) => state.triggerEntityToggle);
 
   const toggleEntity = async (entityId: string, onRollback?: () => void) => {
+    console.info("[Neolia] toggleEntity appelé", { entityId, hasClient: !!client });
+    
     if (!client) {
+      console.error("[Neolia] toggleEntity - Client non connecté");
       toast.error("Client non connecté");
       return;
     }
 
+    if (!client.isConnected()) {
+      console.error("[Neolia] toggleEntity - WebSocket non connecté");
+      toast.error("Connexion Home Assistant perdue");
+      return;
+    }
+
     const entity = entities?.find((e) => e.entity_id === entityId);
-    if (!entity) return;
+    if (!entity) {
+      console.error("[Neolia] toggleEntity - Entité non trouvée", entityId);
+      return;
+    }
 
     const domain = getEntityDomain(entityId);
     
@@ -37,7 +49,7 @@ export function useOptimisticToggle() {
         await client.callService(domain, service, {}, { entity_id: entityId });
         toast.success(isOn ? "Éteint" : "Allumé");
       } catch (error) {
-        console.error("Erreur lors du contrôle:", error);
+        console.error("[Neolia] Erreur contrôle media_player:", error);
         toast.error("Erreur lors du contrôle");
       }
       return;
@@ -47,6 +59,13 @@ export function useOptimisticToggle() {
     const isOn = entity.state === "on";
     const targetState = isOn ? "off" : "on";
     const service = isOn ? "turn_off" : "turn_on";
+
+    console.info("[Neolia] toggleEntity - Appel triggerEntityToggle", {
+      entityId,
+      currentState: entity.state,
+      targetState,
+      service: `${domain}.${service}`,
+    });
 
     await triggerEntityToggle(
       entityId,
@@ -65,13 +84,25 @@ export function useOptimisticToggle() {
     targetState?: string,
     onRollback?: () => void
   ) => {
+    console.info("[Neolia] controlEntity appelé", { entityId, service, targetState, hasClient: !!client });
+    
     if (!client) {
+      console.error("[Neolia] controlEntity - Client non connecté");
       toast.error("Client non connecté");
       return;
     }
 
+    if (!client.isConnected()) {
+      console.error("[Neolia] controlEntity - WebSocket non connecté");
+      toast.error("Connexion Home Assistant perdue");
+      return;
+    }
+
     const entity = entities?.find((e) => e.entity_id === entityId);
-    if (!entity) return;
+    if (!entity) {
+      console.error("[Neolia] controlEntity - Entité non trouvée", entityId);
+      return;
+    }
 
     const domain = getEntityDomain(entityId);
     
@@ -80,7 +111,7 @@ export function useOptimisticToggle() {
       try {
         await client.callService(domain, service, data, { entity_id: entityId });
       } catch (error) {
-        console.error("Erreur lors du contrôle:", error);
+        console.error("[Neolia] Erreur contrôle media_player:", error);
         throw error;
       }
       return;
@@ -101,8 +132,8 @@ export function useOptimisticToggle() {
       try {
         await client.callService(domain, service, data, { entity_id: entityId });
       } catch (error) {
-        console.error("❌ Erreur lors du contrôle:", error);
-        toast.error("Erreur de connexion");
+        console.error("[Neolia] Erreur contrôle (sans targetState):", error);
+        toast.error("Erreur de communication avec Home Assistant");
         throw error;
       }
     }

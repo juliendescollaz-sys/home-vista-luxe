@@ -149,8 +149,12 @@ export class HAClient {
       this.ws.send(JSON.stringify(message));
       logger.debug("📤 Message envoyé:", message.type || message.id);
     } else {
-      console.error("❌ WebSocket non connecté, impossible d'envoyer:", message);
-      throw new Error("WebSocket non connecté");
+      const wsState = this.ws?.readyState;
+      const stateLabel = wsState === WebSocket.CONNECTING ? 'CONNECTING' :
+                         wsState === WebSocket.CLOSING ? 'CLOSING' :
+                         wsState === WebSocket.CLOSED ? 'CLOSED' : 'NULL';
+      console.error(`[Neolia] WebSocket non connecté (état: ${stateLabel}), impossible d'envoyer:`, message.type || message.id);
+      throw new Error(`WebSocket non connecté (état: ${stateLabel})`);
     }
   }
 
@@ -216,15 +220,56 @@ export class HAClient {
     service: string,
     serviceData?: any,
     target?: { entity_id?: string | string[]; area_id?: string | string[] }
-  ): Promise<void> {
-    console.log(`🎬 Appel service: ${domain}.${service}`, { serviceData, target });
+  ): Promise<any> {
+    const entityId = target?.entity_id;
+    const wsUrl = this.wsUrl.replace(/access_token=[^&]+/, 'access_token=***');
     
-    await this.sendWithResponse("call_service", {
+    console.info("[Neolia] Appel service HA", {
       domain,
       service,
-      service_data: serviceData,
-      target,
+      entity_id: entityId,
+      data: serviceData,
+      wsUrl,
+      isConnected: this.isConnected(),
+      isAuthenticated: this.isAuthenticated,
     });
+
+    // Vérifier l'état de la connexion avant d'envoyer
+    if (!this.isConnected()) {
+      const error = new Error("WebSocket non connecté - impossible d'envoyer la commande");
+      console.error("[Neolia] Service HA ERREUR - WebSocket non connecté", {
+        entity_id: entityId,
+        service,
+        wsState: this.ws?.readyState,
+        isAuthenticated: this.isAuthenticated,
+      });
+      throw error;
+    }
+
+    try {
+      const response = await this.sendWithResponse("call_service", {
+        domain,
+        service,
+        service_data: serviceData,
+        target,
+      });
+      
+      console.info("[Neolia] Service HA OK", {
+        entity_id: entityId,
+        service: `${domain}.${service}`,
+        response,
+      });
+      
+      return response;
+    } catch (error) {
+      console.error("[Neolia] Service HA ERREUR", {
+        entity_id: entityId,
+        service: `${domain}.${service}`,
+        error: error instanceof Error ? error.message : error,
+        errorFull: error,
+      });
+      throw error;
+    }
   }
 
   subscribeStateChanges(callback: EventCallback): () => void {
