@@ -253,9 +253,9 @@ export const useGroupStore = create<GroupStore>()(
               }
             );
           } else if (mode === "mixedBinary") {
-            // Groupe mixte binaire : utiliser homeassistant.turn_on/off sur les entités binaires uniquement
+            // Groupe mixte binaire : direction explicite basée sur l'état actuel calculé
             const { useHAStore: HAStore } = await import("@/store/useHAStore");
-            const { getControllableBinaryEntities } = await import("@/lib/entityUtils");
+            const { getControllableBinaryEntities, getMixedGroupState } = await import("@/lib/entityUtils");
             
             const haStore = HAStore.getState();
             const client = haStore.client;
@@ -274,9 +274,19 @@ export const useGroupStore = create<GroupStore>()(
               return;
             }
             
-            console.log("[Neolia] toggleMixedGroup:", { groupId: group.id, controllableIds });
+            // Calcul fiable de l'état global du groupe mixte
+            const currentMixedState = getMixedGroupState(group.entityIds, allEntities);
+            // Si actuellement ON → on veut éteindre (turn_off), sinon on veut allumer (turn_on)
+            const direction = currentMixedState === "on" ? "off" : "on";
+            const service = direction === "on" ? "turn_on" : "turn_off";
             
-            const service = isOn ? "turn_off" : "turn_on";
+            console.log(`[Neolia] Mixed group ${group.id} => ${direction.toUpperCase()}`, {
+              currentState: currentMixedState,
+              direction,
+              service: `homeassistant.${service}`,
+              entityIds: controllableIds,
+            });
+            
             // Commande générique homeassistant.turn_on/off uniquement sur les entités filtrées
             await client.callService("homeassistant", service, {}, { entity_id: controllableIds });
           } else {
