@@ -108,8 +108,16 @@ export const useHAStore = create<HAStore>()(
         entities.forEach((entity) => {
           const pending = state.pendingActions[entity.entity_id];
           
-          if (pending && entity.state === pending.targetState) {
+          // Vérifier si une action est en attente (pas déjà en cooldown)
+          if (pending && !pending.cooldownUntil && entity.state === pending.targetState) {
             // Action confirmée par HA ! Annuler le timeout et mettre en cooldown
+            console.info("[Neolia] Action confirmée par HA", {
+              entityId: entity.entity_id,
+              targetState: pending.targetState,
+              actualState: entity.state,
+              latency: now - pending.startedAt,
+            });
+            
             window.clearTimeout(pending.timeoutId);
             
             set((s) => ({
@@ -204,13 +212,15 @@ export const useHAStore = create<HAStore>()(
         const pending = state.pendingActions[entityId];
         const now = Date.now();
         
-        // Bloquer si action en cours
+        // Bloquer si action en cours (pas en cooldown)
         if (pending && !pending.cooldownUntil) {
+          console.info("[Neolia] Action ignorée - déjà en cours pour", entityId);
           return;
         }
         
         // Bloquer si cooldown actif
         if (pending?.cooldownUntil && now < pending.cooldownUntil) {
+          console.info("[Neolia] Action ignorée - cooldown actif pour", entityId);
           return;
         }
         
@@ -219,7 +229,9 @@ export const useHAStore = create<HAStore>()(
           window.clearTimeout(pending.timeoutId);
         }
         
-        // Créer le timeout de 2s
+        console.info("[Neolia] Démarrage action toggle", { entityId, targetState });
+        
+        // Créer le timeout de 2s - ne s'applique QUE si la commande est partie correctement
         const timeoutId = window.setTimeout(() => {
           const currentState = get();
           const currentPending = currentState.pendingActions[entityId];
@@ -229,9 +241,14 @@ export const useHAStore = create<HAStore>()(
           
           // Si après 2s l'état réel ne correspond pas à l'état cible → rollback
           if (entity && entity.state !== currentPending.targetState) {
-            console.error("[Neolia] Timeout - pas de confirmation HA pour", entityId);
+            console.error("[Neolia] Timeout - pas de confirmation HA pour", entityId, {
+              expectedState: currentPending.targetState,
+              actualState: entity.state,
+            });
             onRollback?.();
             toast.error("L'appareil ne répond pas (timeout)");
+          } else {
+            console.info("[Neolia] Timeout atteint mais état correct pour", entityId);
           }
           
           get().clearPendingAction(entityId);
@@ -252,12 +269,27 @@ export const useHAStore = create<HAStore>()(
         // Exécuter l'action
         try {
           await action();
+          console.info("[Neolia] Commande envoyée avec succès pour", entityId, "- attente confirmation HA...");
         } catch (error) {
-          console.error("[Neolia] Erreur lors de l'action:", error);
+          // Erreur immédiate (WebSocket déconnecté, CORS, etc.)
+          // → Annuler le timeout et rollback immédiat
+          console.error("[Neolia] Erreur immédiate lors de l'envoi de la commande:", {
+            entityId,
+            error: error instanceof Error ? error.message : error,
+          });
           window.clearTimeout(timeoutId);
           get().clearPendingAction(entityId);
           onRollback?.();
-          toast.error("Erreur de connexion");
+          
+          // Message d'erreur explicite selon le type d'erreur
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          if (errorMsg.includes("WebSocket") || errorMsg.includes("connecté")) {
+            toast.error("Erreur de connexion WebSocket - vérifiez votre connexion");
+          } else if (errorMsg.includes("auth") || errorMsg.includes("401")) {
+            toast.error("Erreur d'authentification Home Assistant");
+          } else {
+            toast.error("Erreur de communication avec Home Assistant");
+          }
         }
       },
 
