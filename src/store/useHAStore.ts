@@ -15,8 +15,6 @@ interface EntityRegistry {
 
 type PendingAction = {
   startedAt: number;
-  targetState: string;
-  timeoutId: number;
   cooldownUntil?: number;
 };
 
@@ -102,41 +100,8 @@ export const useHAStore = create<HAStore>()(
       setConnection: (connection) => set({ connection }),
       setClient: (client) => set({ client }),
       setEntities: (entities) => {
-        const state = get();
-        const now = Date.now();
-        
-        entities.forEach((entity) => {
-          const pending = state.pendingActions[entity.entity_id];
-          
-          // Vérifier si une action est en attente (pas déjà en cooldown)
-          if (pending && !pending.cooldownUntil && entity.state === pending.targetState) {
-            // Action confirmée par HA ! Annuler le timeout et mettre en cooldown
-            console.info("[Neolia] Action confirmée par HA", {
-              entityId: entity.entity_id,
-              targetState: pending.targetState,
-              actualState: entity.state,
-              latency: now - pending.startedAt,
-            });
-            
-            window.clearTimeout(pending.timeoutId);
-            
-            set((s) => ({
-              pendingActions: {
-                ...s.pendingActions,
-                [entity.entity_id]: {
-                  ...pending,
-                  cooldownUntil: now + 50,
-                },
-              },
-            }));
-            
-            // Nettoyer complètement après le cooldown
-            setTimeout(() => {
-              get().clearPendingAction(entity.entity_id);
-            }, 50);
-          }
-        });
-        
+        // Les events state_changed mettent simplement à jour le store
+        // Plus de logique de confirmation/timeout ici
         set({ entities });
       },
       setEntityRegistry: (registry) => set({ entityRegistry: registry }),
@@ -212,7 +177,7 @@ export const useHAStore = create<HAStore>()(
         const pending = state.pendingActions[entityId];
         const now = Date.now();
         
-        // Bloquer si action en cours (pas en cooldown)
+        // Bloquer si action en cours
         if (pending && !pending.cooldownUntil) {
           console.info("[Neolia] Action ignorée - déjà en cours pour", entityId);
           return;
@@ -224,35 +189,7 @@ export const useHAStore = create<HAStore>()(
           return;
         }
         
-        // Nettoyer un éventuel ancien pending
-        if (pending) {
-          window.clearTimeout(pending.timeoutId);
-        }
-        
         console.info("[Neolia] Démarrage action toggle", { entityId, targetState });
-        
-        // Créer le timeout de 2s - ne s'applique QUE si la commande est partie correctement
-        const timeoutId = window.setTimeout(() => {
-          const currentState = get();
-          const currentPending = currentState.pendingActions[entityId];
-          if (!currentPending) return;
-          
-          const entity = currentState.entities?.find((e) => e.entity_id === entityId);
-          
-          // Si après 2s l'état réel ne correspond pas à l'état cible → rollback
-          if (entity && entity.state !== currentPending.targetState) {
-            console.error("[Neolia] Timeout - pas de confirmation HA pour", entityId, {
-              expectedState: currentPending.targetState,
-              actualState: entity.state,
-            });
-            onRollback?.();
-            toast.error("L'appareil ne répond pas (timeout)");
-          } else {
-            console.info("[Neolia] Timeout atteint mais état correct pour", entityId);
-          }
-          
-          get().clearPendingAction(entityId);
-        }, 2000);
         
         // Enregistrer l'action pending
         set((s) => ({
@@ -260,8 +197,6 @@ export const useHAStore = create<HAStore>()(
             ...s.pendingActions,
             [entityId]: {
               startedAt: now,
-              targetState,
-              timeoutId,
             },
           },
         }));
@@ -269,15 +204,31 @@ export const useHAStore = create<HAStore>()(
         // Exécuter l'action
         try {
           await action();
-          console.info("[Neolia] Commande envoyée avec succès pour", entityId, "- attente confirmation HA...");
+          
+          // Succès = callService s'est résolu sans erreur
+          console.info("[Neolia] Action terminée pour", entityId);
+          
+          // Mettre en cooldown 50ms puis nettoyer
+          set((s) => ({
+            pendingActions: {
+              ...s.pendingActions,
+              [entityId]: {
+                startedAt: now,
+                cooldownUntil: Date.now() + 50,
+              },
+            },
+          }));
+          
+          setTimeout(() => {
+            get().clearPendingAction(entityId);
+          }, 50);
+          
         } catch (error) {
           // Erreur immédiate (WebSocket déconnecté, CORS, etc.)
-          // → Annuler le timeout et rollback immédiat
-          console.error("[Neolia] Erreur immédiate lors de l'envoi de la commande:", {
+          console.error("[Neolia] Erreur lors de l'envoi de la commande:", {
             entityId,
             error: error instanceof Error ? error.message : error,
           });
-          window.clearTimeout(timeoutId);
           get().clearPendingAction(entityId);
           onRollback?.();
           
@@ -294,10 +245,6 @@ export const useHAStore = create<HAStore>()(
       },
 
       clearPendingAction: (entityId) => {
-        const pending = get().pendingActions[entityId];
-        if (pending) {
-          window.clearTimeout(pending.timeoutId);
-        }
         set((state) => {
           const copy = { ...state.pendingActions };
           delete copy[entityId];
