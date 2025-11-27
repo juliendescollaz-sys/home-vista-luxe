@@ -91,10 +91,11 @@ export const useGroupStore = create<GroupStore>()(
             return;
           }
         } else {
-          const binaryDomains = ["light", "switch", "valve", "fan"];
+          // Importer BINARY_CONTROLLABLE_DOMAINS depuis entityUtils
+          const { BINARY_CONTROLLABLE_DOMAINS } = await import("@/lib/entityUtils");
           const invalidEntities = entityIds.filter((id) => {
             const entityDomain = id.split(".")[0];
-            return !binaryDomains.includes(entityDomain);
+            return !BINARY_CONTROLLABLE_DOMAINS.includes(entityDomain);
           });
           if (invalidEntities.length > 0) {
             set({
@@ -252,17 +253,32 @@ export const useGroupStore = create<GroupStore>()(
               }
             );
           } else if (mode === "mixedBinary") {
-            // Groupe mixte binaire : utiliser homeassistant.turn_on/off sur toutes les entités
+            // Groupe mixte binaire : utiliser homeassistant.turn_on/off sur les entités binaires uniquement
             const { useHAStore: HAStore } = await import("@/store/useHAStore");
-            const client = HAStore.getState().client;
+            const { getControllableBinaryEntities } = await import("@/lib/entityUtils");
+            
+            const haStore = HAStore.getState();
+            const client = haStore.client;
             
             if (!client) {
               throw new Error("Client non connecté");
             }
             
+            // Filtrer pour ne garder que les entités vraiment contrôlables (pas les sensors)
+            const allEntities = Object.values(haStore.entities);
+            const controllableEntities = getControllableBinaryEntities(group.entityIds, allEntities);
+            const controllableIds = controllableEntities.map((e) => e.entity_id);
+            
+            if (controllableIds.length === 0) {
+              console.warn("[Neolia] Aucun entity_id contrôlable pour le groupe", group.id);
+              return;
+            }
+            
+            console.log("[Neolia] toggleMixedGroup:", { groupId: group.id, controllableIds });
+            
             const service = isOn ? "turn_off" : "turn_on";
-            // Commande générique homeassistant.turn_on/off pour tous les domaines
-            await client.callService("homeassistant", service, {}, { entity_id: group.entityIds });
+            // Commande générique homeassistant.turn_on/off uniquement sur les entités filtrées
+            await client.callService("homeassistant", service, {}, { entity_id: controllableIds });
           } else {
             // Groupe privé domaine unique : gérer manuellement toutes les entités membres
             const { useHAStore: HAStore } = await import("@/store/useHAStore");
