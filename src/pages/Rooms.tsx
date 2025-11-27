@@ -281,11 +281,45 @@ const MaisonMobileView = () => {
   const [selectedTypeName, setSelectedTypeName] = useState<string | undefined>();
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  // Ordres persistés
-  const [areaOrder, setAreaOrder] = useState<string[]>([]);
-  const [typeOrder, setTypeOrder] = useState<string[]>([]);
-  const [deviceOrderByArea, setDeviceOrderByArea] = useState<Record<string, string[]>>({});
-  const [deviceOrderByType, setDeviceOrderByType] = useState<Record<string, string[]>>({});
+  // --- Utils persistence localStorage ---
+  const LS_AREA_ORDER = "neolia_mobile_area_order";
+  const LS_TYPE_ORDER = "neolia_mobile_type_order";
+  const LS_DEVICE_AREA_ORDER = "neolia_mobile_device_order_by_area";
+  const LS_DEVICE_TYPE_ORDER = "neolia_mobile_device_order_by_type";
+
+  // Ordres persistés - initialisation lazy pour éviter le flash
+  const [areaOrder, setAreaOrder] = useState<string[]>(() => {
+    try {
+      const a = window.localStorage.getItem(LS_AREA_ORDER);
+      return a ? JSON.parse(a) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [typeOrder, setTypeOrder] = useState<string[]>(() => {
+    try {
+      const t = window.localStorage.getItem(LS_TYPE_ORDER);
+      return t ? JSON.parse(t) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [deviceOrderByArea, setDeviceOrderByArea] = useState<Record<string, string[]>>(() => {
+    try {
+      const da = window.localStorage.getItem(LS_DEVICE_AREA_ORDER);
+      return da ? JSON.parse(da) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [deviceOrderByType, setDeviceOrderByType] = useState<Record<string, string[]>>(() => {
+    try {
+      const dt = window.localStorage.getItem(LS_DEVICE_TYPE_ORDER);
+      return dt ? JSON.parse(dt) : {};
+    } catch {
+      return {};
+    }
+  });
 
   // Sensors dnd-kit avec long-press
   const sensors = useSensors(
@@ -304,31 +338,6 @@ const MaisonMobileView = () => {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  // --- Utils persistence localStorage ---
-  const LS_AREA_ORDER = "neolia_mobile_area_order";
-  const LS_TYPE_ORDER = "neolia_mobile_type_order";
-  const LS_DEVICE_AREA_ORDER = "neolia_mobile_device_order_by_area";
-  const LS_DEVICE_TYPE_ORDER = "neolia_mobile_device_order_by_type";
-
-  useEffect(() => {
-    try {
-      const a = window.localStorage.getItem(LS_AREA_ORDER);
-      if (a) setAreaOrder(JSON.parse(a));
-    } catch {}
-    try {
-      const t = window.localStorage.getItem(LS_TYPE_ORDER);
-      if (t) setTypeOrder(JSON.parse(t));
-    } catch {}
-    try {
-      const da = window.localStorage.getItem(LS_DEVICE_AREA_ORDER);
-      if (da) setDeviceOrderByArea(JSON.parse(da));
-    } catch {}
-    try {
-      const dt = window.localStorage.getItem(LS_DEVICE_TYPE_ORDER);
-      if (dt) setDeviceOrderByType(JSON.parse(dt));
-    } catch {}
-  }, []);
 
   useEffect(() => {
     try {

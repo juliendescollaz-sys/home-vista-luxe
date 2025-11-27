@@ -25,9 +25,16 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
   const client = useHAStore((state) => state.client);
   const { displayMode } = useDisplayMode();
   
-  const [deviceOrder, setDeviceOrder] = useState<string[]>([]);
+  // Lazy init from localStorage to avoid flash
+  const [deviceOrder, setDeviceOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`neolia_sidebar_devices_order_${areaId}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const [isLoadingOrder, setIsLoadingOrder] = useState(true);
 
   // Long press sensor (500ms)
   const sensors = useSensors(
@@ -39,16 +46,14 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
     })
   );
 
-  // Load device order from localStorage
+  // Reload order when areaId changes
   useEffect(() => {
-    setIsLoadingOrder(true);
-    const savedOrder = localStorage.getItem(`neolia_sidebar_devices_order_${areaId}`);
-    if (savedOrder) {
-      setDeviceOrder(JSON.parse(savedOrder));
-    } else {
+    try {
+      const saved = localStorage.getItem(`neolia_sidebar_devices_order_${areaId}`);
+      setDeviceOrder(saved ? JSON.parse(saved) : []);
+    } catch {
       setDeviceOrder([]);
     }
-    setIsLoadingOrder(false);
   }, [areaId]);
 
   // Save device order to localStorage
@@ -98,10 +103,10 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
 
   // Initialize device order if not set
   useEffect(() => {
-    if (!isLoadingOrder && enableDragAndDrop && deviceOrder.length === 0 && roomEntities.length > 0) {
+    if (enableDragAndDrop && deviceOrder.length === 0 && roomEntities.length > 0) {
       setDeviceOrder(roomEntities.map(e => e.entity_id));
     }
-  }, [enableDragAndDrop, roomEntities, deviceOrder.length, isLoadingOrder]);
+  }, [enableDragAndDrop, roomEntities, deviceOrder.length]);
 
   const handleDeviceToggle = async (entityId: string) => {
     console.info("[Neolia Maison] onToggle appelé (RoomDevicesGrid)", { entityId });
