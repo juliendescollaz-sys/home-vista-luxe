@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
-import { Lightbulb, Blinds, Power, Fan, Music, ChevronLeft, ChevronRight, Check, Loader2, Cloud, Lock } from "lucide-react";
+import { Lightbulb, Blinds, Power, Fan, Music, ChevronLeft, ChevronRight, Check, Loader2, Users, User } from "lucide-react";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
 import type { HaGroupDomain } from "@/types/groups";
@@ -76,7 +76,7 @@ export function GroupWizard({ open, onOpenChange }: GroupWizardProps) {
         name,
         domain,
         entityIds: selectedEntityIds,
-        isShared,
+        scope: isShared ? "shared" : "local",
       });
       toast.success("Groupe créé avec succès");
       handleClose();
@@ -220,13 +220,13 @@ export function GroupWizard({ open, onOpenChange }: GroupWizardProps) {
                   <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-background/20">
                     <div className="flex items-center gap-3">
                       {isShared ? (
-                        <Cloud className="h-5 w-5 text-primary" />
+                        <Users className="h-5 w-5 text-primary" />
                       ) : (
-                        <Lock className="h-5 w-5 text-muted-foreground" />
+                        <User className="h-5 w-5 text-muted-foreground" />
                       )}
                       <div>
                         <p className="font-medium text-sm">
-                          {isShared ? "Groupe partagé" : "Groupe privé"}
+                          {isShared ? "Groupe partagé" : "Groupe local"}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {isShared

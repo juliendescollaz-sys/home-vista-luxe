@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { NeoliaGroup, HaGroupDomain } from "@/types/groups";
+import type { NeoliaGroup, HaGroupDomain, GroupScope } from "@/types/groups";
+import { getGroupScope } from "@/types/groups";
 import {
   createOrUpdateHaGroup,
   deleteHaGroup,
@@ -23,7 +24,7 @@ interface GroupStore {
     name: string;
     domain: HaGroupDomain;
     entityIds: string[];
-    isShared: boolean;
+    scope: GroupScope;
     existingId?: string;
   }) => Promise<void>;
   removeGroup: (groupId: string) => Promise<void>;
@@ -49,7 +50,7 @@ export const useGroupStore = create<GroupStore>()(
           const { fetchSharedGroupsFromHA } = await import("@/services/haGroups");
           const sharedFromHA = await fetchSharedGroupsFromHA();
           const current = get().groups;
-          const privateGroups = current.filter((g) => !g.isShared);
+          const privateGroups = current.filter((g) => getGroupScope(g) === "local");
           set({ groups: [...privateGroups, ...sharedFromHA] });
         } catch (error: any) {
           console.error("Erreur sync groupes partagés:", error);
@@ -57,7 +58,7 @@ export const useGroupStore = create<GroupStore>()(
       },
 
       createOrUpdateGroup: async (params) => {
-        const { name, domain, entityIds, isShared, existingId } = params;
+        const { name, domain, entityIds, scope, existingId } = params;
 
         // Validation
         if (!name || name.trim().length < 3) {
@@ -84,18 +85,19 @@ export const useGroupStore = create<GroupStore>()(
         try {
           let newGroup: NeoliaGroup;
 
-          if (isShared) {
+          if (scope === "shared") {
             // Groupe partagé : créer dans Home Assistant
             newGroup = await createOrUpdateHaGroup({ name, domain, entityIds });
+            newGroup.scope = "shared";
           } else {
             // Groupe privé : créer uniquement localement
-            const objectId = `neolia_local_${Date.now()}`;
+            const objectId = existingId || `neolia_local_${Date.now()}`;
             newGroup = {
               id: objectId,
               name: name.trim(),
               domain,
               entityIds,
-              isShared: false,
+              scope: "local",
               haEntityId: undefined,
             };
           }
@@ -130,7 +132,7 @@ export const useGroupStore = create<GroupStore>()(
         }
 
         try {
-          if (group.isShared) {
+          if (getGroupScope(group) === "shared") {
             // Groupe partagé : supprimer dans HA
             await deleteHaGroup(groupId);
           }
@@ -154,9 +156,10 @@ export const useGroupStore = create<GroupStore>()(
         try {
           const isOn = currentState === "on";
           const targetState = isOn ? "off" : "on";
+          const scope = getGroupScope(group);
           
           // Groupe partagé : utiliser triggerEntityToggle
-          if (group.isShared && group.haEntityId) {
+          if (scope === "shared" && group.haEntityId) {
             const { useHAStore: HAStore } = await import("@/store/useHAStore");
             const haStore = HAStore.getState();
             
