@@ -9,12 +9,16 @@ import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
 import { hasHaConfig } from "@/services/haConfig";
+import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
 
 /**
  * Layout racine pour l'interface PANEL (écran mural)
  */
 export function PanelRootLayout() {
   const [hasConfig, setHasConfig] = useState<boolean | null>(null);
+
+  // Précharger les plans Neolia dès la connexion HA
+  useNeoliaPlansPreloader();
 
   useEffect(() => {
     hasHaConfig().then(setHasConfig);

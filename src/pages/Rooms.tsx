@@ -3,7 +3,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useHAStore } from "@/store/useHAStore";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { MapPin, Grid3x3, ArrowLeft, ChevronRight } from "lucide-react";
+import { MapPin, Grid3x3, ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -31,6 +31,7 @@ const MaisonTabletPanelView = () => {
   const floors = useHAStore((state) => state.floors);
   const areas = useHAStore((state) => state.areas);
   const neoliaFloorPlans = useHAStore((state) => state.neoliaFloorPlans);
+  const isLoadingNeoliaPlans = useHAStore((state) => state.isLoadingNeoliaPlans);
   const selectedFloorId = useHAStore((state) => state.selectedFloorId);
   const selectedAreaId = useHAStore((state) => state.selectedAreaId);
   const setSelectedFloorId = useHAStore((state) => state.setSelectedFloorId);
@@ -57,30 +58,24 @@ const MaisonTabletPanelView = () => {
     return areas.find((a) => a.area_id === selectedAreaId) || null;
   }, [selectedAreaId, areas]);
 
-  if (!connection || floors.length === 0) {
+  // États de chargement : spinner centré pendant le chargement des plans
+  if (!connection || floors.length === 0 || isLoadingNeoliaPlans || neoliaFloorPlans.length === 0) {
+    // Si encore en chargement ou pas de données, afficher un spinner centré
+    const isLoading = !connection || floors.length === 0 || isLoadingNeoliaPlans;
+    
     return (
-      <Card className="animate-fade-in">
-        <CardContent className="py-8">
-          <p className="text-muted-foreground text-center">
-            Aucun étage disponible. Vérifiez la configuration Home Assistant.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (neoliaFloorPlans.length === 0) {
-    return (
-      <Card className="animate-fade-in">
-        <CardHeader>
-          <CardTitle className="text-2xl">Plans Neolia</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-center py-4">
-            Impossible de charger les plans Neolia pour le moment.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+        <div className="flex flex-col items-center gap-3">
+          {isLoading ? (
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          ) : (
+            // Plans chargés mais vides → message d'info (pas d'erreur)
+            <p className="text-sm text-muted-foreground">
+              Aucun plan Neolia disponible pour le moment.
+            </p>
+          )}
+        </div>
+      </div>
     );
   }
 
