@@ -18,9 +18,13 @@ import {
   Volume2,
   Users,
   User,
+  Thermometer,
+  Lock,
+  Droplet,
+  Layers,
 } from "lucide-react";
 import type { NeoliaGroup, HaGroupDomain } from "@/types/groups";
-import { getGroupScope } from "@/types/groups";
+import { getGroupScope, getGroupDomains } from "@/types/groups";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
 import { playMediaGroup, pauseMediaGroup, setGroupVolume } from "@/services/haGroups";
@@ -36,6 +40,9 @@ const DOMAIN_ICONS: Record<HaGroupDomain, any> = {
   switch: Power,
   fan: Fan,
   media_player: Music,
+  climate: Thermometer,
+  lock: Lock,
+  valve: Droplet,
 };
 
 interface GroupTileProps {
@@ -60,7 +67,9 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
 
   const groupEntity = group.haEntityId ? entities.find((e) => e.entity_id === group.haEntityId) : undefined;
   const realIsActive = groupEntity?.state === "on" || groupEntity?.state === "open";
-  const Icon = DOMAIN_ICONS[group.domain];
+  const domains = getGroupDomains(group);
+  const isMixedGroup = domains.length > 1;
+  const Icon = isMixedGroup ? Layers : DOMAIN_ICONS[group.domain];
   const scope = getGroupScope(group);
   
   // Indicateur "en cours" pour les groupes avec haEntityId (groupes partagés)
