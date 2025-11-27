@@ -3,11 +3,11 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedWeatherTile } from "@/components/weather/AnimatedWeatherTile";
-import { UniversalEntityTile } from "@/components/entities/UniversalEntityTile";
+import { SortableDeviceCard } from "@/components/SortableDeviceCard";
+import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { toast } from "sonner";
 import { useEffect, useMemo } from "react";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
-import { Home as HomeIcon } from "lucide-react";
 
 const Home = () => {
   const client = useHAStore((state) => state.client);
@@ -69,18 +69,12 @@ const Home = () => {
       return false;
     }) || [];
 
-  // Grouper les appareils actifs par pièce/étage
-  const groupedDevices = useMemo(() => {
-    const groups: Record<
-      string,
-      { area: (typeof areas)[0] | null; floor: (typeof floors)[0] | null; devices: typeof activeDevices }
-    > = {};
-
-    activeDevices.forEach((device) => {
+  // Enrichir les appareils actifs avec leurs infos de pièce/étage
+  const enrichedActiveDevices = useMemo(() => {
+    return activeDevices.map((device) => {
       const reg = entityRegistry.find((r) => r.entity_id === device.entity_id);
       let areaId = reg?.area_id;
 
-      // Si pas d'area_id direct, récupérer l'area via le device
       if (!areaId && reg?.device_id) {
         const dev = devices.find((d) => d.id === reg.device_id);
         if (dev?.area_id) {
@@ -88,32 +82,34 @@ const Home = () => {
         }
       }
 
-      // Si toujours rien, tenter les attributs de l'entité
-      if (!areaId && (device as any).attributes?.area_id) {
-        areaId = (device as any).attributes.area_id;
-      }
+      const area = areaId ? areas.find((a) => a.area_id === areaId) || null : null;
+      const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) || null : null;
 
-      const groupKey = areaId || "no_area";
-
-      if (!groups[groupKey]) {
-        const area = areaId ? areas.find((a) => a.area_id === areaId) || null : null;
-
-        // Trouver l'étage associé à cette area
-        const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) || null : null;
-
-        groups[groupKey] = { area, floor, devices: [] };
-      }
-
-      groups[groupKey].devices.push(device);
-    });
-
-    return Object.entries(groups).sort(([, a], [, b]) => {
-      const floorA = a.floor?.level ?? 999;
-      const floorB = b.floor?.level ?? 999;
-      if (floorA !== floorB) return floorA - floorB;
-      return (a.area?.name || "Sans pièce").localeCompare(b.area?.name || "Sans pièce");
+      return { entity: device, area, floor };
     });
   }, [activeDevices, areas, floors, devices, entityRegistry]);
+
+  // Handler de toggle simple (comme Maison/Favoris)
+  const handleDeviceToggle = async (entityId: string) => {
+    if (!client) {
+      toast.error("Client non connecté");
+      return;
+    }
+
+    const entity = entities?.find((e) => e.entity_id === entityId);
+    if (!entity) return;
+
+    const domain = entityId.split(".")[0];
+    const isOn = entity.state === "on";
+    const service = isOn ? "turn_off" : "turn_on";
+
+    try {
+      await client.callService(domain, service, {}, { entity_id: entityId });
+    } catch (error) {
+      console.error("[Neolia Accueil] Erreur toggle", error);
+      toast.error("Erreur lors du contrôle");
+    }
+  };
 
   useEffect(() => {
     if (!isConnected) {
@@ -154,16 +150,27 @@ const Home = () => {
         <div className="space-y-3 animate-fade-in" style={{ animationDelay: "0.1s" }}>
           <h2 className="text-xl font-semibold">Appareils actifs</h2>
 
-          {groupedDevices.length === 0 ? (
+          {enrichedActiveDevices.length === 0 ? (
             <div className="flex-1 flex items-center justify-center min-h-[200px]">
               <p className="text-muted-foreground">Aucun appareil actif</p>
             </div>
           ) : (
-            groupedDevices.flatMap(([areaId, { area, floor, devices }]) =>
-              devices.map((entity) => (
-                <UniversalEntityTile key={entity.entity_id} entity={entity} floor={floor} area={area} />
-              )),
-            )
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {enrichedActiveDevices.map(({ entity, area, floor }) => {
+                const isMediaPlayer = entity.entity_id.startsWith("media_player.");
+                return isMediaPlayer ? (
+                  <MediaPlayerCard key={entity.entity_id} entity={entity} />
+                ) : (
+                  <SortableDeviceCard
+                    key={entity.entity_id}
+                    entity={entity}
+                    onToggle={handleDeviceToggle}
+                    floor={floor}
+                    area={area}
+                  />
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
