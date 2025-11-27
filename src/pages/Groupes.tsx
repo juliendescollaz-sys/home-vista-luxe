@@ -15,12 +15,11 @@ const Groupes = () => {
   } = useDisplayMode();
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[24px]";
   const [wizardOpen, setWizardOpen] = useState(false);
-  const {
-    groups,
-    syncSharedGroupsFromHA,
-    runtime,
-    setGroupError
-  } = useGroupStore();
+  // Sélecteurs stables pour éviter les re-renders avec hooks inconsistants
+  const groups = useGroupStore((state) => state.groups);
+  const syncSharedGroupsFromHA = useGroupStore((state) => state.syncSharedGroupsFromHA);
+  const runtime = useGroupStore((state) => state.runtime);
+  const setGroupError = useGroupStore((state) => state.setGroupError);
 
   // Collecter les erreurs de groupes
   const groupErrors = useMemo(() => {
