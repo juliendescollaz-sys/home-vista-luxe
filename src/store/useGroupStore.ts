@@ -64,6 +64,8 @@ export const useGroupStore = create<GroupStore>()(
         const effectiveDomains = domains && domains.length > 0 ? domains : [domain];
         const effectiveMode: GroupMode = mode || (effectiveDomains.length > 1 ? "mixedBinary" : "singleDomain");
 
+        console.log("[GroupStore] createOrUpdateGroup called:", { name, domain, domains, mode, entityIds, scope, existingId, effectiveMode });
+
         // Validation
         if (!name || name.trim().length < 3) {
           set({ error: "Le nom doit contenir au moins 3 caractères" });
@@ -77,7 +79,6 @@ export const useGroupStore = create<GroupStore>()(
 
         // Validation selon le mode
         if (effectiveMode === "singleDomain") {
-          // Mode domaine unique : toutes les entités doivent être du même domaine
           const targetDomain = effectiveDomains[0];
           const invalidEntities = entityIds.filter((id) => {
             const entityDomain = id.split(".")[0];
@@ -90,7 +91,6 @@ export const useGroupStore = create<GroupStore>()(
             return;
           }
         } else {
-          // Mode mixte binaire : vérifier que tous les domaines des entités sont binaires
           const binaryDomains = ["light", "switch", "valve", "fan"];
           const invalidEntities = entityIds.filter((id) => {
             const entityDomain = id.split(".")[0];
@@ -107,46 +107,50 @@ export const useGroupStore = create<GroupStore>()(
         set({ isSaving: true, error: null });
 
         try {
-          // Récupérer le groupe existant pour détecter les transitions de scope
           const existingGroup = existingId ? get().groups.find((g) => g.id === existingId) : null;
           const originalScope = existingGroup ? getGroupScope(existingGroup) : null;
           
+          console.log("[GroupStore] Existing group:", existingGroup);
+          console.log("[GroupStore] Original scope:", originalScope, "-> New scope:", scope);
+
           let newGroup: NeoliaGroup;
 
-          // Cas 1: Création ou mise à jour vers "shared" (domaine unique seulement)
+          // Cas 1: Vers "shared" (domaine unique seulement)
           if (scope === "shared" && effectiveMode === "singleDomain") {
-            // Si transition local → shared, supprimer l'ancienne entrée locale
-            if (originalScope === "local" && existingGroup?.haEntityId) {
-              // L'ancien groupe n'avait pas de haEntityId, on crée dans HA
+            console.log("[GroupStore] Creating/updating shared group in HA...");
+            
+            try {
+              newGroup = await createOrUpdateHaGroup({ name, domain, entityIds });
+              newGroup.scope = "shared";
+              newGroup.mode = "singleDomain";
+              newGroup.domains = effectiveDomains;
+              console.log("[GroupStore] HA group created:", newGroup);
+            } catch (haError: any) {
+              console.error("[GroupStore] Failed to create HA group:", haError);
+              set({ error: haError.message || "Erreur lors de la création dans Home Assistant", isSaving: false });
+              throw haError;
             }
             
-            // Créer/mettre à jour dans Home Assistant
-            newGroup = await createOrUpdateHaGroup({ name, domain, entityIds });
-            newGroup.scope = "shared";
-            newGroup.mode = "singleDomain";
-            newGroup.domains = effectiveDomains;
-            
-            // Si c'était une mise à jour depuis local, on remplace l'entrée
-            if (existingId && originalScope === "local") {
-              set((state) => ({
-                groups: state.groups.map((g) =>
-                  g.id === existingId ? newGroup : g
-                ),
-                isSaving: false,
-              }));
-              return;
-            }
-          } 
+            // Mettre à jour le store
+            set((state) => {
+              const updatedGroups = existingId
+                ? state.groups.map((g) => g.id === existingId ? newGroup : g)
+                : [...state.groups, newGroup];
+              console.log("[GroupStore] Updated groups (shared):", updatedGroups);
+              return { groups: updatedGroups, isSaving: false };
+            });
+            return;
+          }
+          
           // Cas 2: Transition shared → local
-          else if (originalScope === "shared" && scope === "local" && existingGroup?.haEntityId) {
-            // Supprimer le groupe de Home Assistant
+          if (originalScope === "shared" && scope === "local" && existingGroup?.haEntityId) {
+            console.log("[GroupStore] Transitioning shared -> local, deleting from HA...");
             try {
               await deleteHaGroup(existingGroup.id);
             } catch (e) {
-              console.warn("Erreur lors de la suppression du groupe HA:", e);
+              console.warn("[GroupStore] Error deleting HA group:", e);
             }
             
-            // Créer une version locale
             const localId = `neolia_local_${Date.now()}`;
             newGroup = {
               id: localId,
@@ -159,45 +163,36 @@ export const useGroupStore = create<GroupStore>()(
               haEntityId: undefined,
             };
             
-            // Remplacer l'ancien groupe partagé par le nouveau local
             set((state) => ({
-              groups: state.groups.map((g) =>
-                g.id === existingId ? newGroup : g
-              ),
+              groups: state.groups.map((g) => g.id === existingId ? newGroup : g),
               isSaving: false,
             }));
             return;
           }
-          // Cas 3: Groupe local/mixte (création ou mise à jour sans changement de scope)
-          else {
-            const objectId = existingId || `neolia_local_${Date.now()}`;
-            newGroup = {
-              id: objectId,
-              name: name.trim(),
-              domain,
-              domains: effectiveDomains,
-              mode: effectiveMode,
-              entityIds,
-              scope: effectiveMode === "mixedBinary" ? "local" : scope,
-              haEntityId: undefined,
-            };
-          }
+          
+          // Cas 3: Groupe local (création ou mise à jour)
+          const objectId = existingId || `neolia_local_${Date.now()}`;
+          newGroup = {
+            id: objectId,
+            name: name.trim(),
+            domain,
+            domains: effectiveDomains,
+            mode: effectiveMode,
+            entityIds,
+            scope: effectiveMode === "mixedBinary" ? "local" : scope,
+            haEntityId: undefined,
+          };
+          console.log("[GroupStore] Creating/updating local group:", newGroup);
 
           set((state) => {
-            // Si on met à jour un groupe existant
-            if (existingId) {
-              const updatedGroups = state.groups.map((g) =>
-                g.id === existingId ? newGroup : g
-              );
-              return { groups: updatedGroups, isSaving: false };
-            }
-
-            // Sinon on ajoute un nouveau groupe
-            return { groups: [...state.groups, newGroup], isSaving: false };
+            const updatedGroups = existingId
+              ? state.groups.map((g) => g.id === existingId ? newGroup : g)
+              : [...state.groups, newGroup];
+            return { groups: updatedGroups, isSaving: false };
           });
         } catch (error: any) {
           const errorMessage = error.message || "Erreur lors de la création du groupe";
-          console.error("Erreur createOrUpdateGroup:", errorMessage, error);
+          console.error("[GroupStore] Error:", errorMessage, error);
           set({ error: errorMessage, isSaving: false });
           throw error;
         }
