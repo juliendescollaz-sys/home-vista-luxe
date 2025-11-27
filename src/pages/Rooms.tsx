@@ -714,7 +714,7 @@ const MaisonMobileView = () => {
                   onDragEnd={handleDragEnd}
                 >
                   <SortableContext items={orderedAreas.map((a) => a.area_id)} strategy={rectSortingStrategy}>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {orderedAreas.map((area) => {
                         const floor = area.floor_id ? floors.find((f) => f.floor_id === area.floor_id) : undefined;
                         const deviceCount = deviceCountByArea[area.area_id] || 0;
@@ -852,7 +852,7 @@ const MaisonMobileView = () => {
                   onDragEnd={handleDragEnd}
                 >
                   <SortableContext items={orderedTypeNames} strategy={rectSortingStrategy}>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {orderedTypeNames.map((typeName) => {
                         const deviceCount = entitiesByType[typeName]?.length || 0;
                         return (
