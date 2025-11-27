@@ -16,10 +16,11 @@ import {
   Pause,
   Star,
   Volume2,
-  Cloud,
-  Lock,
+  Users,
+  User,
 } from "lucide-react";
 import type { NeoliaGroup, HaGroupDomain } from "@/types/groups";
+import { getGroupScope } from "@/types/groups";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
 import { playMediaGroup, pauseMediaGroup, setGroupVolume } from "@/services/haGroups";
@@ -60,6 +61,7 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
   const groupEntity = group.haEntityId ? entities.find((e) => e.entity_id === group.haEntityId) : undefined;
   const realIsActive = groupEntity?.state === "on" || groupEntity?.state === "open";
   const Icon = DOMAIN_ICONS[group.domain];
+  const scope = getGroupScope(group);
   
   // Indicateur "en cours" pour les groupes avec haEntityId (groupes partagés)
   const pending = group.haEntityId ? pendingActions[group.haEntityId] : undefined;
@@ -225,27 +227,51 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
             <Icon className="h-8 w-8" />
           </div>
 
-          {/* Infos + favoris */}
+          {/* Infos + actions */}
           <div className="flex-1 min-w-0 pt-0.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <h3 className="font-semibold text-base truncate mb-0.5">{group.name}</h3>
-                {group.isShared ? (
-                  <Cloud className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" />
+                {scope === "shared" ? (
+                  <Users 
+                    className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" 
+                    aria-label="Groupe partagé"
+                  />
                 ) : (
-                  <Lock className="h-3.5 w-3.5 text-muted-foreground/70 flex-shrink-0" />
+                  <User 
+                    className="h-3.5 w-3.5 text-muted-foreground/70 flex-shrink-0" 
+                    aria-label="Groupe local (app uniquement)"
+                  />
                 )}
               </div>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 flex-shrink-0"
-                onClick={handleFavoriteClick}
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                <Star className={`h-4 w-4 ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground"}`} />
-              </Button>
+              <div className="flex items-center gap-1">
+                {/* Bouton édition (crayon) */}
+                {!hideEditButton && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-primary flex-shrink-0"
+                    onClick={handleEditClick}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    aria-label="Modifier le groupe"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
+                
+                {/* Bouton favoris */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 flex-shrink-0"
+                  onClick={handleFavoriteClick}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                >
+                  <Star className={`h-4 w-4 ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+                </Button>
+              </div>
             </div>
 
             <p className="text-sm text-muted-foreground">
@@ -253,18 +279,6 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
               {group.entityIds.length > 1 ? "s" : ""}
             </p>
           </div>
-
-          {(group.domain === "cover" || group.domain === "media_player") && !hideEditButton && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-primary flex-shrink-0"
-              onClick={handleEditClick}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-          )}
         </div>
 
         {/* Contrôles cover / media_player */}
@@ -333,22 +347,6 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
           </div>
         )}
 
-        {/* Bloc édition mobile (pour cover/media_player) */}
-        {displayMode === "mobile" &&
-          (group.domain === "cover" || group.domain === "media_player") &&
-          !hideEditButton && (
-            <div className="flex items-center justify-end gap-1 pt-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-primary"
-                onClick={handleEditClick}
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
       </div>
 
       <GroupEditDialog group={group} open={editDialogOpen} onOpenChange={setEditDialogOpen} />

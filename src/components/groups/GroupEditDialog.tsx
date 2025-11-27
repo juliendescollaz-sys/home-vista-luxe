@@ -5,10 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Lightbulb, Blinds, Power, Fan, Music, Loader2, Trash2 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Lightbulb, Blinds, Power, Fan, Music, Loader2, Trash2, Users, User } from "lucide-react";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
-import type { NeoliaGroup, HaGroupDomain } from "@/types/groups";
+import type { NeoliaGroup, HaGroupDomain, GroupScope } from "@/types/groups";
+import { getGroupScope } from "@/types/groups";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -38,6 +40,7 @@ const DOMAIN_OPTIONS: Array<{ value: HaGroupDomain; label: string; icon: any }> 
 export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogProps) {
   const [name, setName] = useState("");
   const [selectedEntityIds, setSelectedEntityIds] = useState<string[]>([]);
+  const [scope, setScope] = useState<GroupScope>("local");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const entities = useHAStore((state) => state.entities);
@@ -48,6 +51,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
     if (group) {
       setName(group.name);
       setSelectedEntityIds(group.entityIds);
+      setScope(getGroupScope(group));
     }
   }, [group]);
 
@@ -76,7 +80,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
         name,
         domain: group.domain,
         entityIds: selectedEntityIds,
-        isShared: group.isShared, // Maintenir le type de groupe existant
+        scope,
       });
       toast.success("Groupe modifié");
       handleClose();
@@ -140,10 +144,41 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
               )}
             </div>
 
+            {/* Portée du groupe (local / partagé) */}
+            <div className="space-y-3">
+              <Label>Portée du groupe</Label>
+              <RadioGroup value={scope} onValueChange={(v) => setScope(v as GroupScope)} className="space-y-2">
+                <div className="flex items-start gap-3 p-3 rounded-md bg-background/30 border border-border/50 hover:bg-accent/30 transition-colors">
+                  <RadioGroupItem value="local" id="scope-local" className="mt-0.5" />
+                  <label htmlFor="scope-local" className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-sm">Local</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Seulement dans cette app, sur cet appareil
+                    </p>
+                  </label>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-md bg-background/30 border border-border/50 hover:bg-accent/30 transition-colors">
+                  <RadioGroupItem value="shared" id="scope-shared" className="mt-0.5" />
+                  <label htmlFor="scope-shared" className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-primary/70" />
+                      <span className="font-medium text-sm">Partagé</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Disponible pour tous les utilisateurs via Home Assistant
+                    </p>
+                  </label>
+                </div>
+              </RadioGroup>
+            </div>
+
             {/* Sélection des appareils */}
             <div className="space-y-2">
               <Label>Appareils du groupe</Label>
-              <ScrollArea className="h-[300px] rounded-md border border-border/50 p-4 bg-background/30">
+              <ScrollArea className="h-[200px] rounded-md border border-border/50 p-4 bg-background/30">
                 {availableEntities.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">
                     Aucun appareil disponible pour ce type.

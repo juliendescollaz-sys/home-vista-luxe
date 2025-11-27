@@ -99,7 +99,7 @@ export async function createOrUpdateHaGroup(params: {
     domain,
     entityIds,
     haEntityId,
-    isShared: true,
+    scope: "shared",
   };
 
   return group;
@@ -250,7 +250,7 @@ export async function fetchSharedGroupsFromHA(): Promise<NeoliaGroup[]> {
           domain,
           entityIds: members,
           haEntityId: entityId,
-          isShared: true,
+          scope: "shared",
         } as NeoliaGroup;
       });
   } catch (error: any) {
