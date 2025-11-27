@@ -21,9 +21,11 @@ import { SortableAreaCard } from "@/components/SortableAreaCard";
 import { SortableTypeCard } from "@/components/SortableTypeCard";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
+import { DeviceEntitiesDrawer } from "@/components/DeviceEntitiesDrawer";
 import { getGridClasses } from "@/lib/gridLayout";
 import { useOptimisticToggle } from "@/hooks/useOptimisticToggle";
 import { toast } from "sonner";
+import type { HAEntity } from "@/types/homeassistant";
 
 // ============== MaisonTabletPanelView ==============
 const MaisonTabletPanelView = () => {
@@ -277,6 +279,7 @@ const MaisonMobileView = () => {
   const [selectedAreaId, setSelectedAreaId] = useState<string | undefined>();
   const [selectedTypeName, setSelectedTypeName] = useState<string | undefined>();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [detailsEntity, setDetailsEntity] = useState<HAEntity | null>(null);
 
   // --- Utils persistence localStorage ---
   const LS_AREA_ORDER = "neolia_mobile_area_order";
@@ -682,6 +685,7 @@ const MaisonMobileView = () => {
                             onToggle={handleDeviceToggle}
                             floor={floor}
                             area={area}
+                            onOpenDetails={(e) => setDetailsEntity(e)}
                           />
                         );
                       })}
@@ -820,6 +824,7 @@ const MaisonMobileView = () => {
                             onToggle={handleDeviceToggle}
                             floor={floor}
                             area={area}
+                            onOpenDetails={(e) => setDetailsEntity(e)}
                           />
                         );
                       })}
@@ -888,6 +893,16 @@ const MaisonMobileView = () => {
             </>
           )}
         </div>
+      )}
+
+      {detailsEntity && entities && (
+        <DeviceEntitiesDrawer
+          primaryEntity={detailsEntity}
+          entities={entities}
+          entityRegistry={entityRegistry}
+          devices={devices}
+          onClose={() => setDetailsEntity(null)}
+        />
       )}
     </div>
   );

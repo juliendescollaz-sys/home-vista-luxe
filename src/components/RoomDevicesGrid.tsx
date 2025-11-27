@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
+import { DeviceEntitiesDrawer } from "@/components/DeviceEntitiesDrawer";
 import { getGridClasses } from "@/lib/gridLayout";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { toast } from "sonner";
@@ -25,6 +26,9 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
   const floors = useHAStore((state) => state.floors);
   const client = useHAStore((state) => state.client);
   const { displayMode } = useDisplayMode();
+  
+  // State for device details drawer
+  const [detailsEntity, setDetailsEntity] = useState<HAEntity | null>(null);
   
   // Lazy init from localStorage to avoid flash
   const [deviceOrder, setDeviceOrder] = useState<string[]>(() => {
@@ -195,35 +199,52 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
             onToggle={handleDeviceToggle}
             floor={floor}
             area={area}
+            onOpenDetails={(e) => setDetailsEntity(e)}
           />
         );
       })}
     </>
   );
 
+  const drawerElement = detailsEntity && entities ? (
+    <DeviceEntitiesDrawer
+      primaryEntity={detailsEntity}
+      entities={entities}
+      entityRegistry={entityRegistry}
+      devices={devices}
+      onClose={() => setDetailsEntity(null)}
+    />
+  ) : null;
+
   if (enableDragAndDrop) {
     return (
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={(e) => setActiveDragId(e.active.id as string)}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={roomEntities.map((e) => e.entity_id)}
-          strategy={verticalListSortingStrategy}
+      <>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={(e) => setActiveDragId(e.active.id as string)}
+          onDragEnd={handleDragEnd}
         >
-          <div className={singleColumn ? `grid grid-cols-1 gap-4 ${className}` : `${getGridClasses("devices", displayMode)} ${className}`}>
-            {renderDeviceCards()}
-          </div>
-        </SortableContext>
-      </DndContext>
+          <SortableContext
+            items={roomEntities.map((e) => e.entity_id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className={singleColumn ? `grid grid-cols-1 gap-4 ${className}` : `${getGridClasses("devices", displayMode)} ${className}`}>
+              {renderDeviceCards()}
+            </div>
+          </SortableContext>
+        </DndContext>
+        {drawerElement}
+      </>
     );
   }
 
   return (
-    <div className={singleColumn ? `grid grid-cols-1 gap-4 ${className}` : `${getGridClasses("devices", displayMode)} ${className}`}>
-      {renderDeviceCards()}
-    </div>
+    <>
+      <div className={singleColumn ? `grid grid-cols-1 gap-4 ${className}` : `${getGridClasses("devices", displayMode)} ${className}`}>
+        {renderDeviceCards()}
+      </div>
+      {drawerElement}
+    </>
   );
 };
