@@ -3,6 +3,7 @@ import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { SortableGroupTile } from "@/components/groups/SortableGroupTile";
 import { GroupTile } from "@/components/groups/GroupTile";
+import { DeviceEntitiesDrawer } from "@/components/DeviceEntitiesDrawer";
 import { getGridClasses } from "@/lib/gridLayout";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { FavoritesViewSelector, FavoritesViewMode } from "@/components/FavoritesViewSelector";
@@ -59,6 +60,7 @@ export function HomeOverviewByTypeAndArea({
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<FavoritesViewMode>("type");
+  const [detailsEntity, setDetailsEntity] = useState<HAEntity | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -308,6 +310,7 @@ export function HomeOverviewByTypeAndArea({
                         onToggle={handleDeviceToggle}
                         floor={floor}
                         area={area}
+                        onOpenDetails={(e) => setDetailsEntity(e)}
                       />
                     );
                   })}
@@ -333,6 +336,16 @@ export function HomeOverviewByTypeAndArea({
           </DragOverlay>
         </DndContext>
       </div>
+
+      {detailsEntity && (
+        <DeviceEntitiesDrawer
+          primaryEntity={detailsEntity}
+          entities={entities}
+          entityRegistry={entityRegistry}
+          devices={devices}
+          onClose={() => setDetailsEntity(null)}
+        />
+      )}
     </div>
   );
 }
