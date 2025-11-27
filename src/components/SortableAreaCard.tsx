@@ -1,7 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card } from "@/components/ui/card";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Pencil } from "lucide-react";
 import type { HAArea, HAFloor } from "@/types/homeassistant";
 
 interface SortableAreaCardProps {
@@ -9,9 +9,10 @@ interface SortableAreaCardProps {
   floor?: HAFloor;
   deviceCount: number;
   onClick: () => void;
+  onEditName?: (area: HAArea) => void;
 }
 
-export const SortableAreaCard = ({ area, floor, deviceCount, onClick }: SortableAreaCardProps) => {
+export const SortableAreaCard = ({ area, floor, deviceCount, onClick, onEditName }: SortableAreaCardProps) => {
   const {
     attributes,
     listeners,
@@ -45,16 +46,32 @@ export const SortableAreaCard = ({ area, floor, deviceCount, onClick }: Sortable
           }
         }}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <div className="font-medium text-base">{area.name}</div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-base truncate">{area.name}</div>
             {floor && (
-              <div className="text-xs text-muted-foreground mt-0.5">
+              <div className="text-xs text-muted-foreground mt-0.5 truncate">
                 {floor.name} · {deviceCount} appareil{deviceCount > 1 ? "s" : ""}
               </div>
             )}
           </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+          
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {onEditName && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditName(area);
+                }}
+                className="inline-flex items-center justify-center h-7 w-7 rounded-full border border-border/40 bg-background/40 hover:bg-accent/60 hover:border-accent/60 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Renommer la pièce"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </div>
         </div>
       </Card>
     </div>

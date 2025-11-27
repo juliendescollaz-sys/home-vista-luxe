@@ -3,7 +3,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useHAStore } from "@/store/useHAStore";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { MapPin, Grid3x3, ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
+import { MapPin, Grid3x3, ArrowLeft, ChevronRight, Loader2, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -22,10 +22,11 @@ import { SortableTypeCard } from "@/components/SortableTypeCard";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { DeviceEntitiesDrawer } from "@/components/DeviceEntitiesDrawer";
+import { RenameDialog } from "@/components/RenameDialog";
 import { getGridClasses } from "@/lib/gridLayout";
 import { useOptimisticToggle } from "@/hooks/useOptimisticToggle";
 import { toast } from "sonner";
-import type { HAEntity } from "@/types/homeassistant";
+import type { HAEntity, HAArea } from "@/types/homeassistant";
 
 // ============== MaisonTabletPanelView ==============
 const MaisonTabletPanelView = () => {
@@ -40,6 +41,9 @@ const MaisonTabletPanelView = () => {
   const setSelectedAreaId = useHAStore((state) => state.setSelectedAreaId);
   const labelPositions = useHAStore((state) => state.labelPositions);
   const setLabelPosition = useHAStore((state) => state.setLabelPosition);
+  const renameArea = useHAStore((state) => state.renameArea);
+  
+  const [areaToRename, setAreaToRename] = useState<HAArea | null>(null);
 
   // Réinitialiser selectedAreaId quand on change d'étage
   useEffect(() => {
@@ -224,16 +228,26 @@ const MaisonTabletPanelView = () => {
             {selectedArea && (
               <>
                 <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
-                  <h2 className="font-semibold text-lg">
+                  <h2 className="font-semibold text-lg truncate flex-1">
                     {selectedArea.name}
                   </h2>
-                  <button
-                    onClick={() => setSelectedAreaId(null)}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label="Fermer"
-                  >
-                    ✕
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAreaToRename(selectedArea)}
+                      className="inline-flex items-center justify-center h-8 w-8 rounded-full border border-border/40 bg-background/40 hover:bg-accent/60 hover:border-accent/60 text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Renommer la pièce"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setSelectedAreaId(null)}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Fermer"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4">
@@ -243,6 +257,18 @@ const MaisonTabletPanelView = () => {
             )}
           </div>
         </div>
+
+        {areaToRename && (
+          <RenameDialog
+            open={!!areaToRename}
+            title="Renommer la pièce"
+            description="Ce nouveau nom sera enregistré dans Home Assistant."
+            initialValue={areaToRename.name}
+            placeholder="Nom de la pièce"
+            onConfirm={(newName) => renameArea(areaToRename.area_id, newName)}
+            onClose={() => setAreaToRename(null)}
+          />
+        )}
       </div>
   );
 };
@@ -272,6 +298,8 @@ const MaisonMobileView = () => {
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const devices = useHAStore((state) => state.devices);
   const client = useHAStore((state) => state.client);
+  const renameArea = useHAStore((state) => state.renameArea);
+  const renameEntity = useHAStore((state) => state.renameEntity);
 
   const [viewMode, setViewMode] = useState<"room" | "type">("room");
 
@@ -280,6 +308,8 @@ const MaisonMobileView = () => {
   const [selectedTypeName, setSelectedTypeName] = useState<string | undefined>();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [detailsEntity, setDetailsEntity] = useState<HAEntity | null>(null);
+  const [areaToRename, setAreaToRename] = useState<HAArea | null>(null);
+  const [entityToRename, setEntityToRename] = useState<HAEntity | null>(null);
 
   // --- Utils persistence localStorage ---
   const LS_AREA_ORDER = "neolia_mobile_area_order";
@@ -686,6 +716,7 @@ const MaisonMobileView = () => {
                             floor={floor}
                             area={area}
                             onOpenDetails={(e) => setDetailsEntity(e)}
+                            onEditName={(e) => setEntityToRename(e)}
                           />
                         );
                       })}
@@ -734,6 +765,7 @@ const MaisonMobileView = () => {
                             floor={floor}
                             deviceCount={deviceCount}
                             onClick={() => setSelectedAreaId(area.area_id)}
+                            onEditName={(a) => setAreaToRename(a)}
                           />
                         );
                       })}
@@ -825,6 +857,7 @@ const MaisonMobileView = () => {
                             floor={floor}
                             area={area}
                             onOpenDetails={(e) => setDetailsEntity(e)}
+                            onEditName={(e) => setEntityToRename(e)}
                           />
                         );
                       })}
@@ -902,6 +935,30 @@ const MaisonMobileView = () => {
           entityRegistry={entityRegistry}
           devices={devices}
           onClose={() => setDetailsEntity(null)}
+        />
+      )}
+
+      {areaToRename && (
+        <RenameDialog
+          open={!!areaToRename}
+          title="Renommer la pièce"
+          description="Ce nouveau nom sera enregistré dans Home Assistant."
+          initialValue={areaToRename.name}
+          placeholder="Nom de la pièce"
+          onConfirm={(newName) => renameArea(areaToRename.area_id, newName)}
+          onClose={() => setAreaToRename(null)}
+        />
+      )}
+
+      {entityToRename && (
+        <RenameDialog
+          open={!!entityToRename}
+          title="Renommer l'appareil"
+          description="Ce nouveau nom sera enregistré dans Home Assistant."
+          initialValue={entityToRename.attributes.friendly_name || entityToRename.entity_id}
+          placeholder="Nom de l'appareil"
+          onConfirm={(newName) => renameEntity(entityToRename.entity_id, newName)}
+          onClose={() => setEntityToRename(null)}
         />
       )}
     </div>

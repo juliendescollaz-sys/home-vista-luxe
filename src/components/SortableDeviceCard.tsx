@@ -1,7 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card } from "@/components/ui/card";
-import { Lightbulb, Thermometer, Music, Lock, Camera, MoreVertical, Power, Star } from "lucide-react";
+import { Lightbulb, Thermometer, Music, Lock, Camera, MoreVertical, Power, Star, Pencil } from "lucide-react";
 import type { HAEntity, EntityDomain, HAFloor, HAArea } from "@/types/homeassistant";
 import { Switch } from "@/components/ui/switch";
 import { useHAStore } from "@/store/useHAStore";
@@ -31,9 +31,10 @@ interface SortableDeviceCardProps {
   floor?: HAFloor | null;
   area?: HAArea | null;
   onOpenDetails?: (entity: HAEntity) => void;
+  onEditName?: (entity: HAEntity) => void;
 }
 
-export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetails }: SortableDeviceCardProps) => {
+export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetails, onEditName }: SortableDeviceCardProps) => {
   const domain = entity.entity_id.split(".")[0] as EntityDomain;
   const Icon = domainIcons[domain] || MoreVertical;
   const realIsActive = entity.state === "on";
@@ -79,6 +80,11 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetail
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     toggleFavorite(entity.entity_id);
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEditName?.(entity);
   };
 
   const handleCardClick = () => {
@@ -136,14 +142,26 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetail
             <p className="text-sm text-muted-foreground capitalize">{entity.state}</p>
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 bg-transparent active:bg-accent/50 active:scale-95 transition-all flex-shrink-0"
-            onClick={handleFavoriteClick}
-          >
-            <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
-          </Button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {onEditName && (
+              <button
+                type="button"
+                onClick={handleEditClick}
+                className="inline-flex items-center justify-center h-7 w-7 rounded-full border border-border/40 bg-background/40 hover:bg-accent/60 hover:border-accent/60 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Renommer l'appareil"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
+              onClick={handleFavoriteClick}
+            >
+              <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+            </Button>
+          </div>
         </div>
 
         {(domain === "light" || domain === "switch") && (
