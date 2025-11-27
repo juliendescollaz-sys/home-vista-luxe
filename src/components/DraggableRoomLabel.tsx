@@ -104,13 +104,13 @@ export function DraggableRoomLabel({
         type="button"
         className={cn(
           "pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2",
-          "px-3 py-1.5 rounded-full text-[11px] font-medium",
-          "shadow-lg border transition-all select-none",
+          "px-4 py-2 rounded-lg text-sm md:text-base font-medium",
+          "shadow-lg border transition-all select-none backdrop-blur",
           isDragging
-            ? "bg-primary text-primary-foreground border-primary scale-110 cursor-grabbing"
+            ? "bg-primary text-primary-foreground border-primary scale-105 cursor-grabbing shadow-primary/30"
             : isSelected
-            ? "bg-primary text-primary-foreground border-primary scale-110"
-            : "bg-background/90 text-foreground border-border/60 hover:bg-primary hover:text-primary-foreground hover:scale-105 backdrop-blur cursor-pointer",
+            ? "bg-primary text-primary-foreground border-primary scale-105 shadow-primary/30"
+            : "bg-background/90 text-foreground border-border/60 hover:bg-primary hover:text-primary-foreground hover:scale-[1.02] cursor-pointer",
         )}
         style={{
           left: `${currentX * 100}%`,

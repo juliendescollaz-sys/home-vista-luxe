@@ -160,10 +160,12 @@ const MaisonTabletPanelView = () => {
                             const baseX = sumX / points.length;
                             const baseY = sumY / points.length;
 
-                            const area = areasFromJson.find(
+                            // Priorité aux noms HA, fallback sur JSON
+                            const haArea = areas.find((a) => a.area_id === polygon.areaId);
+                            const areaFromJson = areasFromJson.find(
                               (a) => a.areaId === polygon.areaId,
                             );
-                            const roomName = area?.name ?? `Pièce ${index + 1}`;
+                            const roomName = haArea?.name ?? areaFromJson?.name ?? `Pièce ${index + 1}`;
 
                             const key = `${selectedPlan.floorId}:${polygon.areaId}`;
                             const overridePos = labelPositions[key];
