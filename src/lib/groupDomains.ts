@@ -94,16 +94,19 @@ function isControllablePrimaryEntity(
 ): boolean {
   const domain = entity.entity_id.split(".")[0];
 
-  // 1) Domaine contrôlable
+  // 1) Domaine contrôlable (actuateurs)
   const controllableDomains = ["light", "switch", "cover", "fan", "valve", "climate", "media_player", "lock"];
   if (!controllableDomains.includes(domain)) return false;
 
-  // 2) Pas une entité de diagnostic / config / cachée / désactivée
-  if (reg?.entity_category === "diagnostic" || reg?.entity_category === "config") return false;
+  // 2) Ne pas filtrer les actuateurs sur entity_category
+  // On ne filtre entity_category que pour les domaines techniques (sensor, binary_sensor, etc.)
+  // Les actuateurs comme light, switch, cover restent visibles même s'ils ont entity_category = "config"
+  
+  // 3) Entité cachée ou désactivée = exclure
   if (reg?.hidden_by) return false;
   if (reg?.disabled_by) return false;
 
-  // 3) Exclure les mesures (power, energy, temperature, etc.)
+  // 4) Exclure les mesures (power, energy, temperature, etc.) basé sur le nom
   const lowerName = (entity.attributes?.friendly_name || entity.entity_id).toLowerCase();
   const measureKeywords = [
     "power", "énergie", "energy", "consommation", "puissance",
