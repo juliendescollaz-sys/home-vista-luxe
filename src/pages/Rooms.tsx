@@ -58,22 +58,12 @@ const MaisonTabletPanelView = () => {
     return areas.find((a) => a.area_id === selectedAreaId) || null;
   }, [selectedAreaId, areas]);
 
-  // États de chargement : spinner centré pendant le chargement des plans
+  // Safety net: spinner si chargement en cours (rarement utilisé car Rooms gère le spinner)
   if (!connection || floors.length === 0 || isLoadingNeoliaPlans || neoliaFloorPlans.length === 0) {
-    // Si encore en chargement ou pas de données, afficher un spinner centré
-    const isLoading = !connection || floors.length === 0 || isLoadingNeoliaPlans;
-    
     return (
       <div className="flex items-center justify-center w-full h-full min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
-          {isLoading ? (
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          ) : (
-            // Plans chargés mais vides → message d'info (pas d'erreur)
-            <p className="text-sm text-muted-foreground">
-              Aucun plan Neolia disponible pour le moment.
-            </p>
-          )}
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </div>
     );
@@ -915,15 +905,29 @@ const Rooms = () => {
     neoliaFloorPlans.some((plan) => plan.hasPng && plan.hasJson);
 
   // Charger les plans Neolia au démarrage (sauf en mode mobile)
+  // Garde pour éviter les appels multiples
   useEffect(() => {
     if (displayMode === "mobile") {
       return;
     }
-    
-    if (connection && floors.length > 0) {
+
+    if (
+      connection &&
+      floors.length > 0 &&
+      !isLoadingNeoliaPlans &&
+      neoliaFloorPlans.length === 0
+    ) {
+      console.info("[Neolia] Chargement initial des plans Neolia (Tablet/Panel)");
       loadNeoliaPlans(connection, floors);
     }
-  }, [connection, floors, loadNeoliaPlans, displayMode]);
+  }, [
+    connection,
+    floors,
+    loadNeoliaPlans,
+    displayMode,
+    isLoadingNeoliaPlans,
+    neoliaFloorPlans.length,
+  ]);
 
   return (
     <div className={rootClassName}>
@@ -935,14 +939,13 @@ const Rooms = () => {
       )}>
         {displayMode === "mobile" ? (
           <MaisonMobileView />
-        ) : isLoadingNeoliaPlans ? (
-          <Card className="animate-fade-in">
-            <CardContent className="py-8">
-              <p className="text-muted-foreground text-center">
-                Chargement des plans Neolia...
-              </p>
-            </CardContent>
-          </Card>
+        ) : (isLoadingNeoliaPlans || (connection && floors.length > 0 && neoliaFloorPlans.length === 0)) ? (
+          // Spinner pleine zone pendant le chargement des plans
+          <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          </div>
         ) : !hasUsablePlans ? (
           <HomeOverviewByTypeAndArea
             entities={entities || []}
