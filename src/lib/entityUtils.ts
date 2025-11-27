@@ -62,6 +62,27 @@ export interface EntityRegistryEntry {
 }
 
 /**
+ * Vérifie si une entité est visible pour l'utilisateur (non cachée, non désactivée, non technique)
+ * À utiliser comme filtre de base avant tout autre filtre métier.
+ */
+export function isEntityVisibleForUser(
+  entity: HAEntity,
+  reg?: EntityRegistryEntry | null
+): boolean {
+  const domain = getEntityDomain(entity.entity_id);
+
+  // On ne considère que les domaines "pilotables"
+  if (!CONTROL_DOMAINS.includes(domain)) return false;
+
+  // Filtrage registry
+  if (reg?.hidden_by) return false; // Cachée par intégration ou utilisateur
+  if (reg?.entity_category === "config" || reg?.entity_category === "diagnostic") return false;
+  if (reg?.disabled_by) return false;
+
+  return true;
+}
+
+/**
  * Extrait le domaine d'une entity_id
  */
 export function getEntityDomain(entityId: string): EntityDomain {
