@@ -8,7 +8,7 @@ import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { toast } from "sonner";
 import { useEffect, useMemo } from "react";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
-import { isEntityVisibleForUser } from "@/lib/entityUtils";
+import { isControllableEntity, isEntityActive } from "@/lib/entityUtils";
 const Home = () => {
   const client = useHAStore((state) => state.client);
   const entities = useHAStore((state) => state.entities);
@@ -32,17 +32,16 @@ const Home = () => {
       .filter(Boolean) || [],
   );
 
-  // Appareils actifs uniquement - chaque entité de contrôle active est affichée indépendamment
+  // Appareils actifs uniquement - utilise le filtre centralisé isControllableEntity
   const activeDevices = useMemo(() => {
     if (!entities || entities.length === 0) return [];
 
     return entities.filter((e) => {
       const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
       const deviceId = reg?.device_id;
-      const domain = e.entity_id.split(".")[0];
 
-      // Filtre de visibilité : exclut hidden_by, disabled_by, config/diagnostic, domaines non-contrôlables
-      if (!isEntityVisibleForUser(e, reg)) return false;
+      // Filtre centralisé : entités contrôlables (inclut whitelist ZWA2, exclut mesures/états)
+      if (!isControllableEntity(e, reg)) return false;
 
       // Exclure les entités "techniques" liées aux media_players
       if (deviceId && mediaPlayerDeviceIds.has(deviceId)) {
@@ -51,21 +50,8 @@ const Home = () => {
         }
       }
 
-      // Logiques d'état "actif"
-      if (domain === "light" || domain === "switch" || domain === "fan" || domain === "lock") {
-        return e.state === "on";
-      }
-      if (domain === "cover") {
-        return e.state !== "closed";
-      }
-      if (domain === "climate") {
-        return e.state !== "off";
-      }
-      if (domain === "media_player") {
-        return e.state === "playing";
-      }
-
-      return false;
+      // Vérifier si l'entité est active
+      return isEntityActive(e);
     });
   }, [entities, entityRegistry, mediaPlayerDeviceIds]);
 

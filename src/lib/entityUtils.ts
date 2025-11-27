@@ -82,6 +82,124 @@ export function isEntityVisibleForUser(
   return true;
 }
 
+// ============================================================================
+// FILTRAGE CENTRALISÉ DES ENTITÉS CONTRÔLABLES (Appareils actifs, Groupes, etc.)
+// ============================================================================
+
+/**
+ * Domaines contrôlables pour les appareils actifs et les groupes
+ */
+export const CONTROLLABLE_DOMAINS = [
+  "light",
+  "switch",
+  "cover",
+  "fan",
+  "valve",
+  "media_player",
+  "climate",
+  "lock",
+];
+
+/**
+ * Whitelist pour les entités spéciales mal classées par HA
+ */
+const CONTROLLABLE_WHITELIST = [
+  "light.home_assistant_connect_zwa_2_led"
+];
+
+/**
+ * Mots-clés bloquants pour exclure les entités de mesure/état/feedback
+ */
+const CONTROLLABLE_BLOCKED_KEYWORDS = [
+  "loudness",
+  "volume",
+  "brightness",
+  "état",
+  "state",
+  "statut",
+  "status",
+  "power",
+  "puissance",
+  "energy",
+  "énergie",
+  "consommation",
+  "current",
+  "amp",
+  "volt",
+  "battery",
+  "batterie",
+  "signal",
+  "rssi"
+];
+
+/**
+ * Vérifie si une entité est contrôlable (pour Appareils actifs, Groupes, etc.)
+ * Cette fonction est la source unique de vérité pour déterminer si une entité
+ * peut être affichée comme appareil contrôlable.
+ */
+export function isControllableEntity(
+  entity: HAEntity,
+  reg?: EntityRegistryEntry | null
+): boolean {
+  const entityId = entity.entity_id;
+  const domain = getEntityDomain(entityId);
+
+  // Whitelist explicite - toujours autoriser
+  if (CONTROLLABLE_WHITELIST.includes(entityId)) return true;
+
+  // Domaine contrôlable uniquement
+  if (!CONTROLLABLE_DOMAINS.includes(domain)) return false;
+
+  // Entité cachée ou désactivée = exclure
+  if (reg?.hidden_by) return false;
+  if (reg?.disabled_by) return false;
+
+  // Pas d'unités de mesure (sensor déguisé)
+  if (entity.attributes?.unit_of_measurement) {
+    return false;
+  }
+
+  // Filtre sur le friendly_name
+  const name = (entity.attributes?.friendly_name || entityId).toLowerCase();
+  if (CONTROLLABLE_BLOCKED_KEYWORDS.some((k) => name.includes(k))) {
+    return false;
+  }
+
+  // Pour les domaines contrôlables (light, switch, etc.), on n'exclut PAS sur entity_category
+  // car certaines LED utiles sont marquées config/diagnostic
+
+  return true;
+}
+
+/**
+ * Vérifie si une entité est dans un état "actif"
+ */
+export function isEntityActive(entity: HAEntity): boolean {
+  const domain = getEntityDomain(entity.entity_id) as string;
+  const state = entity.state;
+
+  switch (domain) {
+    case "light":
+    case "switch":
+    case "fan":
+    case "valve":
+    case "lock":
+      return state === "on";
+
+    case "cover":
+      return state !== "closed";
+
+    case "climate":
+      return state !== "off";
+
+    case "media_player":
+      return state === "playing";
+
+    default:
+      return false;
+  }
+}
+
 /**
  * Extrait le domaine d'une entity_id
  */
