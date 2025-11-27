@@ -1,10 +1,148 @@
-import { HAEntity, EntityDomain } from "@/types/homeassistant";
+import { HAEntity, EntityDomain, HADevice } from "@/types/homeassistant";
+
+/**
+ * Domaines de contrôle qui doivent apparaître en tuiles
+ */
+export const CONTROL_DOMAINS: EntityDomain[] = [
+  "media_player",
+  "light",
+  "switch",
+  "cover",
+  "climate",
+  "fan",
+  "lock",
+  "scene",
+  "script",
+];
+
+/**
+ * Priorité des domaines pour déterminer l'entité principale d'un device
+ */
+const DOMAIN_PRIORITY: EntityDomain[] = [
+  "media_player",
+  "light",
+  "switch",
+  "cover",
+  "climate",
+  "fan",
+  "lock",
+  "scene",
+  "script",
+];
+
+/**
+ * Interface pour les entrées du registry d'entités
+ */
+export interface EntityRegistryEntry {
+  entity_id: string;
+  device_id?: string;
+  area_id?: string;
+  disabled_by?: string | null;
+  entity_category?: "diagnostic" | "config" | null;
+  hidden_by?: string | null;
+}
 
 /**
  * Extrait le domaine d'une entity_id
  */
 export function getEntityDomain(entityId: string): EntityDomain {
   return entityId.split(".")[0] as EntityDomain;
+}
+
+/**
+ * Détermine si une entité est l'entité de contrôle principale pour affichage en tuile.
+ * 
+ * Critères d'exclusion :
+ * - Entités désactivées (disabled_by)
+ * - Entités avec entity_category = "diagnostic" ou "config"
+ * - Domaines non-contrôlables (hors CONTROL_DOMAINS)
+ * 
+ * Pour les devices avec plusieurs entités, seule l'entité avec la meilleure
+ * priorité de domaine est considérée comme "principale".
+ */
+export function isPrimaryControlEntity(
+  entity: HAEntity,
+  entityRegistry: EntityRegistryEntry[],
+  devices: HADevice[],
+  allEntities: HAEntity[]
+): boolean {
+  const entityId = entity.entity_id;
+  const domain = getEntityDomain(entityId);
+  
+  // 1) Exclure les domaines non-contrôlables
+  if (!CONTROL_DOMAINS.includes(domain)) {
+    return false;
+  }
+  
+  // 2) Chercher l'entrée registry
+  const reg = entityRegistry.find((r) => r.entity_id === entityId);
+  
+  // 3) Exclure les entités désactivées
+  if (reg?.disabled_by) {
+    return false;
+  }
+  
+  // 4) Exclure les entités diagnostic ou config
+  if (reg?.entity_category === "diagnostic" || reg?.entity_category === "config") {
+    return false;
+  }
+  
+  // 5) Exclure les entités cachées
+  if (reg?.hidden_by) {
+    return false;
+  }
+  
+  // 6) Pour les entités sans device_id, elles sont considérées comme principales
+  const deviceId = reg?.device_id;
+  if (!deviceId) {
+    return true;
+  }
+  
+  // 7) Pour les entités avec device_id, trouver toutes les entités du même device
+  //    et ne garder que celle avec la meilleure priorité de domaine
+  const deviceEntities = allEntities.filter((e) => {
+    const eReg = entityRegistry.find((r) => r.entity_id === e.entity_id);
+    if (eReg?.device_id !== deviceId) return false;
+    if (eReg?.disabled_by) return false;
+    if (eReg?.entity_category === "diagnostic" || eReg?.entity_category === "config") return false;
+    if (eReg?.hidden_by) return false;
+    const eDomain = getEntityDomain(e.entity_id);
+    return CONTROL_DOMAINS.includes(eDomain);
+  });
+  
+  if (deviceEntities.length === 0) {
+    return false;
+  }
+  
+  // Trouver l'entité avec la meilleure priorité
+  let bestEntity = deviceEntities[0];
+  let bestPriority = DOMAIN_PRIORITY.indexOf(getEntityDomain(bestEntity.entity_id));
+  if (bestPriority === -1) bestPriority = DOMAIN_PRIORITY.length;
+  
+  for (const e of deviceEntities) {
+    const ePriority = DOMAIN_PRIORITY.indexOf(getEntityDomain(e.entity_id));
+    const effectivePriority = ePriority === -1 ? DOMAIN_PRIORITY.length : ePriority;
+    if (effectivePriority < bestPriority) {
+      bestPriority = effectivePriority;
+      bestEntity = e;
+    }
+  }
+  
+  // Cette entité est principale si c'est celle avec la meilleure priorité
+  return entity.entity_id === bestEntity.entity_id;
+}
+
+/**
+ * Filtre une liste d'entités pour ne garder que les entités de contrôle principales
+ */
+export function filterPrimaryControlEntities(
+  entities: HAEntity[],
+  entityRegistry: EntityRegistryEntry[],
+  devices: HADevice[]
+): HAEntity[] {
+  return entities.filter((entity) => 
+    isPrimaryControlEntity(entity, entityRegistry, devices, entities)
+  );
 }
 
 /**

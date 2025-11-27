@@ -6,7 +6,7 @@ import { GroupTile } from "@/components/groups/GroupTile";
 import { getGridClasses } from "@/lib/gridLayout";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { FavoritesViewSelector, FavoritesViewMode } from "@/components/FavoritesViewSelector";
-import { getEntityDomain } from "@/lib/entityUtils";
+import { getEntityDomain, filterPrimaryControlEntities } from "@/lib/entityUtils";
 import { toast } from "sonner";
 import {
   DndContext,
@@ -77,10 +77,14 @@ export function HomeOverviewByTypeAndArea({
     })
   );
 
-  // Filtrer les entités et groupes si nécessaire
-  const filteredEntities = filterFavorites
+  // Filtrer les entités : d'abord par favoris si nécessaire, puis par entités de contrôle principales
+  const baseFilteredEntities = filterFavorites
     ? entities.filter((e) => favorites.includes(e.entity_id))
     : entities;
+  
+  // Appliquer le filtre des entités de contrôle principales
+  const filteredEntities = filterPrimaryControlEntities(baseFilteredEntities, entityRegistry, devices);
+  
   const filteredGroups = filterFavorites
     ? groups.filter((g) => groupFavorites.includes(g.id))
     : groups;
@@ -180,8 +184,8 @@ export function HomeOverviewByTypeAndArea({
             fan: "Ventilateurs",
             lock: "Serrures",
             media_player: "Lecteurs média",
-            sensor: "Capteurs",
-            binary_sensor: "Détecteurs",
+            scene: "Scènes",
+            script: "Scripts",
           };
           const label = typeLabels[domain] || "Autres";
           if (!groups[label]) groups[label] = [];
