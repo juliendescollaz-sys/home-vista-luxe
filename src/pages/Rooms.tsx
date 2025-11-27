@@ -80,51 +80,49 @@ const MaisonTabletPanelView = () => {
   };
 
   return (
-    <Card className="animate-fade-in flex flex-col h-full">
-      <CardContent className="flex flex-col flex-1 pt-6 overflow-hidden">
-        {/* Header : boutons d'étage + titre de la pièce */}
-        <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
-          {/* Boutons d'étage */}
-          <div className="flex flex-wrap gap-2">
-            {neoliaFloorPlans.map((plan) => {
-              const isSelected = plan.floorId === selectedFloorId;
-              const isIncomplete = !plan.hasPng || !plan.hasJson;
+    <div className="animate-fade-in flex flex-col h-full relative rounded-3xl p-4 overflow-hidden glass-card elevated-subtle border-border/50">
+      {/* Header : boutons d'étage */}
+      <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
+        <div className="flex flex-wrap gap-2">
+          {neoliaFloorPlans.map((plan) => {
+            const isSelected = plan.floorId === selectedFloorId;
+            const isIncomplete = !plan.hasPng || !plan.hasJson;
 
-              return (
-                <button
-                  key={plan.floorId}
-                  type="button"
-                  onClick={() => setSelectedFloorId(plan.floorId)}
-                  disabled={isIncomplete}
-                  className={cn(
-                    "px-4 py-2 rounded-lg font-medium transition-all border relative",
-                    isSelected
-                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                      : isIncomplete
-                      ? "bg-muted text-muted-foreground border-border opacity-60 cursor-not-allowed"
-                      : "bg-background text-foreground border-border hover:bg-muted"
-                  )}
-                >
-                  {plan.floorName}
-                  {isIncomplete && (
-                    <Badge
-                      variant="destructive"
-                      className="ml-2 text-xs"
-                    >
-                      Incomplet
-                    </Badge>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+            return (
+              <button
+                key={plan.floorId}
+                type="button"
+                onClick={() => setSelectedFloorId(plan.floorId)}
+                disabled={isIncomplete}
+                className={cn(
+                  "px-4 py-2 rounded-lg font-medium transition-all border relative",
+                  isSelected
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : isIncomplete
+                    ? "bg-muted text-muted-foreground border-border opacity-60 cursor-not-allowed"
+                    : "bg-background text-foreground border-border hover:bg-muted"
+                )}
+              >
+                {plan.floorName}
+                {isIncomplete && (
+                  <Badge
+                    variant="destructive"
+                    className="ml-2 text-xs"
+                  >
+                    Incomplet
+                  </Badge>
+                )}
+              </button>
+            );
+          })}
         </div>
+      </div>
 
-        {/* Zone principale : plan plein écran + sidebar slide-over */}
-        <div className="relative flex-1 overflow-hidden">
-          {/* Conteneur plan */}
-          <div className="w-full h-full flex items-start justify-center">
-            <div className="relative w-full h-full rounded-3xl overflow-hidden glass-card elevated-subtle border-border/50">
+      {/* Zone principale : plan + sidebar slide-over */}
+      <div className="relative flex-1 overflow-hidden">
+        {/* Conteneur plan */}
+        <div className="w-full h-full flex items-start justify-center">
+          <div className="relative w-full h-full overflow-hidden rounded-2xl">
               {selectedPlan?.hasPng && selectedPlan?.imageUrl ? (
                 <>
                   {/* Image du plan */}
@@ -243,8 +241,7 @@ const MaisonTabletPanelView = () => {
             )}
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
   );
 };
 
