@@ -16,15 +16,34 @@ export const CONTROL_DOMAINS: EntityDomain[] = [
 ];
 
 /**
- * Priorité des domaines pour déterminer l'entité principale d'un device
+ * Domaines multi-canaux : on garde TOUTES les entités valides par device
+ * (ex: double relais = 2 switches visibles)
+ */
+const MULTI_CHANNEL_DOMAINS: EntityDomain[] = [
+  "switch",
+  "light",
+  "cover",
+  "fan",
+];
+
+/**
+ * Domaines à entité unique : une seule entité principale par device
+ * (ex: Sonos = 1 seule tuile media_player)
+ */
+const SINGLE_PRIMARY_DOMAINS: EntityDomain[] = [
+  "media_player",
+  "climate",
+  "lock",
+  "scene",
+  "script",
+];
+
+/**
+ * Priorité des domaines pour déterminer l'entité principale (SINGLE_PRIMARY_DOMAINS uniquement)
  */
 const DOMAIN_PRIORITY: EntityDomain[] = [
   "media_player",
-  "light",
-  "switch",
-  "cover",
   "climate",
-  "fan",
   "lock",
   "scene",
   "script",
@@ -92,44 +111,57 @@ export function isPrimaryControlEntity(
     return false;
   }
   
-  // 6) Pour les entités sans device_id, elles sont considérées comme principales
-  const deviceId = reg?.device_id;
-  if (!deviceId) {
+  // 6) Pour les domaines multi-canaux (switch, light, cover, fan),
+  //    on garde TOUTES les entités valides du device (double relais, multi-circuits)
+  if (MULTI_CHANNEL_DOMAINS.includes(domain)) {
     return true;
   }
   
-  // 7) Pour les entités avec device_id, trouver toutes les entités du même device
-  //    et ne garder que celle avec la meilleure priorité de domaine
-  const deviceEntities = allEntities.filter((e) => {
-    const eReg = entityRegistry.find((r) => r.entity_id === e.entity_id);
-    if (eReg?.device_id !== deviceId) return false;
-    if (eReg?.disabled_by) return false;
-    if (eReg?.entity_category === "diagnostic" || eReg?.entity_category === "config") return false;
-    if (eReg?.hidden_by) return false;
-    const eDomain = getEntityDomain(e.entity_id);
-    return CONTROL_DOMAINS.includes(eDomain);
-  });
-  
-  if (deviceEntities.length === 0) {
-    return false;
-  }
-  
-  // Trouver l'entité avec la meilleure priorité
-  let bestEntity = deviceEntities[0];
-  let bestPriority = DOMAIN_PRIORITY.indexOf(getEntityDomain(bestEntity.entity_id));
-  if (bestPriority === -1) bestPriority = DOMAIN_PRIORITY.length;
-  
-  for (const e of deviceEntities) {
-    const ePriority = DOMAIN_PRIORITY.indexOf(getEntityDomain(e.entity_id));
-    const effectivePriority = ePriority === -1 ? DOMAIN_PRIORITY.length : ePriority;
-    if (effectivePriority < bestPriority) {
-      bestPriority = effectivePriority;
-      bestEntity = e;
+  // 7) Pour les domaines à entité unique (media_player, climate, lock, scene, script),
+  //    appliquer la règle "une seule entité principale par device"
+  if (SINGLE_PRIMARY_DOMAINS.includes(domain)) {
+    const deviceId = reg?.device_id;
+    
+    // Sans device_id, l'entité est considérée comme principale
+    if (!deviceId) {
+      return true;
     }
+    
+    // Trouver toutes les entités SINGLE_PRIMARY du même device
+    const deviceEntities = allEntities.filter((e) => {
+      const eReg = entityRegistry.find((r) => r.entity_id === e.entity_id);
+      if (eReg?.device_id !== deviceId) return false;
+      if (eReg?.disabled_by) return false;
+      if (eReg?.entity_category === "diagnostic" || eReg?.entity_category === "config") return false;
+      if (eReg?.hidden_by) return false;
+      const eDomain = getEntityDomain(e.entity_id);
+      return SINGLE_PRIMARY_DOMAINS.includes(eDomain);
+    });
+    
+    if (deviceEntities.length === 0) {
+      return false;
+    }
+    
+    // Trouver l'entité avec la meilleure priorité parmi SINGLE_PRIMARY_DOMAINS
+    let bestEntity = deviceEntities[0];
+    let bestPriority = DOMAIN_PRIORITY.indexOf(getEntityDomain(bestEntity.entity_id));
+    if (bestPriority === -1) bestPriority = DOMAIN_PRIORITY.length;
+    
+    for (const e of deviceEntities) {
+      const ePriority = DOMAIN_PRIORITY.indexOf(getEntityDomain(e.entity_id));
+      const effectivePriority = ePriority === -1 ? DOMAIN_PRIORITY.length : ePriority;
+      if (effectivePriority < bestPriority) {
+        bestPriority = effectivePriority;
+        bestEntity = e;
+      }
+    }
+    
+    // Cette entité est principale si c'est celle avec la meilleure priorité
+    return entity.entity_id === bestEntity.entity_id;
   }
   
-  // Cette entité est principale si c'est celle avec la meilleure priorité
-  return entity.entity_id === bestEntity.entity_id;
+  // Fallback pour tout autre domaine dans CONTROL_DOMAINS
+  return true;
 }
 
 /**
