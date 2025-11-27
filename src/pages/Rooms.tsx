@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { RoomDevicesGrid } from "@/components/RoomDevicesGrid";
-import { getEntityDomain } from "@/lib/entityUtils";
+import { getEntityDomain, filterPrimaryControlEntities } from "@/lib/entityUtils";
 import { cn } from "@/lib/utils";
 import { DraggableRoomLabel } from "@/components/DraggableRoomLabel";
 import { HomeOverviewByTypeAndArea } from "@/components/HomeOverviewByTypeAndArea";
@@ -457,10 +457,15 @@ const MaisonMobileView = () => {
     return ordered;
   }, [areas, areaOrder]);
 
-  // Calculer le nombre d'appareils par pièce
+  // Calculer le nombre d'appareils par pièce (utilise les entités filtrées)
+  const primaryEntities = useMemo(() => {
+    if (!entities) return [];
+    return filterPrimaryControlEntities(entities, entityRegistry, devices);
+  }, [entities, entityRegistry, devices]);
+
   const deviceCountByArea = useMemo(() => {
     const counts: Record<string, number> = {};
-    entities?.forEach((entity) => {
+    primaryEntities.forEach((entity) => {
       const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
       let areaId = reg?.area_id;
 
@@ -474,14 +479,14 @@ const MaisonMobileView = () => {
       }
     });
     return counts;
-  }, [entities, entityRegistry, devices]);
+  }, [primaryEntities, entityRegistry, devices]);
 
-  // --- Groupement par type ---
+  // --- Groupement par type (sur les entités principales uniquement) ---
 
   const entitiesByType = useMemo(() => {
-    if (!entities) return {};
-    const groups: Record<string, typeof entities> = {};
-    entities.forEach((entity) => {
+    if (!primaryEntities || primaryEntities.length === 0) return {};
+    const groups: Record<string, typeof primaryEntities> = {};
+    primaryEntities.forEach((entity) => {
       const domain = getEntityDomain(entity.entity_id);
       const typeLabels: Record<string, string> = {
         light: "Éclairages",
@@ -491,15 +496,15 @@ const MaisonMobileView = () => {
         fan: "Ventilateurs",
         lock: "Serrures",
         media_player: "Lecteurs média",
-        sensor: "Capteurs",
-        binary_sensor: "Détecteurs",
+        scene: "Scènes",
+        script: "Scripts",
       };
       const label = typeLabels[domain] || "Autres";
       if (!groups[label]) groups[label] = [];
       groups[label].push(entity);
     });
     return groups;
-  }, [entities]);
+  }, [primaryEntities]);
 
   const orderedTypeNames = useMemo(() => {
     const typeNames = Object.keys(entitiesByType);
@@ -516,11 +521,11 @@ const MaisonMobileView = () => {
     return ordered;
   }, [entitiesByType, typeOrder]);
 
-  // --- Appareils d'une pièce ---
+  // --- Appareils d'une pièce (filtrés) ---
 
   const devicesForArea = useMemo(() => {
-    if (!entities || !selectedAreaId) return [];
-    const list = entities.filter((entity) => {
+    if (!primaryEntities || !selectedAreaId) return [];
+    const list = primaryEntities.filter((entity) => {
       const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
       let areaId = reg?.area_id;
 
@@ -545,7 +550,7 @@ const MaisonMobileView = () => {
     });
     map.forEach((e) => ordered.push(e));
     return ordered;
-  }, [entities, selectedAreaId, entityRegistry, devices, deviceOrderByArea]);
+  }, [primaryEntities, selectedAreaId, entityRegistry, devices, deviceOrderByArea]);
 
 
   // --- Appareils d'un type ---

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { filterPrimaryControlEntities } from "@/lib/entityUtils";
 
 interface RoomDevicesGridProps {
   areaId: string;
@@ -67,7 +68,8 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
   const roomEntities = useMemo(() => {
     if (!entities) return [];
     
-    const filtered = entities.filter((entity) => {
+    // D'abord filtrer par zone
+    const areaFiltered = entities.filter((entity) => {
       const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
       let entityAreaId = reg?.area_id;
 
@@ -84,6 +86,9 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
 
       return entityAreaId === areaId;
     });
+
+    // Ensuite appliquer le filtre des entités de contrôle principales
+    const filtered = filterPrimaryControlEntities(areaFiltered, entityRegistry, devices);
 
     // Apply ordering if drag and drop is enabled
     if (enableDragAndDrop && deviceOrder.length > 0) {
