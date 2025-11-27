@@ -51,7 +51,6 @@ interface GroupTileProps {
 export function GroupTile({ group, hideEditButton = false, sortableProps }: GroupTileProps) {
   const entities = useHAStore((state) => state.entities);
   const pendingActions = useHAStore((state) => state.pendingActions);
-  const triggerEntityToggle = useHAStore((state) => state.triggerEntityToggle);
   const { toggleGroup, openCover, closeCover, toggleGroupFavorite, groupFavorites } = useGroupStore();
   const [localVolume, setLocalVolume] = useState<number | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -104,27 +103,13 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
       const previous = optimisticActive;
       setOptimisticActive(!optimisticActive);
       
-      if (group.haEntityId) {
-        // Groupe avec entité HA : utiliser triggerEntityToggle
-        await triggerEntityToggle(
-          group.haEntityId,
-          !optimisticActive ? "on" : "off",
-          async () => {
-            await toggleGroup(group.id, groupEntity?.state || "off", group.domain);
-          },
-          () => {
-            // Rollback en cas de timeout
-            setOptimisticActive(previous);
-          }
-        );
-      } else {
-        // Groupe sans entité HA : appel direct
-        try {
-          await toggleGroup(group.id, groupEntity?.state || "off", group.domain);
-        } catch (error) {
-          setOptimisticActive(previous);
-          toast.error("Impossible de changer l'état du groupe");
-        }
+      // toggleGroup gère lui-même triggerEntityToggle pour les groupes partagés
+      try {
+        await toggleGroup(group.id, groupEntity?.state || "off", group.domain);
+      } catch (error) {
+        // Rollback en cas d'erreur
+        setOptimisticActive(previous);
+        toast.error("Impossible de changer l'état du groupe");
       }
     } else {
       try {
@@ -145,24 +130,11 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
     const previous = optimisticActive;
     setOptimisticActive(true);
 
-    if (group.haEntityId) {
-      await triggerEntityToggle(
-        group.haEntityId,
-        "open",
-        async () => {
-          await openCover(group.id);
-        },
-        () => {
-          setOptimisticActive(previous);
-        }
-      );
-    } else {
-      try {
-        await openCover(group.id);
-      } catch (error) {
-        setOptimisticActive(previous);
-        toast.error("Impossible d'ouvrir les volets");
-      }
+    try {
+      await openCover(group.id);
+    } catch (error) {
+      setOptimisticActive(previous);
+      toast.error("Impossible d'ouvrir les volets");
     }
   };
 
@@ -176,24 +148,11 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
     const previous = optimisticActive;
     setOptimisticActive(false);
 
-    if (group.haEntityId) {
-      await triggerEntityToggle(
-        group.haEntityId,
-        "closed",
-        async () => {
-          await closeCover(group.id);
-        },
-        () => {
-          setOptimisticActive(previous);
-        }
-      );
-    } else {
-      try {
-        await closeCover(group.id);
-      } catch (error) {
-        setOptimisticActive(previous);
-        toast.error("Impossible de fermer les volets");
-      }
+    try {
+      await closeCover(group.id);
+    } catch (error) {
+      setOptimisticActive(previous);
+      toast.error("Impossible de fermer les volets");
     }
   };
 

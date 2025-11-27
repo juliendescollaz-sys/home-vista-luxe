@@ -3,11 +3,13 @@ import { HAClient } from "@/lib/haClient";
 import { useHAStore } from "@/store/useHAStore";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Loader2, CheckCircle2, XCircle, Home } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Home, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const Dev = () => {
   const connection = useHAStore((state) => state.connection);
+  const client = useHAStore((state) => state.client);
   const navigate = useNavigate();
   const [status, setStatus] = useState<"idle" | "connecting" | "success" | "error">("idle");
   const [logs, setLogs] = useState<string[]>([]);
@@ -17,11 +19,35 @@ const Dev = () => {
     devices: number;
     floors: number;
   } | null>(null);
+  const [testEntityId, setTestEntityId] = useState("group.neolia_switch");
 
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setLogs((prev) => [...prev, `[${timestamp}] ${message}`]);
     console.log(message);
+  };
+
+  // Test direct callService sans triggerEntityToggle
+  const testDirectService = async (service: "turn_on" | "turn_off") => {
+    if (!client) {
+      toast.error("Client non connecté");
+      addLog("❌ Client non connecté");
+      return;
+    }
+
+    const domain = testEntityId.split(".")[0];
+    addLog(`🔧 Test direct: ${domain}.${service} sur ${testEntityId}`);
+    
+    try {
+      const result = await client.callService(domain, service, {}, { entity_id: testEntityId });
+      addLog(`✅ Service OK: ${domain}.${service}`);
+      addLog(`📤 Résultat: ${JSON.stringify(result)}`);
+      toast.success(`${service} envoyé avec succès`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      addLog(`❌ Erreur: ${errorMsg}`);
+      toast.error(`Erreur: ${errorMsg}`);
+    }
   };
 
   const testConnection = async () => {
@@ -141,6 +167,46 @@ const Dev = () => {
                 <span className="text-muted-foreground">WebSocket:</span>{" "}
                 {connection.url.replace(/^https?/, "wss")}/api/websocket
               </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Test direct callService */}
+        {client && (
+          <Card className="p-6 space-y-4 border-primary/50">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" />
+              Test direct callService
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Test sans passer par triggerEntityToggle, pendingActions, ou UI optimiste.
+            </p>
+            
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={testEntityId}
+                onChange={(e) => setTestEntityId(e.target.value)}
+                className="flex-1 px-3 py-2 rounded border bg-background font-mono text-sm"
+                placeholder="entity_id (ex: group.neolia_switch)"
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => testDirectService("turn_on")}
+                variant="default"
+                className="flex-1"
+              >
+                turn_on
+              </Button>
+              <Button 
+                onClick={() => testDirectService("turn_off")}
+                variant="outline"
+                className="flex-1"
+              >
+                turn_off
+              </Button>
             </div>
           </Card>
         )}
