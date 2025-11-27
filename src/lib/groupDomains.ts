@@ -85,24 +85,68 @@ interface EntityRegistry {
   disabled_by?: string;
 }
 
+// ============================================================================
+// FILTRES SPÉCIFIQUES PAR DOMAINE
+// ============================================================================
+
 /**
- * Domaines contrôlables (actuateurs)
+ * Mots-clés bloquants pour les interrupteurs (switch)
  */
-const CONTROLLABLE_DOMAINS = [
-  "light",
-  "switch",
-  "cover",
-  "fan",
-  "valve",
-  "media_player"
+const SWITCH_BLOCKED_NAME_KEYWORDS = [
+  "loudness",
+  "volume",
+  "brightness",
+  "état",
+  "state",
+  "statut",
+  "status",
+  "power",
+  "puissance",
+  "energy",
+  "énergie",
+  "consommation",
+  "current",
+  "amp",
+  "ampère",
+  "voltage",
+  "volt",
+  "battery",
+  "batterie",
+  "signal",
+  "rssi",
+  "wifi"
 ];
 
 /**
- * Mots-clés bloquants pour exclure les entités de mesure/état/feedback
+ * Mots-clés bloquants pour les lumières (light)
  */
-const BLOCKED_KEYWORDS = [
+const LIGHT_BLOCKED_KEYWORDS = [
   "loudness",
-  "brightness",
+  "état",
+  "state",
+  "energy",
+  "énergie",
+  "consommation",
+  "power",
+  "puissance",
+  "température",
+  "temperature",
+  "battery",
+  "batterie"
+];
+
+/**
+ * Whitelist pour les lumières mal classées par HA
+ */
+const LIGHT_WHITELIST = [
+  "light.home_assistant_connect_zwa_2_led"
+];
+
+/**
+ * Mots-clés bloquants génériques pour les autres domaines
+ */
+const GENERIC_BLOCKED_KEYWORDS = [
+  "loudness",
   "état",
   "state",
   "energy",
@@ -124,56 +168,127 @@ const BLOCKED_KEYWORDS = [
 ];
 
 /**
- * Whitelist pour les actuateurs mal classés par HA
+ * Filtre spécifique pour les interrupteurs (switch)
+ * Exclut: états, loudness, feedback, helpers, mesures
  */
-const ENTITY_WHITELIST = [
-  "light.home_assistant_connect_zwa_2_led"
-];
+function isValidSwitchForGroup(entity: HAEntity, reg?: EntityRegistry): boolean {
+  if (entity.entity_id.split(".")[0] !== "switch") return false;
 
-/**
- * Vérifie si une entité est contrôlable et principale (pas diagnostic/config/mesure)
- */
-function isControllablePrimaryEntity(
-  entity: HAEntity,
-  reg?: EntityRegistry
-): boolean {
-  const entityId = entity.entity_id;
-  const domain = entityId.split(".")[0];
-
-  // 0) Whitelist explicite - toujours autoriser
-  if (ENTITY_WHITELIST.includes(entityId)) return true;
-
-  // 1) Domaine contrôlable uniquement
-  if (!CONTROLLABLE_DOMAINS.includes(domain)) return false;
-
-  // 2) Exclure les entités de mesure/état/feedback basé sur le nom
-  const name = (entity.attributes?.friendly_name || entityId).toLowerCase();
-  if (BLOCKED_KEYWORDS.some((k) => name.includes(k))) return false;
-
-  // 3) Entités techniques : autoriser si actuateur, sinon exclure
-  const entityCategory = reg?.entity_category;
-  if (
-    (entityCategory === "diagnostic" || entityCategory === "config") &&
-    !CONTROLLABLE_DOMAINS.includes(domain)
-  ) {
+  // 1) Pas de diagnostic / config pour les interrupteurs
+  if (reg?.entity_category === "diagnostic" || reg?.entity_category === "config") {
     return false;
   }
 
-  // 4) Entité cachée ou désactivée = exclure
-  if (reg?.hidden_by) return false;
-  if (reg?.disabled_by) return false;
+  // 2) Entité cachée ou désactivée
+  if (reg?.hidden_by || reg?.disabled_by) return false;
 
-  // 5) Gestion multi-canaux : garder les circuits individuels
-  const isChannel = /(_[1-4]$|_ch[0-9]+$|_channel_[0-9]+$)/i.test(entityId);
-  if (isChannel) return true;
+  // 3) Pas d'unités de mesure (switch sensor déguisé)
+  if (entity.attributes?.unit_of_measurement) {
+    return false;
+  }
 
-  // Si l'entité est un "maître" avec des canaux enfants, l'exclure
-  // (détection via device_class ou attributs spécifiques)
-  if (entity.attributes?.device_class === "outlet_master") {
+  // 4) Filtre sur le friendly_name
+  const name = (entity.attributes?.friendly_name || "").toLowerCase();
+  if (SWITCH_BLOCKED_NAME_KEYWORDS.some((k) => name.includes(k))) {
+    return false;
+  }
+
+  // 5) Filtre sur certains suffixes d'id d'entité typiquement "état"
+  if (/(_state|_status|_loudness|_level|_feedback)$/.test(entity.entity_id)) {
+    return false;
+  }
+
+  // 6) On ne garde que les device_class attendus pour un switch
+  const dc = entity.attributes?.device_class;
+  const allowedDeviceClasses = [undefined, "switch", "outlet", "plug"];
+  if (dc && !allowedDeviceClasses.includes(dc)) {
     return false;
   }
 
   return true;
+}
+
+/**
+ * Filtre spécifique pour les lumières (light)
+ * Autorise les LED même si entity_category = config/diagnostic
+ */
+function isValidLightForGroup(entity: HAEntity, reg?: EntityRegistry): boolean {
+  const entityId = entity.entity_id;
+  if (entityId.split(".")[0] !== "light") return false;
+
+  // Whitelist explicite - toujours autoriser
+  if (LIGHT_WHITELIST.includes(entityId)) return true;
+
+  // Entité cachée ou désactivée
+  if (reg?.hidden_by || reg?.disabled_by) return false;
+
+  // Filtre sur le friendly_name (mais pas sur entity_category pour les lights)
+  const name = (entity.attributes?.friendly_name || entityId).toLowerCase();
+  if (LIGHT_BLOCKED_KEYWORDS.some((k) => name.includes(k))) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Filtre générique pour les autres domaines contrôlables (cover, fan, valve, media_player)
+ */
+function isGenericControllableEntity(entity: HAEntity, reg?: EntityRegistry): boolean {
+  const entityId = entity.entity_id;
+
+  // Entité cachée ou désactivée
+  if (reg?.hidden_by || reg?.disabled_by) return false;
+
+  // Pas de diagnostic/config pour les domaines génériques
+  if (reg?.entity_category === "diagnostic" || reg?.entity_category === "config") {
+    return false;
+  }
+
+  // Filtre sur le friendly_name
+  const name = (entity.attributes?.friendly_name || entityId).toLowerCase();
+  if (GENERIC_BLOCKED_KEYWORDS.some((k) => name.includes(k))) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Pipeline central de filtrage par domaine
+ * Applique le filtre spécifique au domaine demandé
+ */
+export function filterEntitiesForDomain(
+  domain: string,
+  entities: HAEntity[],
+  entityRegistry: EntityRegistry[]
+): HAEntity[] {
+  // 1) Garde uniquement le bon domaine
+  let filtered = entities.filter((e) => e.entity_id.split(".")[0] === domain);
+
+  // 2) Applique un filtre spécifique au domaine
+  switch (domain) {
+    case "switch":
+      filtered = filtered.filter((e) => {
+        const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
+        return isValidSwitchForGroup(e, reg);
+      });
+      break;
+    case "light":
+      filtered = filtered.filter((e) => {
+        const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
+        return isValidLightForGroup(e, reg);
+      });
+      break;
+    default:
+      // cover, fan, valve, media_player, climate, lock
+      filtered = filtered.filter((e) => {
+        const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
+        return isGenericControllableEntity(e, reg);
+      });
+  }
+
+  return filtered;
 }
 
 /**
@@ -256,7 +371,7 @@ export function getDeviceDisplayInfo(
 
 /**
  * Filtre les entités par domaines et retourne les infos d'affichage
- * Applique le filtrage des entités contrôlables et la gestion des double-modules
+ * Utilise le pipeline central de filtrage par domaine
  */
 export function getEntitiesForDomains(
   entities: HAEntity[],
@@ -266,22 +381,17 @@ export function getEntitiesForDomains(
   areas: HAArea[],
   floors: HAFloor[]
 ): DeviceDisplayInfo[] {
-  // 1) Filtrer par domaines sélectionnés
-  const domainFiltered = entities.filter((e) => {
-    const domain = e.entity_id.split(".")[0];
-    return domains.includes(domain);
-  });
+  // 1) Appliquer le filtre spécifique pour chaque domaine
+  let filtered: HAEntity[] = [];
+  for (const domain of domains) {
+    const domainEntities = filterEntitiesForDomain(domain, entities, entityRegistry);
+    filtered.push(...domainEntities);
+  }
 
-  // 2) Filtrer les entités contrôlables principales (pas diagnostic/config/mesures)
-  const controllableFiltered = domainFiltered.filter((e) => {
-    const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
-    return isControllablePrimaryEntity(e, reg);
-  });
+  // 2) Gérer les double-modules (garder canaux individuels, ignorer maître)
+  const finalFiltered = filterDoubleModuleEntities(filtered, entityRegistry);
 
-  // 3) Gérer les double-modules (garder canaux individuels, ignorer maître)
-  const finalFiltered = filterDoubleModuleEntities(controllableFiltered, entityRegistry);
-
-  // 4) Enrichir avec infos de localisation et trier
+  // 3) Enrichir avec infos de localisation et trier
   return finalFiltered
     .map((e) => getDeviceDisplayInfo(e, entityRegistry, devices, areas, floors))
     .sort((a, b) => a.friendlyName.localeCompare(b.friendlyName));
