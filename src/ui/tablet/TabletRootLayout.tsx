@@ -3,7 +3,7 @@ import { ConnectionModeProvider } from "@/components/ConnectionModeProvider";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TabletSidebar } from "@/components/TabletSidebar";
-
+import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
 import Home from "@/pages/Home";
 import Rooms from "@/pages/Rooms";
 import RoomDetails from "@/pages/RoomDetails";
@@ -23,6 +23,9 @@ import FloorPlanEditor from "@/pages/FloorPlanEditor";
  * Layout racine pour l'interface TABLET (iPad, Galaxy Tab)
  */
 export function TabletRootLayout() {
+  // Précharger les plans Neolia dès la connexion HA
+  useNeoliaPlansPreloader();
+
   return (
     <ConnectionModeProvider>
       <SidebarProvider defaultOpen={true}>
