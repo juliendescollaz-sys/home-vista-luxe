@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
-import { DeviceEntitiesDrawer } from "@/components/DeviceEntitiesDrawer";
 import { getGridClasses } from "@/lib/gridLayout";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { toast } from "sonner";
@@ -37,7 +36,6 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
     }
   });
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const [selectedEntityForDetails, setSelectedEntityForDetails] = useState<HAEntity | null>(null);
 
   // Long press sensor (500ms)
   const sensors = useSensors(
@@ -186,7 +184,6 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
               entity={entity}
               floor={floor}
               area={area}
-              onOpenDetails={(e) => setSelectedEntityForDetails(e)}
             />
           );
         }
@@ -198,7 +195,6 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
             onToggle={handleDeviceToggle}
             floor={floor}
             area={area}
-            onOpenDetails={(e) => setSelectedEntityForDetails(e)}
           />
         );
       })}
@@ -207,51 +203,27 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
 
   if (enableDragAndDrop) {
     return (
-      <>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={(e) => setActiveDragId(e.active.id as string)}
-          onDragEnd={handleDragEnd}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={(e) => setActiveDragId(e.active.id as string)}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={roomEntities.map((e) => e.entity_id)}
+          strategy={verticalListSortingStrategy}
         >
-          <SortableContext
-            items={roomEntities.map((e) => e.entity_id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className={singleColumn ? `grid grid-cols-1 gap-4 ${className}` : `${getGridClasses("devices", displayMode)} ${className}`}>
-              {renderDeviceCards()}
-            </div>
-          </SortableContext>
-        </DndContext>
-        
-        {selectedEntityForDetails && entities && (
-          <DeviceEntitiesDrawer
-            primaryEntity={selectedEntityForDetails}
-            entities={entities}
-            entityRegistry={entityRegistry}
-            devices={devices}
-            onClose={() => setSelectedEntityForDetails(null)}
-          />
-        )}
-      </>
+          <div className={singleColumn ? `grid grid-cols-1 gap-4 ${className}` : `${getGridClasses("devices", displayMode)} ${className}`}>
+            {renderDeviceCards()}
+          </div>
+        </SortableContext>
+      </DndContext>
     );
   }
 
   return (
-    <>
-      <div className={singleColumn ? `grid grid-cols-1 gap-4 ${className}` : `${getGridClasses("devices", displayMode)} ${className}`}>
-        {renderDeviceCards()}
-      </div>
-      
-      {selectedEntityForDetails && entities && (
-        <DeviceEntitiesDrawer
-          primaryEntity={selectedEntityForDetails}
-          entities={entities}
-          entityRegistry={entityRegistry}
-          devices={devices}
-          onClose={() => setSelectedEntityForDetails(null)}
-        />
-      )}
-    </>
+    <div className={singleColumn ? `grid grid-cols-1 gap-4 ${className}` : `${getGridClasses("devices", displayMode)} ${className}`}>
+      {renderDeviceCards()}
+    </div>
   );
 };

@@ -3,7 +3,6 @@ import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { SortableGroupTile } from "@/components/groups/SortableGroupTile";
 import { GroupTile } from "@/components/groups/GroupTile";
-import { DeviceEntitiesDrawer } from "@/components/DeviceEntitiesDrawer";
 import { getGridClasses } from "@/lib/gridLayout";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { FavoritesViewSelector, FavoritesViewMode } from "@/components/FavoritesViewSelector";
@@ -60,7 +59,6 @@ export function HomeOverviewByTypeAndArea({
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<FavoritesViewMode>("type");
-  const [selectedEntityForDetails, setSelectedEntityForDetails] = useState<HAEntity | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -299,7 +297,6 @@ export function HomeOverviewByTypeAndArea({
                           entity={entity}
                           floor={floor}
                           area={area}
-                          onOpenDetails={(e) => setSelectedEntityForDetails(e)}
                         />
                       );
                     }
@@ -311,7 +308,6 @@ export function HomeOverviewByTypeAndArea({
                         onToggle={handleDeviceToggle}
                         floor={floor}
                         area={area}
-                        onOpenDetails={(e) => setSelectedEntityForDetails(e)}
                       />
                     );
                   })}
@@ -337,16 +333,6 @@ export function HomeOverviewByTypeAndArea({
           </DragOverlay>
         </DndContext>
       </div>
-      
-      {selectedEntityForDetails && (
-        <DeviceEntitiesDrawer
-          primaryEntity={selectedEntityForDetails}
-          entities={entities}
-          entityRegistry={entityRegistry}
-          devices={devices}
-          onClose={() => setSelectedEntityForDetails(null)}
-        />
-      )}
     </div>
   );
 }

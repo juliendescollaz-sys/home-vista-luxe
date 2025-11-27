@@ -30,10 +30,9 @@ interface SortableDeviceCardProps {
   onToggle?: (entityId: string) => void;
   floor?: HAFloor | null;
   area?: HAArea | null;
-  onOpenDetails?: (entity: HAEntity) => void;
 }
 
-export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetails }: SortableDeviceCardProps) => {
+export const SortableDeviceCard = ({ entity, onToggle, floor, area }: SortableDeviceCardProps) => {
   const domain = entity.entity_id.split(".")[0] as EntityDomain;
   const Icon = domainIcons[domain] || MoreVertical;
   const realIsActive = entity.state === "on";
@@ -81,11 +80,6 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetail
     toggleFavorite(entity.entity_id);
   };
 
-  const handleCardClick = () => {
-    if (isDragging) return;
-    onOpenDetails?.(entity);
-  };
-
   const handleToggle = async () => {
     // Bloquer si action en cours ou cooldown actif
     if (isPending || isInCooldown) {
@@ -117,8 +111,7 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetail
       style={style}
       {...attributes}
       {...listeners}
-      onClick={handleCardClick}
-      className="group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50 cursor-pointer active:cursor-grabbing"
+      className="group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50 cursor-grab active:cursor-grabbing"
     >
       <LocationBadge floor={floor} area={area} />
       
@@ -150,7 +143,6 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetail
             <Switch
               checked={isActive}
               onCheckedChange={handleToggle}
-              onClick={(e) => e.stopPropagation()}
               className="data-[state=checked]:bg-primary scale-125"
             />
           </div>

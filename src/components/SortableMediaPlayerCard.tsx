@@ -16,10 +16,9 @@ interface SortableMediaPlayerCardProps {
   entity: HAEntity;
   floor?: HAFloor | null;
   area?: HAArea | null;
-  onOpenDetails?: (entity: HAEntity) => void;
 }
 
-export const SortableMediaPlayerCard = ({ entity, floor, area, onOpenDetails }: SortableMediaPlayerCardProps) => {
+export const SortableMediaPlayerCard = ({ entity, floor, area }: SortableMediaPlayerCardProps) => {
   const navigate = useNavigate();
   const connection = useHAStore((state) => state.connection);
   const client = useHAStore((state) => state.client);
@@ -93,12 +92,7 @@ export const SortableMediaPlayerCard = ({ entity, floor, area, onOpenDetails }: 
     if (target.closest('button') || target.closest('[role="slider"]')) {
       return;
     }
-    
-    if (onOpenDetails) {
-      onOpenDetails(entity);
-    } else {
-      navigate(`/media-player/${entity.entity_id}`);
-    }
+    navigate(`/media-player/${entity.entity_id}`);
   };
 
   const handlePlayPause = async (e: React.MouseEvent) => {
