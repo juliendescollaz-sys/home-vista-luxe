@@ -8,7 +8,7 @@ import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { toast } from "sonner";
 import { useEffect, useMemo } from "react";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
-
+import { isEntityVisibleForUser } from "@/lib/entityUtils";
 const Home = () => {
   const client = useHAStore((state) => state.client);
   const entities = useHAStore((state) => state.entities);
@@ -36,15 +36,13 @@ const Home = () => {
   const activeDevices = useMemo(() => {
     if (!entities || entities.length === 0) return [];
 
-    const CONTROL_DOMAINS = ["light", "switch", "cover", "climate", "fan", "lock", "media_player"];
-
     return entities.filter((e) => {
       const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
       const deviceId = reg?.device_id;
       const domain = e.entity_id.split(".")[0];
 
-      // Seulement les domaines de contrôle
-      if (!CONTROL_DOMAINS.includes(domain)) return false;
+      // Filtre de visibilité : exclut hidden_by, disabled_by, config/diagnostic, domaines non-contrôlables
+      if (!isEntityVisibleForUser(e, reg)) return false;
 
       // Exclure les entités "techniques" liées aux media_players
       if (deviceId && mediaPlayerDeviceIds.has(deviceId)) {
