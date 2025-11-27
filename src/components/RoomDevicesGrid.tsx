@@ -4,7 +4,7 @@ import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { getGridClasses } from "@/lib/gridLayout";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
-import { useOptimisticToggle } from "@/hooks/useOptimisticToggle";
+import { toast } from "sonner";
 import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -22,8 +22,8 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
   const devices = useHAStore((state) => state.devices);
   const areas = useHAStore((state) => state.areas);
   const floors = useHAStore((state) => state.floors);
+  const client = useHAStore((state) => state.client);
   const { displayMode } = useDisplayMode();
-  const { toggleEntity } = useOptimisticToggle();
   
   const [deviceOrder, setDeviceOrder] = useState<string[]>([]);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -104,7 +104,26 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
   }, [enableDragAndDrop, roomEntities, deviceOrder.length, isLoadingOrder]);
 
   const handleDeviceToggle = async (entityId: string) => {
-    await toggleEntity(entityId);
+    console.info("[Neolia Maison] onToggle appelé (RoomDevicesGrid)", { entityId });
+    
+    if (!client) {
+      toast.error("Client non connecté");
+      return;
+    }
+
+    const entity = entities?.find((e) => e.entity_id === entityId);
+    if (!entity) return;
+
+    const domain = entityId.split(".")[0];
+    const isOn = entity.state === "on";
+    const service = isOn ? "turn_off" : "turn_on";
+
+    try {
+      await client.callService(domain, service, {}, { entity_id: entityId });
+    } catch (error) {
+      console.error("[Neolia Maison] Erreur lors du contrôle:", error);
+      toast.error("Erreur lors du contrôle de l'appareil");
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
