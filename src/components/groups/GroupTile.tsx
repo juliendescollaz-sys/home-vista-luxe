@@ -23,8 +23,8 @@ import {
   Droplet,
   Layers,
 } from "lucide-react";
-import type { NeoliaGroup, HaGroupDomain } from "@/types/groups";
-import { getGroupScope, getGroupDomains } from "@/types/groups";
+import type { NeoliaGroup, HaGroupDomain, GroupMode } from "@/types/groups";
+import { getGroupScope, getGroupDomains, getGroupMode } from "@/types/groups";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
 import { playMediaGroup, pauseMediaGroup, setGroupVolume } from "@/services/haGroups";
@@ -33,6 +33,7 @@ import { GroupBadge } from "./GroupBadge";
 import { GroupEditDialog } from "./GroupEditDialog";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { cn } from "@/lib/utils";
+import { getMixedGroupState } from "@/lib/entityUtils";
 
 const DOMAIN_ICONS: Record<HaGroupDomain, any> = {
   light: Lightbulb,
@@ -66,11 +67,21 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
   const { displayMode } = useDisplayMode();
 
   const groupEntity = group.haEntityId ? entities.find((e) => e.entity_id === group.haEntityId) : undefined;
-  const realIsActive = groupEntity?.state === "on" || groupEntity?.state === "open";
   const domains = getGroupDomains(group);
-  const isMixedGroup = domains.length > 1;
+  const mode = getGroupMode(group);
+  const isMixedGroup = mode === "mixedBinary" || domains.length > 1;
   const Icon = isMixedGroup ? Layers : DOMAIN_ICONS[group.domain];
   const scope = getGroupScope(group);
+  
+  // Calcul fiable de l'état actif selon le type de groupe
+  const realIsActive = useMemo(() => {
+    if (isMixedGroup) {
+      // Pour les groupes mixtes, calculer l'état à partir des entités contrôlables
+      return getMixedGroupState(group.entityIds, entities) === "on";
+    }
+    // Pour les groupes classiques avec haEntityId
+    return groupEntity?.state === "on" || groupEntity?.state === "open";
+  }, [isMixedGroup, group.entityIds, entities, groupEntity?.state]);
   
   // Indicateur "en cours" pour les groupes avec haEntityId (groupes partagés)
   const pending = group.haEntityId ? pendingActions[group.haEntityId] : undefined;

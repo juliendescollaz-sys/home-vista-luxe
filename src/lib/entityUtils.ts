@@ -121,6 +121,23 @@ export function isRelevantForGroupPending(entity: HAEntity): boolean {
 }
 
 /**
+ * Calcule l'état global d'un groupe mixte (ON si au moins une entité contrôlable est allumée)
+ */
+export function getMixedGroupState(
+  entityIds: string[],
+  allEntities: HAEntity[]
+): "on" | "off" {
+  const entities = getControllableBinaryEntities(entityIds, allEntities);
+
+  if (!entities.length) return "off";
+
+  // Un seul appareil "on" ou "open" => le groupe est considéré "on"
+  const anyOn = entities.some((e) => e.state === "on" || e.state === "open");
+
+  return anyOn ? "on" : "off";
+}
+
+/**
  * Domaines contrôlables pour les appareils actifs et les groupes
  */
 export const CONTROLLABLE_DOMAINS = [
