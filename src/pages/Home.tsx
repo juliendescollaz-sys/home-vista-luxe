@@ -33,26 +33,28 @@ const Home = () => {
   );
 
   // Appareils actifs uniquement (lumières, switches actifs + media_player en lecture)
-  const activeDevices =
-    entities?.filter((e) => {
+  // Avec déduplication par device_id pour éviter les doublons
+  const activeDevices = useMemo(() => {
+    if (!entities || entities.length === 0) return [];
+
+    // 1) Filtrer les entités actives
+    const rawActive = entities.filter((e) => {
       const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
       const deviceId = reg?.device_id;
-
       const domain = e.entity_id.split(".")[0];
 
       if (!["light", "switch", "media_player", "cover", "climate", "fan"].includes(domain)) {
         return false;
       }
 
-      // Exclure les entités "techniques" liées aux media_players (groupes, volumes, etc.)
+      // Exclure les entités "techniques" liées aux media_players
       if (deviceId && mediaPlayerDeviceIds.has(deviceId)) {
-        // On garde seulement l'entité principale media_player.*
         if (!e.entity_id.startsWith("media_player.")) {
           return false;
         }
       }
 
-      // logiques d'état "actif"
+      // Logiques d'état "actif"
       if (domain === "light" || domain === "switch" || domain === "fan") {
         return e.state === "on";
       }
@@ -67,7 +69,37 @@ const Home = () => {
       }
 
       return false;
-    }) || [];
+    });
+
+    // 2) Dédupliquer par device_id (priorité: light > switch > autres)
+    const byDevice = new Map<string, typeof rawActive[0]>();
+
+    for (const entity of rawActive) {
+      const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+      const deviceId = reg?.device_id;
+      const key = deviceId || entity.entity_id;
+
+      if (!byDevice.has(key)) {
+        byDevice.set(key, entity);
+      } else {
+        const existing = byDevice.get(key)!;
+        const domainExisting = existing.entity_id.split(".")[0];
+        const domainNew = entity.entity_id.split(".")[0];
+
+        const priority = (domain: string) => {
+          if (domain === "light") return 3;
+          if (domain === "switch") return 2;
+          return 1;
+        };
+
+        if (priority(domainNew) > priority(domainExisting)) {
+          byDevice.set(key, entity);
+        }
+      }
+    }
+
+    return Array.from(byDevice.values());
+  }, [entities, entityRegistry, mediaPlayerDeviceIds]);
 
   // Enrichir les appareils actifs avec leurs infos de pièce/étage
   const enrichedActiveDevices = useMemo(() => {
@@ -155,7 +187,7 @@ const Home = () => {
               <p className="text-muted-foreground">Aucun appareil actif</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {enrichedActiveDevices.map(({ entity, area, floor }) => {
                 const isMediaPlayer = entity.entity_id.startsWith("media_player.");
                 return isMediaPlayer ? (
