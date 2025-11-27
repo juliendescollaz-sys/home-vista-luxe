@@ -86,34 +86,92 @@ interface EntityRegistry {
 }
 
 /**
+ * Domaines contrôlables (actuateurs)
+ */
+const CONTROLLABLE_DOMAINS = [
+  "light",
+  "switch",
+  "cover",
+  "fan",
+  "valve",
+  "media_player"
+];
+
+/**
+ * Mots-clés bloquants pour exclure les entités de mesure/état/feedback
+ */
+const BLOCKED_KEYWORDS = [
+  "loudness",
+  "brightness",
+  "état",
+  "state",
+  "energy",
+  "énergie",
+  "consommation",
+  "power",
+  "puissance",
+  "température",
+  "temperature",
+  "battery",
+  "batterie",
+  "humidity",
+  "humidite",
+  "current",
+  "amp",
+  "volt",
+  "signal",
+  "noise"
+];
+
+/**
+ * Whitelist pour les actuateurs mal classés par HA
+ */
+const ENTITY_WHITELIST = [
+  "light.home_assistant_connect_zwa_2_led"
+];
+
+/**
  * Vérifie si une entité est contrôlable et principale (pas diagnostic/config/mesure)
  */
 function isControllablePrimaryEntity(
   entity: HAEntity,
   reg?: EntityRegistry
 ): boolean {
-  const domain = entity.entity_id.split(".")[0];
+  const entityId = entity.entity_id;
+  const domain = entityId.split(".")[0];
 
-  // 1) Domaine contrôlable (actuateurs)
-  const controllableDomains = ["light", "switch", "cover", "fan", "valve", "climate", "media_player", "lock"];
-  if (!controllableDomains.includes(domain)) return false;
+  // 0) Whitelist explicite - toujours autoriser
+  if (ENTITY_WHITELIST.includes(entityId)) return true;
 
-  // 2) Ne pas filtrer les actuateurs sur entity_category
-  // On ne filtre entity_category que pour les domaines techniques (sensor, binary_sensor, etc.)
-  // Les actuateurs comme light, switch, cover restent visibles même s'ils ont entity_category = "config"
-  
-  // 3) Entité cachée ou désactivée = exclure
+  // 1) Domaine contrôlable uniquement
+  if (!CONTROLLABLE_DOMAINS.includes(domain)) return false;
+
+  // 2) Exclure les entités de mesure/état/feedback basé sur le nom
+  const name = (entity.attributes?.friendly_name || entityId).toLowerCase();
+  if (BLOCKED_KEYWORDS.some((k) => name.includes(k))) return false;
+
+  // 3) Entités techniques : autoriser si actuateur, sinon exclure
+  const entityCategory = reg?.entity_category;
+  if (
+    (entityCategory === "diagnostic" || entityCategory === "config") &&
+    !CONTROLLABLE_DOMAINS.includes(domain)
+  ) {
+    return false;
+  }
+
+  // 4) Entité cachée ou désactivée = exclure
   if (reg?.hidden_by) return false;
   if (reg?.disabled_by) return false;
 
-  // 4) Exclure les mesures (power, energy, temperature, etc.) basé sur le nom
-  const lowerName = (entity.attributes?.friendly_name || entity.entity_id).toLowerCase();
-  const measureKeywords = [
-    "power", "énergie", "energy", "consommation", "puissance",
-    "température", "temperature", "voltage", "current", "courant",
-    "watt", "kwh", "ampere"
-  ];
-  if (measureKeywords.some((kw) => lowerName.includes(kw))) return false;
+  // 5) Gestion multi-canaux : garder les circuits individuels
+  const isChannel = /(_[1-4]$|_ch[0-9]+$|_channel_[0-9]+$)/i.test(entityId);
+  if (isChannel) return true;
+
+  // Si l'entité est un "maître" avec des canaux enfants, l'exclure
+  // (détection via device_class ou attributs spécifiques)
+  if (entity.attributes?.device_class === "outlet_master") {
+    return false;
+  }
 
   return true;
 }
