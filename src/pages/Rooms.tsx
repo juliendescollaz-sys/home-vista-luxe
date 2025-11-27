@@ -899,6 +899,9 @@ const Rooms = () => {
   const rootClassName = displayMode === "mobile" 
     ? `min-h-screen bg-background pb-24 ${ptClass}`
     : "w-full h-full flex flex-col overflow-hidden";
+  // État "HA initialisé" pour éviter le flash de HomeOverviewByTypeAndArea
+  const isHAInitialized = !!connection && floors.length > 0;
+
   // Vérifier si au moins un plan est complet (PNG + JSON)
   const hasUsablePlans =
     displayMode !== "mobile" &&
@@ -912,8 +915,7 @@ const Rooms = () => {
     }
 
     if (
-      connection &&
-      floors.length > 0 &&
+      isHAInitialized &&
       !isLoadingNeoliaPlans &&
       neoliaFloorPlans.length === 0
     ) {
@@ -921,26 +923,39 @@ const Rooms = () => {
       loadNeoliaPlans(connection, floors);
     }
   }, [
-    connection,
-    floors,
-    loadNeoliaPlans,
     displayMode,
+    isHAInitialized,
     isLoadingNeoliaPlans,
     neoliaFloorPlans.length,
+    loadNeoliaPlans,
+    connection,
+    floors,
   ]);
+
+  // Mode mobile : rendu direct
+  if (displayMode === "mobile") {
+    return (
+      <div className={rootClassName}>
+        <TopBar title="Maison" />
+        <div className="max-w-2xl mx-auto px-4 py-4">
+          <MaisonMobileView />
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  // Mode Tablet/Panel : spinner pendant toute l'init (HA + plans)
+  const shouldShowPlansSpinner =
+    !isHAInitialized ||
+    isLoadingNeoliaPlans ||
+    neoliaFloorPlans.length === 0;
 
   return (
     <div className={rootClassName}>
       <TopBar title="Maison" />
-      <div className={cn(
-        displayMode === "mobile" 
-          ? "max-w-2xl mx-auto px-4 py-4" 
-          : `w-full px-4 ${ptClass}`
-      )}>
-        {displayMode === "mobile" ? (
-          <MaisonMobileView />
-        ) : (isLoadingNeoliaPlans || (connection && floors.length > 0 && neoliaFloorPlans.length === 0)) ? (
-          // Spinner pleine zone pendant le chargement des plans
+      <div className={cn("w-full px-4", ptClass)}>
+        {shouldShowPlansSpinner ? (
           <div className="flex items-center justify-center w-full h-full min-h-[400px]">
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
