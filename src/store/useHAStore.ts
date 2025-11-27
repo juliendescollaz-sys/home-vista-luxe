@@ -66,6 +66,8 @@ interface HAStore {
   setLabelPosition: (floorId: string, areaId: string, x: number, y: number) => void;
   triggerEntityToggle: (entityId: string, targetState: string, action: () => Promise<void>, onRollback?: () => void) => Promise<void>;
   clearPendingAction: (entityId: string) => void;
+  renameArea: (areaId: string, newName: string) => Promise<void>;
+  renameEntity: (entityId: string, newName: string) => Promise<void>;
   disconnect: () => void;
 }
 
@@ -250,6 +252,62 @@ export const useHAStore = create<HAStore>()(
           delete copy[entityId];
           return { pendingActions: copy };
         });
+      },
+
+      renameArea: async (areaId, newName) => {
+        const { client, areas, setAreas } = get();
+
+        if (!client) {
+          throw new Error("Client Home Assistant non initialisé");
+        }
+
+        console.info("[Neolia] renameArea", { areaId, newName });
+
+        // Optimistic update
+        setAreas(
+          areas.map((a) =>
+            a.area_id === areaId ? { ...a, name: newName } : a
+          )
+        );
+
+        try {
+          await client.updateAreaName(areaId, newName);
+        } catch (error) {
+          console.error("[Neolia] Erreur renameArea", error);
+          throw error;
+        }
+      },
+
+      renameEntity: async (entityId, newName) => {
+        const { client, entities, setEntities } = get();
+
+        if (!client) {
+          throw new Error("Client Home Assistant non initialisé");
+        }
+
+        console.info("[Neolia] renameEntity", { entityId, newName });
+
+        // Optimistic update du friendly_name
+        setEntities(
+          (entities || []).map((e) =>
+            e.entity_id === entityId
+              ? {
+                  ...e,
+                  attributes: {
+                    ...e.attributes,
+                    friendly_name: newName,
+                  },
+                }
+              : e
+          )
+        );
+
+        try {
+          await client.updateEntityName(entityId, newName);
+        } catch (error) {
+          console.error("[Neolia] Erreur renameEntity", error);
+          throw error;
+        }
       },
       
       disconnect: () =>

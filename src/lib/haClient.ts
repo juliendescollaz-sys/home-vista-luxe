@@ -215,6 +215,32 @@ export class HAClient {
     return this.sendWithResponse<any>("get_services");
   }
 
+  async updateAreaName(areaId: string, newName: string): Promise<void> {
+    if (!this.isConnected()) {
+      throw new Error("WebSocket Home Assistant non connecté");
+    }
+
+    console.info("[Neolia] updateAreaName →", { areaId, newName });
+
+    await this.sendWithResponse("config/area_registry/update", {
+      area_id: areaId,
+      name: newName,
+    });
+  }
+
+  async updateEntityName(entityId: string, newName: string): Promise<void> {
+    if (!this.isConnected()) {
+      throw new Error("WebSocket Home Assistant non connecté");
+    }
+
+    console.info("[Neolia] updateEntityName →", { entityId, newName });
+
+    await this.sendWithResponse("config/entity_registry/update", {
+      entity_id: entityId,
+      name: newName,
+    });
+  }
+
   async callService(
     domain: string,
     service: string,
