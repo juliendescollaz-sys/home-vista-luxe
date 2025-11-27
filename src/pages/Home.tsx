@@ -155,7 +155,9 @@ const Home = () => {
           <h2 className="text-xl font-semibold">Appareils actifs</h2>
 
           {groupedDevices.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">Aucun appareil actif</p>
+            <div className="flex-1 flex items-center justify-center min-h-[200px]">
+              <p className="text-muted-foreground">Aucun appareil actif</p>
+            </div>
           ) : (
             groupedDevices.flatMap(([areaId, { area, floor, devices }]) =>
               devices.map((entity) => (
