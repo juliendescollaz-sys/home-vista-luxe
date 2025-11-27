@@ -52,7 +52,15 @@ export function GroupWizard({ open, onOpenChange }: GroupWizardProps) {
   const handleNext = () => { if (step < 4) setStep(step + 1); };
   const handlePrevious = () => { if (step > 1) { setStep(step - 1); clearError(); } };
   const handleDomainSelect = (domain: string) => { if (isMixedMode) { setSelectedDomains((prev) => prev.includes(domain) ? prev.filter((d) => d !== domain) : [...prev, domain]); } else { setSelectedDomains([domain]); } setSelectedEntityIds([]); };
-  const toggleMixedMode = (enabled: boolean) => { setIsMixedMode(enabled); if (!enabled && selectedDomains.length > 1) setSelectedDomains([selectedDomains[0]]); setSelectedEntityIds([]); };
+  const toggleMixedMode = (enabled: boolean) => { 
+    setIsMixedMode(enabled); 
+    if (enabled) {
+      // Groupes mixtes sont toujours locaux
+      setIsShared(false);
+    }
+    if (!enabled && selectedDomains.length > 1) setSelectedDomains([selectedDomains[0]]); 
+    setSelectedEntityIds([]); 
+  };
   const toggleEntity = (entityId: string) => { setSelectedEntityIds((prev) => prev.includes(entityId) ? prev.filter((id) => id !== entityId) : [...prev, entityId]); };
 
   const handleCreate = async () => {
@@ -66,6 +74,9 @@ export function GroupWizard({ open, onOpenChange }: GroupWizardProps) {
   };
 
   const canGoNext = () => { if (step === 1) return selectedDomains.length > 0 && !mixedModeError; if (step === 2) return name.trim().length >= 3; if (step === 3) return selectedEntityIds.length > 0; return false; };
+  // Déterminer si le groupe peut être partagé (seulement les groupes single domain)
+  const canBeShared = !isMixedMode || selectedDomains.length <= 1;
+  const isMixedGroup = isMixedMode && selectedDomains.length > 1;
   const selectedDomainConfigs = availableDomains.filter((d) => selectedDomains.includes(d.value));
   const FirstIcon = selectedDomainConfigs[0]?.icon;
 
