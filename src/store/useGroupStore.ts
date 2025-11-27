@@ -23,6 +23,7 @@ interface GroupStore {
   createOrUpdateGroup: (params: {
     name: string;
     domain: HaGroupDomain;
+    domains?: string[];
     entityIds: string[];
     scope: GroupScope;
     existingId?: string;
@@ -58,7 +59,8 @@ export const useGroupStore = create<GroupStore>()(
       },
 
       createOrUpdateGroup: async (params) => {
-        const { name, domain, entityIds, scope, existingId } = params;
+        const { name, domain, domains, entityIds, scope, existingId } = params;
+        const effectiveDomains = domains && domains.length > 0 ? domains : [domain];
 
         // Validation
         if (!name || name.trim().length < 3) {
@@ -71,11 +73,14 @@ export const useGroupStore = create<GroupStore>()(
           return;
         }
 
-        // Vérifier l'homogénéité du domaine
-        const invalidEntities = entityIds.filter((id) => !id.startsWith(`${domain}.`));
+        // Vérifier l'homogénéité du domaine (toutes les entités doivent appartenir aux domaines sélectionnés)
+        const invalidEntities = entityIds.filter((id) => {
+          const entityDomain = id.split(".")[0];
+          return !effectiveDomains.includes(entityDomain);
+        });
         if (invalidEntities.length > 0) {
           set({
-            error: `Toutes les entités doivent être du type ${domain}`,
+            error: `Toutes les entités doivent appartenir aux types sélectionnés`,
           });
           return;
         }
@@ -96,6 +101,7 @@ export const useGroupStore = create<GroupStore>()(
               id: objectId,
               name: name.trim(),
               domain,
+              domains: effectiveDomains,
               entityIds,
               scope: "local",
               haEntityId: undefined,
