@@ -124,7 +124,7 @@ const MaisonTabletPanelView = () => {
         <div className="relative flex-1 overflow-hidden">
           {/* Conteneur plan */}
           <div className="w-full h-full flex items-start justify-center">
-            <div className="relative w-full h-full rounded-xl overflow-hidden bg-muted/40 border border-border/40">
+            <div className="relative w-full h-full rounded-3xl overflow-hidden glass-card elevated-subtle border-border/50">
               {selectedPlan?.hasPng && selectedPlan?.imageUrl ? (
                 <>
                   {/* Image du plan */}
