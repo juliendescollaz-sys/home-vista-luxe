@@ -8,26 +8,23 @@ import { Plus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { getGridClasses } from "@/lib/gridLayout";
-
 const Groupes = () => {
-  const { displayMode } = useDisplayMode();
+  const {
+    displayMode
+  } = useDisplayMode();
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[24px]";
-  
   const [wizardOpen, setWizardOpen] = useState(false);
-  const { groups, syncSharedGroupsFromHA } = useGroupStore();
+  const {
+    groups,
+    syncSharedGroupsFromHA
+  } = useGroupStore();
 
   // Synchroniser les groupes partagés au montage
   useEffect(() => {
     syncSharedGroupsFromHA().catch(console.error);
   }, [syncSharedGroupsFromHA]);
-
-
-  const rootClassName = displayMode === "mobile" 
-    ? `min-h-screen bg-background pb-24 ${ptClass}`
-    : "min-h-screen bg-background";
-
-  return (
-    <div className={rootClassName}>
+  const rootClassName = displayMode === "mobile" ? `min-h-screen bg-background pb-24 ${ptClass}` : "min-h-screen bg-background";
+  return <div className={rootClassName}>
       <TopBar title="Groupes" />
       
       <div className="max-w-screen-xl mx-auto px-4 pt-[24px] pb-4">
@@ -41,29 +38,15 @@ const Groupes = () => {
           </Button>
         </div>
 
-        {groups.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground mb-4">Aucun groupe créé pour le moment</p>
-            <Button onClick={() => setWizardOpen(true)} variant="outline" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Créer votre premier groupe
-            </Button>
-          </div>
-        ) : (
-          <div className={getGridClasses("cards", displayMode)}>
-            {groups.map((group) => (
-              <GroupTile
-                key={group.id}
-                group={group}
-              />
-            ))}
-          </div>
-        )}
+        {groups.length === 0 ? <div className="text-center py-12">
+            
+            
+          </div> : <div className={getGridClasses("cards", displayMode)}>
+            {groups.map(group => <GroupTile key={group.id} group={group} />)}
+          </div>}
       </div>
 
       <GroupWizard open={wizardOpen} onOpenChange={setWizardOpen} />
-    </div>
-  );
+    </div>;
 };
-
 export default Groupes;
