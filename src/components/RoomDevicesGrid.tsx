@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
@@ -7,7 +7,7 @@ import { getGridClasses } from "@/lib/gridLayout";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { toast } from "sonner";
 import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
-import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, PointerSensor, TouchSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { filterPrimaryControlEntities } from "@/lib/entityUtils";
 
@@ -39,14 +39,19 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
       return [];
     }
   });
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
-  // Long press sensor (500ms)
+  // Sensors with long press for touch and distance for pointer
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        delay: 500,
+        delay: 400,
         tolerance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 400,
+        tolerance: 8,
       },
     })
   );
@@ -61,15 +66,8 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
     }
   }, [areaId]);
 
-  // Save device order to localStorage
-  useEffect(() => {
-    if (deviceOrder.length > 0) {
-      localStorage.setItem(`neolia_sidebar_devices_order_${areaId}`, JSON.stringify(deviceOrder));
-    }
-  }, [deviceOrder, areaId]);
-
-  // Filtrer les entités de cette pièce
-  const roomEntities = useMemo(() => {
+  // Filtrer les entités de cette pièce (sans tri custom)
+  const baseRoomEntities = useMemo(() => {
     if (!entities) return [];
     
     // D'abord filtrer par zone
@@ -92,32 +90,62 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
     });
 
     // Ensuite appliquer le filtre des entités de contrôle principales
-    const filtered = filterPrimaryControlEntities(areaFiltered, entityRegistry, devices);
+    return filterPrimaryControlEntities(areaFiltered, entityRegistry, devices);
+  }, [entities, entityRegistry, devices, areaId]);
 
-    // Apply ordering if drag and drop is enabled
-    if (enableDragAndDrop && deviceOrder.length > 0) {
-      const entityMap = new Map(filtered.map(e => [e.entity_id, e]));
-      const ordered: typeof filtered = [];
-      deviceOrder.forEach(id => {
-        const e = entityMap.get(id);
-        if (e) ordered.push(e);
+  // Appliquer l'ordre custom - une seule liste plate
+  const roomEntities = useMemo(() => {
+    if (!enableDragAndDrop || deviceOrder.length === 0) {
+      return baseRoomEntities;
+    }
+
+    // Créer une map pour accès rapide
+    const entityMap = new Map(baseRoomEntities.map(e => [e.entity_id, e]));
+    const ordered: HAEntity[] = [];
+    
+    // Ajouter les entités dans l'ordre sauvegardé
+    deviceOrder.forEach(id => {
+      const e = entityMap.get(id);
+      if (e) {
+        ordered.push(e);
         entityMap.delete(id);
-      });
-      entityMap.forEach(e => ordered.push(e));
-      return ordered;
-    }
+      }
+    });
+    
+    // Ajouter les nouvelles entités à la fin
+    entityMap.forEach(e => ordered.push(e));
+    
+    return ordered;
+  }, [baseRoomEntities, enableDragAndDrop, deviceOrder]);
 
-    return filtered;
-  }, [entities, entityRegistry, devices, areaId, enableDragAndDrop, deviceOrder]);
-
-  // Initialize device order if not set
+  // Synchroniser deviceOrder quand les entités changent
   useEffect(() => {
-    if (enableDragAndDrop && deviceOrder.length === 0 && roomEntities.length > 0) {
-      setDeviceOrder(roomEntities.map(e => e.entity_id));
+    if (!enableDragAndDrop || baseRoomEntities.length === 0) return;
+    
+    const currentIds = baseRoomEntities.map(e => e.entity_id);
+    const currentSet = new Set(currentIds);
+    
+    // Nettoyer les IDs qui n'existent plus et ajouter les nouveaux
+    const cleanedOrder = deviceOrder.filter(id => currentSet.has(id));
+    const newIds = currentIds.filter(id => !deviceOrder.includes(id));
+    
+    const updatedOrder = [...cleanedOrder, ...newIds];
+    
+    // Seulement mettre à jour si différent
+    if (updatedOrder.length !== deviceOrder.length || 
+        !updatedOrder.every((id, i) => deviceOrder[i] === id)) {
+      setDeviceOrder(updatedOrder);
     }
-  }, [enableDragAndDrop, roomEntities, deviceOrder.length]);
+  }, [baseRoomEntities, enableDragAndDrop]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleDeviceToggle = async (entityId: string) => {
+  // Save device order to localStorage
+  useEffect(() => {
+    if (enableDragAndDrop && deviceOrder.length > 0) {
+      localStorage.setItem(`neolia_sidebar_devices_order_${areaId}`, JSON.stringify(deviceOrder));
+    }
+  }, [deviceOrder, areaId, enableDragAndDrop]);
+
+  const handleDeviceToggle = useCallback(async (entityId: string) => {
     console.info("[Neolia Maison] onToggle appelé (RoomDevicesGrid)", { entityId });
     
     if (!client) {
@@ -138,20 +166,27 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
       console.error("[Neolia Maison] Erreur lors du contrôle:", error);
       toast.error("Erreur lors du contrôle de l'appareil");
     }
-  };
+  }, [client, entities]);
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
-    setActiveDragId(null);
     
     if (!over || active.id === over.id) return;
     
-    setDeviceOrder((items) => {
-      const oldIndex = items.indexOf(active.id as string);
-      const newIndex = items.indexOf(over.id as string);
-      return arrayMove(items, oldIndex, newIndex);
-    });
-  };
+    // Utiliser roomEntities directement pour les indices (liste affichée)
+    const currentIds = roomEntities.map(e => e.entity_id);
+    const oldIndex = currentIds.indexOf(active.id as string);
+    const newIndex = currentIds.indexOf(over.id as string);
+    
+    if (oldIndex === -1 || newIndex === -1) {
+      console.warn("[Neolia] DnD: index non trouvé", { active: active.id, over: over.id, currentIds });
+      return;
+    }
+    
+    const newOrder = arrayMove(currentIds, oldIndex, newIndex);
+    console.log("[Neolia] DnD réordonné", { oldIndex, newIndex, newOrder });
+    setDeviceOrder(newOrder);
+  }, [roomEntities]);
 
   if (roomEntities.length === 0) {
     return (
@@ -165,20 +200,20 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
     <>
       {roomEntities.map((entity) => {
         const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
-        let areaId = reg?.area_id;
+        let entityAreaId = reg?.area_id;
 
-        if (!areaId && reg?.device_id) {
+        if (!entityAreaId && reg?.device_id) {
           const dev = devices.find((d) => d.id === reg.device_id);
           if (dev?.area_id) {
-            areaId = dev.area_id;
+            entityAreaId = dev.area_id;
           }
         }
 
-        if (!areaId && (entity as any).attributes?.area_id) {
-          areaId = (entity as any).attributes.area_id as string;
+        if (!entityAreaId && (entity as any).attributes?.area_id) {
+          entityAreaId = (entity as any).attributes.area_id as string;
         }
 
-        const area = areaId ? areas.find((a) => a.area_id === areaId) || null : null;
+        const area = entityAreaId ? areas.find((a) => a.area_id === entityAreaId) || null : null;
         const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) || null : null;
 
         if (entity.entity_id.startsWith("media_player.")) {
@@ -216,17 +251,19 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
     />
   ) : null;
 
+  // Items pour SortableContext = exactement les IDs affichés, dans l'ordre
+  const sortableItems = roomEntities.map((e) => e.entity_id);
+
   if (enableDragAndDrop) {
     return (
       <>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragStart={(e) => setActiveDragId(e.active.id as string)}
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={roomEntities.map((e) => e.entity_id)}
+            items={sortableItems}
             strategy={verticalListSortingStrategy}
           >
             <div className={singleColumn ? `grid grid-cols-1 gap-4 ${className}` : `${getGridClasses("devices", displayMode)} ${className}`}>
