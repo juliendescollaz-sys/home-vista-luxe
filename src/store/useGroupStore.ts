@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { NeoliaGroup, HaGroupDomain, GroupScope } from "@/types/groups";
-import { getGroupScope } from "@/types/groups";
+import type { NeoliaGroup, HaGroupDomain, GroupScope, GroupMode } from "@/types/groups";
+import { getGroupScope, getGroupMode } from "@/types/groups";
 import {
   createOrUpdateHaGroup,
   deleteHaGroup,
@@ -24,6 +24,7 @@ interface GroupStore {
     name: string;
     domain: HaGroupDomain;
     domains?: string[];
+    mode?: GroupMode;
     entityIds: string[];
     scope: GroupScope;
     existingId?: string;
@@ -59,8 +60,9 @@ export const useGroupStore = create<GroupStore>()(
       },
 
       createOrUpdateGroup: async (params) => {
-        const { name, domain, domains, entityIds, scope, existingId } = params;
+        const { name, domain, domains, mode, entityIds, scope, existingId } = params;
         const effectiveDomains = domains && domains.length > 0 ? domains : [domain];
+        const effectiveMode: GroupMode = mode || (effectiveDomains.length > 1 ? "mixedBinary" : "singleDomain");
 
         // Validation
         if (!name || name.trim().length < 3) {
@@ -73,16 +75,33 @@ export const useGroupStore = create<GroupStore>()(
           return;
         }
 
-        // Vérifier l'homogénéité du domaine (toutes les entités doivent appartenir aux domaines sélectionnés)
-        const invalidEntities = entityIds.filter((id) => {
-          const entityDomain = id.split(".")[0];
-          return !effectiveDomains.includes(entityDomain);
-        });
-        if (invalidEntities.length > 0) {
-          set({
-            error: `Toutes les entités doivent appartenir aux types sélectionnés`,
+        // Validation selon le mode
+        if (effectiveMode === "singleDomain") {
+          // Mode domaine unique : toutes les entités doivent être du même domaine
+          const targetDomain = effectiveDomains[0];
+          const invalidEntities = entityIds.filter((id) => {
+            const entityDomain = id.split(".")[0];
+            return entityDomain !== targetDomain;
           });
-          return;
+          if (invalidEntities.length > 0) {
+            set({
+              error: `Entités invalides pour le domaine ${targetDomain}: ${invalidEntities.join(", ")}`,
+            });
+            return;
+          }
+        } else {
+          // Mode mixte binaire : vérifier que tous les domaines des entités sont binaires
+          const binaryDomains = ["light", "switch", "valve", "fan"];
+          const invalidEntities = entityIds.filter((id) => {
+            const entityDomain = id.split(".")[0];
+            return !binaryDomains.includes(entityDomain);
+          });
+          if (invalidEntities.length > 0) {
+            set({
+              error: `Les groupes mixtes ne peuvent contenir que des appareils binaires (ON/OFF). Entités invalides: ${invalidEntities.join(", ")}`,
+            });
+            return;
+          }
         }
 
         set({ isSaving: true, error: null });
@@ -90,20 +109,22 @@ export const useGroupStore = create<GroupStore>()(
         try {
           let newGroup: NeoliaGroup;
 
-          if (scope === "shared") {
-            // Groupe partagé : créer dans Home Assistant
+          if (scope === "shared" && effectiveMode === "singleDomain") {
+            // Groupe partagé domaine unique : créer dans Home Assistant
             newGroup = await createOrUpdateHaGroup({ name, domain, entityIds });
             newGroup.scope = "shared";
+            newGroup.mode = "singleDomain";
           } else {
-            // Groupe privé : créer uniquement localement
+            // Groupe privé OU mixte : créer uniquement localement
             const objectId = existingId || `neolia_local_${Date.now()}`;
             newGroup = {
               id: objectId,
               name: name.trim(),
               domain,
               domains: effectiveDomains,
+              mode: effectiveMode,
               entityIds,
-              scope: "local",
+              scope: effectiveMode === "mixedBinary" ? "local" : scope, // Mixte = toujours local
               haEntityId: undefined,
             };
           }
@@ -163,9 +184,10 @@ export const useGroupStore = create<GroupStore>()(
           const isOn = currentState === "on";
           const targetState = isOn ? "off" : "on";
           const scope = getGroupScope(group);
+          const mode = getGroupMode(group);
           
-          // Groupe partagé : utiliser triggerEntityToggle
-          if (scope === "shared" && group.haEntityId) {
+          // Groupe partagé domaine unique : utiliser triggerEntityToggle via HA
+          if (scope === "shared" && group.haEntityId && mode === "singleDomain") {
             const { useHAStore: HAStore } = await import("@/store/useHAStore");
             const haStore = HAStore.getState();
             
@@ -180,8 +202,20 @@ export const useGroupStore = create<GroupStore>()(
                 }
               }
             );
+          } else if (mode === "mixedBinary") {
+            // Groupe mixte binaire : utiliser homeassistant.turn_on/off sur toutes les entités
+            const { useHAStore: HAStore } = await import("@/store/useHAStore");
+            const client = HAStore.getState().client;
+            
+            if (!client) {
+              throw new Error("Client non connecté");
+            }
+            
+            const service = isOn ? "turn_off" : "turn_on";
+            // Commande générique homeassistant.turn_on/off pour tous les domaines
+            await client.callService("homeassistant", service, {}, { entity_id: group.entityIds });
           } else {
-            // Groupe privé : gérer manuellement toutes les entités membres
+            // Groupe privé domaine unique : gérer manuellement toutes les entités membres
             const { useHAStore: HAStore } = await import("@/store/useHAStore");
             const client = HAStore.getState().client;
             

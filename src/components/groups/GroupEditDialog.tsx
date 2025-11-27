@@ -11,7 +11,7 @@ import { Loader2, Trash2, Users, User, Layers } from "lucide-react";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
 import type { NeoliaGroup, HaGroupDomain, GroupScope } from "@/types/groups";
-import { getGroupScope, getGroupDomains } from "@/types/groups";
+import { getGroupScope, getGroupDomains, getGroupMode } from "@/types/groups";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { getAvailableDomains, areAllDomainsBinary, getEntitiesForDomains, type DeviceDisplayInfo } from "@/lib/groupDomains";
@@ -38,14 +38,14 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
   const availableEntities: DeviceDisplayInfo[] = useMemo(() => selectedDomains.length === 0 ? [] : getEntitiesForDomains(entities, selectedDomains, entityRegistry, devices, areas, floors), [selectedDomains, entities, entityRegistry, devices, areas, floors]);
   const mixedModeError = useMemo(() => { if (!isMixedMode || selectedDomains.length <= 1) return null; if (!areAllDomainsBinary(selectedDomains)) return "Les groupes mixtes ne peuvent contenir que des types binaires (ON/OFF)."; return null; }, [isMixedMode, selectedDomains]);
 
-  useEffect(() => { if (group) { setName(group.name); setSelectedEntityIds(group.entityIds); setScope(getGroupScope(group)); const domains = getGroupDomains(group); setSelectedDomains(domains); setIsMixedMode(domains.length > 1); } }, [group]);
+  useEffect(() => { if (group) { setName(group.name); setSelectedEntityIds(group.entityIds); setScope(getGroupScope(group)); const domains = getGroupDomains(group); setSelectedDomains(domains); setIsMixedMode(getGroupMode(group) === "mixedBinary"); } }, [group]);
 
   const handleClose = () => { clearError(); onOpenChange(false); };
   const handleDomainToggle = (domain: string) => { if (isMixedMode) { setSelectedDomains((prev) => prev.includes(domain) ? prev.filter((d) => d !== domain) : [...prev, domain]); } else { setSelectedDomains([domain]); } setSelectedEntityIds((prev) => prev.filter((id) => { const d = id.split(".")[0]; return isMixedMode ? selectedDomains.includes(d) || domain === d : domain === d; })); };
   const toggleMixedMode = (enabled: boolean) => { setIsMixedMode(enabled); if (!enabled && selectedDomains.length > 1) { setSelectedDomains([selectedDomains[0]]); const firstDomain = selectedDomains[0]; setSelectedEntityIds((prev) => prev.filter((id) => id.startsWith(`${firstDomain}.`))); } };
   const toggleEntity = (entityId: string) => { setSelectedEntityIds((prev) => prev.includes(entityId) ? prev.filter((id) => id !== entityId) : [...prev, entityId]); };
 
-  const handleUpdate = async () => { if (!group || selectedDomains.length === 0) return; try { await createOrUpdateGroup({ existingId: group.id, name, domain: selectedDomains[0] as HaGroupDomain, domains: selectedDomains, entityIds: selectedEntityIds, scope }); toast.success("Groupe modifié"); handleClose(); } catch { toast.error("Erreur lors de la modification"); } };
+  const handleUpdate = async () => { if (!group || selectedDomains.length === 0) return; const mode = isMixedMode && selectedDomains.length > 1 ? "mixedBinary" : "singleDomain"; try { await createOrUpdateGroup({ existingId: group.id, name, domain: selectedDomains[0] as HaGroupDomain, domains: selectedDomains, mode, entityIds: selectedEntityIds, scope }); toast.success("Groupe modifié"); handleClose(); } catch { toast.error("Erreur lors de la modification"); } };
   const handleDelete = async () => { if (!group) return; try { await removeGroup(group.id); toast.success("Groupe supprimé"); setDeleteDialogOpen(false); handleClose(); } catch { toast.error("Erreur lors de la suppression"); } };
   const canSave = () => name.trim().length >= 3 && selectedEntityIds.length > 0 && selectedDomains.length > 0 && !mixedModeError;
 
