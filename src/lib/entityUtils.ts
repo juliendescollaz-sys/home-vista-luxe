@@ -87,6 +87,40 @@ export function isEntityVisibleForUser(
 // ============================================================================
 
 /**
+ * Domaines binaires contrôlables pour les groupes mixtes
+ * Ces domaines supportent turn_on/turn_off via homeassistant.turn_on/off
+ */
+export const BINARY_CONTROLLABLE_DOMAINS = [
+  "light",
+  "switch",
+  "fan",
+  "valve",
+  "cover",
+];
+
+/**
+ * Filtre les entités pour ne garder que celles vraiment contrôlables (binaires)
+ * Utilisé pour les groupes mixtes afin d'éviter d'envoyer des sensors à HA
+ */
+export function getControllableBinaryEntities(
+  entityIds: string[],
+  allEntities: HAEntity[]
+): HAEntity[] {
+  return entityIds
+    .map((id) => allEntities.find((e) => e.entity_id === id))
+    .filter((e): e is HAEntity => !!e)
+    .filter((e) => BINARY_CONTROLLABLE_DOMAINS.includes(getEntityDomain(e.entity_id)));
+}
+
+/**
+ * Vérifie si une entité est pertinente pour le suivi de l'état d'un groupe
+ * (pour filtrer les state_changed events)
+ */
+export function isRelevantForGroupPending(entity: HAEntity): boolean {
+  return BINARY_CONTROLLABLE_DOMAINS.includes(getEntityDomain(entity.entity_id));
+}
+
+/**
  * Domaines contrôlables pour les appareils actifs et les groupes
  */
 export const CONTROLLABLE_DOMAINS = [
