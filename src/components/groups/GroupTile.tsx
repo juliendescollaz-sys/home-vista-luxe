@@ -22,8 +22,9 @@ import {
   Lock,
   Droplet,
   Layers,
+  Loader2,
 } from "lucide-react";
-import type { NeoliaGroup, HaGroupDomain, GroupMode } from "@/types/groups";
+import type { NeoliaGroup, HaGroupDomain } from "@/types/groups";
 import { getGroupScope, getGroupDomains, getGroupMode } from "@/types/groups";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
@@ -60,11 +61,15 @@ interface GroupTileProps {
 export function GroupTile({ group, hideEditButton = false, sortableProps }: GroupTileProps) {
   const entities = useHAStore((state) => state.entities);
   const pendingActions = useHAStore((state) => state.pendingActions);
-  const { toggleGroup, openCover, closeCover, toggleGroupFavorite, groupFavorites } = useGroupStore();
+  const { toggleGroup, openCover, closeCover, toggleGroupFavorite, groupFavorites, runtime } = useGroupStore();
   const [localVolume, setLocalVolume] = useState<number | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const isFavorite = groupFavorites.includes(group.id);
   const { displayMode } = useDisplayMode();
+
+  // État runtime du groupe (pending/erreur)
+  const groupRuntime = runtime[group.id];
+  const isRuntimePending = groupRuntime?.isPending ?? false;
 
   const groupEntity = group.haEntityId ? entities.find((e) => e.entity_id === group.haEntityId) : undefined;
   const domains = getGroupDomains(group);
@@ -85,7 +90,7 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
   
   // Indicateur "en cours" pour les groupes avec haEntityId (groupes partagés)
   const pending = group.haEntityId ? pendingActions[group.haEntityId] : undefined;
-  const isPending = !!(pending && !pending.cooldownUntil);
+  const isPending = isRuntimePending || !!(pending && !pending.cooldownUntil);
   const isInCooldown = !!(pending?.cooldownUntil && Date.now() < pending.cooldownUntil);
 
   // État optimiste local pour le toggle ON/OFF (sauf media_player)
@@ -229,10 +234,16 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
       {...sortableProps?.listeners}
       className={cn(
         "group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50 transition-opacity",
-        sortableProps && "cursor-grab active:cursor-grabbing touch-none",
-        isPending && "opacity-70"
+        sortableProps && "cursor-grab active:cursor-grabbing touch-none"
       )}
     >
+      {/* Overlay spinner pendant le pending */}
+      {isPending && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-black/30 backdrop-blur-sm pointer-events-auto">
+          <div className="w-6 h-6 border-[2px] border-white/25 border-t-white/80 rounded-full animate-spin" />
+        </div>
+      )}
+
       <GroupBadge />
 
       <div className="p-4 pt-10">
@@ -363,7 +374,12 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
         {/* Switch en bas pour light/switch/fan – sans bordure ni marge top */}
         {group.domain !== "cover" && group.domain !== "media_player" && (
           <div className="flex items-center justify-end pt-2">
-            <Switch checked={isActive} onCheckedChange={handleToggle} className="scale-125" />
+            <Switch 
+              checked={isActive} 
+              onCheckedChange={handleToggle} 
+              disabled={isPending}
+              className="scale-125" 
+            />
           </div>
         )}
 

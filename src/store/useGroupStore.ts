@@ -11,15 +11,28 @@ import {
   closeGroup,
 } from "@/services/haGroups";
 
+// État runtime éphémère pour chaque groupe (non persisté)
+export type GroupRuntimeState = {
+  isPending: boolean;
+  lastError: string | null;
+  timeoutId?: number | null;
+};
+
 interface GroupStore {
   groups: NeoliaGroup[];
   groupFavorites: string[];
   groupOrder: Record<string, string[]>;
   isSaving: boolean;
   error: string | null;
+  
+  // Runtime state (non persisté)
+  runtime: Record<string, GroupRuntimeState>;
 
   // Actions
   syncSharedGroupsFromHA: () => Promise<void>;
+  setGroupPending: (groupId: string, pending: boolean, timeoutId?: number | null) => void;
+  setGroupError: (groupId: string, message: string | null) => void;
+  clearGroupRuntime: (groupId: string) => void;
   createOrUpdateGroup: (params: {
     name: string;
     domain: HaGroupDomain;
@@ -38,6 +51,8 @@ interface GroupStore {
   clearError: () => void;
 }
 
+const TIMEOUT_MS = 8000;
+
 export const useGroupStore = create<GroupStore>()(
   persist(
     (set, get) => ({
@@ -46,6 +61,39 @@ export const useGroupStore = create<GroupStore>()(
       groupOrder: {},
       isSaving: false,
       error: null,
+      runtime: {},
+
+      setGroupPending: (groupId, pending, timeoutId = null) =>
+        set((state) => {
+          const prev = state.runtime[groupId] ?? { isPending: false, lastError: null };
+          return {
+            runtime: {
+              ...state.runtime,
+              [groupId]: { ...prev, isPending: pending, timeoutId },
+            },
+          };
+        }),
+
+      setGroupError: (groupId, message) =>
+        set((state) => {
+          const prev = state.runtime[groupId] ?? { isPending: false, lastError: null };
+          return {
+            runtime: {
+              ...state.runtime,
+              [groupId]: { ...prev, lastError: message },
+            },
+          };
+        }),
+
+      clearGroupRuntime: (groupId) =>
+        set((state) => {
+          const prev = state.runtime[groupId];
+          if (prev?.timeoutId) {
+            window.clearTimeout(prev.timeoutId);
+          }
+          const { [groupId]: _, ...rest } = state.runtime;
+          return { runtime: rest };
+        }),
 
       syncSharedGroupsFromHA: async () => {
         try {
@@ -228,7 +276,27 @@ export const useGroupStore = create<GroupStore>()(
         const group = get().groups.find((g) => g.id === groupId);
         if (!group) return;
 
+        const { setGroupPending, setGroupError, runtime } = get();
+
+        // Si déjà en cours, ignorer
+        if (runtime[groupId]?.isPending) {
+          console.log("[Neolia] toggleGroup ignored - already pending", groupId);
+          return;
+        }
+
         set({ error: null });
+        setGroupError(groupId, null);
+
+        // Timeout de sécurité
+        const timeoutId = window.setTimeout(() => {
+          setGroupPending(groupId, false, null);
+          setGroupError(
+            groupId,
+            "Temps de réponse dépassé pour ce groupe. Vérifiez la connexion ou l'état des appareils."
+          );
+        }, TIMEOUT_MS);
+
+        setGroupPending(groupId, true, timeoutId);
 
         try {
           const isOn = currentState === "on";
@@ -261,6 +329,9 @@ export const useGroupStore = create<GroupStore>()(
             const client = haStore.client;
             
             if (!client) {
+              window.clearTimeout(timeoutId);
+              setGroupPending(groupId, false, null);
+              setGroupError(groupId, "Client Home Assistant non connecté.");
               throw new Error("Client non connecté");
             }
             
@@ -270,6 +341,9 @@ export const useGroupStore = create<GroupStore>()(
             const controllableIds = controllableEntities.map((e) => e.entity_id);
             
             if (controllableIds.length === 0) {
+              window.clearTimeout(timeoutId);
+              setGroupPending(groupId, false, null);
+              setGroupError(groupId, "Aucun appareil contrôlable trouvé pour ce groupe.");
               console.warn("[Neolia] Aucun entity_id contrôlable pour le groupe", group.id);
               return;
             }
@@ -295,6 +369,9 @@ export const useGroupStore = create<GroupStore>()(
             const client = HAStore.getState().client;
             
             if (!client) {
+              window.clearTimeout(timeoutId);
+              setGroupPending(groupId, false, null);
+              setGroupError(groupId, "Client Home Assistant non connecté.");
               throw new Error("Client non connecté");
             }
             
@@ -305,9 +382,17 @@ export const useGroupStore = create<GroupStore>()(
               await client.callService(entityDomain, service, {}, { entity_id: entityId });
             }
           }
+
+          // Succès immédiat (pas d'attente state_changed)
+          window.clearTimeout(timeoutId);
+          setGroupPending(groupId, false, null);
         } catch (error: any) {
+          window.clearTimeout(timeoutId);
+          setGroupPending(groupId, false, null);
+          const errorMsg = error.message || "Erreur lors de l'envoi de la commande au groupe.";
+          setGroupError(groupId, errorMsg);
           console.error("Erreur toggleGroup:", error);
-          set({ error: error.message || "Erreur lors du contrôle du groupe" });
+          set({ error: errorMsg });
           throw error;
         }
       },
