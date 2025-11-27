@@ -587,7 +587,7 @@ const MaisonMobileView = () => {
   return (
     <div className="space-y-6">
       {/* Sélecteur de vue style Favoris */}
-      <div className="flex gap-2 p-1 bg-muted/50 rounded-xl backdrop-blur-sm border border-border/50">
+      <div className="flex gap-3 p-1 bg-muted/50 rounded-xl backdrop-blur-sm border border-border/50">
         <button
           onClick={() => setViewMode("room")}
           className={cn(
