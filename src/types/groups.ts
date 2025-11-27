@@ -2,14 +2,16 @@
  * Types pour la gestion des groupes d'appareils
  */
 
-export type HaGroupDomain = "light" | "cover" | "switch" | "fan" | "media_player";
+// Domaines binaires supportés pour les groupes mixtes
+export type HaGroupDomain = "light" | "cover" | "switch" | "fan" | "media_player" | "valve" | "climate" | "lock";
 
 export type GroupScope = "local" | "shared";
 
 export interface NeoliaGroup {
   id: string;
   name: string;
-  domain: HaGroupDomain;
+  domain: HaGroupDomain; // Domaine principal (pour compat legacy)
+  domains?: string[]; // Liste des domaines si groupe mixte
   entityIds: string[];
   haEntityId?: string; // ex: group.neolia_salon (seulement pour les groupes partagés)
   scope: GroupScope; // "local" = utilisé uniquement dans l'app locale
@@ -21,9 +23,10 @@ export interface NeoliaGroup {
 
 export interface GroupWizardState {
   step: number;
-  domain?: HaGroupDomain;
+  domains: string[]; // Support multi-domaines
   name: string;
   selectedEntityIds: string[];
+  isMixedMode: boolean; // Mode groupe mixte binaire
 }
 
 /**
@@ -33,4 +36,12 @@ export function getGroupScope(group: NeoliaGroup): GroupScope {
   if (group.scope) return group.scope;
   // Migration legacy
   return group.isShared ? "shared" : "local";
+}
+
+/**
+ * Helper pour obtenir les domaines d'un groupe (gère la migration domain → domains)
+ */
+export function getGroupDomains(group: NeoliaGroup): string[] {
+  if (group.domains && group.domains.length > 0) return group.domains;
+  return [group.domain];
 }
