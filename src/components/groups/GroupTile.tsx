@@ -59,16 +59,23 @@ interface GroupTileProps {
 }
 
 export function GroupTile({ group, hideEditButton = false, sortableProps }: GroupTileProps) {
+  // ===== HOOKS APPELÉS INCONDITIONNELLEMENT AU DÉBUT =====
   const entities = useHAStore((state) => state.entities);
   const pendingActions = useHAStore((state) => state.pendingActions);
-  const { toggleGroup, openCover, closeCover, toggleGroupFavorite, groupFavorites, runtime } = useGroupStore();
+  const toggleGroup = useGroupStore((state) => state.toggleGroup);
+  const openCover = useGroupStore((state) => state.openCover);
+  const closeCover = useGroupStore((state) => state.closeCover);
+  const toggleGroupFavorite = useGroupStore((state) => state.toggleGroupFavorite);
+  const groupFavorites = useGroupStore((state) => state.groupFavorites);
+  // Sélecteur stable pour le runtime d'un groupe spécifique
+  const groupRuntime = useGroupStore((state) => state.runtime[group.id]);
+  
   const [localVolume, setLocalVolume] = useState<number | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const isFavorite = groupFavorites.includes(group.id);
   const { displayMode } = useDisplayMode();
-
-  // État runtime du groupe (pending/erreur)
-  const groupRuntime = runtime[group.id];
+  
+  // ===== VALEURS DÉRIVÉES (après les hooks) =====
+  const isFavorite = groupFavorites.includes(group.id);
   const isRuntimePending = groupRuntime?.isPending ?? false;
 
   const groupEntity = group.haEntityId ? entities.find((e) => e.entity_id === group.haEntityId) : undefined;
