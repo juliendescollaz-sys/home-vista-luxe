@@ -242,6 +242,52 @@ export class HAClient {
   }
 
   // Scene management methods using Edge Function proxy (avoids CORS issues)
+  
+  /**
+   * Get scene configuration from Home Assistant
+   * Returns the full scene config including entities and their target states
+   */
+  async getSceneConfig(sceneId: string): Promise<{
+    id: string;
+    name: string;
+    entities: Record<string, any>;
+    icon?: string;
+  } | null> {
+    console.info("[Neolia] getSceneConfig via Edge Function →", { sceneId });
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/ha-scene-manager`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({
+        haBaseUrl: this.config.baseUrl,
+        haToken: this.config.token,
+        action: "get",
+        sceneId: sceneId,
+      }),
+    });
+
+    if (!response.ok) {
+      // 404 means scene doesn't exist in config (might be a legacy scene)
+      if (response.status === 404) {
+        console.warn("[Neolia] getSceneConfig: scene not found in config");
+        return null;
+      }
+      const errorData = await response.json().catch(() => ({}));
+      console.error("[Neolia] getSceneConfig error:", response.status, errorData);
+      throw new Error(errorData.details || errorData.error || `Erreur récupération scène: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.info("[Neolia] getSceneConfig success:", data);
+    return data;
+  }
+
   async createScene(config: {
     id: string;
     name: string;
