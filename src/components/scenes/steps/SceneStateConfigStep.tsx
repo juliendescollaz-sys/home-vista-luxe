@@ -366,11 +366,11 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         </p>
       </div>
 
-      <div className="max-h-[400px] overflow-y-auto pr-2 mt-3 bg-background">
+      <div className="max-h-[400px] overflow-y-auto pr-2 mt-3 bg-background pt-1">
         {/* By floor */}
         {Object.entries(groupedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }], floorIndex) => (
           <div key={floorId} className={floorIndex > 0 ? "mt-4" : ""}>
-            <div className="sticky top-0 z-20 w-full bg-background py-2 px-1 border-b border-border/30">
+            <div className="sticky -top-1 z-20 w-full bg-background pt-3 pb-2 px-1 border-b border-border/30">
               <h5 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 {floor?.name || "Étage"}
               </h5>
@@ -393,7 +393,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         {/* Areas without floor */}
         {groupedEntities.noFloorAreas.length > 0 && (
           <div className="mt-4">
-            <div className="sticky top-0 z-20 w-full bg-background py-2 px-1 border-b border-border/30">
+            <div className="sticky -top-1 z-20 w-full bg-background pt-3 pb-2 px-1 border-b border-border/30">
               <h5 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 Autres pièces
               </h5>
@@ -416,7 +416,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         {/* Entities without area */}
         {groupedEntities.noArea.length > 0 && (
           <div className="mt-4">
-            <div className="sticky top-0 z-20 w-full bg-background py-2 px-1 border-b border-border/30">
+            <div className="sticky -top-1 z-20 w-full bg-background pt-3 pb-2 px-1 border-b border-border/30">
               <h5 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 Sans pièce
               </h5>
