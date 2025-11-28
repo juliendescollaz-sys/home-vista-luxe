@@ -87,8 +87,8 @@ export function SceneBasicInfoStep({ draft, onUpdate }: SceneBasicInfoStepProps)
         />
       </div>
 
-      <div className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-        <p>
+      <div className="p-3 rounded-lg bg-muted/50">
+        <p className="text-sm text-muted-foreground">
           <span className="font-semibold">Pourquoi ces informations ?</span> Le nom et l'icône vous permettent 
           de reconnaître rapidement la scène. La portée détermine si elle est personnelle 
           ou partagée avec toute la maison.
