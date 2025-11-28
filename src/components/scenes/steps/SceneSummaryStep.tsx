@@ -55,7 +55,18 @@ export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
   const formatState = (entity: HAEntity) => {
     const domain = entity.entity_id.split(".")[0];
     const state = draft.entityStates[entity.entity_id];
-    if (!state) return "Non configuré";
+    
+    // If no state configured, derive from current HA state as fallback
+    if (!state || state.state === undefined) {
+      // Fallback to current entity state
+      if (entity.state === "on") return "Allumé";
+      if (entity.state === "off") return "Éteint";
+      if (entity.state === "open" || entity.state === "opening") return "Ouvert";
+      if (entity.state === "closed" || entity.state === "closing") return "Fermé";
+      if (entity.state === "playing") return "Lecture";
+      if (entity.state === "paused") return "Pause";
+      return "Allumé"; // Safe default
+    }
 
     const parts: string[] = [];
 
@@ -65,6 +76,7 @@ export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
     else if (state.state === "closed") parts.push("Fermé");
     else if (state.state === "playing") parts.push("Lecture");
     else if (state.state === "paused") parts.push("Pause");
+    else parts.push("Allumé"); // Fallback for any other case
 
     // Only show brightness % for dimmable lights
     if (domain === "light" && state.brightness !== undefined && isDimmableLight(entity)) {
@@ -81,7 +93,7 @@ export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
       parts.push(`Vol. ${Math.round(state.volume_level * 100)}%`);
     }
 
-    return parts.join(", ") || "Configuré";
+    return parts.join(", ");
   };
 
   // Group entities by floor > area (same structure as Step 2)
