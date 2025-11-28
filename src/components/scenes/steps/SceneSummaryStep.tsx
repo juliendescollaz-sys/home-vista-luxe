@@ -78,8 +78,8 @@ export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
 
   return (
     <div className="space-y-6">
-      <div className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-        <p>
+      <div className="p-3 rounded-lg bg-muted/50">
+        <p className="text-sm text-muted-foreground">
           Vérifiez les paramètres de votre scène avant de la sauvegarder. 
           Une fois créée, la scène sera disponible dans la page Scènes et pourra être 
           ajoutée aux Favoris ou aux widgets.
