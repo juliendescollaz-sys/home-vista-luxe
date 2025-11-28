@@ -1,10 +1,5 @@
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,11 +44,11 @@ const INITIAL_DRAFT: SceneWizardDraft = {
 function localSceneToDraft(scene: NeoliaScene): SceneWizardDraft {
   const selectedEntityIds = scene.entities.map((e) => e.entity_id);
   const entityStates: Record<string, SceneEntityState["targetState"]> = {};
-  
+
   for (const entity of scene.entities) {
     entityStates[entity.entity_id] = entity.targetState;
   }
-  
+
   return {
     name: scene.name,
     icon: scene.icon,
@@ -69,15 +64,20 @@ function localSceneToDraft(scene: NeoliaScene): SceneWizardDraft {
  * HA format: { id, name, entities: { "entity_id": { state, brightness, ... }, ... }, icon }
  */
 function haConfigToDraft(
-  haConfig: { id: string; name: string; entities: Record<string, any>; icon?: string },
-  scene: NeoliaScene
+  haConfig: {
+    id: string;
+    name: string;
+    entities: Record<string, any>;
+    icon?: string;
+  },
+  scene: NeoliaScene,
 ): SceneWizardDraft {
   const selectedEntityIds = Object.keys(haConfig.entities || {});
   const entityStates: Record<string, SceneEntityState["targetState"]> = {};
-  
+
   for (const [entityId, config] of Object.entries(haConfig.entities || {})) {
     const targetState: SceneEntityState["targetState"] = {};
-    
+
     // Map HA config to our targetState format
     if (config.state !== undefined) {
       targetState.state = config.state;
@@ -107,10 +107,10 @@ function haConfigToDraft(
     if (config.volume_level !== undefined) {
       targetState.volume_level = config.volume_level;
     }
-    
+
     entityStates[entityId] = targetState;
   }
-  
+
   // Map MDI icon to Lucide icon
   let icon = scene.icon || "Sparkles";
   if (haConfig.icon) {
@@ -119,7 +119,7 @@ function haConfigToDraft(
     // Capitalize first letter
     icon = icon.charAt(0).toUpperCase() + icon.slice(1);
   }
-  
+
   return {
     name: haConfig.name || scene.name,
     icon,
@@ -132,8 +132,8 @@ function haConfigToDraft(
 
 export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
   const isEditMode = !!scene;
-  const isSharedScene = scene?.scope === "shared" || scene?.id?.startsWith("scene.");
-  
+  const isSharedScene = scene?.scope === "shared" || (scene?.id?.startsWith("scene.") ?? false);
+
   const [step, setStep] = useState(1);
   const [draft, setDraft] = useState<SceneWizardDraft>(INITIAL_DRAFT);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -151,14 +151,15 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
     if (open) {
       setStep(1);
       setIsLoadingConfig(false);
-      
+
       if (scene) {
         if (isSharedScene && client) {
           // Shared scene: fetch config from HA
           setIsLoadingConfig(true);
           const sceneId = scene.id.replace("scene.", "");
-          
-          client.getSceneConfig(sceneId)
+
+          client
+            .getSceneConfig(sceneId)
             .then((haConfig) => {
               if (haConfig) {
                 console.log("[SceneWizard] Loaded HA config:", haConfig);
@@ -176,7 +177,8 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
                 });
                 toast({
                   title: "Configuration incomplète",
-                  description: "Cette scène n'a pas de configuration détaillée disponible. Vous pouvez la reconfigurer.",
+                  description:
+                    "Cette scène n'a pas de configuration détaillée disponible. Vous pouvez la reconfigurer.",
                   variant: "default",
                 });
               }
@@ -222,26 +224,27 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
     onOpenChange(false);
   };
 
-  const canProceedStep1 = draft.name.trim().length > 0 && draft.icon.length > 0 && (draft.scope === "local" || draft.scope === "shared");
+  const canProceedStep1 =
+    draft.name.trim().length > 0 && draft.icon.length > 0 && (draft.scope === "local" || draft.scope === "shared");
   const canProceedStep2 = draft.selectedEntityIds.length > 0;
   const canProceedStep3 = Object.keys(draft.entityStates).length > 0;
 
   // Auto-initialize entity states for NEW entities only when entering Step 3
   const initializeEntityStates = () => {
     const updatedStates = { ...draft.entityStates };
-    
+
     for (const entityId of draft.selectedEntityIds) {
       // Skip if already has a state configured (from existing scene or previous edit)
       if (updatedStates[entityId] && updatedStates[entityId].state !== undefined) {
         continue;
       }
-      
+
       const entity = entities.find((e) => e.entity_id === entityId);
       if (!entity) continue;
-      
+
       const domain = entityId.split(".")[0];
       const state: SceneEntityState["targetState"] = {};
-      
+
       // Basic state from current HA state
       if (["on", "off"].includes(entity.state)) {
         state.state = entity.state as "on" | "off";
@@ -253,7 +256,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
         // Default to "on" for unknown states
         state.state = "on";
       }
-      
+
       // Domain-specific attributes from current HA state
       if (domain === "light") {
         if (entity.attributes.brightness !== undefined) {
@@ -281,17 +284,17 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
           state.volume_level = entity.attributes.volume_level;
         }
       }
-      
+
       updatedStates[entityId] = state;
     }
-    
+
     // Remove states for entities that were deselected
     for (const entityId of Object.keys(updatedStates)) {
       if (!draft.selectedEntityIds.includes(entityId)) {
         delete updatedStates[entityId];
       }
     }
-    
+
     setDraft((prev) => ({ ...prev, entityStates: updatedStates }));
   };
 
@@ -322,23 +325,23 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
           if (!entity) return null;
 
           const domain = entityId.split(".")[0];
-          const rawTargetState = draft.entityStates[entityId] || { state: "on" };
-          
+          const rawTargetState = draft.entityStates[entityId] || ({ state: "on" } as any);
+
           // Sanitize: remove brightness for non-dimmable lights
           const targetState = { ...rawTargetState };
           if (domain === "light") {
             const supportedColorModes = entity.attributes.supported_color_modes as string[] | undefined;
-            const isDimmable = 
+            const isDimmable =
               (Array.isArray(supportedColorModes) &&
                 supportedColorModes.some((m) =>
-                  ["brightness", "hs", "xy", "rgb", "rgbw", "rgbww", "color_temp"].includes(m)
+                  ["brightness", "hs", "xy", "rgb", "rgbw", "rgbww", "color_temp"].includes(m),
                 )) ||
               typeof entity.attributes.brightness === "number";
-            
+
             if (!isDimmable) {
-              delete targetState.brightness;
-              delete targetState.color_temp;
-              delete targetState.rgb_color;
+              delete (targetState as any).brightness;
+              delete (targetState as any).color_temp;
+              delete (targetState as any).rgb_color;
             }
           }
 
@@ -386,7 +389,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
       console.error("[SceneWizard] Error:", error);
       toast({
         title: "Erreur",
-        description: isEditMode 
+        description: isEditMode
           ? "Impossible de modifier la scène. Veuillez réessayer."
           : "Impossible de créer la scène. Veuillez réessayer.",
         variant: "destructive",
@@ -402,7 +405,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
         await deleteScene(scene.id);
         setIsDeleteConfirmOpen(false);
         handleClose();
-        
+
         toast({
           title: "Scène supprimée",
           description: `"${scene.name}" a été supprimée.`,
@@ -417,12 +420,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
     }
   };
 
-  const stepTitles = [
-    "Informations de base",
-    "Sélection des appareils",
-    "Paramétrage des états",
-    "Résumé de la scène",
-  ];
+  const stepTitles = ["Informations de base", "Sélection des appareils", "Paramétrage des états", "Résumé de la scène"];
 
   const wizardTitle = isEditMode ? "Modifier la scène" : "Créer une scène";
 
@@ -432,11 +430,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {isEditMode ? (
-                <Pencil className="w-5 h-5 text-primary" />
-              ) : (
-                <Sparkles className="w-5 h-5 text-primary" />
-              )}
+              {isEditMode ? <Pencil className="w-5 h-5 text-primary" /> : <Sparkles className="w-5 h-5 text-primary" />}
               {wizardTitle} – Étape {step}/4
             </DialogTitle>
             <p className="text-sm text-muted-foreground">{stepTitles[step - 1]}</p>
@@ -446,7 +440,8 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
             <Progress value={(step / 4) * 100} className="h-1.5" />
           </div>
 
-          <div className="flex-1 overflow-y-auto px-1 py-2">
+          {/* Zone scrollable principale du wizard */}
+          <div className="flex-1 overflow-y-auto px-1 py-2 bg-background">
             {isLoadingConfig ? (
               <div className="flex flex-col items-center justify-center py-12 gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -454,33 +449,24 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
               </div>
             ) : (
               <>
-                {step === 1 && (
-                  <SceneBasicInfoStep draft={draft} onUpdate={updateDraft} isEditMode={isEditMode} />
-                )}
-                {step === 2 && (
-                  <SceneDeviceSelectionStep draft={draft} onUpdate={updateDraft} />
-                )}
-                {step === 3 && (
-                  <SceneStateConfigStep draft={draft} onUpdate={updateDraft} />
-                )}
+                {step === 1 && <SceneBasicInfoStep draft={draft} onUpdate={updateDraft} isEditMode={isEditMode} />}
+                {step === 2 && <SceneDeviceSelectionStep draft={draft} onUpdate={updateDraft} />}
+                {step === 3 && <SceneStateConfigStep draft={draft} onUpdate={updateDraft} />}
                 {step === 4 && <SceneSummaryStep draft={draft} />}
               </>
             )}
           </div>
 
+          {/* Footer */}
           <div className="flex items-center justify-between pt-4 border-t">
             <div className="flex gap-2">
               {step > 1 && (
-                <Button
-                  variant="ghost"
-                  onClick={handlePrevious}
-                  disabled={isSubmitting || isLoadingConfig}
-                >
+                <Button variant="ghost" onClick={handlePrevious} disabled={isSubmitting || isLoadingConfig}>
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   Précédent
                 </Button>
               )}
-              
+
               {/* Delete button in edit mode */}
               {isEditMode && step === 1 && (
                 <Button
@@ -542,8 +528,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer cette scène ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action supprimera définitivement la scène « {scene?.name} ».
-              Les appareils ne seront pas modifiés.
+              Cette action supprimera définitivement la scène « {scene?.name} ». Les appareils ne seront pas modifiés.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
