@@ -105,8 +105,74 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
   const canProceedStep2 = draft.selectedEntityIds.length > 0;
   const canProceedStep3 = Object.keys(draft.entityStates).length > 0;
 
+  // Auto-initialize entity states with current HA state when entering Step 3
+  const initializeEntityStates = () => {
+    const updatedStates = { ...draft.entityStates };
+    
+    for (const entityId of draft.selectedEntityIds) {
+      // Skip if already has a state configured
+      if (updatedStates[entityId] && updatedStates[entityId].state !== undefined) {
+        continue;
+      }
+      
+      const entity = entities.find((e) => e.entity_id === entityId);
+      if (!entity) continue;
+      
+      const domain = entityId.split(".")[0];
+      const state: SceneEntityState["targetState"] = {};
+      
+      // Basic state from current HA state
+      if (["on", "off"].includes(entity.state)) {
+        state.state = entity.state as "on" | "off";
+      } else if (["open", "closed", "opening", "closing"].includes(entity.state)) {
+        state.state = entity.state.includes("open") ? "open" : "closed";
+      } else if (["playing", "paused", "idle"].includes(entity.state)) {
+        state.state = entity.state as "playing" | "paused" | "idle";
+      } else {
+        // Default to "on" for unknown states
+        state.state = "on";
+      }
+      
+      // Domain-specific attributes from current HA state
+      if (domain === "light") {
+        if (entity.attributes.brightness !== undefined) {
+          state.brightness = entity.attributes.brightness;
+        }
+        if (entity.attributes.color_temp !== undefined) {
+          state.color_temp = entity.attributes.color_temp;
+        }
+        if (entity.attributes.rgb_color !== undefined) {
+          state.rgb_color = entity.attributes.rgb_color;
+        }
+      } else if (domain === "cover") {
+        if (entity.attributes.current_position !== undefined) {
+          state.position = entity.attributes.current_position;
+        } else {
+          state.position = 100; // Default to open
+        }
+      } else if (domain === "climate") {
+        state.hvac_mode = entity.attributes.hvac_mode || "off";
+        if (entity.attributes.temperature !== undefined) {
+          state.temperature = entity.attributes.temperature;
+        }
+      } else if (domain === "media_player") {
+        if (entity.attributes.volume_level !== undefined) {
+          state.volume_level = entity.attributes.volume_level;
+        }
+      }
+      
+      updatedStates[entityId] = state;
+    }
+    
+    setDraft((prev) => ({ ...prev, entityStates: updatedStates }));
+  };
+
   const handleNext = () => {
     if (step < 4) {
+      // Auto-initialize entity states when transitioning to Step 3
+      if (step === 2) {
+        initializeEntityStates();
+      }
       setStep(step + 1);
     }
   };
