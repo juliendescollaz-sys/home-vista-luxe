@@ -4,37 +4,52 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useHAStore } from "@/store/useHAStore";
 import { SceneWizardDraft } from "@/types/scenes";
-import { Search, ChevronDown, ChevronRight } from "lucide-react";
+import { 
+  Search, ChevronDown, ChevronRight, 
+  Lightbulb, Power, Thermometer, Music, Lock, 
+  Fan, Blinds, Droplet, Settings
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isControllableEntity, EntityRegistryEntry } from "@/lib/entityUtils";
+import { HAEntity } from "@/types/homeassistant";
 
 interface SceneDeviceSelectionStepProps {
   draft: SceneWizardDraft;
   onUpdate: (updates: Partial<SceneWizardDraft>) => void;
 }
 
+// Mapping d'icônes identique aux tuiles d'appareils
+const getDomainIcon = (domain: string) => {
+  const iconMap: Record<string, any> = {
+    light: Lightbulb,
+    switch: Power,
+    climate: Thermometer,
+    media_player: Music,
+    lock: Lock,
+    fan: Fan,
+    cover: Blinds,
+    valve: Droplet,
+  };
+  return iconMap[domain] || Settings;
+};
+
 export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelectionStepProps) {
   const entities = useHAStore((s) => s.entities);
   const areas = useHAStore((s) => s.areas);
   const floors = useHAStore((s) => s.floors);
   const devices = useHAStore((s) => s.devices);
+  const entityRegistry = useHAStore((s) => s.entityRegistry);
 
   const [search, setSearch] = useState("");
   const [expandedAreas, setExpandedAreas] = useState<Set<string>>(new Set());
 
-  // Filter controllable entities
+  // Filter controllable entities using the same filter as the rest of the app
   const controllableEntities = useMemo(() => {
-    const controllableDomains = [
-      "light", "switch", "cover", "fan", "valve", "climate", 
-      "media_player", "scene", "script", "input_boolean", "lock"
-    ];
-    
-    return entities.filter((e) => {
-      const domain = e.entity_id.split(".")[0];
-      return controllableDomains.includes(domain);
+    return entities.filter((entity) => {
+      const reg = entityRegistry[entity.entity_id] as EntityRegistryEntry | undefined;
+      return isControllableEntity(entity, reg);
     });
-  }, [entities]);
-
-  const entityRegistry = useHAStore((s) => s.entityRegistry);
+  }, [entities, entityRegistry]);
 
   // Group entities by floor > area
   const groupedEntities = useMemo(() => {
@@ -94,7 +109,7 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
     onUpdate({ selectedEntityIds: newSelected });
   };
 
-  const toggleArea = (areaEntities: typeof controllableEntities) => {
+  const toggleArea = (areaEntities: HAEntity[]) => {
     const entityIds = areaEntities.map((e) => e.entity_id);
     const allSelected = entityIds.every((id) => draft.selectedEntityIds.includes(id));
     
@@ -118,26 +133,10 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
     setExpandedAreas(newExpanded);
   };
 
-  const getDomainIcon = (domain: string) => {
-    const icons: Record<string, string> = {
-      light: "💡",
-      switch: "🔌",
-      cover: "🪟",
-      fan: "🌀",
-      climate: "🌡️",
-      media_player: "🔊",
-      lock: "🔒",
-      valve: "🚰",
-      scene: "🎬",
-      script: "📜",
-      input_boolean: "⚡",
-    };
-    return icons[domain] || "⚙️";
-  };
-
-  const renderEntityItem = (entity: typeof controllableEntities[0]) => {
+  const renderEntityItem = (entity: HAEntity) => {
     const domain = entity.entity_id.split(".")[0];
     const isSelected = draft.selectedEntityIds.includes(entity.entity_id);
+    const Icon = getDomainIcon(domain);
 
     return (
       <label
@@ -152,7 +151,7 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
           checked={isSelected}
           onCheckedChange={() => toggleEntity(entity.entity_id)}
         />
-        <span className="text-lg">{getDomainIcon(domain)}</span>
+        <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
         <span className="flex-1 text-sm truncate">
           {entity.attributes.friendly_name || entity.entity_id}
         </span>
@@ -160,7 +159,7 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
     );
   };
 
-  const renderAreaSection = (area: typeof areas[0], areaEntities: typeof controllableEntities) => {
+  const renderAreaSection = (area: typeof areas[0], areaEntities: HAEntity[]) => {
     const isExpanded = expandedAreas.has(area.area_id);
     const selectedCount = areaEntities.filter((e) => draft.selectedEntityIds.includes(e.entity_id)).length;
     const allSelected = selectedCount === areaEntities.length;
@@ -245,7 +244,7 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
 
       <div className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
         <p>
-          <strong>Conseil :</strong> Choisissez tous les appareils dont l'état sera défini par cette scène. 
+          <span className="font-semibold">Conseil :</span> Choisissez tous les appareils dont l'état sera défini par cette scène. 
           Vous pourrez régler l'état précis de chaque appareil à l'étape suivante 
           (intensité, couleur, position, volume…).
         </p>
