@@ -273,17 +273,19 @@ export class HAClient {
     });
 
     if (!response.ok) {
-      // 404 means scene doesn't exist in config (might be a legacy scene)
-      if (response.status === 404) {
-        console.warn("[Neolia] getSceneConfig: scene not found in config");
-        return null;
-      }
       const errorData = await response.json().catch(() => ({}));
       console.error("[Neolia] getSceneConfig error:", response.status, errorData);
       throw new Error(errorData.details || errorData.error || `Erreur récupération scène: ${response.status}`);
     }
 
     const data = await response.json();
+    
+    // Handle notFound response (scene exists in HA but not in config API)
+    if (data.notFound) {
+      console.warn("[Neolia] getSceneConfig: scene not found in config (legacy scene)");
+      return null;
+    }
+    
     console.info("[Neolia] getSceneConfig success:", data);
     return data;
   }
