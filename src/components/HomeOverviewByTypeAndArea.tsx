@@ -68,10 +68,12 @@ export function HomeOverviewByTypeAndArea({
   const [viewMode, setViewMode] = useState<FavoritesViewMode>("type");
   const [detailsEntity, setDetailsEntity] = useState<HAEntity | null>(null);
 
-  // Load shared scenes on mount
+  // Load shared scenes when HA entities change
   useEffect(() => {
-    loadSharedScenes();
-  }, [loadSharedScenes]);
+    if (entities.length > 0) {
+      loadSharedScenes();
+    }
+  }, [entities, loadSharedScenes]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
