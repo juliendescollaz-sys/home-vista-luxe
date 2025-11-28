@@ -68,12 +68,13 @@ export function HomeOverviewByTypeAndArea({
   const [viewMode, setViewMode] = useState<FavoritesViewMode>("type");
   const [detailsEntity, setDetailsEntity] = useState<HAEntity | null>(null);
 
-  // Load shared scenes when HA entities change
+  // Load shared scenes when HA entities change (use length to avoid infinite loop)
   useEffect(() => {
     if (entities.length > 0) {
       loadSharedScenes();
     }
-  }, [entities, loadSharedScenes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entities.length]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

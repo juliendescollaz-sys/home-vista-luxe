@@ -18,12 +18,13 @@ const Scenes = () => {
   const scenes = useSceneStore((s) => [...s.localScenes, ...s.sharedScenes]);
   const loadSharedScenes = useSceneStore((s) => s.loadSharedScenes);
 
-  // Load shared scenes when HA entities change
+  // Load shared scenes when HA entities change (use length to avoid infinite loop)
   useEffect(() => {
     if (entities.length > 0) {
       loadSharedScenes();
     }
-  }, [entities, loadSharedScenes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entities.length]);
 
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[26px]";
   const rootClassName =
