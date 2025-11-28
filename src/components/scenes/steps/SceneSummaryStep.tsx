@@ -4,6 +4,7 @@ import { SceneWizardDraft } from "@/types/scenes";
 import { User, Users, CheckCircle } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { isDimmableLight } from "@/lib/entityUtils";
+import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
 
 interface SceneSummaryStepProps {
   draft: SceneWizardDraft;
@@ -12,26 +13,46 @@ interface SceneSummaryStepProps {
 export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
   const entities = useHAStore((s) => s.entities);
   const areas = useHAStore((s) => s.areas);
+  const floors = useHAStore((s) => s.floors);
   const devices = useHAStore((s) => s.devices);
   const entityRegistry = useHAStore((s) => s.entityRegistry);
 
   const selectedEntities = useMemo(() => {
     return draft.selectedEntityIds
       .map((id) => entities.find((e) => e.entity_id === id))
-      .filter(Boolean) as typeof entities;
+      .filter(Boolean) as HAEntity[];
   }, [draft.selectedEntityIds, entities]);
 
   const IconComponent = (LucideIcons as any)[draft.icon] || LucideIcons.Sparkles;
 
-  const getAreaName = (entity: typeof entities[0]) => {
-    const registry = entityRegistry[entity.entity_id];
-    const device = devices.find((d) => d.id === registry?.device_id);
-    const areaId = registry?.area_id || device?.area_id;
-    const area = areas.find((a) => a.area_id === areaId);
-    return area?.name || "Sans pièce";
+  // Helper to get area_id for an entity (same logic as Step 2)
+  const getEntityAreaId = (entityId: string): string | undefined => {
+    const reg = entityRegistry.find(r => r.entity_id === entityId);
+    if (reg?.area_id) return reg.area_id;
+    if (reg?.device_id) {
+      const device = devices.find(d => d.id === reg.device_id);
+      if (device?.area_id) return device.area_id;
+    }
+    return undefined;
   };
 
-  const formatState = (entity: typeof entities[0]) => {
+  // Format room label: "Floor – Room" or just "Room"
+  const getRoomLabel = (entity: HAEntity): string | undefined => {
+    const areaId = getEntityAreaId(entity.entity_id);
+    if (!areaId) return undefined;
+    
+    const area = areas.find(a => a.area_id === areaId);
+    if (!area) return undefined;
+    
+    const floor = area.floor_id ? floors.find(f => f.floor_id === area.floor_id) : undefined;
+    
+    if (floor) {
+      return `${floor.name} – ${area.name}`;
+    }
+    return area.name;
+  };
+
+  const formatState = (entity: HAEntity) => {
     const domain = entity.entity_id.split(".")[0];
     const state = draft.entityStates[entity.entity_id];
     if (!state) return "Non configuré";
@@ -63,20 +84,45 @@ export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
     return parts.join(", ") || "Configuré";
   };
 
-  // Group entities by area for summary
-  const entitiesByArea = useMemo(() => {
-    const grouped: Record<string, { areaName: string; entities: typeof selectedEntities }> = {};
-    
+  // Group entities by floor > area (same structure as Step 2)
+  const groupedEntities = useMemo(() => {
+    // Group by area
+    const byArea: Record<string, HAEntity[]> = {};
+    const noArea: HAEntity[] = [];
+
     for (const entity of selectedEntities) {
-      const areaName = getAreaName(entity);
-      if (!grouped[areaName]) {
-        grouped[areaName] = { areaName, entities: [] };
+      const areaId = getEntityAreaId(entity.entity_id);
+      if (areaId) {
+        if (!byArea[areaId]) byArea[areaId] = [];
+        byArea[areaId].push(entity);
+      } else {
+        noArea.push(entity);
       }
-      grouped[areaName].entities.push(entity);
     }
-    
-    return Object.values(grouped);
-  }, [selectedEntities, areas, devices, entityRegistry]);
+
+    // Group areas by floor
+    const byFloor: Record<string, { floor: HAFloor | null; areas: { area: HAArea; entities: HAEntity[] }[] }> = {};
+    const noFloorAreas: { area: HAArea; entities: HAEntity[] }[] = [];
+
+    for (const [areaId, areaEntities] of Object.entries(byArea)) {
+      const area = areas.find(a => a.area_id === areaId);
+      if (!area) continue;
+
+      const floor = floors.find(f => f.floor_id === area.floor_id);
+      const floorKey = floor?.floor_id || "__no_floor__";
+
+      if (floor) {
+        if (!byFloor[floorKey]) {
+          byFloor[floorKey] = { floor, areas: [] };
+        }
+        byFloor[floorKey].areas.push({ area, entities: areaEntities });
+      } else {
+        noFloorAreas.push({ area, entities: areaEntities });
+      }
+    }
+
+    return { byFloor, noFloorAreas, noArea };
+  }, [selectedEntities, areas, floors, devices, entityRegistry]);
 
   return (
     <div className="space-y-6">
@@ -124,14 +170,77 @@ export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
           {selectedEntities.length} appareil{selectedEntities.length > 1 ? "s" : ""} configuré{selectedEntities.length > 1 ? "s" : ""}
         </h4>
 
-        <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2">
-          {entitiesByArea.map(({ areaName, entities: areaEntities }) => (
-            <div key={areaName} className="space-y-1">
-              <h5 className="text-xs font-medium text-muted-foreground uppercase">
-                {areaName}
+        <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2">
+          {/* By floor */}
+          {Object.entries(groupedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
+            <div key={floorId} className="space-y-2">
+              <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {floor?.name || "Étage"}
+              </h5>
+              {floorAreas.map(({ area, entities: areaEntities }) => (
+                <div key={area.area_id} className="space-y-1">
+                  <h6 className="text-xs font-medium text-muted-foreground ml-2">
+                    {area.name}
+                  </h6>
+                  <div className="space-y-1 ml-2">
+                    {areaEntities.map((entity) => (
+                      <div
+                        key={entity.entity_id}
+                        className="flex items-center justify-between py-1.5 px-2 rounded bg-muted/30 text-sm"
+                      >
+                        <span className="truncate">
+                          {entity.attributes.friendly_name || entity.entity_id}
+                        </span>
+                        <span className="text-muted-foreground shrink-0 ml-2">
+                          {formatState(entity)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+
+          {/* Areas without floor */}
+          {groupedEntities.noFloorAreas.length > 0 && (
+            <div className="space-y-2">
+              <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Autres pièces
+              </h5>
+              {groupedEntities.noFloorAreas.map(({ area, entities: areaEntities }) => (
+                <div key={area.area_id} className="space-y-1">
+                  <h6 className="text-xs font-medium text-muted-foreground ml-2">
+                    {area.name}
+                  </h6>
+                  <div className="space-y-1 ml-2">
+                    {areaEntities.map((entity) => (
+                      <div
+                        key={entity.entity_id}
+                        className="flex items-center justify-between py-1.5 px-2 rounded bg-muted/30 text-sm"
+                      >
+                        <span className="truncate">
+                          {entity.attributes.friendly_name || entity.entity_id}
+                        </span>
+                        <span className="text-muted-foreground shrink-0 ml-2">
+                          {formatState(entity)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Entities without area */}
+          {groupedEntities.noArea.length > 0 && (
+            <div className="space-y-1">
+              <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Sans pièce
               </h5>
               <div className="space-y-1">
-                {areaEntities.map((entity) => (
+                {groupedEntities.noArea.map((entity) => (
                   <div
                     key={entity.entity_id}
                     className="flex items-center justify-between py-1.5 px-2 rounded bg-muted/30 text-sm"
@@ -146,7 +255,7 @@ export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
                 ))}
               </div>
             </div>
-          ))}
+          )}
         </div>
       </div>
 
