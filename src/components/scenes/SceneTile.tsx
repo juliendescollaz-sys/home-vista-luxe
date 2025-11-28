@@ -146,13 +146,10 @@ export function SceneTile({ sceneId, hideEditButton = false, sortableProps }: Sc
               </div>
 
               {scene.description && (
-                <p className="text-sm text-muted-foreground line-clamp-1 mb-1">
+                <p className="text-sm text-muted-foreground line-clamp-1">
                   {scene.description}
                 </p>
               )}
-              <p className="text-sm text-muted-foreground">
-                {scene.entities.length} appareil{scene.entities.length > 1 ? "s" : ""}
-              </p>
             </div>
           </div>
 
