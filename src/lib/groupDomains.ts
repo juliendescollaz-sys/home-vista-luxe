@@ -219,15 +219,31 @@ function isValidLightForGroup(entity: HAEntity, reg?: EntityRegistry): boolean {
   // Whitelist explicite - toujours autoriser
   if (LIGHT_WHITELIST.includes(entityId)) return true;
 
+  // DEBUG: Log pour light.spot
+  if (entityId === "light.spot") {
+    console.log("[Neolia DEBUG] isValidLightForGroup light.spot - registry:", reg);
+    console.log("[Neolia DEBUG] isValidLightForGroup light.spot - hidden_by:", reg?.hidden_by);
+    console.log("[Neolia DEBUG] isValidLightForGroup light.spot - disabled_by:", reg?.disabled_by);
+  }
+
   // Entité cachée ou désactivée
-  if (reg?.hidden_by || reg?.disabled_by) return false;
+  if (reg?.hidden_by) {
+    if (entityId === "light.spot") console.log("[Neolia DEBUG] light.spot REJETÉ par hidden_by");
+    return false;
+  }
+  if (reg?.disabled_by) {
+    if (entityId === "light.spot") console.log("[Neolia DEBUG] light.spot REJETÉ par disabled_by");
+    return false;
+  }
 
   // Filtre sur le friendly_name (mais pas sur entity_category pour les lights)
   const name = (entity.attributes?.friendly_name || entityId).toLowerCase();
   if (LIGHT_BLOCKED_KEYWORDS.some((k) => name.includes(k))) {
+    if (entityId === "light.spot") console.log("[Neolia DEBUG] light.spot REJETÉ par keyword:", name);
     return false;
   }
 
+  if (entityId === "light.spot") console.log("[Neolia DEBUG] light.spot ACCEPTÉ par isValidLightForGroup");
   return true;
 }
 
