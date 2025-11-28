@@ -241,27 +241,38 @@ export class HAClient {
     });
   }
 
-  // Scene management methods
+  // Scene management methods using REST API
+  // Note: Home Assistant scene config management is only available via REST, not WebSocket
   async createScene(config: {
     id: string;
     name: string;
     entities: Record<string, any>;
     icon?: string;
   }): Promise<void> {
-    if (!this.isConnected()) {
-      throw new Error("WebSocket Home Assistant non connecté");
-    }
+    console.info("[Neolia] createScene via REST →", { id: config.id, name: config.name });
 
-    console.info("[Neolia] createScene →", { id: config.id, name: config.name });
-
-    await this.sendWithResponse("config/scene/config/create", {
-      scene_id: config.id,
-      scene_config: {
+    const apiUrl = this.config.baseUrl.replace(/\/+$/, "");
+    const response = await fetch(`${apiUrl}/api/config/scene/config/${config.id}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${this.config.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: config.id,
         name: config.name,
         entities: config.entities,
-        icon: config.icon,
-      },
+        icon: config.icon ? `mdi:${config.icon.toLowerCase()}` : undefined,
+      }),
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[Neolia] createScene error:", response.status, errorText);
+      throw new Error(`Erreur création scène: ${response.status} - ${errorText}`);
+    }
+
+    console.info("[Neolia] createScene success");
   }
 
   async updateHAScene(config: {
@@ -270,33 +281,68 @@ export class HAClient {
     entities?: Record<string, any>;
     icon?: string;
   }): Promise<void> {
-    if (!this.isConnected()) {
-      throw new Error("WebSocket Home Assistant non connecté");
+    console.info("[Neolia] updateHAScene via REST →", { id: config.id });
+
+    const apiUrl = this.config.baseUrl.replace(/\/+$/, "");
+    
+    // First fetch current scene config
+    const getResponse = await fetch(`${apiUrl}/api/config/scene/config/${config.id}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${this.config.token}`,
+      },
+    });
+
+    let existingConfig: any = {};
+    if (getResponse.ok) {
+      existingConfig = await getResponse.json();
     }
 
-    console.info("[Neolia] updateHAScene →", { id: config.id });
+    // Merge with updates
+    const sceneConfig: Record<string, any> = {
+      ...existingConfig,
+      id: config.id,
+    };
+    if (config.name !== undefined) sceneConfig.name = config.name;
+    if (config.entities !== undefined) sceneConfig.entities = config.entities;
+    if (config.icon !== undefined) sceneConfig.icon = `mdi:${config.icon.toLowerCase()}`;
 
-    const sceneConfig: Record<string, any> = {};
-    if (config.name) sceneConfig.name = config.name;
-    if (config.entities) sceneConfig.entities = config.entities;
-    if (config.icon) sceneConfig.icon = config.icon;
-
-    await this.sendWithResponse("config/scene/config/update", {
-      scene_id: config.id,
-      scene_config: sceneConfig,
+    const response = await fetch(`${apiUrl}/api/config/scene/config/${config.id}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${this.config.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(sceneConfig),
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[Neolia] updateHAScene error:", response.status, errorText);
+      throw new Error(`Erreur mise à jour scène: ${response.status} - ${errorText}`);
+    }
+
+    console.info("[Neolia] updateHAScene success");
   }
 
   async deleteHAScene(sceneId: string): Promise<void> {
-    if (!this.isConnected()) {
-      throw new Error("WebSocket Home Assistant non connecté");
+    console.info("[Neolia] deleteHAScene via REST →", { sceneId });
+
+    const apiUrl = this.config.baseUrl.replace(/\/+$/, "");
+    const response = await fetch(`${apiUrl}/api/config/scene/config/${sceneId}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${this.config.token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[Neolia] deleteHAScene error:", response.status, errorText);
+      throw new Error(`Erreur suppression scène: ${response.status} - ${errorText}`);
     }
 
-    console.info("[Neolia] deleteHAScene →", { sceneId });
-
-    await this.sendWithResponse("config/scene/config/delete", {
-      scene_id: sceneId,
-    });
+    console.info("[Neolia] deleteHAScene success");
   }
 
   async callService(
