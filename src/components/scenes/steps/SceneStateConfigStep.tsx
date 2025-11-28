@@ -371,7 +371,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         {Object.entries(groupedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
           <section key={floorId} className="mb-4">
             {/* En-tête d'étage sticky */}
-            <header className="sticky top-0 z-20 w-full px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-background border-b border-border/30">
+            <header className="sticky top-0 z-20 w-full px-1 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground bg-background border-b border-border/30">
               {floor?.name || "Étage"}
             </header>
 
@@ -395,7 +395,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         {groupedEntities.noFloorAreas.length > 0 && (
           <section className="mb-4">
             {/* En-tête sticky */}
-            <header className="sticky top-0 z-20 w-full px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-background border-b border-border/30">
+            <header className="sticky top-0 z-20 w-full px-1 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground bg-background border-b border-border/30">
               Autres pièces
             </header>
 
@@ -418,7 +418,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         {groupedEntities.noArea.length > 0 && (
           <section className="mb-4">
             {/* En-tête sticky */}
-            <header className="sticky top-0 z-20 w-full px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-background border-b border-border/30">
+            <header className="sticky top-0 z-20 w-full px-1 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground bg-background border-b border-border/30">
               Sans pièce
             </header>
 
