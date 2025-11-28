@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { Star, Play, Loader2, User, Users, Pencil } from "lucide-react";
 import * as LucideIcons from "lucide-react";
-import { SceneEditDialog } from "./SceneEditDialog";
+import { SceneWizard } from "./SceneWizard";
 
 interface SceneTileProps {
   scene: NeoliaScene;
@@ -170,7 +170,7 @@ export function SceneTile({ scene, hideEditButton = false, sortableProps }: Scen
         </div>
       </Card>
 
-      <SceneEditDialog 
+      <SceneWizard 
         scene={scene} 
         open={editDialogOpen} 
         onOpenChange={setEditDialogOpen} 

@@ -90,22 +90,6 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
       return entityAreaId === areaId;
     });
 
-    // DEBUG: Log light.spot filtering
-    const spotEntity = areaFiltered.find(e => e.entity_id === "light.spot");
-    if (spotEntity) {
-      console.log("[Neolia DEBUG] light.spot trouvé dans areaFiltered:", spotEntity);
-      const spotReg = entityRegistry.find(r => r.entity_id === "light.spot");
-      console.log("[Neolia DEBUG] light.spot registry:", spotReg);
-    } else {
-      // Check if light.spot exists at all
-      const allSpot = entities.find(e => e.entity_id === "light.spot");
-      if (allSpot) {
-        const spotReg = entityRegistry.find(r => r.entity_id === "light.spot");
-        console.log("[Neolia DEBUG] light.spot existe mais PAS dans areaFiltered. Registry:", spotReg);
-        console.log("[Neolia DEBUG] areaId recherché:", areaId);
-      }
-    }
-
     // 2) Appliquer le même filtrage par domaine que le wizard de groupe
     // (inclut la whitelist ZWA2 LED, exclut les entités techniques Sonos, etc.)
     const supportedDomains = GROUP_DOMAIN_CONFIGS.map(c => c.value);
@@ -116,26 +100,8 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
       domainFiltered.push(...domainEntities);
     }
 
-    // DEBUG: Check if light.spot passes domain filter
-    const spotAfterDomain = domainFiltered.find(e => e.entity_id === "light.spot");
-    if (spotEntity && !spotAfterDomain) {
-      console.log("[Neolia DEBUG] light.spot FILTRÉ par filterEntitiesForDomain!");
-    } else if (spotAfterDomain) {
-      console.log("[Neolia DEBUG] light.spot PASSÉ filterEntitiesForDomain ✓");
-    }
-
     // 3) Appliquer le filtre des entités de contrôle principales (multi-channel vs single)
-    const finalEntities = filterPrimaryControlEntities(domainFiltered, entityRegistry, devices);
-    
-    // DEBUG: Check if light.spot passes primary control filter
-    const spotAfterPrimary = finalEntities.find(e => e.entity_id === "light.spot");
-    if (spotAfterDomain && !spotAfterPrimary) {
-      console.log("[Neolia DEBUG] light.spot FILTRÉ par filterPrimaryControlEntities!");
-    } else if (spotAfterPrimary) {
-      console.log("[Neolia DEBUG] light.spot PASSÉ filterPrimaryControlEntities ✓");
-    }
-    
-    return finalEntities;
+    return filterPrimaryControlEntities(domainFiltered, entityRegistry, devices);
   }, [entities, entityRegistry, devices, areaId]);
 
   // Appliquer l'ordre custom - une seule liste plate
