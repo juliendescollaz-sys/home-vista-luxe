@@ -370,7 +370,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         {/* By floor */}
         {Object.entries(groupedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
           <div key={floorId} className="space-y-3">
-            <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide sticky top-0 bg-background py-1">
+            <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide sticky top-0 bg-card py-1 z-10">
               {floor?.name || "Étage"}
             </h5>
             {floorAreas.map(({ area, entities: areaEntities }) => (
@@ -389,7 +389,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         {/* Areas without floor */}
         {groupedEntities.noFloorAreas.length > 0 && (
           <div className="space-y-3">
-            <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide sticky top-0 bg-background py-1">
+            <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide sticky top-0 bg-card py-1 z-10">
               Autres pièces
             </h5>
             {groupedEntities.noFloorAreas.map(({ area, entities: areaEntities }) => (
@@ -408,7 +408,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         {/* Entities without area */}
         {groupedEntities.noArea.length > 0 && (
           <div className="space-y-2">
-            <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide sticky top-0 bg-background py-1">
+            <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide sticky top-0 bg-card py-1 z-10">
               Sans pièce
             </h5>
             <div className="space-y-2">
