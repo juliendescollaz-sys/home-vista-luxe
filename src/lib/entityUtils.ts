@@ -310,6 +310,7 @@ export function isPrimaryControlEntity(
 ): boolean {
   const entityId = entity.entity_id;
   const domain = getEntityDomain(entityId);
+  const isDebug = entityId === "light.spot";
   
   // 0) Whitelist explicite - toujours autoriser (même logique que isControllableEntity)
   if (CONTROLLABLE_WHITELIST.includes(entityId)) {
@@ -318,42 +319,51 @@ export function isPrimaryControlEntity(
   
   // 1) Exclure les domaines non-contrôlables
   if (!CONTROL_DOMAINS.includes(domain)) {
+    if (isDebug) console.log("[DEBUG isPrimaryControl] light.spot rejeté: domaine non contrôlable", domain);
     return false;
   }
   
   // 2) Chercher l'entrée registry
   const reg = entityRegistry.find((r) => r.entity_id === entityId);
+  if (isDebug) console.log("[DEBUG isPrimaryControl] light.spot registry:", reg);
   
   // 3) Exclure les entités désactivées
   if (reg?.disabled_by) {
+    if (isDebug) console.log("[DEBUG isPrimaryControl] light.spot rejeté: disabled_by", reg.disabled_by);
     return false;
   }
   
   // 4) Exclure les entités diagnostic ou config
   if (reg?.entity_category === "diagnostic" || reg?.entity_category === "config") {
+    if (isDebug) console.log("[DEBUG isPrimaryControl] light.spot rejeté: entity_category", reg.entity_category);
     return false;
   }
   
   // 5) Exclure les entités cachées
   if (reg?.hidden_by) {
+    if (isDebug) console.log("[DEBUG isPrimaryControl] light.spot rejeté: hidden_by", reg.hidden_by);
     return false;
   }
   
   // 6) Exclure les entités avec unit_of_measurement (sensor déguisé)
   if (entity.attributes?.unit_of_measurement) {
+    if (isDebug) console.log("[DEBUG isPrimaryControl] light.spot rejeté: unit_of_measurement", entity.attributes.unit_of_measurement);
     return false;
   }
   
   // 7) Filtre sur les mots-clés bloquants (même logique que isControllableEntity)
   const name = (entity.attributes?.friendly_name || "").toLowerCase();
   const idLower = entityId.toLowerCase();
-  if (CONTROLLABLE_BLOCKED_KEYWORDS.some((k) => name.includes(k) || idLower.includes(k))) {
+  const blockedKeyword = CONTROLLABLE_BLOCKED_KEYWORDS.find((k) => name.includes(k) || idLower.includes(k));
+  if (blockedKeyword) {
+    if (isDebug) console.log("[DEBUG isPrimaryControl] light.spot rejeté: keyword bloqué", blockedKeyword, "dans name=", name, "ou id=", idLower);
     return false;
   }
   
-  // 6) Pour les domaines multi-canaux (switch, light, cover, fan),
+  // 8) Pour les domaines multi-canaux (switch, light, cover, fan),
   //    on garde TOUTES les entités valides du device (double relais, multi-circuits)
   if (MULTI_CHANNEL_DOMAINS.includes(domain)) {
+    if (isDebug) console.log("[DEBUG isPrimaryControl] light.spot ACCEPTÉ: domaine multi-canal");
     return true;
   }
   
