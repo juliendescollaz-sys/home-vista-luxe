@@ -44,7 +44,7 @@ export interface SceneWizardDraft {
 export const SCENE_ICON_CATEGORIES = {
   ambiances: {
     label: "Ambiances",
-    icons: ["Sun", "Moon", "Sunset", "Sunrise", "Stars", "Sparkles", "Heart", "Flame", "Zap", "CloudMoon", "Candle", "Glasses", "Eye", "Palette", "Gem", "Crown"]
+    icons: ["Sun", "Moon", "Sunset", "Sunrise", "Stars", "Sparkles", "Heart", "Flame", "Zap", "CloudMoon", "Lamp", "Glasses", "Eye", "Palette", "Gem", "Crown"]
   },
   rooms: {
     label: "Pièces",
@@ -79,7 +79,7 @@ export const ICON_FRENCH_LABELS: Record<string, string[]> = {
   Flame: ["flamme", "feu", "chaleur"],
   Zap: ["éclair", "énergie", "rapide"],
   CloudMoon: ["nuage lune", "nuit nuageuse"],
-  Candle: ["bougie", "chandelle", "romantique", "ambiance"],
+  Lamp: ["lampe", "lumière", "éclairage", "ambiance"],
   Glasses: ["lunettes", "vue", "lecture"],
   Eye: ["oeil", "vue", "regarder", "vision"],
   Palette: ["palette", "couleurs", "art", "peinture"],
