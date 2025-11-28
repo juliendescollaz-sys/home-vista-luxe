@@ -79,7 +79,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
     updateEntityState(entity.entity_id, state);
   };
 
-  // Helper to get area_id for an entity (same logic as Step 2 and Step 4)
+  // Helper to get area_id for an entity (same logic as Step 2 et 4)
   const getEntityAreaId = (entityId: string): string | undefined => {
     const reg = entityRegistry.find((r) => r.entity_id === entityId);
     if (reg?.area_id) return reg.area_id;
@@ -90,7 +90,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
     return undefined;
   };
 
-  // Group entities by floor > area (same structure as Step 2 and Step 4)
+  // Group entities by floor > area
   const groupedEntities = useMemo(() => {
     // Group by area
     const byArea: Record<string, HAEntity[]> = {};
@@ -202,7 +202,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
 
           {/* Switch / Fan / Valve */}
           {(domain === "switch" || domain === "fan" || domain === "valve" || domain === "input_boolean") && (
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify_between">
               <Label>Activé</Label>
               <Switch
                 checked={currentState.state === "on"}
@@ -369,13 +369,12 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         </p>
       </div>
 
-      {/* Liste par étage / pièces – aucun scroll ici, scroll géré par le wizard */}
+      {/* Liste par étages / pièces (pas de scroll ici) */}
       <div className="bg-background">
-        {/* Par étage */}
+        {/* Étages avec pièces */}
         {Object.entries(groupedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
           <section key={floorId} className="mb-4">
-            {/* En-tête d'étage sticky par rapport au scroll du wizard */}
-            <header className="sticky top-0 z-20 w-full px-1 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground bg-background border-b border-border/30">
+            <header className="w-full px-1 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground bg-background border-b border-border/30">
               {floor?.name || "Étage"}
             </header>
 
@@ -390,10 +389,10 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
           </section>
         ))}
 
-        {/* Zones sans étage */}
+        {/* Pièces sans étage */}
         {groupedEntities.noFloorAreas.length > 0 && (
           <section className="mb-4">
-            <header className="sticky top-0 z-20 w-full px-1 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground bg-background border-b border-border/30">
+            <header className="w-full px-1 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground bg-background border-b border-border/30">
               Autres pièces
             </header>
 
@@ -411,7 +410,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         {/* Entités sans pièce */}
         {groupedEntities.noArea.length > 0 && (
           <section className="mb-4">
-            <header className="sticky top-0 z-20 w-full px-1 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground bg-background border-b border-border/30">
+            <header className="w-full px-1 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground bg-background border-b border-border/30">
               Sans pièce
             </header>
 
