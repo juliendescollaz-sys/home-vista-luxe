@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
 import { DndContext, DragEndEvent, PointerSensor, TouchSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { filterPrimaryControlEntities } from "@/lib/entityUtils";
+import { filterPrimaryControlEntities, isControllableEntity, EntityRegistryEntry } from "@/lib/entityUtils";
 
 interface RoomDevicesGridProps {
   areaId: string;
@@ -70,9 +70,15 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
   const baseRoomEntities = useMemo(() => {
     if (!entities) return [];
     
-    // D'abord filtrer par zone
+    // D'abord filtrer par zone et controllabilité (même logique que isControllableEntity)
     const areaFiltered = entities.filter((entity) => {
-      const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+      const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id) as EntityRegistryEntry | undefined;
+      
+      // Vérifier d'abord si l'entité est contrôlable (inclut whitelist ZWA2)
+      if (!isControllableEntity(entity, reg)) {
+        return false;
+      }
+      
       let entityAreaId = reg?.area_id;
 
       if (!entityAreaId && reg?.device_id) {
