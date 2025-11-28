@@ -120,38 +120,48 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
 
         <div className="space-y-4">
           {/* Light */}
-          {domain === "light" && (
-            <>
-              <div className="flex items-center justify-between">
-                <Label>Allumé</Label>
-                <Switch
-                  checked={currentState.state !== "off"}
-                  onCheckedChange={(checked) =>
-                    updateEntityState(entity.entity_id, { state: checked ? "on" : "off" })
-                  }
-                />
-              </div>
-              {currentState.state !== "off" && entity.attributes.supported_features !== undefined && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm">Luminosité</Label>
-                    <span className="text-sm text-muted-foreground">
-                      {Math.round(((currentState.brightness || 255) / 255) * 100)}%
-                    </span>
-                  </div>
-                  <Slider
-                    value={[currentState.brightness || 255]}
-                    min={1}
-                    max={255}
-                    step={1}
-                    onValueChange={([value]) =>
-                      updateEntityState(entity.entity_id, { brightness: value })
+          {domain === "light" && (() => {
+            const supportedColorModes = entity.attributes.supported_color_modes as string[] | undefined;
+            const isDimmable = 
+              (Array.isArray(supportedColorModes) &&
+                supportedColorModes.some((m) =>
+                  ["brightness", "hs", "xy", "rgb", "rgbw", "rgbww", "color_temp"].includes(m)
+                )) ||
+              typeof entity.attributes.brightness === "number";
+
+            return (
+              <>
+                <div className="flex items-center justify-between">
+                  <Label>Allumé</Label>
+                  <Switch
+                    checked={currentState.state !== "off"}
+                    onCheckedChange={(checked) =>
+                      updateEntityState(entity.entity_id, { state: checked ? "on" : "off" })
                     }
                   />
                 </div>
-              )}
-            </>
-          )}
+                {isDimmable && currentState.state !== "off" && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Luminosité</Label>
+                      <span className="text-sm text-muted-foreground">
+                        {Math.round(((currentState.brightness || 255) / 255) * 100)}%
+                      </span>
+                    </div>
+                    <Slider
+                      value={[currentState.brightness || 255]}
+                      min={1}
+                      max={255}
+                      step={1}
+                      onValueChange={([value]) =>
+                        updateEntityState(entity.entity_id, { brightness: value })
+                      }
+                    />
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {/* Switch / Fan / Valve */}
           {(domain === "switch" || domain === "fan" || domain === "valve" || domain === "input_boolean") && (
