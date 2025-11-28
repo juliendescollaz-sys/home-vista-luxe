@@ -32,12 +32,14 @@ interface SceneStore {
 function haSceneToNeoliaScene(entity: any, favorites: string[]): NeoliaScene {
   const entityId = entity.entity_id;
   const friendlyName = entity.attributes?.friendly_name || entityId.replace("scene.", "");
-  const icon = entity.attributes?.icon?.replace("mdi:", "") || "Sparkles";
+  // Handle double mdi: prefix that can occur from HA API
+  const rawIcon = entity.attributes?.icon || "";
+  const cleanIcon = rawIcon.replace(/^(mdi:)+/, "") || "Sparkles";
   
   return {
     id: entityId,
     name: friendlyName,
-    icon: mapMdiToLucide(icon),
+    icon: mapMdiToLucide(cleanIcon),
     description: entity.attributes?.description,
     scope: "shared",
     entities: [], // HA scenes don't expose their entity list via states API
