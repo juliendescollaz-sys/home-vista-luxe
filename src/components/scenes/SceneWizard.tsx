@@ -470,14 +470,16 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
 
           <div className="flex items-center justify-between pt-4 border-t">
             <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                onClick={handlePrevious}
-                disabled={step === 1 || isSubmitting || isLoadingConfig}
-              >
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                Précédent
-              </Button>
+              {step > 1 && (
+                <Button
+                  variant="ghost"
+                  onClick={handlePrevious}
+                  disabled={isSubmitting || isLoadingConfig}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Précédent
+                </Button>
+              )}
               
               {/* Delete button in edit mode */}
               {isEditMode && step === 1 && (
