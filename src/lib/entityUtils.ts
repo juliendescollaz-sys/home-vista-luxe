@@ -1,6 +1,25 @@
 import { HAEntity, EntityDomain, HADevice } from "@/types/homeassistant";
 
 /**
+ * Check if a light entity supports dimming (brightness control)
+ * Returns true for dimmable lights, false for simple ON/OFF relays
+ */
+export function isDimmableLight(entity: HAEntity): boolean {
+  const domain = entity.entity_id.split(".")[0];
+  if (domain !== "light") return false;
+
+  const supportedColorModes = entity.attributes.supported_color_modes as string[] | undefined;
+  
+  return (
+    (Array.isArray(supportedColorModes) &&
+      supportedColorModes.some((m) =>
+        ["brightness", "hs", "xy", "rgb", "rgbw", "rgbww", "color_temp"].includes(m)
+      )) ||
+    typeof entity.attributes.brightness === "number"
+  );
+}
+
+/**
  * Domaines de contrôle qui doivent apparaître en tuiles
  */
 export const CONTROL_DOMAINS: EntityDomain[] = [
