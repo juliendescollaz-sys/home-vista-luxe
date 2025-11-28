@@ -202,7 +202,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
 
           {/* Switch / Fan / Valve */}
           {(domain === "switch" || domain === "fan" || domain === "valve" || domain === "input_boolean") && (
-            <div className="flex items-center justify_between">
+            <div className="flex items-center justify-between">
               <Label>Activé</Label>
               <Switch
                 checked={currentState.state === "on"}
