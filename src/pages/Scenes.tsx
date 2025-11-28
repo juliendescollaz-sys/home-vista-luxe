@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
@@ -13,18 +13,26 @@ import { Plus } from "lucide-react";
 const Scenes = () => {
   const { displayMode } = useDisplayMode();
   const [wizardOpen, setWizardOpen] = useState(false);
+  const hasLoadedRef = useRef(false);
 
-  const entities = useHAStore((s) => s.entities);
-  const scenes = useSceneStore((s) => [...s.localScenes, ...s.sharedScenes]);
+  const entitiesLength = useHAStore((s) => s.entities.length);
+  const localScenes = useSceneStore((s) => s.localScenes);
+  const sharedScenes = useSceneStore((s) => s.sharedScenes);
   const loadSharedScenes = useSceneStore((s) => s.loadSharedScenes);
 
-  // Load shared scenes when HA entities change (use length to avoid infinite loop)
+  // Memoize combined scenes to avoid new array on each render
+  const scenes = useMemo(
+    () => [...localScenes, ...sharedScenes],
+    [localScenes, sharedScenes]
+  );
+
+  // Load shared scenes once when HA entities are available
   useEffect(() => {
-    if (entities.length > 0) {
+    if (entitiesLength > 0 && !hasLoadedRef.current) {
+      hasLoadedRef.current = true;
       loadSharedScenes();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entities.length]);
+  }, [entitiesLength, loadSharedScenes]);
 
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[26px]";
   const rootClassName =

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { SortableGroupTile } from "@/components/groups/SortableGroupTile";
@@ -61,20 +61,28 @@ export function HomeOverviewByTypeAndArea({
   const setEntityOrder = useHAStore((state) => state.setEntityOrder);
   const groups = useGroupStore((state) => state.groups);
   const groupFavorites = useGroupStore((state) => state.groupFavorites);
-  const scenes = useSceneStore((state) => [...state.localScenes, ...state.sharedScenes]);
+  const localScenes = useSceneStore((state) => state.localScenes);
+  const sharedScenes = useSceneStore((state) => state.sharedScenes);
   const loadSharedScenes = useSceneStore((state) => state.loadSharedScenes);
+  const hasLoadedScenesRef = useRef(false);
+
+  // Memoize combined scenes to avoid new array on each render
+  const scenes = useMemo(
+    () => [...localScenes, ...sharedScenes],
+    [localScenes, sharedScenes]
+  );
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<FavoritesViewMode>("type");
   const [detailsEntity, setDetailsEntity] = useState<HAEntity | null>(null);
 
-  // Load shared scenes when HA entities change (use length to avoid infinite loop)
+  // Load shared scenes once when component mounts and entities are available
   useEffect(() => {
-    if (entities.length > 0) {
+    if (entities.length > 0 && !hasLoadedScenesRef.current) {
+      hasLoadedScenesRef.current = true;
       loadSharedScenes();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entities.length]);
+  }, [entities.length, loadSharedScenes]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
