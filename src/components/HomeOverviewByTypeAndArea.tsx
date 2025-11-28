@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { SortableGroupTile } from "@/components/groups/SortableGroupTile";
@@ -61,11 +61,17 @@ export function HomeOverviewByTypeAndArea({
   const setEntityOrder = useHAStore((state) => state.setEntityOrder);
   const groups = useGroupStore((state) => state.groups);
   const groupFavorites = useGroupStore((state) => state.groupFavorites);
-  const scenes = useSceneStore((state) => state.scenes);
+  const scenes = useSceneStore((state) => [...state.localScenes, ...state.sharedScenes]);
+  const loadSharedScenes = useSceneStore((state) => state.loadSharedScenes);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<FavoritesViewMode>("type");
   const [detailsEntity, setDetailsEntity] = useState<HAEntity | null>(null);
+
+  // Load shared scenes on mount
+  useEffect(() => {
+    loadSharedScenes();
+  }, [loadSharedScenes]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

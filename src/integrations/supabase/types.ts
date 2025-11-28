@@ -106,6 +106,48 @@ export type Database = {
         }
         Relationships: []
       }
+      scenes: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          entities: Json
+          icon: string
+          id: string
+          is_favorite: boolean
+          name: string
+          sort_order: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          entities?: Json
+          icon?: string
+          id?: string
+          is_favorite?: boolean
+          name: string
+          sort_order?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          entities?: Json
+          icon?: string
+          id?: string
+          is_favorite?: boolean
+          name?: string
+          sort_order?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

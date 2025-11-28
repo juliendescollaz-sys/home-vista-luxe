@@ -26,7 +26,7 @@ export function SceneTile({ sceneId, hideEditButton = false, sortableProps }: Sc
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   
   // Souscrire directement au store pour obtenir les données à jour
-  const scene = useSceneStore((s) => s.scenes.find((sc) => sc.id === sceneId));
+  const scene = useSceneStore((s) => [...s.localScenes, ...s.sharedScenes].find((sc) => sc.id === sceneId));
   const executeScene = useSceneStore((s) => s.executeScene);
   const toggleSceneFavorite = useSceneStore((s) => s.toggleSceneFavorite);
 
