@@ -311,6 +311,11 @@ export function isPrimaryControlEntity(
   const entityId = entity.entity_id;
   const domain = getEntityDomain(entityId);
   
+  // 0) Whitelist explicite - toujours autoriser (même logique que isControllableEntity)
+  if (CONTROLLABLE_WHITELIST.includes(entityId)) {
+    return true;
+  }
+  
   // 1) Exclure les domaines non-contrôlables
   if (!CONTROL_DOMAINS.includes(domain)) {
     return false;
@@ -331,6 +336,18 @@ export function isPrimaryControlEntity(
   
   // 5) Exclure les entités cachées
   if (reg?.hidden_by) {
+    return false;
+  }
+  
+  // 6) Exclure les entités avec unit_of_measurement (sensor déguisé)
+  if (entity.attributes?.unit_of_measurement) {
+    return false;
+  }
+  
+  // 7) Filtre sur les mots-clés bloquants (même logique que isControllableEntity)
+  const name = (entity.attributes?.friendly_name || "").toLowerCase();
+  const idLower = entityId.toLowerCase();
+  if (CONTROLLABLE_BLOCKED_KEYWORDS.some((k) => name.includes(k) || idLower.includes(k))) {
     return false;
   }
   
