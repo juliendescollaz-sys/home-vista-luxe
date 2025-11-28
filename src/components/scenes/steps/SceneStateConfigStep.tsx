@@ -307,9 +307,9 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
 
   return (
     <div className="space-y-4">
-      <div className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-        <p>
-          <strong>Conseil :</strong> Une scène, c'est une « photo » de votre maison. 
+      <div className="p-3 rounded-lg bg-muted/50">
+        <p className="text-sm text-muted-foreground">
+          <span className="font-semibold">Conseil :</span> Une scène, c'est une « photo » de votre maison. 
           Définissez comment chaque appareil doit se comporter quand la scène est activée. 
           Utilisez « État actuel » pour capturer rapidement l'état actuel d'un appareil.
         </p>
