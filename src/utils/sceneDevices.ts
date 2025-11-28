@@ -29,6 +29,11 @@ const BLOCKED_KEYWORDS = [
   "enhancement",
   "enhancer",
   "loudness",
+  "lumiere d'etat",
+  "lumière d'état",
+  "state_light",
+  "status_light",
+  "status light",
 ];
 
 export interface NeoliaRoom {
