@@ -3,6 +3,7 @@ import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { SortableGroupTile } from "@/components/groups/SortableGroupTile";
 import { GroupTile } from "@/components/groups/GroupTile";
+import { SceneTile } from "@/components/scenes/SceneTile";
 import { DeviceEntitiesDrawer } from "@/components/DeviceEntitiesDrawer";
 import { getGridClasses } from "@/lib/gridLayout";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
@@ -30,6 +31,8 @@ import {
 import type { HAEntity, HAArea, HAFloor, HADevice } from "@/types/homeassistant";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
+import { useSceneStore } from "@/store/useSceneStore";
+import type { NeoliaScene } from "@/types/scenes";
 
 type HomeOverviewByTypeAndAreaProps = {
   entities: HAEntity[];
@@ -57,6 +60,7 @@ export function HomeOverviewByTypeAndArea({
   const setEntityOrder = useHAStore((state) => state.setEntityOrder);
   const groups = useGroupStore((state) => state.groups);
   const groupFavorites = useGroupStore((state) => state.groupFavorites);
+  const scenes = useSceneStore((state) => state.scenes);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<FavoritesViewMode>("type");
@@ -91,20 +95,29 @@ export function HomeOverviewByTypeAndArea({
     ? groups.filter((g) => groupFavorites.includes(g.id))
     : groups;
 
-  // Créer un tableau unifié de tous les items (groupes + entités)
+  const filteredScenes = filterFavorites
+    ? scenes.filter((s) => s.isFavorite)
+    : scenes;
+
+  // Créer un tableau unifié de tous les items (groupes + scènes + entités)
   const allItems = useMemo(() => {
     const groupItems = filteredGroups.map((g) => ({
       type: "group" as const,
       id: `group-${g.id}`,
       data: g,
     }));
+    const sceneItems = filteredScenes.map((s) => ({
+      type: "scene" as const,
+      id: `scene-${s.id}`,
+      data: s,
+    }));
     const entityItems = filteredEntities.map((e) => ({
       type: "entity" as const,
       id: e.entity_id,
       data: e,
     }));
-    return [...groupItems, ...entityItems];
-  }, [filteredGroups, filteredEntities]);
+    return [...groupItems, ...sceneItems, ...entityItems];
+  }, [filteredGroups, filteredScenes, filteredEntities]);
 
   // Trier tous les items selon l'ordre personnalisé unifié
   const sortedAllItems = useMemo(() => {
@@ -166,6 +179,7 @@ export function HomeOverviewByTypeAndArea({
   const activeItem = sortedAllItems.find((item) => item.id === activeId);
   const activeEntity = activeItem?.type === "entity" ? activeItem.data : null;
   const activeGroup = activeItem?.type === "group" ? activeItem.data : null;
+  const activeScene = activeItem?.type === "scene" ? activeItem.data : null;
 
   // Grouper les items selon le mode de vue
   const groupedItems = useMemo(() => {
@@ -176,6 +190,9 @@ export function HomeOverviewByTypeAndArea({
         if (item.type === "group") {
           if (!groups["Groupes"]) groups["Groupes"] = [];
           groups["Groupes"].push(item);
+        } else if (item.type === "scene") {
+          if (!groups["Scènes"]) groups["Scènes"] = [];
+          groups["Scènes"].push(item);
         } else {
           const domain = getEntityDomain(item.data.entity_id);
           const typeLabels: Record<string, string> = {
@@ -204,6 +221,9 @@ export function HomeOverviewByTypeAndArea({
         if (item.type === "group") {
           if (!groups["Groupes"]) groups["Groupes"] = [];
           groups["Groupes"].push(item);
+        } else if (item.type === "scene") {
+          if (!groups["Scènes"]) groups["Scènes"] = [];
+          groups["Scènes"].push(item);
         } else {
           const entity = item.data;
           const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
@@ -274,6 +294,10 @@ export function HomeOverviewByTypeAndArea({
                       return <SortableGroupTile key={item.id} group={item.data} hideEditButton />;
                     }
 
+                    if (item.type === "scene") {
+                      return <SceneTile key={item.id} sceneId={item.data.id} hideEditButton />;
+                    }
+
                     const entity = item.data;
                     const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
                     let areaId = reg?.area_id;
@@ -323,6 +347,10 @@ export function HomeOverviewByTypeAndArea({
             {activeGroup ? (
               <div className="opacity-90 rotate-3 scale-105">
                 <GroupTile group={activeGroup} />
+              </div>
+            ) : activeScene ? (
+              <div className="opacity-90 rotate-3 scale-105">
+                <SceneTile sceneId={activeScene.id} hideEditButton />
               </div>
             ) : activeEntity ? (
               <div className="opacity-90 rotate-3 scale-105">
