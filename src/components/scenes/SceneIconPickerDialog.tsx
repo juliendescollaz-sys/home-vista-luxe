@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { SCENE_ICON_CATEGORIES } from "@/types/scenes";
+import { SCENE_ICON_CATEGORIES, ICON_FRENCH_LABELS } from "@/types/scenes";
 import { Search, Check } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 
@@ -43,13 +43,20 @@ export function SceneIconPickerDialog({
       return SCENE_ICON_CATEGORIES;
     }
 
-    const searchLower = search.toLowerCase();
+    const searchLower = search.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const result: Record<string, { label: string; icons: readonly string[] }> = {};
 
     for (const [key, category] of Object.entries(SCENE_ICON_CATEGORIES)) {
-      const matchingIcons = category.icons.filter((icon) =>
-        icon.toLowerCase().includes(searchLower)
-      );
+      const matchingIcons = category.icons.filter((icon) => {
+        // Check French labels first
+        const frenchLabels = ICON_FRENCH_LABELS[icon] || [];
+        const matchesFrench = frenchLabels.some(label => 
+          label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(searchLower)
+        );
+        // Fallback to English icon name
+        const matchesEnglish = icon.toLowerCase().includes(searchLower);
+        return matchesFrench || matchesEnglish;
+      });
       if (matchingIcons.length > 0) {
         result[key] = { label: category.label, icons: matchingIcons };
       }
