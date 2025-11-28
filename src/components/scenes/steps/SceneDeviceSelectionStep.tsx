@@ -174,6 +174,11 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
               {area.name} • {floor.name}
             </span>
           )}
+          {area && !floor && (
+            <span className="text-xs text-muted-foreground mt-0.5 ml-6 block truncate">
+              {area.name}
+            </span>
+          )}
         </div>
       </label>
     );
