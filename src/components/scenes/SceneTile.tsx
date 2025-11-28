@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { Star, Play, Loader2, User, Users, Pencil } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { SceneWizard } from "./SceneWizard";
+import { SceneBadge } from "./SceneBadge";
 
 interface SceneTileProps {
   sceneId: string;
@@ -87,7 +88,9 @@ export function SceneTile({ sceneId, hideEditButton = false, sortableProps }: Sc
           </div>
         )}
 
-        <div className="p-4">
+        <SceneBadge />
+
+        <div className="p-4 pt-10">
           {/* Header aligné sur GroupTile */}
           <div className="mt-1 flex items-start gap-3 mb-4">
             {/* Icône principale */}
