@@ -83,7 +83,7 @@ export function SceneIconPickerDialog({
               placeholder="Rechercher une icône..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
+              className="pl-9 focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           </div>
 
