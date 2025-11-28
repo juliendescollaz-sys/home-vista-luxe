@@ -120,10 +120,22 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
     const spotAfterDomain = domainFiltered.find(e => e.entity_id === "light.spot");
     if (spotEntity && !spotAfterDomain) {
       console.log("[Neolia DEBUG] light.spot FILTRÉ par filterEntitiesForDomain!");
+    } else if (spotAfterDomain) {
+      console.log("[Neolia DEBUG] light.spot PASSÉ filterEntitiesForDomain ✓");
     }
 
     // 3) Appliquer le filtre des entités de contrôle principales (multi-channel vs single)
-    return filterPrimaryControlEntities(domainFiltered, entityRegistry, devices);
+    const finalEntities = filterPrimaryControlEntities(domainFiltered, entityRegistry, devices);
+    
+    // DEBUG: Check if light.spot passes primary control filter
+    const spotAfterPrimary = finalEntities.find(e => e.entity_id === "light.spot");
+    if (spotAfterDomain && !spotAfterPrimary) {
+      console.log("[Neolia DEBUG] light.spot FILTRÉ par filterPrimaryControlEntities!");
+    } else if (spotAfterPrimary) {
+      console.log("[Neolia DEBUG] light.spot PASSÉ filterPrimaryControlEntities ✓");
+    }
+    
+    return finalEntities;
   }, [entities, entityRegistry, devices, areaId]);
 
   // Appliquer l'ordre custom - une seule liste plate
