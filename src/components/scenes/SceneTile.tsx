@@ -10,7 +10,7 @@ import * as LucideIcons from "lucide-react";
 import { SceneWizard } from "./SceneWizard";
 
 interface SceneTileProps {
-  scene: NeoliaScene;
+  sceneId: string;
   hideEditButton?: boolean;
   sortableProps?: {
     attributes?: any;
@@ -20,12 +20,17 @@ interface SceneTileProps {
   };
 }
 
-export function SceneTile({ scene, hideEditButton = false, sortableProps }: SceneTileProps) {
+export function SceneTile({ sceneId, hideEditButton = false, sortableProps }: SceneTileProps) {
   const [isExecuting, setIsExecuting] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   
+  // Souscrire directement au store pour obtenir les données à jour
+  const scene = useSceneStore((s) => s.scenes.find((sc) => sc.id === sceneId));
   const executeScene = useSceneStore((s) => s.executeScene);
   const toggleSceneFavorite = useSceneStore((s) => s.toggleSceneFavorite);
+
+  // Si la scène n'existe plus, ne rien afficher
+  if (!scene) return null;
 
   const IconComponent = (LucideIcons as any)[scene.icon] || LucideIcons.Sparkles;
   const isFavorite = scene.isFavorite ?? false;
@@ -54,7 +59,7 @@ export function SceneTile({ scene, hideEditButton = false, sortableProps }: Scen
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    toggleSceneFavorite(scene.id);
+    toggleSceneFavorite(sceneId);
   };
 
   const handleEditClick = (e: React.MouseEvent) => {

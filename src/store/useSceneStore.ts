@@ -57,7 +57,7 @@ export const useSceneStore = create<SceneStore>()(
         set((state) => ({
           scenes: state.scenes.map((scene) =>
             scene.id === id
-              ? { ...scene, isFavorite: !scene.isFavorite }
+              ? { ...scene, isFavorite: !scene.isFavorite, updatedAt: new Date().toISOString() }
               : scene
           ),
         }));
