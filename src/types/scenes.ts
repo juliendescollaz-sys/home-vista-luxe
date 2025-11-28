@@ -44,23 +44,23 @@ export interface SceneWizardDraft {
 export const SCENE_ICON_CATEGORIES = {
   ambiances: {
     label: "Ambiances",
-    icons: ["Sun", "Moon", "Sunset", "Sunrise", "Stars", "Sparkles", "Heart", "Flame", "Zap", "CloudMoon"]
+    icons: ["Sun", "Moon", "Sunset", "Sunrise", "Stars", "Sparkles", "Heart", "Flame", "Zap", "CloudMoon", "Candle", "Glasses", "Eye", "Palette", "Gem", "Crown"]
   },
   rooms: {
     label: "Pièces",
-    icons: ["Home", "Sofa", "Bed", "Bath", "UtensilsCrossed", "Car", "Trees", "Building", "DoorOpen", "Armchair"]
+    icons: ["Home", "Sofa", "Bed", "Bath", "UtensilsCrossed", "Car", "Trees", "Building", "DoorOpen", "Armchair", "Warehouse", "Store", "ParkingSquare", "Fence", "LayoutGrid", "FlameKindling"]
   },
   activities: {
     label: "Activités",
-    icons: ["Tv", "Clapperboard", "Music", "Gamepad2", "BookOpen", "Briefcase", "Dumbbell", "Coffee", "Wine", "PartyPopper"]
+    icons: ["Tv", "Clapperboard", "Music", "Gamepad2", "BookOpen", "Briefcase", "Dumbbell", "Coffee", "Wine", "PartyPopper", "Headphones", "Camera", "Mic", "Bike", "Utensils", "ShoppingBag"]
   },
   climate: {
     label: "Climat",
-    icons: ["Thermometer", "Fan", "Snowflake", "CloudRain", "Wind", "Droplets", "CloudSun", "Cloudy", "Rainbow", "Umbrella"]
+    icons: ["Thermometer", "Fan", "Snowflake", "CloudRain", "Wind", "Droplets", "CloudSun", "Cloudy", "Rainbow", "Umbrella", "ThermometerSun", "ThermometerSnowflake", "Waves", "Sun", "CloudFog", "Heater"]
   },
   misc: {
     label: "Divers",
-    icons: ["Star", "Bell", "Clock", "Calendar", "MapPin", "Plane", "LogOut", "LogIn", "Shield", "Lightbulb"]
+    icons: ["Star", "Bell", "Clock", "Calendar", "MapPin", "Plane", "LogOut", "LogIn", "Shield", "Lightbulb", "Settings", "Power", "Timer", "Wifi", "Lock", "Unlock"]
   }
 } as const;
 
@@ -79,6 +79,12 @@ export const ICON_FRENCH_LABELS: Record<string, string[]> = {
   Flame: ["flamme", "feu", "chaleur"],
   Zap: ["éclair", "énergie", "rapide"],
   CloudMoon: ["nuage lune", "nuit nuageuse"],
+  Candle: ["bougie", "chandelle", "romantique", "ambiance"],
+  Glasses: ["lunettes", "vue", "lecture"],
+  Eye: ["oeil", "vue", "regarder", "vision"],
+  Palette: ["palette", "couleurs", "art", "peinture"],
+  Gem: ["gemme", "bijou", "précieux", "diamant"],
+  Crown: ["couronne", "roi", "royal", "luxe"],
   // Pièces
   Home: ["maison", "domicile", "accueil"],
   Sofa: ["canapé", "salon", "séjour"],
@@ -90,6 +96,12 @@ export const ICON_FRENCH_LABELS: Record<string, string[]> = {
   Building: ["bâtiment", "immeuble", "bureau"],
   DoorOpen: ["porte", "entrée", "sortie"],
   Armchair: ["fauteuil", "salon", "détente"],
+  Warehouse: ["entrepôt", "stockage", "cave", "grenier"],
+  Store: ["magasin", "boutique", "commerce"],
+  ParkingSquare: ["parking", "stationnement", "garage"],
+  Fence: ["clôture", "barrière", "jardin", "extérieur"],
+  LayoutGrid: ["grille", "plan", "disposition", "pièces"],
+  FlameKindling: ["cheminée", "feu", "foyer", "chauffage"],
   // Activités
   Tv: ["télé", "télévision", "film", "regarder"],
   Clapperboard: ["cinéma", "film", "vidéo"],
@@ -101,6 +113,12 @@ export const ICON_FRENCH_LABELS: Record<string, string[]> = {
   Coffee: ["café", "pause", "matin"],
   Wine: ["vin", "apéro", "soirée", "détente"],
   PartyPopper: ["fête", "party", "célébration", "anniversaire"],
+  Headphones: ["casque", "écouteurs", "audio", "musique"],
+  Camera: ["appareil photo", "photo", "caméra"],
+  Mic: ["micro", "microphone", "voix", "podcast"],
+  Bike: ["vélo", "cyclisme", "sport", "balade"],
+  Utensils: ["couverts", "repas", "dîner", "manger"],
+  ShoppingBag: ["shopping", "courses", "achats", "sac"],
   // Climat
   Thermometer: ["température", "thermomètre", "chaud", "froid"],
   Fan: ["ventilateur", "ventilation", "air", "fraîcheur"],
@@ -112,6 +130,11 @@ export const ICON_FRENCH_LABELS: Record<string, string[]> = {
   Cloudy: ["nuageux", "couvert", "gris"],
   Rainbow: ["arc-en-ciel", "couleurs"],
   Umbrella: ["parapluie", "pluie"],
+  ThermometerSun: ["chaleur", "canicule", "été", "chaud"],
+  ThermometerSnowflake: ["gel", "froid", "hiver", "glacial"],
+  Waves: ["vagues", "eau", "piscine", "mer"],
+  CloudFog: ["brouillard", "brume", "nuage"],
+  Heater: ["chauffage", "radiateur", "chaud"],
   // Divers
   Star: ["étoile", "favori", "important"],
   Bell: ["cloche", "notification", "alarme", "sonnerie"],
@@ -122,5 +145,11 @@ export const ICON_FRENCH_LABELS: Record<string, string[]> = {
   LogOut: ["sortie", "départ", "quitter"],
   LogIn: ["entrée", "arrivée", "connexion"],
   Shield: ["sécurité", "protection", "alarme"],
-  Lightbulb: ["ampoule", "lumière", "idée", "éclairage"]
+  Lightbulb: ["ampoule", "lumière", "idée", "éclairage"],
+  Settings: ["paramètres", "réglages", "configuration"],
+  Power: ["alimentation", "marche", "arrêt", "éteindre"],
+  Timer: ["minuteur", "chrono", "compte à rebours"],
+  Wifi: ["wifi", "réseau", "internet", "connexion"],
+  Lock: ["verrouiller", "cadenas", "fermé", "sécurité"],
+  Unlock: ["déverrouiller", "ouvert", "accès"]
 };
