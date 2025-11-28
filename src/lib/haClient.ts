@@ -241,6 +241,64 @@ export class HAClient {
     });
   }
 
+  // Scene management methods
+  async createScene(config: {
+    id: string;
+    name: string;
+    entities: Record<string, any>;
+    icon?: string;
+  }): Promise<void> {
+    if (!this.isConnected()) {
+      throw new Error("WebSocket Home Assistant non connecté");
+    }
+
+    console.info("[Neolia] createScene →", { id: config.id, name: config.name });
+
+    await this.sendWithResponse("config/scene/config/create", {
+      scene_id: config.id,
+      scene_config: {
+        name: config.name,
+        entities: config.entities,
+        icon: config.icon,
+      },
+    });
+  }
+
+  async updateHAScene(config: {
+    id: string;
+    name?: string;
+    entities?: Record<string, any>;
+    icon?: string;
+  }): Promise<void> {
+    if (!this.isConnected()) {
+      throw new Error("WebSocket Home Assistant non connecté");
+    }
+
+    console.info("[Neolia] updateHAScene →", { id: config.id });
+
+    const sceneConfig: Record<string, any> = {};
+    if (config.name) sceneConfig.name = config.name;
+    if (config.entities) sceneConfig.entities = config.entities;
+    if (config.icon) sceneConfig.icon = config.icon;
+
+    await this.sendWithResponse("config/scene/config/update", {
+      scene_id: config.id,
+      scene_config: sceneConfig,
+    });
+  }
+
+  async deleteHAScene(sceneId: string): Promise<void> {
+    if (!this.isConnected()) {
+      throw new Error("WebSocket Home Assistant non connecté");
+    }
+
+    console.info("[Neolia] deleteHAScene →", { sceneId });
+
+    await this.sendWithResponse("config/scene/config/delete", {
+      scene_id: sceneId,
+    });
+  }
+
   async callService(
     domain: string,
     service: string,

@@ -3,6 +3,7 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useSceneStore } from "@/store/useSceneStore";
+import { useHAStore } from "@/store/useHAStore";
 import { SceneEmptyState } from "@/components/scenes/SceneEmptyState";
 import { SceneWizard } from "@/components/scenes/SceneWizard";
 import { SceneTile } from "@/components/scenes/SceneTile";
@@ -13,13 +14,16 @@ const Scenes = () => {
   const { displayMode } = useDisplayMode();
   const [wizardOpen, setWizardOpen] = useState(false);
 
+  const entities = useHAStore((s) => s.entities);
   const scenes = useSceneStore((s) => [...s.localScenes, ...s.sharedScenes]);
   const loadSharedScenes = useSceneStore((s) => s.loadSharedScenes);
 
-  // Load shared scenes on mount
+  // Load shared scenes when HA entities change
   useEffect(() => {
-    loadSharedScenes();
-  }, [loadSharedScenes]);
+    if (entities.length > 0) {
+      loadSharedScenes();
+    }
+  }, [entities, loadSharedScenes]);
 
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[26px]";
   const rootClassName =
