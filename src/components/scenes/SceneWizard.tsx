@@ -38,7 +38,7 @@ const INITIAL_DRAFT: SceneWizardDraft = {
   name: "",
   icon: "Sparkles",
   description: "",
-  scope: "local",
+  scope: "" as any, // No default - user must select
   selectedEntityIds: [],
   entityStates: {},
 };
@@ -222,7 +222,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
     onOpenChange(false);
   };
 
-  const canProceedStep1 = draft.name.trim().length > 0 && draft.icon.length > 0;
+  const canProceedStep1 = draft.name.trim().length > 0 && draft.icon.length > 0 && (draft.scope === "local" || draft.scope === "shared");
   const canProceedStep2 = draft.selectedEntityIds.length > 0;
   const canProceedStep3 = Object.keys(draft.entityStates).length > 0;
 
@@ -455,7 +455,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
             ) : (
               <>
                 {step === 1 && (
-                  <SceneBasicInfoStep draft={draft} onUpdate={updateDraft} />
+                  <SceneBasicInfoStep draft={draft} onUpdate={updateDraft} isEditMode={isEditMode} />
                 )}
                 {step === 2 && (
                   <SceneDeviceSelectionStep draft={draft} onUpdate={updateDraft} />
