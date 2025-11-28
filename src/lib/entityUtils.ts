@@ -333,9 +333,10 @@ export function isPrimaryControlEntity(
     return false;
   }
   
-  // 4) Exclure les entités diagnostic ou config
-  if (reg?.entity_category === "diagnostic" || reg?.entity_category === "config") {
-    if (isDebug) console.log("[DEBUG isPrimaryControl] light.spot rejeté: entity_category", reg.entity_category);
+  // 4) Exclure les entités diagnostic ou config (SAUF pour les lights)
+  // Les lights peuvent avoir entity_category="config" mais rester valides (ex: LEDs)
+  if (domain !== "light" && (reg?.entity_category === "diagnostic" || reg?.entity_category === "config")) {
+    if (isDebug) console.log("[DEBUG isPrimaryControl] light.spot rejeté: entity_category", reg?.entity_category);
     return false;
   }
   
