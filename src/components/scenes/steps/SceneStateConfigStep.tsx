@@ -369,11 +369,11 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
       <div className="mt-4 flex-1 max-h-[400px] overflow-y-auto bg-background">
         {/* By floor */}
         {Object.entries(groupedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
-          <div key={floorId} className="mb-4 bg-background">
-            {/* En-tête d'étage */}
-            <div className="w-full px-3 py-2 text-xs font-semibold uppercase tracking-wide border-b border-border/30 bg-background md:sticky md:top-0 md:z-20">
+          <section key={floorId} className="mb-4">
+            {/* En-tête d'étage sticky */}
+            <header className="sticky top-0 z-20 w-full px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-background border-b border-border/30">
               {floor?.name || "Étage"}
-            </div>
+            </header>
 
             {/* Liste des cartes appareils de cet étage */}
             <div className="space-y-3 px-1 pt-3 pb-1 bg-background">
@@ -388,16 +388,16 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         ))}
 
         {/* Areas without floor */}
         {groupedEntities.noFloorAreas.length > 0 && (
-          <div className="mb-4 bg-background">
-            {/* En-tête */}
-            <div className="w-full px-3 py-2 text-xs font-semibold uppercase tracking-wide border-b border-border/30 bg-background md:sticky md:top-0 md:z-20">
+          <section className="mb-4">
+            {/* En-tête sticky */}
+            <header className="sticky top-0 z-20 w-full px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-background border-b border-border/30">
               Autres pièces
-            </div>
+            </header>
 
             <div className="space-y-3 px-1 pt-3 pb-1 bg-background">
               {groupedEntities.noFloorAreas.map(({ area, entities: areaEntities }) => (
@@ -411,21 +411,21 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
         {/* Entities without area */}
         {groupedEntities.noArea.length > 0 && (
-          <div className="mb-4 bg-background">
-            {/* En-tête */}
-            <div className="w-full px-3 py-2 text-xs font-semibold uppercase tracking-wide border-b border-border/30 bg-background md:sticky md:top-0 md:z-20">
+          <section className="mb-4">
+            {/* En-tête sticky */}
+            <header className="sticky top-0 z-20 w-full px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-background border-b border-border/30">
               Sans pièce
-            </div>
+            </header>
 
             <div className="space-y-2 px-1 pt-3 pb-1 bg-background">
               {groupedEntities.noArea.map(renderEntityConfig)}
             </div>
-          </div>
+          </section>
         )}
       </div>
 
