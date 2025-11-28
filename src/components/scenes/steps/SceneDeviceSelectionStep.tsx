@@ -4,34 +4,23 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useHAStore } from "@/store/useHAStore";
 import { SceneWizardDraft } from "@/types/scenes";
-import { 
-  Search, ChevronDown, ChevronRight, 
-  Lightbulb, Power, Thermometer, Music, Lock, 
-  Fan, Blinds, Droplet, Settings
-} from "lucide-react";
+import { Search, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isControllableEntity, EntityRegistryEntry } from "@/lib/entityUtils";
 import { HAEntity } from "@/types/homeassistant";
+import { SceneDeviceItem } from "@/components/scenes/SceneDeviceItem";
+import { 
+  NeoliaRoom, 
+  NeoliaFloor, 
+  EntityRegistryEntry as SceneEntityRegistryEntry,
+  DeviceRegistryEntry 
+} from "@/utils/sceneDevices";
 
 interface SceneDeviceSelectionStepProps {
   draft: SceneWizardDraft;
   onUpdate: (updates: Partial<SceneWizardDraft>) => void;
 }
 
-// Mapping d'icônes identique aux tuiles d'appareils
-const getDomainIcon = (domain: string) => {
-  const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-    light: Lightbulb,
-    switch: Power,
-    climate: Thermometer,
-    media_player: Music,
-    lock: Lock,
-    fan: Fan,
-    cover: Blinds,
-    valve: Droplet,
-  };
-  return iconMap[domain] || Settings;
-};
 
 export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelectionStepProps) {
   const entities = useHAStore((s) => s.entities);
@@ -143,44 +132,59 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
     setExpandedAreas(newExpanded);
   };
 
+  // Préparer les données pour SceneDeviceItem
+  const sceneEntityRegistry: Record<string, SceneEntityRegistryEntry> = useMemo(() => {
+    const result: Record<string, SceneEntityRegistryEntry> = {};
+    for (const [entityId, reg] of Object.entries(entityRegistry)) {
+      if (reg) {
+        result[entityId] = {
+          entity_id: entityId,
+          device_id: reg.device_id,
+          area_id: reg.area_id,
+        };
+      }
+    }
+    return result;
+  }, [entityRegistry]);
+
+  const sceneDevices: DeviceRegistryEntry[] = useMemo(() => {
+    return devices.map(d => ({
+      id: d.id,
+      area_id: d.area_id,
+    }));
+  }, [devices]);
+
+  const sceneAreas: NeoliaRoom[] = useMemo(() => {
+    return areas.map(a => ({
+      area_id: a.area_id,
+      name: a.name,
+      floor_id: a.floor_id,
+    }));
+  }, [areas]);
+
+  const sceneFloors: NeoliaFloor[] = useMemo(() => {
+    return floors.map(f => ({
+      floor_id: f.floor_id,
+      name: f.name,
+    }));
+  }, [floors]);
+
   const renderEntityItem = (entity: HAEntity) => {
-    const domain = entity.entity_id.split(".")[0];
     const isSelected = draft.selectedEntityIds.includes(entity.entity_id);
-    const Icon = getDomainIcon(domain);
-    const { area, floor } = getEntityLocation(entity);
+    const friendlyName = entity.attributes.friendly_name || entity.entity_id;
 
     return (
-      <label
+      <SceneDeviceItem
         key={entity.entity_id}
-        className={cn(
-          "flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors",
-          "hover:bg-accent/50",
-          isSelected && "bg-primary/10"
-        )}
-      >
-        <Checkbox
-          checked={isSelected}
-          onCheckedChange={() => toggleEntity(entity.entity_id)}
-        />
-        <div className="flex flex-col flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
-            <span className="text-sm truncate">
-              {entity.attributes.friendly_name || entity.entity_id}
-            </span>
-          </div>
-          {area && floor && (
-            <span className="text-xs text-muted-foreground mt-0.5 ml-6 block truncate">
-              {area.name} • {floor.name}
-            </span>
-          )}
-          {area && !floor && (
-            <span className="text-xs text-muted-foreground mt-0.5 ml-6 block truncate">
-              {area.name}
-            </span>
-          )}
-        </div>
-      </label>
+        entityId={entity.entity_id}
+        friendlyName={friendlyName}
+        isSelected={isSelected}
+        onSelect={() => toggleEntity(entity.entity_id)}
+        entityRegistry={sceneEntityRegistry}
+        devices={sceneDevices}
+        areas={sceneAreas}
+        floors={sceneFloors}
+      />
     );
   };
 
