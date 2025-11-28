@@ -370,7 +370,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         {/* By floor */}
         {Object.entries(groupedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
           <div key={floorId} className="space-y-3">
-            <div className="sticky top-0 z-20 w-full bg-background/80 backdrop-blur-sm py-2 px-1 mb-2 border-b border-border/20">
+            <div className="sticky top-0 z-20 w-full bg-background backdrop-blur-sm py-3 px-1 mb-2 border-b border-border/30">
               <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 {floor?.name || "Étage"}
               </h5>
@@ -391,7 +391,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         {/* Areas without floor */}
         {groupedEntities.noFloorAreas.length > 0 && (
           <div className="space-y-3">
-            <div className="sticky top-0 z-20 w-full bg-background/80 backdrop-blur-sm py-2 px-1 mb-2 border-b border-border/20">
+            <div className="sticky top-0 z-20 w-full bg-background backdrop-blur-sm py-3 px-1 mb-2 border-b border-border/30">
               <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Autres pièces
               </h5>
@@ -412,7 +412,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         {/* Entities without area */}
         {groupedEntities.noArea.length > 0 && (
           <div className="space-y-2">
-            <div className="sticky top-0 z-20 w-full bg-background/80 backdrop-blur-sm py-2 px-1 mb-2 border-b border-border/20">
+            <div className="sticky top-0 z-20 w-full bg-background backdrop-blur-sm py-3 px-1 mb-2 border-b border-border/30">
               <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Sans pièce
               </h5>
