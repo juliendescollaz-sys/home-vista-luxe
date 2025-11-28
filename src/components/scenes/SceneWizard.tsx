@@ -158,7 +158,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
 
       if (isEditMode && scene) {
         // Update existing scene
-        updateScene(scene.id, {
+        await updateScene(scene.id, {
           name: draft.name.trim(),
           icon: draft.icon,
           description: draft.description.trim() || undefined,
@@ -172,7 +172,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
         });
       } else {
         // Create new scene
-        addScene({
+        await addScene({
           name: draft.name.trim(),
           icon: draft.icon,
           description: draft.description.trim() || undefined,
@@ -202,16 +202,24 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (scene) {
-      deleteScene(scene.id);
-      setIsDeleteConfirmOpen(false);
-      handleClose();
-      
-      toast({
-        title: "Scène supprimée",
-        description: `"${scene.name}" a été supprimée.`,
-      });
+      try {
+        await deleteScene(scene.id);
+        setIsDeleteConfirmOpen(false);
+        handleClose();
+        
+        toast({
+          title: "Scène supprimée",
+          description: `"${scene.name}" a été supprimée.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Erreur",
+          description: "Impossible de supprimer la scène.",
+          variant: "destructive",
+        });
+      }
     }
   };
 

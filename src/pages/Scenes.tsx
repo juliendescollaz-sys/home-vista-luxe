@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
@@ -13,7 +13,13 @@ const Scenes = () => {
   const { displayMode } = useDisplayMode();
   const [wizardOpen, setWizardOpen] = useState(false);
 
-  const scenes = useSceneStore((s) => s.scenes);
+  const scenes = useSceneStore((s) => [...s.localScenes, ...s.sharedScenes]);
+  const loadSharedScenes = useSceneStore((s) => s.loadSharedScenes);
+
+  // Load shared scenes on mount
+  useEffect(() => {
+    loadSharedScenes();
+  }, [loadSharedScenes]);
 
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[26px]";
   const rootClassName =
