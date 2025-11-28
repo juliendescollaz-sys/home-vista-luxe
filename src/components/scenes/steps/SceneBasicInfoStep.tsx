@@ -36,7 +36,7 @@ export function SceneBasicInfoStep({
         <Label htmlFor="scene-name">Nom de la scène *</Label>
         <Input id="scene-name" placeholder="Ex: Soirée cinéma, Réveil, Départ de la maison..." value={draft.name} onChange={e => onUpdate({
         name: e.target.value
-      })} className={cn(!isNameValid && draft.name !== "" && "border-destructive")} />
+      })} className={cn("focus-visible:ring-0 focus-visible:ring-offset-0", !isNameValid && draft.name !== "" && "border-destructive")} />
         <p className="text-xs text-muted-foreground">
           Choisissez un nom évocateur pour reconnaître rapidement votre scène.
         </p>
@@ -104,7 +104,7 @@ export function SceneBasicInfoStep({
         <Label htmlFor="scene-description">Description (optionnel)</Label>
         <Textarea id="scene-description" placeholder="Décrivez brièvement ce que fait cette scène..." value={draft.description} onChange={e => onUpdate({
         description: e.target.value
-      })} rows={2} />
+      })} rows={2} className="focus-visible:ring-0 focus-visible:ring-offset-0" />
       </div>
 
       {/* Info box */}
