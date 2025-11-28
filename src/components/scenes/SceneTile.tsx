@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { NeoliaScene } from "@/types/scenes";
 import { useSceneStore } from "@/store/useSceneStore";
 import { Card } from "@/components/ui/card";
@@ -25,10 +25,17 @@ export function SceneTile({ sceneId, hideEditButton = false, sortableProps }: Sc
   const [isExecuting, setIsExecuting] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   
-  // Souscrire directement au store pour obtenir les données à jour
-  const scene = useSceneStore((s) => [...s.localScenes, ...s.sharedScenes].find((sc) => sc.id === sceneId));
+  // Select arrays separately to avoid creating new array on each render
+  const localScenes = useSceneStore((s) => s.localScenes);
+  const sharedScenes = useSceneStore((s) => s.sharedScenes);
   const executeScene = useSceneStore((s) => s.executeScene);
   const toggleSceneFavorite = useSceneStore((s) => s.toggleSceneFavorite);
+
+  // Memoize scene lookup to avoid infinite loops
+  const scene = useMemo(
+    () => [...localScenes, ...sharedScenes].find((sc) => sc.id === sceneId),
+    [localScenes, sharedScenes, sceneId]
+  );
 
   // Si la scène n'existe plus, ne rien afficher
   if (!scene) return null;
