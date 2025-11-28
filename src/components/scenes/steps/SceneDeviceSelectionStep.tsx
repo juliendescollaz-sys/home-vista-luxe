@@ -5,22 +5,20 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useHAStore } from "@/store/useHAStore";
 import { SceneWizardDraft } from "@/types/scenes";
 import { Search, ChevronDown, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { isControllableEntity, EntityRegistryEntry } from "@/lib/entityUtils";
-import { HAEntity } from "@/types/homeassistant";
 import { SceneDeviceItem } from "@/components/scenes/SceneDeviceItem";
 import { 
   NeoliaRoom, 
   NeoliaFloor, 
   EntityRegistryEntry as SceneEntityRegistryEntry,
-  DeviceRegistryEntry 
+  DeviceRegistryEntry,
+  isSceneEligibleEntity,
 } from "@/utils/sceneDevices";
+import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
 
 interface SceneDeviceSelectionStepProps {
   draft: SceneWizardDraft;
   onUpdate: (updates: Partial<SceneWizardDraft>) => void;
 }
-
 
 export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelectionStepProps) {
   const entities = useHAStore((s) => s.entities);
@@ -32,54 +30,55 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
   const [search, setSearch] = useState("");
   const [expandedAreas, setExpandedAreas] = useState<Set<string>>(new Set());
 
-  // Filter controllable entities using the same filter as the rest of the app
-  const controllableEntities = useMemo(() => {
+  // Filtrer les entités éligibles pour une scène (même logique que le reste de l'app)
+  const eligibleEntities = useMemo(() => {
     return entities.filter((entity) => {
-      const reg = entityRegistry[entity.entity_id] as EntityRegistryEntry | undefined;
-      return isControllableEntity(entity, reg);
+      const friendlyName = entity.attributes.friendly_name || entity.entity_id;
+      return isSceneEligibleEntity(entity.entity_id, friendlyName);
     });
-  }, [entities, entityRegistry]);
+  }, [entities]);
 
-  // Helper to get area and floor info for an entity
-  const getEntityLocation = (entity: HAEntity) => {
-    const registry = entityRegistry[entity.entity_id];
-    const device = devices.find((d) => d.id === registry?.device_id);
-    const areaId = registry?.area_id || device?.area_id;
+  // Helper pour obtenir l'area_id d'une entité (via registry ou device)
+  const getEntityAreaId = (entityId: string): string | undefined => {
+    const reg = entityRegistry[entityId];
+    if (reg?.area_id) return reg.area_id;
     
-    const area = areaId ? areas.find((a) => a.area_id === areaId) : null;
-    const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) : null;
+    if (reg?.device_id) {
+      const device = devices.find(d => d.id === reg.device_id);
+      if (device?.area_id) return device.area_id;
+    }
     
-    return { area, floor };
+    return undefined;
   };
 
-  // Group entities by floor > area
+  // Grouper les entités par étage > pièce
   const groupedEntities = useMemo(() => {
     const searchLower = search.toLowerCase();
     
-    const filteredEntities = controllableEntities.filter((e) => {
+    const filteredEntities = eligibleEntities.filter((e) => {
       if (!search.trim()) return true;
       const name = e.attributes.friendly_name || e.entity_id;
       return name.toLowerCase().includes(searchLower);
     });
 
-    // Group by area
-    const byArea: Record<string, typeof filteredEntities> = {};
-    const noArea: typeof filteredEntities = [];
+    // Grouper par area
+    const byArea: Record<string, HAEntity[]> = {};
+    const noArea: HAEntity[] = [];
 
     for (const entity of filteredEntities) {
-      const { area } = getEntityLocation(entity);
+      const areaId = getEntityAreaId(entity.entity_id);
       
-      if (area) {
-        if (!byArea[area.area_id]) byArea[area.area_id] = [];
-        byArea[area.area_id].push(entity);
+      if (areaId) {
+        if (!byArea[areaId]) byArea[areaId] = [];
+        byArea[areaId].push(entity);
       } else {
         noArea.push(entity);
       }
     }
 
-    // Group areas by floor
-    const byFloor: Record<string, { floor: typeof floors[0] | null; areas: { area: typeof areas[0]; entities: typeof filteredEntities }[] }> = {};
-    const noFloorAreas: { area: typeof areas[0]; entities: typeof filteredEntities }[] = [];
+    // Grouper les areas par floor
+    const byFloor: Record<string, { floor: HAFloor | null; areas: { area: HAArea; entities: HAEntity[] }[] }> = {};
+    const noFloorAreas: { area: HAArea; entities: HAEntity[] }[] = [];
 
     for (const [areaId, areaEntities] of Object.entries(byArea)) {
       const area = areas.find((a) => a.area_id === areaId);
@@ -99,7 +98,7 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
     }
 
     return { byFloor, noFloorAreas, noArea };
-  }, [controllableEntities, areas, floors, devices, search, entityRegistry]);
+  }, [eligibleEntities, areas, floors, devices, search, entityRegistry]);
 
   const toggleEntity = (entityId: string) => {
     const newSelected = draft.selectedEntityIds.includes(entityId)
@@ -169,7 +168,7 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
     }));
   }, [floors]);
 
-  const renderEntityItem = (entity: HAEntity) => {
+  const renderEntityItem = (entity: HAEntity, hideLocation = false) => {
     const isSelected = draft.selectedEntityIds.includes(entity.entity_id);
     const friendlyName = entity.attributes.friendly_name || entity.entity_id;
 
@@ -184,14 +183,15 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
         devices={sceneDevices}
         areas={sceneAreas}
         floors={sceneFloors}
+        hideLocation={hideLocation}
       />
     );
   };
 
-  const renderAreaSection = (area: typeof areas[0], areaEntities: HAEntity[]) => {
+  const renderAreaSection = (area: HAArea, areaEntities: HAEntity[]) => {
     const isExpanded = expandedAreas.has(area.area_id);
     const selectedCount = areaEntities.filter((e) => draft.selectedEntityIds.includes(e.entity_id)).length;
-    const allSelected = selectedCount === areaEntities.length;
+    const allSelected = selectedCount === areaEntities.length && areaEntities.length > 0;
 
     return (
       <Collapsible key={area.area_id} open={isExpanded} onOpenChange={() => toggleAreaExpanded(area.area_id)}>
@@ -202,14 +202,14 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
           />
           <CollapsibleTrigger className="flex items-center gap-2 flex-1 hover:text-primary transition-colors">
             {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            <span className="font-medium">{area.name}</span>
+            <span className="font-medium text-sm">{area.name}</span>
             <span className="text-xs text-muted-foreground">
               ({selectedCount}/{areaEntities.length})
             </span>
           </CollapsibleTrigger>
         </div>
         <CollapsibleContent className="pl-6 space-y-1">
-          {areaEntities.map(renderEntityItem)}
+          {areaEntities.map((entity) => renderEntityItem(entity, true))}
         </CollapsibleContent>
       </Collapsible>
     );
@@ -232,10 +232,10 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
       </div>
 
       <div className="max-h-[400px] overflow-y-auto space-y-4 pr-2">
-        {/* By Floor */}
+        {/* Par étage */}
         {Object.entries(groupedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
           <div key={floorId} className="space-y-2">
-            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               {floor?.name || "Étage"}
             </h4>
             <div className="space-y-1 border-l-2 border-muted pl-3">
@@ -244,10 +244,10 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
           </div>
         ))}
 
-        {/* Areas without floor */}
+        {/* Pièces sans étage */}
         {groupedEntities.noFloorAreas.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Autres pièces
             </h4>
             <div className="space-y-1 border-l-2 border-muted pl-3">
@@ -258,15 +258,24 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
           </div>
         )}
 
-        {/* Entities without area */}
+        {/* Entités sans pièce */}
         {groupedEntities.noArea.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Sans pièce assignée
             </h4>
             <div className="space-y-1 pl-3">
-              {groupedEntities.noArea.map(renderEntityItem)}
+              {groupedEntities.noArea.map((entity) => renderEntityItem(entity, false))}
             </div>
+          </div>
+        )}
+
+        {/* Message si aucun résultat */}
+        {Object.keys(groupedEntities.byFloor).length === 0 && 
+         groupedEntities.noFloorAreas.length === 0 && 
+         groupedEntities.noArea.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            Aucun appareil trouvé
           </div>
         )}
       </div>

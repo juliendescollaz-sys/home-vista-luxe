@@ -43,13 +43,14 @@ interface SceneDeviceItemProps {
   devices: DeviceRegistryEntry[];
   areas: NeoliaRoom[];
   floors: NeoliaFloor[];
+  hideLocation?: boolean;
 }
 
 /**
  * Ligne appareil dans l'étape 2 du wizard de scène :
  * - Checkbox de sélection
  * - Icône + Nom de l'appareil
- * - Ligne secondaire : "Pièce • Étage"
+ * - Ligne secondaire : "Pièce • Étage" (si hideLocation=false)
  */
 export const SceneDeviceItem: React.FC<SceneDeviceItemProps> = ({
   entityId,
@@ -60,29 +61,21 @@ export const SceneDeviceItem: React.FC<SceneDeviceItemProps> = ({
   devices,
   areas,
   floors,
+  hideLocation = false,
 }) => {
-  const result = getRoomAndFloorForEntity(
+  const { roomName, floorName } = getRoomAndFloorForEntity(
     entityId,
     entityRegistry,
     devices,
     areas,
     floors,
   );
-  const { roomName, floorName } = result;
-
-  // DEBUG LOG - à supprimer après vérification
-  console.log("SCENE DEBUG", {
-    entityId,
-    registry: entityRegistry?.[entityId],
-    devices,
-    areas,
-    floors,
-    roomAndFloor: result,
-  });
 
   const domain = entityId.split(".")[0];
   const Icon = getDomainIcon(domain);
   const label = friendlyName || entityId;
+
+  const showLocation = !hideLocation && (roomName || floorName);
 
   return (
     <label
@@ -101,12 +94,12 @@ export const SceneDeviceItem: React.FC<SceneDeviceItemProps> = ({
           <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
           <span className="text-sm truncate">{label}</span>
         </div>
-        {roomName && floorName && (
+        {showLocation && roomName && floorName && (
           <span className="text-xs text-muted-foreground mt-0.5 ml-6 block truncate">
             {roomName} • {floorName}
           </span>
         )}
-        {roomName && !floorName && (
+        {showLocation && roomName && !floorName && (
           <span className="text-xs text-muted-foreground mt-0.5 ml-6 block truncate">
             {roomName}
           </span>
