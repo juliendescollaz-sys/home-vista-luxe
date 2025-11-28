@@ -63,13 +63,90 @@ function mapMdiToLucide(mdiIcon: string): string {
     "weather-sunny": "Sun",
     "weather-sunset": "Sunset",
     "star": "Star",
+    "star-four-points": "Sparkles",
     "heart": "Heart",
     "fire": "Flame",
     "snowflake": "Snowflake",
     "fan": "Fan",
     "thermometer": "Thermometer",
+    "coffee": "Coffee",
+    "television": "Tv",
+    "book-open-variant": "Book",
+    "dumbbell": "Dumbbell",
+    "bathtub": "Bath",
+    "silverware-fork-knife": "Utensils",
+    "baby-face": "Baby",
+    "gamepad-variant": "Gamepad2",
+    "leaf": "Leaf",
+    "pine-tree": "TreePine",
+    "weather-partly-cloudy": "CloudSun",
+    "weather-night-partly-cloudy": "CloudMoon",
+    "waves": "Waves",
+    "weather-windy": "Wind",
+    "flash": "Zap",
+    "power": "Power",
+    "door-open": "DoorOpen",
+    "door-closed": "DoorClosed",
+    "car": "Car",
+    "airplane": "Plane",
+    "briefcase": "Briefcase",
+    "school": "GraduationCap",
+    "palette": "Palette",
+    "camera": "Camera",
   };
   return mapping[mdiIcon.toLowerCase()] || "Sparkles";
+}
+
+// Map Lucide icons to MDI format for HA API
+function lucideToMdi(lucideIcon: string): string {
+  const mapping: Record<string, string> = {
+    "Lightbulb": "lightbulb",
+    "Lamp": "lamp",
+    "Home": "home",
+    "Bed": "bed",
+    "Sofa": "sofa",
+    "Clapperboard": "movie",
+    "Music": "music",
+    "PartyPopper": "party-popper",
+    "Moon": "weather-night",
+    "Sun": "weather-sunny",
+    "Sunset": "weather-sunset",
+    "Star": "star",
+    "Heart": "heart",
+    "Flame": "fire",
+    "Snowflake": "snowflake",
+    "Fan": "fan",
+    "Thermometer": "thermometer",
+    "Sparkles": "star-four-points",
+    "Coffee": "coffee",
+    "Tv": "television",
+    "Book": "book-open-variant",
+    "Dumbbell": "dumbbell",
+    "Bath": "bathtub",
+    "Utensils": "silverware-fork-knife",
+    "Baby": "baby-face",
+    "Gamepad2": "gamepad-variant",
+    "Leaf": "leaf",
+    "TreePine": "pine-tree",
+    "CloudSun": "weather-partly-cloudy",
+    "CloudMoon": "weather-night-partly-cloudy",
+    "Waves": "waves",
+    "Wind": "weather-windy",
+    "Zap": "flash",
+    "Power": "power",
+    "DoorOpen": "door-open",
+    "DoorClosed": "door-closed",
+    "Car": "car",
+    "Plane": "airplane",
+    "Briefcase": "briefcase",
+    "GraduationCap": "school",
+    "Palette": "palette",
+    "Camera": "camera",
+  };
+  
+  // Convert PascalCase to kebab-case for unmapped icons
+  const mdiName = mapping[lucideIcon] || lucideIcon.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+  return `mdi:${mdiName}`;
 }
 
 export const useSceneStore = create<SceneStore>()(
@@ -113,6 +190,7 @@ export const useSceneStore = create<SceneStore>()(
             id: sceneId,
             name: sceneData.name,
             entities: buildHASceneEntities(sceneData.entities),
+            icon: lucideToMdi(sceneData.icon),
           });
           
           // Reload shared scenes from HA entities
@@ -161,6 +239,7 @@ export const useSceneStore = create<SceneStore>()(
             id: sceneId,
             name: updates.name,
             entities: updates.entities ? buildHASceneEntities(updates.entities) : undefined,
+            icon: updates.icon ? lucideToMdi(updates.icon) : undefined,
           });
           
           // Reload shared scenes
