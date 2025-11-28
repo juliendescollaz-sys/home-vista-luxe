@@ -65,3 +65,62 @@ export const SCENE_ICON_CATEGORIES = {
 } as const;
 
 export const ALL_SCENE_ICONS = Object.values(SCENE_ICON_CATEGORIES).flatMap(cat => cat.icons);
+
+// French translations for icon search
+export const ICON_FRENCH_LABELS: Record<string, string[]> = {
+  // Ambiances
+  Sun: ["soleil", "jour", "journée", "lumineux"],
+  Moon: ["lune", "nuit", "nocturne"],
+  Sunset: ["coucher de soleil", "crépuscule", "soir"],
+  Sunrise: ["lever de soleil", "aube", "matin"],
+  Stars: ["étoiles", "nuit", "ciel"],
+  Sparkles: ["étincelles", "brillant", "magie"],
+  Heart: ["coeur", "amour", "romantique"],
+  Flame: ["flamme", "feu", "chaleur"],
+  Zap: ["éclair", "énergie", "rapide"],
+  CloudMoon: ["nuage lune", "nuit nuageuse"],
+  // Pièces
+  Home: ["maison", "domicile", "accueil"],
+  Sofa: ["canapé", "salon", "séjour"],
+  Bed: ["lit", "chambre", "dormir", "nuit"],
+  Bath: ["bain", "salle de bain", "douche"],
+  UtensilsCrossed: ["cuisine", "repas", "manger", "couverts"],
+  Car: ["voiture", "garage", "auto"],
+  Trees: ["arbres", "jardin", "extérieur", "nature"],
+  Building: ["bâtiment", "immeuble", "bureau"],
+  DoorOpen: ["porte", "entrée", "sortie"],
+  Armchair: ["fauteuil", "salon", "détente"],
+  // Activités
+  Tv: ["télé", "télévision", "film", "regarder"],
+  Clapperboard: ["cinéma", "film", "vidéo"],
+  Music: ["musique", "son", "audio", "écouter"],
+  Gamepad2: ["jeu", "gaming", "manette", "jouer"],
+  BookOpen: ["livre", "lecture", "lire", "étude"],
+  Briefcase: ["travail", "bureau", "affaires"],
+  Dumbbell: ["sport", "musculation", "exercice", "gym"],
+  Coffee: ["café", "pause", "matin"],
+  Wine: ["vin", "apéro", "soirée", "détente"],
+  PartyPopper: ["fête", "party", "célébration", "anniversaire"],
+  // Climat
+  Thermometer: ["température", "thermomètre", "chaud", "froid"],
+  Fan: ["ventilateur", "ventilation", "air", "fraîcheur"],
+  Snowflake: ["neige", "froid", "hiver", "climatisation"],
+  CloudRain: ["pluie", "nuage", "météo"],
+  Wind: ["vent", "air", "ventilation"],
+  Droplets: ["gouttes", "eau", "humidité"],
+  CloudSun: ["nuage soleil", "météo", "variable"],
+  Cloudy: ["nuageux", "couvert", "gris"],
+  Rainbow: ["arc-en-ciel", "couleurs"],
+  Umbrella: ["parapluie", "pluie"],
+  // Divers
+  Star: ["étoile", "favori", "important"],
+  Bell: ["cloche", "notification", "alarme", "sonnerie"],
+  Clock: ["horloge", "heure", "temps", "minuterie"],
+  Calendar: ["calendrier", "date", "planning"],
+  MapPin: ["lieu", "position", "localisation", "adresse"],
+  Plane: ["avion", "voyage", "vacances"],
+  LogOut: ["sortie", "départ", "quitter"],
+  LogIn: ["entrée", "arrivée", "connexion"],
+  Shield: ["sécurité", "protection", "alarme"],
+  Lightbulb: ["ampoule", "lumière", "idée", "éclairage"]
+};
