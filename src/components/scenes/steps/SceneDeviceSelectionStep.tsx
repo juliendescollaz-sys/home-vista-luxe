@@ -41,6 +41,18 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
   // Helper pour obtenir l'area_id d'une entité (via registry ou device)
   const getEntityAreaId = (entityId: string): string | undefined => {
     const reg = entityRegistry[entityId];
+    
+    // Debug temporaire
+    if (entityId.includes("lustre")) {
+      console.log("SCENE LOCATION DEBUG", {
+        entityId,
+        reg,
+        regAreaId: reg?.area_id,
+        regDeviceId: reg?.device_id,
+        matchingDevice: reg?.device_id ? devices.find(d => d.id === reg.device_id) : null,
+      });
+    }
+    
     if (reg?.area_id) return reg.area_id;
     
     if (reg?.device_id) {
