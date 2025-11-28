@@ -149,11 +149,11 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
     const Icon = getDomainIcon(domain);
     const { area, floor } = getEntityLocation(entity);
     
-    // Build location string
+    // Build location string: "Pièce • Étage"
     const locationParts: string[] = [];
     if (area) locationParts.push(area.name);
     if (floor) locationParts.push(floor.name);
-    const locationString = locationParts.join(" – ");
+    const locationString = locationParts.join(" • ");
 
     return (
       <label
