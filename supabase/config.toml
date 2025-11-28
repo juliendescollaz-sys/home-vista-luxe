@@ -8,3 +8,6 @@ verify_jwt = false  # Public endpoint for QR code redemption
 
 [functions.neolia-assets]
 verify_jwt = false  # Public endpoint for asset verification
+
+[functions.ha-scene-manager]
+verify_jwt = false  # Public endpoint - uses HA token for authentication
