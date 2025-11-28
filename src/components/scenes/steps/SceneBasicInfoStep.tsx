@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,20 +6,68 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { SceneIconPickerDialog } from "../SceneIconPickerDialog";
 import { SceneWizardDraft, SceneScope } from "@/types/scenes";
-import { User, Users, Pencil } from "lucide-react";
+import { User, Users, Pencil, Sparkles, Loader2 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 interface SceneBasicInfoStepProps {
   draft: SceneWizardDraft;
   onUpdate: (updates: Partial<SceneWizardDraft>) => void;
   isEditMode?: boolean;
 }
+
 export function SceneBasicInfoStep({
   draft,
   onUpdate,
   isEditMode = false
 }: SceneBasicInfoStepProps) {
   const [iconDialogOpen, setIconDialogOpen] = useState(false);
+  const [suggestedIcon, setSuggestedIcon] = useState<string | null>(null);
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [hasUserSelectedIcon, setHasUserSelectedIcon] = useState(isEditMode);
+
+  // Debounced AI icon suggestion
+  useEffect(() => {
+    if (hasUserSelectedIcon || !draft.name.trim() || draft.name.trim().length < 3) {
+      setSuggestedIcon(null);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setIsSuggesting(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('suggest-scene-icon', {
+          body: { sceneName: draft.name }
+        });
+        
+        if (!error && data?.icon) {
+          setSuggestedIcon(data.icon);
+        }
+      } catch (err) {
+        console.error('Icon suggestion error:', err);
+      } finally {
+        setIsSuggesting(false);
+      }
+    }, 800);
+
+    return () => clearTimeout(timeoutId);
+  }, [draft.name, hasUserSelectedIcon]);
+
+  const handleAcceptSuggestion = useCallback(() => {
+    if (suggestedIcon) {
+      onUpdate({ icon: suggestedIcon });
+      setSuggestedIcon(null);
+      setHasUserSelectedIcon(true);
+    }
+  }, [suggestedIcon, onUpdate]);
+
+  const handleManualIconSelect = useCallback((icon: string) => {
+    onUpdate({ icon });
+    setHasUserSelectedIcon(true);
+    setSuggestedIcon(null);
+  }, [onUpdate]);
+
   const renderSelectedIcon = () => {
     const IconComponent = (LucideIcons as any)[draft.icon];
     if (!IconComponent) {
@@ -28,6 +76,14 @@ export function SceneBasicInfoStep({
     }
     return <IconComponent className="w-8 h-8" />;
   };
+
+  const renderSuggestedIcon = () => {
+    if (!suggestedIcon) return null;
+    const IconComponent = (LucideIcons as any)[suggestedIcon];
+    if (!IconComponent) return null;
+    return <IconComponent className="w-6 h-6" />;
+  };
+
   const isScopeSelected = draft.scope === "local" || draft.scope === "shared";
   const isNameValid = draft.name.trim().length > 0;
   return <div className="space-y-6">
@@ -49,10 +105,36 @@ export function SceneBasicInfoStep({
           <div className="w-16 h-16 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
             {renderSelectedIcon()}
           </div>
-          <Button type="button" variant="outline" onClick={() => setIconDialogOpen(true)} className="gap-2">
-            <Pencil className="w-4 h-4" />
-            Changer l'icône
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button type="button" variant="outline" onClick={() => setIconDialogOpen(true)} className="gap-2">
+              <Pencil className="w-4 h-4" />
+              Changer l'icône
+            </Button>
+            
+            {/* AI Suggestion */}
+            {isSuggesting && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Suggestion en cours...
+              </div>
+            )}
+            
+            {suggestedIcon && !isSuggesting && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleAcceptSuggestion}
+                className="gap-2 text-primary hover:text-primary h-auto py-1 px-2 justify-start"
+              >
+                <Sparkles className="w-3 h-3" />
+                <span className="text-xs">Utiliser</span>
+                <span className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center">
+                  {renderSuggestedIcon()}
+                </span>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -117,8 +199,6 @@ export function SceneBasicInfoStep({
       </div>
 
       {/* Dialog pour le picker d'icônes */}
-      <SceneIconPickerDialog open={iconDialogOpen} onOpenChange={setIconDialogOpen} selectedIcon={draft.icon} onSelectIcon={icon => onUpdate({
-      icon
-    })} />
+      <SceneIconPickerDialog open={iconDialogOpen} onOpenChange={setIconDialogOpen} selectedIcon={draft.icon} onSelectIcon={handleManualIconSelect} />
     </div>;
 }
