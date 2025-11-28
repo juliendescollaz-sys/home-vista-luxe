@@ -105,37 +105,35 @@ export function SceneBasicInfoStep({
           <div className="w-16 h-16 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
             {renderSelectedIcon()}
           </div>
-          <div className="flex flex-col gap-2">
-            <Button type="button" variant="outline" onClick={() => setIconDialogOpen(true)} className="gap-2">
-              <Pencil className="w-4 h-4" />
-              Changer l'icône
-            </Button>
-            
-            {/* AI Suggestion */}
-            {isSuggesting && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                Suggestion en cours...
-              </div>
-            )}
-            
-            {suggestedIcon && !isSuggesting && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleAcceptSuggestion}
-                className="gap-2 text-primary hover:text-primary h-auto py-1 px-2 justify-start"
-              >
-                <Sparkles className="w-3 h-3" />
-                <span className="text-xs">Utiliser</span>
-                <span className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center">
-                  {renderSuggestedIcon()}
-                </span>
-              </Button>
-            )}
-          </div>
+          <Button type="button" variant="outline" onClick={() => setIconDialogOpen(true)} className="gap-2">
+            <Pencil className="w-4 h-4" />
+            Changer l'icône
+          </Button>
         </div>
+        
+        {/* AI Suggestion - below the icon picker */}
+        {isSuggesting && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Suggestion en cours...
+          </div>
+        )}
+        
+        {suggestedIcon && !isSuggesting && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleAcceptSuggestion}
+            className="gap-2 text-primary hover:text-primary h-auto py-1 px-2"
+          >
+            <Sparkles className="w-3 h-3" />
+            <span className="text-xs">Utiliser</span>
+            <span className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center">
+              {renderSuggestedIcon()}
+            </span>
+          </Button>
+        )}
       </div>
 
       {/* Portée de la scène - OBLIGATOIRE */}
