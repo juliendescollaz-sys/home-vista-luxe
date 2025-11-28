@@ -357,8 +357,8 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
   };
 
   return (
-    <div className="space-y-4">
-      <div className="p-3 rounded-lg bg-muted/50">
+    <div className="flex flex-col">
+      <div className="p-3 rounded-lg bg-muted/50 mb-0">
         <p className="text-sm text-muted-foreground">
           <span className="font-semibold">Conseil :</span> Une scène, c'est une « photo » de votre maison. 
           Définissez comment chaque appareil doit se comporter quand la scène est activée. 
@@ -366,32 +366,33 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         </p>
       </div>
 
-      <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-        {/* By floor */}
-        {Object.entries(groupedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
-          <div key={floorId} className="space-y-3">
-            <div className="sticky top-[-2px] sm:top-0 z-20 w-full bg-background pt-3 pb-4 px-1 -mb-1 border-b border-border/30">
-              <h5 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                {floor?.name || "Étage"}
-              </h5>
-            </div>
-            {floorAreas.map(({ area, entities: areaEntities }) => (
-              <div key={area.area_id} className="space-y-2">
-                <h6 className="text-sm font-medium text-muted-foreground ml-1">
-                  {area.name}
-                </h6>
-                <div className="space-y-2 ml-1">
-                  {areaEntities.map(renderEntityConfig)}
-                </div>
+      <div className="bg-background pt-3">
+        <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+          {/* By floor */}
+          {Object.entries(groupedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
+            <div key={floorId} className="space-y-3">
+              <div className="sticky top-0 z-20 w-full bg-background pt-1 pb-3 px-1 -mb-1 border-b border-border/30">
+                <h5 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  {floor?.name || "Étage"}
+                </h5>
               </div>
-            ))}
-          </div>
-        ))}
+              {floorAreas.map(({ area, entities: areaEntities }) => (
+                <div key={area.area_id} className="space-y-2">
+                  <h6 className="text-sm font-medium text-muted-foreground ml-1">
+                    {area.name}
+                  </h6>
+                  <div className="space-y-2 ml-1">
+                    {areaEntities.map(renderEntityConfig)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
 
         {/* Areas without floor */}
         {groupedEntities.noFloorAreas.length > 0 && (
           <div className="space-y-3">
-            <div className="sticky top-[-2px] sm:top-0 z-20 w-full bg-background pt-3 pb-4 px-1 -mb-1 border-b border-border/30">
+            <div className="sticky top-0 z-20 w-full bg-background pt-1 pb-3 px-1 -mb-1 border-b border-border/30">
               <h5 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 Autres pièces
               </h5>
@@ -412,7 +413,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         {/* Entities without area */}
         {groupedEntities.noArea.length > 0 && (
           <div className="space-y-2">
-            <div className="sticky top-[-2px] sm:top-0 z-20 w-full bg-background pt-3 pb-4 px-1 -mb-1 border-b border-border/30">
+            <div className="sticky top-0 z-20 w-full bg-background pt-1 pb-3 px-1 -mb-1 border-b border-border/30">
               <h5 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 Sans pièce
               </h5>
@@ -422,6 +423,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {selectedEntities.length === 0 && (
