@@ -148,12 +148,6 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
     const isSelected = draft.selectedEntityIds.includes(entity.entity_id);
     const Icon = getDomainIcon(domain);
     const { area, floor } = getEntityLocation(entity);
-    
-    // Build location string: "Pièce • Étage"
-    const locationParts: string[] = [];
-    if (area) locationParts.push(area.name);
-    if (floor) locationParts.push(floor.name);
-    const locationString = locationParts.join(" • ");
 
     return (
       <label
@@ -168,15 +162,17 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
           checked={isSelected}
           onCheckedChange={() => toggleEntity(entity.entity_id)}
         />
-        <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm truncate">
-            {entity.attributes.friendly_name || entity.entity_id}
-          </p>
-          {locationString && (
-            <p className="text-xs text-muted-foreground truncate">
-              {locationString}
-            </p>
+        <div className="flex flex-col flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span className="text-sm truncate">
+              {entity.attributes.friendly_name || entity.entity_id}
+            </span>
+          </div>
+          {area && floor && (
+            <span className="text-xs text-muted-foreground mt-0.5 ml-6 block truncate">
+              {area.name} • {floor.name}
+            </span>
           )}
         </div>
       </label>
