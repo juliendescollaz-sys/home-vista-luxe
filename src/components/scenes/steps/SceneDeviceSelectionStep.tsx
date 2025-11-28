@@ -40,18 +40,8 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
 
   // Helper pour obtenir l'area_id d'une entité (via registry ou device)
   const getEntityAreaId = (entityId: string): string | undefined => {
-    const reg = entityRegistry[entityId];
-    
-    // Debug temporaire
-    if (entityId.includes("lustre")) {
-      console.log("SCENE LOCATION DEBUG", {
-        entityId,
-        reg,
-        regAreaId: reg?.area_id,
-        regDeviceId: reg?.device_id,
-        matchingDevice: reg?.device_id ? devices.find(d => d.id === reg.device_id) : null,
-      });
-    }
+    // entityRegistry est un TABLEAU, pas un objet
+    const reg = entityRegistry.find(r => r.entity_id === entityId);
     
     if (reg?.area_id) return reg.area_id;
     
@@ -143,13 +133,13 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
     setExpandedAreas(newExpanded);
   };
 
-  // Préparer les données pour SceneDeviceItem
+  // Préparer les données pour SceneDeviceItem (entityRegistry est un TABLEAU)
   const sceneEntityRegistry: Record<string, SceneEntityRegistryEntry> = useMemo(() => {
     const result: Record<string, SceneEntityRegistryEntry> = {};
-    for (const [entityId, reg] of Object.entries(entityRegistry)) {
-      if (reg) {
-        result[entityId] = {
-          entity_id: entityId,
+    for (const reg of entityRegistry) {
+      if (reg?.entity_id) {
+        result[reg.entity_id] = {
+          entity_id: reg.entity_id,
           device_id: reg.device_id,
           area_id: reg.area_id,
         };
