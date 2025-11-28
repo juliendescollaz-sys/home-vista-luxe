@@ -1,40 +1,9 @@
 // src/utils/sceneDevices.ts
+// Réutilise la logique centralisée de isControllableEntity pour garantir
+// la cohérence avec Appareils actifs, Groupes, et page Maison.
 
-const ALLOWED_DOMAINS = [
-  "light",
-  "switch",
-  "media_player",
-  "cover",
-  "fan",
-  "climate",
-  "lock",
-  "remote",
-];
-
-const BLOCKED_KEYWORDS = [
-  "crossfade",
-  "caisson",
-  "sub",
-  "subwoofer",
-  "bass",
-  "treble",
-  "surround",
-  "dialog",
-  "dialogue",
-  "night",
-  "mode_nuit",
-  "touch",
-  "controls",
-  "control",
-  "enhancement",
-  "enhancer",
-  "loudness",
-  "lumiere d'etat",
-  "lumière d'état",
-  "state_light",
-  "status_light",
-  "status light",
-];
+import { isControllableEntity, EntityRegistryEntry as BaseEntityRegistryEntry } from "@/lib/entityUtils";
+import type { HAEntity } from "@/types/homeassistant";
 
 export interface NeoliaRoom {
   area_id: string;
@@ -65,42 +34,36 @@ export interface DeviceRegistryEntry {
 
 /**
  * Retourne true si l'entité peut être utilisée dans une scène.
- * Prend en compte : domaine, mots-clés bloqués, et visibilité HA (hidden_by, disabled_by, entity_category).
+ * Réutilise isControllableEntity pour garantir la cohérence avec
+ * Appareils actifs, Groupes, et page Maison.
  */
 export function isSceneEligibleEntity(
   entityId: string,
   friendlyName: string,
   registryEntry?: EntityRegistryEntry,
 ): boolean {
-  const domain = entityId.split(".")[0];
-  const id = entityId.toLowerCase();
-  const name = (friendlyName || "").toLowerCase();
+  // Construire un objet HAEntity minimal pour isControllableEntity
+  const fakeEntity: HAEntity = {
+    entity_id: entityId,
+    state: "unknown",
+    attributes: {
+      friendly_name: friendlyName,
+    },
+  };
 
-  // 1) Domaine autorisé uniquement
-  if (!ALLOWED_DOMAINS.includes(domain)) {
-    return false;
-  }
+  // Convertir le registryEntry au format attendu par isControllableEntity
+  const reg: BaseEntityRegistryEntry | null = registryEntry
+    ? {
+        entity_id: registryEntry.entity_id,
+        device_id: registryEntry.device_id,
+        area_id: registryEntry.area_id,
+        disabled_by: registryEntry.disabled_by || null,
+        hidden_by: registryEntry.hidden_by || null,
+        entity_category: (registryEntry.entity_category as "diagnostic" | "config" | null) || null,
+      }
+    : null;
 
-  // 2) Mots-clés à bannir (options Sonos & co)
-  for (const kw of BLOCKED_KEYWORDS) {
-    if (id.includes(kw) || name.includes(kw)) {
-      return false;
-    }
-  }
-
-  // 3) Règles de visibilité Home Assistant (si registry disponible)
-  if (registryEntry) {
-    // Entité désactivée dans HA
-    if (registryEntry.disabled_by) return false;
-    // Entité cachée dans HA
-    if (registryEntry.hidden_by) return false;
-    // Entités de type diagnostic/config -> pas pour les scènes
-    if (registryEntry.entity_category === "diagnostic" || registryEntry.entity_category === "config") {
-      return false;
-    }
-  }
-
-  return true;
+  return isControllableEntity(fakeEntity, reg);
 }
 
 /**
