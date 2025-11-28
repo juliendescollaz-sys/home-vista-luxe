@@ -27,9 +27,9 @@ export function SceneBasicInfoStep({
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [hasUserSelectedIcon, setHasUserSelectedIcon] = useState(isEditMode);
 
-  // Debounced AI icon suggestion
+  // Debounced AI icon suggestion - triggers on every name change
   useEffect(() => {
-    if (hasUserSelectedIcon || !draft.name.trim() || draft.name.trim().length < 3) {
+    if (!draft.name.trim() || draft.name.trim().length < 3) {
       setSuggestedIcon(null);
       return;
     }
@@ -52,7 +52,7 @@ export function SceneBasicInfoStep({
     }, 800);
 
     return () => clearTimeout(timeoutId);
-  }, [draft.name, hasUserSelectedIcon]);
+  }, [draft.name]);
 
   const handleAcceptSuggestion = useCallback(() => {
     if (suggestedIcon) {
