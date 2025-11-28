@@ -241,35 +241,41 @@ export class HAClient {
     });
   }
 
-  // Scene management methods using REST API
-  // Note: Home Assistant scene config management is only available via REST, not WebSocket
+  // Scene management methods using Edge Function proxy (avoids CORS issues)
   async createScene(config: {
     id: string;
     name: string;
     entities: Record<string, any>;
     icon?: string;
   }): Promise<void> {
-    console.info("[Neolia] createScene via REST →", { id: config.id, name: config.name });
+    console.info("[Neolia] createScene via Edge Function →", { id: config.id, name: config.name });
 
-    const apiUrl = this.config.baseUrl.replace(/\/+$/, "");
-    const response = await fetch(`${apiUrl}/api/config/scene/config/${config.id}`, {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/ha-scene-manager`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${this.config.token}`,
         "Content-Type": "application/json",
+        "apikey": supabaseKey,
       },
       body: JSON.stringify({
-        id: config.id,
-        name: config.name,
-        entities: config.entities,
-        icon: config.icon ? `mdi:${config.icon.toLowerCase()}` : undefined,
+        haBaseUrl: this.config.baseUrl,
+        haToken: this.config.token,
+        action: "create",
+        sceneId: config.id,
+        sceneConfig: {
+          name: config.name,
+          entities: config.entities,
+          icon: config.icon,
+        },
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[Neolia] createScene error:", response.status, errorText);
-      throw new Error(`Erreur création scène: ${response.status} - ${errorText}`);
+      const errorData = await response.json().catch(() => ({}));
+      console.error("[Neolia] createScene error:", response.status, errorData);
+      throw new Error(errorData.details || errorData.error || `Erreur création scène: ${response.status}`);
     }
 
     console.info("[Neolia] createScene success");
@@ -281,65 +287,63 @@ export class HAClient {
     entities?: Record<string, any>;
     icon?: string;
   }): Promise<void> {
-    console.info("[Neolia] updateHAScene via REST →", { id: config.id });
+    console.info("[Neolia] updateHAScene via Edge Function →", { id: config.id });
 
-    const apiUrl = this.config.baseUrl.replace(/\/+$/, "");
-    
-    // First fetch current scene config
-    const getResponse = await fetch(`${apiUrl}/api/config/scene/config/${config.id}`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${this.config.token}`,
-      },
-    });
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-    let existingConfig: any = {};
-    if (getResponse.ok) {
-      existingConfig = await getResponse.json();
-    }
-
-    // Merge with updates
-    const sceneConfig: Record<string, any> = {
-      ...existingConfig,
-      id: config.id,
-    };
-    if (config.name !== undefined) sceneConfig.name = config.name;
-    if (config.entities !== undefined) sceneConfig.entities = config.entities;
-    if (config.icon !== undefined) sceneConfig.icon = `mdi:${config.icon.toLowerCase()}`;
-
-    const response = await fetch(`${apiUrl}/api/config/scene/config/${config.id}`, {
+    const response = await fetch(`${supabaseUrl}/functions/v1/ha-scene-manager`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${this.config.token}`,
         "Content-Type": "application/json",
+        "apikey": supabaseKey,
       },
-      body: JSON.stringify(sceneConfig),
+      body: JSON.stringify({
+        haBaseUrl: this.config.baseUrl,
+        haToken: this.config.token,
+        action: "update",
+        sceneId: config.id,
+        sceneConfig: {
+          name: config.name || "",
+          entities: config.entities || {},
+          icon: config.icon,
+        },
+      }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[Neolia] updateHAScene error:", response.status, errorText);
-      throw new Error(`Erreur mise à jour scène: ${response.status} - ${errorText}`);
+      const errorData = await response.json().catch(() => ({}));
+      console.error("[Neolia] updateHAScene error:", response.status, errorData);
+      throw new Error(errorData.details || errorData.error || `Erreur mise à jour scène: ${response.status}`);
     }
 
     console.info("[Neolia] updateHAScene success");
   }
 
   async deleteHAScene(sceneId: string): Promise<void> {
-    console.info("[Neolia] deleteHAScene via REST →", { sceneId });
+    console.info("[Neolia] deleteHAScene via Edge Function →", { sceneId });
 
-    const apiUrl = this.config.baseUrl.replace(/\/+$/, "");
-    const response = await fetch(`${apiUrl}/api/config/scene/config/${sceneId}`, {
-      method: "DELETE",
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/ha-scene-manager`, {
+      method: "POST",
       headers: {
-        "Authorization": `Bearer ${this.config.token}`,
+        "Content-Type": "application/json",
+        "apikey": supabaseKey,
       },
+      body: JSON.stringify({
+        haBaseUrl: this.config.baseUrl,
+        haToken: this.config.token,
+        action: "delete",
+        sceneId: sceneId,
+      }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[Neolia] deleteHAScene error:", response.status, errorText);
-      throw new Error(`Erreur suppression scène: ${response.status} - ${errorText}`);
+      const errorData = await response.json().catch(() => ({}));
+      console.error("[Neolia] deleteHAScene error:", response.status, errorData);
+      throw new Error(errorData.details || errorData.error || `Erreur suppression scène: ${response.status}`);
     }
 
     console.info("[Neolia] deleteHAScene success");
