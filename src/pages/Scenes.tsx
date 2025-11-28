@@ -9,6 +9,7 @@ import { SceneWizard } from "@/components/scenes/SceneWizard";
 import { SceneTile } from "@/components/scenes/SceneTile";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { getGridClasses } from "@/lib/gridLayout";
 
 const Scenes = () => {
   const { displayMode } = useDisplayMode();
@@ -34,11 +35,11 @@ const Scenes = () => {
     }
   }, [entitiesLength, loadSharedScenes]);
 
-  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[26px]";
+  const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[24px]";
   const rootClassName =
     displayMode === "mobile"
       ? `min-h-screen bg-background pb-24 ${ptClass}`
-      : "w-full h-full overflow-y-auto";
+      : "min-h-screen bg-background";
 
   const hasScenes = scenes.length > 0;
 
@@ -49,21 +50,18 @@ const Scenes = () => {
       {!hasScenes ? (
         <SceneEmptyState onCreateScene={() => setWizardOpen(true)} />
       ) : (
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6">
+        <div className="max-w-screen-xl mx-auto px-4 pt-[24px] pb-4">
           <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-xl font-semibold">Mes scènes</h1>
-              <p className="text-sm text-muted-foreground">
-                {scenes.length} scène{scenes.length > 1 ? "s" : ""} configurée{scenes.length > 1 ? "s" : ""}
-              </p>
-            </div>
-            <Button onClick={() => setWizardOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
+            <p className="text-muted-foreground">
+              {scenes.length} scène{scenes.length > 1 ? "s" : ""} configurée{scenes.length > 1 ? "s" : ""}
+            </p>
+            <Button onClick={() => setWizardOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
               Nouvelle scène
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className={getGridClasses("cards", displayMode)}>
             {scenes.map((scene) => (
               <SceneTile key={scene.id} sceneId={scene.id} />
             ))}
