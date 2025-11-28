@@ -9,7 +9,8 @@ import { toast } from "sonner";
 import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
 import { DndContext, DragEndEvent, PointerSensor, TouchSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { filterPrimaryControlEntities, isControllableEntity, EntityRegistryEntry } from "@/lib/entityUtils";
+import { filterPrimaryControlEntities, EntityRegistryEntry } from "@/lib/entityUtils";
+import { filterEntitiesForDomain, GROUP_DOMAIN_CONFIGS } from "@/lib/groupDomains";
 
 interface RoomDevicesGridProps {
   areaId: string;
@@ -66,19 +67,13 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
     }
   }, [areaId]);
 
-  // Filtrer les entités de cette pièce (sans tri custom)
+  // Filtrer les entités de cette pièce (même logique que le wizard de groupe)
   const baseRoomEntities = useMemo(() => {
     if (!entities) return [];
     
-    // D'abord filtrer par zone et controllabilité (même logique que isControllableEntity)
+    // 1) Filtrer par zone d'abord
     const areaFiltered = entities.filter((entity) => {
-      const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id) as EntityRegistryEntry | undefined;
-      
-      // Vérifier d'abord si l'entité est contrôlable (inclut whitelist ZWA2)
-      if (!isControllableEntity(entity, reg)) {
-        return false;
-      }
-      
+      const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
       let entityAreaId = reg?.area_id;
 
       if (!entityAreaId && reg?.device_id) {
@@ -95,8 +90,18 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
       return entityAreaId === areaId;
     });
 
-    // Ensuite appliquer le filtre des entités de contrôle principales
-    return filterPrimaryControlEntities(areaFiltered, entityRegistry, devices);
+    // 2) Appliquer le même filtrage par domaine que le wizard de groupe
+    // (inclut la whitelist ZWA2 LED, exclut les entités techniques Sonos, etc.)
+    const supportedDomains = GROUP_DOMAIN_CONFIGS.map(c => c.value);
+    let domainFiltered: typeof entities = [];
+    
+    for (const domain of supportedDomains) {
+      const domainEntities = filterEntitiesForDomain(domain, areaFiltered, entityRegistry);
+      domainFiltered.push(...domainEntities);
+    }
+
+    // 3) Appliquer le filtre des entités de contrôle principales (multi-channel vs single)
+    return filterPrimaryControlEntities(domainFiltered, entityRegistry, devices);
   }, [entities, entityRegistry, devices, areaId]);
 
   // Appliquer l'ordre custom - une seule liste plate
