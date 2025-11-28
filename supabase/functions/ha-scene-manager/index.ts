@@ -98,6 +98,15 @@ serve(async (req) => {
         );
       }
       
+      // For DELETE requests with 400/404, the scene is a legacy HA scene that cannot be deleted via config API
+      if (action === "delete" && (response.status === 400 || response.status === 404)) {
+        console.log(`[ha-scene-manager] Scene cannot be deleted (legacy scene), returning cannotDelete response`);
+        return new Response(
+          JSON.stringify({ cannotDelete: true, reason: "legacy_scene" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ 
           error: `Home Assistant API error: ${response.status}`,

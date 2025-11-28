@@ -368,7 +368,7 @@ export class HAClient {
     console.info("[Neolia] updateHAScene success");
   }
 
-  async deleteHAScene(sceneId: string): Promise<void> {
+  async deleteHAScene(sceneId: string): Promise<{ deleted: boolean; cannotDelete?: boolean; reason?: string }> {
     console.info("[Neolia] deleteHAScene via Edge Function →", { sceneId });
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -394,7 +394,16 @@ export class HAClient {
       throw new Error(errorData.details || errorData.error || `Erreur suppression scène: ${response.status}`);
     }
 
+    const data = await response.json();
+    
+    // Handle cannotDelete response (legacy HA scene)
+    if (data.cannotDelete) {
+      console.warn("[Neolia] deleteHAScene: scene cannot be deleted (legacy scene)");
+      return { deleted: false, cannotDelete: true, reason: data.reason };
+    }
+
     console.info("[Neolia] deleteHAScene success");
+    return { deleted: true };
   }
 
   async callService(
