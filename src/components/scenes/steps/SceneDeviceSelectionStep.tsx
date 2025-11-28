@@ -20,7 +20,7 @@ interface SceneDeviceSelectionStepProps {
 
 // Mapping d'icônes identique aux tuiles d'appareils
 const getDomainIcon = (domain: string) => {
-  const iconMap: Record<string, any> = {
+  const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
     light: Lightbulb,
     switch: Power,
     climate: Thermometer,
@@ -51,6 +51,18 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
     });
   }, [entities, entityRegistry]);
 
+  // Helper to get area and floor info for an entity
+  const getEntityLocation = (entity: HAEntity) => {
+    const registry = entityRegistry[entity.entity_id];
+    const device = devices.find((d) => d.id === registry?.device_id);
+    const areaId = registry?.area_id || device?.area_id;
+    
+    const area = areaId ? areas.find((a) => a.area_id === areaId) : null;
+    const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) : null;
+    
+    return { area, floor };
+  };
+
   // Group entities by floor > area
   const groupedEntities = useMemo(() => {
     const searchLower = search.toLowerCase();
@@ -66,13 +78,11 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
     const noArea: typeof filteredEntities = [];
 
     for (const entity of filteredEntities) {
-      const registry = entityRegistry[entity.entity_id];
-      const device = devices.find((d) => d.id === registry?.device_id);
-      const areaId = registry?.area_id || device?.area_id;
+      const { area } = getEntityLocation(entity);
       
-      if (areaId) {
-        if (!byArea[areaId]) byArea[areaId] = [];
-        byArea[areaId].push(entity);
+      if (area) {
+        if (!byArea[area.area_id]) byArea[area.area_id] = [];
+        byArea[area.area_id].push(entity);
       } else {
         noArea.push(entity);
       }
@@ -137,6 +147,13 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
     const domain = entity.entity_id.split(".")[0];
     const isSelected = draft.selectedEntityIds.includes(entity.entity_id);
     const Icon = getDomainIcon(domain);
+    const { area, floor } = getEntityLocation(entity);
+    
+    // Build location string
+    const locationParts: string[] = [];
+    if (area) locationParts.push(area.name);
+    if (floor) locationParts.push(floor.name);
+    const locationString = locationParts.join(" – ");
 
     return (
       <label
@@ -152,9 +169,16 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
           onCheckedChange={() => toggleEntity(entity.entity_id)}
         />
         <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
-        <span className="flex-1 text-sm truncate">
-          {entity.attributes.friendly_name || entity.entity_id}
-        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm truncate">
+            {entity.attributes.friendly_name || entity.entity_id}
+          </p>
+          {locationString && (
+            <p className="text-xs text-muted-foreground truncate">
+              {locationString}
+            </p>
+          )}
+        </div>
       </label>
     );
   };
@@ -242,8 +266,8 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
         )}
       </div>
 
-      <div className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-        <p>
+      <div className="p-3 rounded-lg bg-muted/50">
+        <p className="text-sm text-muted-foreground">
           <span className="font-semibold">Conseil :</span> Choisissez tous les appareils dont l'état sera défini par cette scène. 
           Vous pourrez régler l'état précis de chaque appareil à l'étape suivante 
           (intensité, couleur, position, volume…).

@@ -180,7 +180,27 @@ const CONTROLLABLE_BLOCKED_KEYWORDS = [
   "battery",
   "batterie",
   "signal",
-  "rssi"
+  "rssi",
+  // Sonos advanced controls
+  "crossfade",
+  "touch_controls",
+  "contrôles tactiles",
+  "night_sound",
+  "night sound",
+  "mode_nuit",
+  "mode nuit",
+  "son mode nuit",
+  "dialogue_enhancement",
+  "dialogue enhancement",
+  "amélioration des dialogues",
+  "surround",
+  "sub_enabled",
+  "sub enabled",
+  "bass_boost",
+  "bass boost",
+  "treble",
+  "speech_enhancement",
+  "speech enhancement",
 ];
 
 /**
@@ -210,14 +230,18 @@ export function isControllableEntity(
     return false;
   }
 
-  // Filtre sur le friendly_name
-  const name = (entity.attributes?.friendly_name || entityId).toLowerCase();
-  if (CONTROLLABLE_BLOCKED_KEYWORDS.some((k) => name.includes(k))) {
+  // Pour les switches, exclure les entités config/diagnostic (options avancées Sonos, etc.)
+  if (domain === "switch" && (reg?.entity_category === "config" || reg?.entity_category === "diagnostic")) {
     return false;
   }
 
-  // Pour les domaines contrôlables (light, switch, etc.), on n'exclut PAS sur entity_category
-  // car certaines LED utiles sont marquées config/diagnostic
+  // Filtre sur le friendly_name ET l'entity_id
+  const name = (entity.attributes?.friendly_name || "").toLowerCase();
+  const idLower = entityId.toLowerCase();
+  
+  if (CONTROLLABLE_BLOCKED_KEYWORDS.some((k) => name.includes(k) || idLower.includes(k))) {
+    return false;
+  }
 
   return true;
 }
