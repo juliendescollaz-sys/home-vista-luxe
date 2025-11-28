@@ -44,9 +44,9 @@ const INITIAL_DRAFT: SceneWizardDraft = {
 };
 
 /**
- * Convert a NeoliaScene to a SceneWizardDraft for editing
+ * Convert a local NeoliaScene to a SceneWizardDraft for editing
  */
-function sceneToDraft(scene: NeoliaScene): SceneWizardDraft {
+function localSceneToDraft(scene: NeoliaScene): SceneWizardDraft {
   const selectedEntityIds = scene.entities.map((e) => e.entity_id);
   const entityStates: Record<string, SceneEntityState["targetState"]> = {};
   
@@ -64,32 +64,153 @@ function sceneToDraft(scene: NeoliaScene): SceneWizardDraft {
   };
 }
 
+/**
+ * Convert HA scene config response to SceneWizardDraft
+ * HA format: { id, name, entities: { "entity_id": { state, brightness, ... }, ... }, icon }
+ */
+function haConfigToDraft(
+  haConfig: { id: string; name: string; entities: Record<string, any>; icon?: string },
+  scene: NeoliaScene
+): SceneWizardDraft {
+  const selectedEntityIds = Object.keys(haConfig.entities || {});
+  const entityStates: Record<string, SceneEntityState["targetState"]> = {};
+  
+  for (const [entityId, config] of Object.entries(haConfig.entities || {})) {
+    const targetState: SceneEntityState["targetState"] = {};
+    
+    // Map HA config to our targetState format
+    if (config.state !== undefined) {
+      targetState.state = config.state;
+    }
+    if (config.brightness !== undefined) {
+      targetState.brightness = config.brightness;
+    }
+    if (config.brightness_pct !== undefined) {
+      // Convert brightness_pct (0-100) to brightness (0-255)
+      targetState.brightness = Math.round((config.brightness_pct / 100) * 255);
+    }
+    if (config.color_temp !== undefined) {
+      targetState.color_temp = config.color_temp;
+    }
+    if (config.rgb_color !== undefined) {
+      targetState.rgb_color = config.rgb_color;
+    }
+    if (config.position !== undefined) {
+      targetState.position = config.position;
+    }
+    if (config.temperature !== undefined) {
+      targetState.temperature = config.temperature;
+    }
+    if (config.hvac_mode !== undefined) {
+      targetState.hvac_mode = config.hvac_mode;
+    }
+    if (config.volume_level !== undefined) {
+      targetState.volume_level = config.volume_level;
+    }
+    
+    entityStates[entityId] = targetState;
+  }
+  
+  // Map MDI icon to Lucide icon
+  let icon = scene.icon || "Sparkles";
+  if (haConfig.icon) {
+    // Remove "mdi:" prefix if present
+    icon = haConfig.icon.replace(/^mdi:/, "");
+    // Capitalize first letter
+    icon = icon.charAt(0).toUpperCase() + icon.slice(1);
+  }
+  
+  return {
+    name: haConfig.name || scene.name,
+    icon,
+    description: scene.description || "",
+    scope: "shared",
+    selectedEntityIds,
+    entityStates,
+  };
+}
+
 export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
   const isEditMode = !!scene;
+  const isSharedScene = scene?.scope === "shared" || scene?.id?.startsWith("scene.");
   
   const [step, setStep] = useState(1);
   const [draft, setDraft] = useState<SceneWizardDraft>(INITIAL_DRAFT);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
 
   const addScene = useSceneStore((s) => s.addScene);
   const updateScene = useSceneStore((s) => s.updateScene);
   const deleteScene = useSceneStore((s) => s.deleteScene);
   const entities = useHAStore((s) => s.entities);
+  const client = useHAStore((s) => s.client);
 
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
       setStep(1);
+      setIsLoadingConfig(false);
+      
       if (scene) {
-        // Edit mode: pre-fill with existing scene data
-        setDraft(sceneToDraft(scene));
+        if (isSharedScene && client) {
+          // Shared scene: fetch config from HA
+          setIsLoadingConfig(true);
+          const sceneId = scene.id.replace("scene.", "");
+          
+          client.getSceneConfig(sceneId)
+            .then((haConfig) => {
+              if (haConfig) {
+                console.log("[SceneWizard] Loaded HA config:", haConfig);
+                setDraft(haConfigToDraft(haConfig, scene));
+              } else {
+                // Config not found (legacy scene), fallback to basic info
+                console.warn("[SceneWizard] HA config not found, using basic info");
+                setDraft({
+                  name: scene.name,
+                  icon: scene.icon,
+                  description: scene.description || "",
+                  scope: "shared",
+                  selectedEntityIds: [],
+                  entityStates: {},
+                });
+                toast({
+                  title: "Configuration incomplète",
+                  description: "Cette scène n'a pas de configuration détaillée disponible. Vous pouvez la reconfigurer.",
+                  variant: "default",
+                });
+              }
+            })
+            .catch((error) => {
+              console.error("[SceneWizard] Error loading HA config:", error);
+              // Fallback to basic info
+              setDraft({
+                name: scene.name,
+                icon: scene.icon,
+                description: scene.description || "",
+                scope: "shared",
+                selectedEntityIds: [],
+                entityStates: {},
+              });
+              toast({
+                title: "Erreur de chargement",
+                description: "Impossible de charger la configuration. Vous pouvez la reconfigurer.",
+                variant: "destructive",
+              });
+            })
+            .finally(() => {
+              setIsLoadingConfig(false);
+            });
+        } else {
+          // Local scene: use stored data directly
+          setDraft(localSceneToDraft(scene));
+        }
       } else {
         // Create mode: reset to initial state
         setDraft(INITIAL_DRAFT);
       }
     }
-  }, [open, scene]);
+  }, [open, scene, isSharedScene, client]);
 
   const updateDraft = (updates: Partial<SceneWizardDraft>) => {
     setDraft((prev) => ({ ...prev, ...updates }));
@@ -105,12 +226,12 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
   const canProceedStep2 = draft.selectedEntityIds.length > 0;
   const canProceedStep3 = Object.keys(draft.entityStates).length > 0;
 
-  // Auto-initialize entity states with current HA state when entering Step 3
+  // Auto-initialize entity states for NEW entities only when entering Step 3
   const initializeEntityStates = () => {
     const updatedStates = { ...draft.entityStates };
     
     for (const entityId of draft.selectedEntityIds) {
-      // Skip if already has a state configured
+      // Skip if already has a state configured (from existing scene or previous edit)
       if (updatedStates[entityId] && updatedStates[entityId].state !== undefined) {
         continue;
       }
@@ -162,6 +283,13 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
       }
       
       updatedStates[entityId] = state;
+    }
+    
+    // Remove states for entities that were deselected
+    for (const entityId of Object.keys(updatedStates)) {
+      if (!draft.selectedEntityIds.includes(entityId)) {
+        delete updatedStates[entityId];
+      }
     }
     
     setDraft((prev) => ({ ...prev, entityStates: updatedStates }));
@@ -319,16 +447,25 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
           </div>
 
           <div className="flex-1 overflow-y-auto px-1 py-2">
-            {step === 1 && (
-              <SceneBasicInfoStep draft={draft} onUpdate={updateDraft} />
+            {isLoadingConfig ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Chargement de la configuration...</p>
+              </div>
+            ) : (
+              <>
+                {step === 1 && (
+                  <SceneBasicInfoStep draft={draft} onUpdate={updateDraft} />
+                )}
+                {step === 2 && (
+                  <SceneDeviceSelectionStep draft={draft} onUpdate={updateDraft} />
+                )}
+                {step === 3 && (
+                  <SceneStateConfigStep draft={draft} onUpdate={updateDraft} />
+                )}
+                {step === 4 && <SceneSummaryStep draft={draft} />}
+              </>
             )}
-            {step === 2 && (
-              <SceneDeviceSelectionStep draft={draft} onUpdate={updateDraft} />
-            )}
-            {step === 3 && (
-              <SceneStateConfigStep draft={draft} onUpdate={updateDraft} />
-            )}
-            {step === 4 && <SceneSummaryStep draft={draft} />}
           </div>
 
           <div className="flex items-center justify-between pt-4 border-t">
@@ -336,7 +473,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
               <Button
                 variant="ghost"
                 onClick={handlePrevious}
-                disabled={step === 1 || isSubmitting}
+                disabled={step === 1 || isSubmitting || isLoadingConfig}
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
                 Précédent
@@ -348,6 +485,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
                   variant="ghost"
                   className="text-destructive hover:text-destructive hover:bg-destructive/10"
                   onClick={() => setIsDeleteConfirmOpen(true)}
+                  disabled={isLoadingConfig}
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
                   Supprimer
@@ -359,6 +497,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
               <Button
                 onClick={handleNext}
                 disabled={
+                  isLoadingConfig ||
                   (step === 1 && !canProceedStep1) ||
                   (step === 2 && !canProceedStep2) ||
                   (step === 3 && !canProceedStep3)
@@ -368,7 +507,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={isSubmitting}>
+              <Button onClick={handleSubmit} disabled={isSubmitting || isLoadingConfig}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />

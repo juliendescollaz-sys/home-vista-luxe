@@ -9,7 +9,7 @@ const corsHeaders = {
 interface SceneRequest {
   haBaseUrl: string;
   haToken: string;
-  action: "create" | "update" | "delete";
+  action: "create" | "update" | "delete" | "get";
   sceneId: string;
   sceneConfig?: {
     name: string;
@@ -40,7 +40,16 @@ serve(async (req) => {
 
     let response: Response;
 
-    if (action === "delete") {
+    if (action === "get") {
+      // Get scene configuration
+      console.log(`[ha-scene-manager] GET scene config: ${sceneId}`);
+      response = await fetch(endpoint, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${haToken}`,
+        },
+      });
+    } else if (action === "delete") {
       console.log(`[ha-scene-manager] DELETE scene: ${sceneId}`);
       response = await fetch(endpoint, {
         method: "DELETE",
