@@ -94,10 +94,10 @@ export function SceneIconPickerDialog({
             />
           </div>
 
-          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+          <div className="flex-1 overflow-y-auto space-y-4 pr-1 p-1">
             {Object.entries(filteredCategories).map(([key, category]) => (
               <div key={key}>
-                <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2">
+                <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2 ml-1">
                   {category.label}
                 </h4>
                 <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
