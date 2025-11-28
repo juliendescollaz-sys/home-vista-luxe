@@ -366,7 +366,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         </p>
       </div>
 
-      <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+      <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 py-1">
         {/* By floor */}
         {Object.entries(groupedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
           <div key={floorId} className="space-y-3">
