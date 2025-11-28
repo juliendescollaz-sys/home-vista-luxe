@@ -61,13 +61,24 @@ export const SceneDeviceItem: React.FC<SceneDeviceItemProps> = ({
   areas,
   floors,
 }) => {
-  const { roomName, floorName } = getRoomAndFloorForEntity(
+  const result = getRoomAndFloorForEntity(
     entityId,
     entityRegistry,
     devices,
     areas,
     floors,
   );
+  const { roomName, floorName } = result;
+
+  // DEBUG LOG - à supprimer après vérification
+  console.log("SCENE DEBUG", {
+    entityId,
+    registry: entityRegistry?.[entityId],
+    devices,
+    areas,
+    floors,
+    roomAndFloor: result,
+  });
 
   const domain = entityId.split(".")[0];
   const Icon = getDomainIcon(domain);
