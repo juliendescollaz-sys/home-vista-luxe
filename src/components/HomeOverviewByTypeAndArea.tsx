@@ -3,6 +3,7 @@ import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { SortableGroupTile } from "@/components/groups/SortableGroupTile";
 import { GroupTile } from "@/components/groups/GroupTile";
+import { SortableSceneTile } from "@/components/scenes/SortableSceneTile";
 import { SceneTile } from "@/components/scenes/SceneTile";
 import { DeviceEntitiesDrawer } from "@/components/DeviceEntitiesDrawer";
 import { getGridClasses } from "@/lib/gridLayout";
@@ -295,7 +296,7 @@ export function HomeOverviewByTypeAndArea({
                     }
 
                     if (item.type === "scene") {
-                      return <SceneTile key={item.id} sceneId={item.data.id} hideEditButton />;
+                      return <SortableSceneTile key={item.id} sceneId={item.data.id} hideEditButton />;
                     }
 
                     const entity = item.data;
