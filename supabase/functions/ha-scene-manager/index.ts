@@ -88,6 +88,16 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[ha-scene-manager] HA API error: ${response.status} - ${errorText}`);
+      
+      // For GET requests with 404, return success with notFound flag to avoid error overlays
+      if (action === "get" && response.status === 404) {
+        console.log(`[ha-scene-manager] Scene config not found, returning notFound response`);
+        return new Response(
+          JSON.stringify({ notFound: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ 
           error: `Home Assistant API error: ${response.status}`,
