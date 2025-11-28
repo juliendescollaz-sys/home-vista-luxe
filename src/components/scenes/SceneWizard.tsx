@@ -121,14 +121,32 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
     setIsSubmitting(true);
 
     try {
-      // Build entities array
+      // Build entities array, sanitizing brightness for non-dimmable lights
       const sceneEntities: SceneEntityState[] = draft.selectedEntityIds
         .map((entityId) => {
           const entity = entities.find((e) => e.entity_id === entityId);
           if (!entity) return null;
 
           const domain = entityId.split(".")[0];
-          const targetState = draft.entityStates[entityId] || { state: "on" };
+          const rawTargetState = draft.entityStates[entityId] || { state: "on" };
+          
+          // Sanitize: remove brightness for non-dimmable lights
+          const targetState = { ...rawTargetState };
+          if (domain === "light") {
+            const supportedColorModes = entity.attributes.supported_color_modes as string[] | undefined;
+            const isDimmable = 
+              (Array.isArray(supportedColorModes) &&
+                supportedColorModes.some((m) =>
+                  ["brightness", "hs", "xy", "rgb", "rgbw", "rgbww", "color_temp"].includes(m)
+                )) ||
+              typeof entity.attributes.brightness === "number";
+            
+            if (!isDimmable) {
+              delete targetState.brightness;
+              delete targetState.color_temp;
+              delete targetState.rgb_color;
+            }
+          }
 
           return {
             entity_id: entityId,

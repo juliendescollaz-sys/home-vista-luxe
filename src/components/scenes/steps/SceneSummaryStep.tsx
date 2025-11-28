@@ -3,6 +3,7 @@ import { useHAStore } from "@/store/useHAStore";
 import { SceneWizardDraft } from "@/types/scenes";
 import { User, Users, CheckCircle } from "lucide-react";
 import * as LucideIcons from "lucide-react";
+import { isDimmableLight } from "@/lib/entityUtils";
 
 interface SceneSummaryStepProps {
   draft: SceneWizardDraft;
@@ -44,7 +45,8 @@ export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
     else if (state.state === "playing") parts.push("Lecture");
     else if (state.state === "paused") parts.push("Pause");
 
-    if (domain === "light" && state.brightness !== undefined) {
+    // Only show brightness % for dimmable lights
+    if (domain === "light" && state.brightness !== undefined && isDimmableLight(entity)) {
       parts.push(`${Math.round((state.brightness / 255) * 100)}%`);
     }
     if (domain === "cover" && state.position !== undefined) {
