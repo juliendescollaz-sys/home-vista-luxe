@@ -139,40 +139,96 @@ export function SceneBasicInfoStep({
       {/* Portée de la scène - OBLIGATOIRE */}
       <div className="space-y-3">
         <Label className="flex items-center gap-1">
-          Portée de la scène *
-          {!isScopeSelected && !isEditMode}
+          Portée de la scène {!isEditMode && "*"}
+          {isEditMode && <span className="text-xs font-normal text-muted-foreground ml-1">(non modifiable)</span>}
         </Label>
-        <RadioGroup value={draft.scope} onValueChange={(value: SceneScope) => onUpdate({
-        scope: value
-      })} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <label htmlFor="scope-local" className={cn("flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors", "has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5", !isScopeSelected && "border-dashed")}>
-            <RadioGroupItem value="local" id="scope-local" className="mt-0.5" />
-            <div className="flex-1">
-              <div className="flex items-center gap-2 font-medium">
-                <User className="w-4 h-4" />
-                Local uniquement
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Visible seulement dans cette application Neolia.
-              </p>
-            </div>
-          </label>
-
-          <label htmlFor="scope-shared" className={cn("flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors", "has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5", !isScopeSelected && "border-dashed")}>
-            <RadioGroupItem value="shared" id="scope-shared" className="mt-0.5" />
-            <div className="flex-1">
-              <div className="flex items-center gap-2 font-medium">
-                <Users className="w-4 h-4" />
-                Partagée
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Créée dans Home Assistant, accessible à tous.
-              </p>
-            </div>
-          </label>
-        </RadioGroup>
         
-        {/* Message de validation si portée non sélectionnée */}
+        {isEditMode ? (
+          // Mode édition : affichage en lecture seule
+          <div 
+            className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+            onClick={() => toast.info("La portée d'une scène ne peut pas être modifiée après sa création.")}
+          >
+            <div className={cn(
+              "flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-not-allowed",
+              draft.scope === "local" 
+                ? "border-primary/50 bg-primary/5 opacity-70" 
+                : "opacity-40 border-muted"
+            )}>
+              <div className={cn(
+                "w-4 h-4 mt-0.5 rounded-full border-2 flex items-center justify-center",
+                draft.scope === "local" ? "border-primary" : "border-muted-foreground/50"
+              )}>
+                {draft.scope === "local" && <div className="w-2 h-2 rounded-full bg-primary" />}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 font-medium">
+                  <User className="w-4 h-4" />
+                  Local uniquement
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Visible seulement dans cette application Neolia.
+                </p>
+              </div>
+            </div>
+
+            <div className={cn(
+              "flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-not-allowed",
+              draft.scope === "shared" 
+                ? "border-primary/50 bg-primary/5 opacity-70" 
+                : "opacity-40 border-muted"
+            )}>
+              <div className={cn(
+                "w-4 h-4 mt-0.5 rounded-full border-2 flex items-center justify-center",
+                draft.scope === "shared" ? "border-primary" : "border-muted-foreground/50"
+              )}>
+                {draft.scope === "shared" && <div className="w-2 h-2 rounded-full bg-primary" />}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 font-medium">
+                  <Users className="w-4 h-4" />
+                  Partagée
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Créée dans Home Assistant, accessible à tous.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Mode création : sélection normale
+          <RadioGroup value={draft.scope} onValueChange={(value: SceneScope) => onUpdate({
+            scope: value
+          })} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label htmlFor="scope-local" className={cn("flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors", "has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5", !isScopeSelected && "border-dashed")}>
+              <RadioGroupItem value="local" id="scope-local" className="mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 font-medium">
+                  <User className="w-4 h-4" />
+                  Local uniquement
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Visible seulement dans cette application Neolia.
+                </p>
+              </div>
+            </label>
+
+            <label htmlFor="scope-shared" className={cn("flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors", "has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5", !isScopeSelected && "border-dashed")}>
+              <RadioGroupItem value="shared" id="scope-shared" className="mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 font-medium">
+                  <Users className="w-4 h-4" />
+                  Partagée
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Créée dans Home Assistant, accessible à tous.
+                </p>
+              </div>
+            </label>
+          </RadioGroup>
+        )}
+        
+        {/* Message de validation si portée non sélectionnée en mode création */}
         {!isScopeSelected && !isEditMode && <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-500">
             
             
