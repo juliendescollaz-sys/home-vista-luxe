@@ -34,9 +34,11 @@ export function SceneDeviceSelectionStep({ draft, onUpdate }: SceneDeviceSelecti
   const eligibleEntities = useMemo(() => {
     return entities.filter((entity) => {
       const friendlyName = entity.attributes.friendly_name || entity.entity_id;
-      return isSceneEligibleEntity(entity.entity_id, friendlyName);
+      // Récupérer l'entrée registry pour vérifier hidden_by, disabled_by, entity_category
+      const registryEntry = entityRegistry.find(r => r.entity_id === entity.entity_id);
+      return isSceneEligibleEntity(entity.entity_id, friendlyName, registryEntry);
     });
-  }, [entities]);
+  }, [entities, entityRegistry]);
 
   // Helper pour obtenir l'area_id d'une entité (via registry ou device)
   const getEntityAreaId = (entityId: string): string | undefined => {
