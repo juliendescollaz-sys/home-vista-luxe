@@ -190,7 +190,12 @@ export const useSceneStore = create<SceneStore>()(
           const sceneId = id.replace("scene.", "");
           
           // Delete scene via HA WebSocket
-          await client.deleteHAScene(sceneId);
+          const result = await client.deleteHAScene(sceneId);
+          
+          // Handle legacy scenes that cannot be deleted via API
+          if (result.cannotDelete) {
+            throw new Error("Cette scène a été créée via Home Assistant (YAML ou interface) et ne peut pas être supprimée depuis l'application. Supprimez-la directement dans Home Assistant.");
+          }
           
           // Remove from local state immediately
           set((state) => ({
