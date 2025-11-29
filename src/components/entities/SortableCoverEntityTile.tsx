@@ -269,13 +269,9 @@ export function SortableCoverEntityTile({ entity, floor, area, onEditName }: Sor
           </div>
         </div>
         
-        {/* Slider de position - structure alignée sur MediaPlayerCard */}
+        {/* Slider de position - compact, aligné sur la tuile média */}
         {supportsPosition && (
-          <div className="space-y-1.5 pt-2 border-t border-border/30" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-              <span>Position</span>
-              <span>{position}%</span>
-            </div>
+          <div className="mt-1" onClick={(e) => e.stopPropagation()}>
             <Slider
               value={[position]}
               onValueChange={(v) => setPosition(v[0])}
@@ -287,7 +283,7 @@ export function SortableCoverEntityTile({ entity, floor, area, onEditName }: Sor
               className="w-full"
               aria-label="Position du volet"
             />
-            <div className="flex justify-between text-[11px] text-muted-foreground">
+            <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
               <span>Fermé</span>
               <span>Ouvert</span>
             </div>
