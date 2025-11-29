@@ -148,7 +148,7 @@ const Home = () => {
                 const isCover = entity.entity_id.startsWith("cover.");
                 
                 if (isMediaPlayer) {
-                  return <MediaPlayerCard key={entity.entity_id} entity={entity} />;
+                  return <MediaPlayerCard key={entity.entity_id} entity={entity} floor={floor} area={area} />;
                 }
                 
                 if (isCover) {
