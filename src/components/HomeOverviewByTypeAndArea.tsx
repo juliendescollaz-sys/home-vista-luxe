@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
+import { SortableCoverEntityTile } from "@/components/entities/SortableCoverEntityTile";
 import { SortableGroupTile } from "@/components/groups/SortableGroupTile";
 import { GroupTile } from "@/components/groups/GroupTile";
 import { SortableSceneTile } from "@/components/scenes/SortableSceneTile";
@@ -345,6 +346,17 @@ export function HomeOverviewByTypeAndArea({
                       );
                     }
 
+                    if (entity.entity_id.startsWith("cover.")) {
+                      return (
+                        <SortableCoverEntityTile
+                          key={entity.entity_id}
+                          entity={entity}
+                          floor={floor}
+                          area={area}
+                        />
+                      );
+                    }
+
                     return (
                       <SortableDeviceCard
                         key={entity.entity_id}
@@ -374,6 +386,8 @@ export function HomeOverviewByTypeAndArea({
               <div className="opacity-90 rotate-3 scale-105">
                 {activeEntity.entity_id.startsWith("media_player.") ? (
                   <SortableMediaPlayerCard entity={activeEntity} />
+                ) : activeEntity.entity_id.startsWith("cover.") ? (
+                  <SortableCoverEntityTile entity={activeEntity} />
                 ) : (
                   <SortableDeviceCard entity={activeEntity} onToggle={() => {}} />
                 )}

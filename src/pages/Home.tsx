@@ -4,6 +4,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedWeatherTile } from "@/components/weather/AnimatedWeatherTile";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
+import { SortableCoverEntityTile } from "@/components/entities/SortableCoverEntityTile";
 import { MediaPlayerCard } from "@/components/MediaPlayerCard";
 import { toast } from "sonner";
 import { useEffect, useMemo } from "react";
@@ -144,9 +145,24 @@ const Home = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {enrichedActiveDevices.map(({ entity, area, floor }) => {
                 const isMediaPlayer = entity.entity_id.startsWith("media_player.");
-                return isMediaPlayer ? (
-                  <MediaPlayerCard key={entity.entity_id} entity={entity} />
-                ) : (
+                const isCover = entity.entity_id.startsWith("cover.");
+                
+                if (isMediaPlayer) {
+                  return <MediaPlayerCard key={entity.entity_id} entity={entity} />;
+                }
+                
+                if (isCover) {
+                  return (
+                    <SortableCoverEntityTile
+                      key={entity.entity_id}
+                      entity={entity}
+                      floor={floor}
+                      area={area}
+                    />
+                  );
+                }
+                
+                return (
                   <SortableDeviceCard
                     key={entity.entity_id}
                     entity={entity}

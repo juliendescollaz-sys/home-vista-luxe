@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
+import { SortableCoverEntityTile } from "@/components/entities/SortableCoverEntityTile";
 import { DeviceEntitiesDrawer } from "@/components/DeviceEntitiesDrawer";
 import { getGridClasses } from "@/lib/gridLayout";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
@@ -230,6 +231,18 @@ export const RoomDevicesGrid = ({ areaId, className = "", singleColumn = false, 
         if (entity.entity_id.startsWith("media_player.")) {
           return (
             <SortableMediaPlayerCard
+              key={entity.entity_id}
+              entity={entity}
+              floor={floor}
+              area={area}
+            />
+          );
+        }
+
+        // Covers avec le nouveau composant dédié
+        if (entity.entity_id.startsWith("cover.")) {
+          return (
+            <SortableCoverEntityTile
               key={entity.entity_id}
               entity={entity}
               floor={floor}

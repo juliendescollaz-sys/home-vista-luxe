@@ -21,6 +21,7 @@ import { SortableAreaCard } from "@/components/SortableAreaCard";
 import { SortableTypeCard } from "@/components/SortableTypeCard";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
+import { SortableCoverEntityTile } from "@/components/entities/SortableCoverEntityTile";
 import { DeviceEntitiesDrawer } from "@/components/DeviceEntitiesDrawer";
 import { RenameDialog } from "@/components/RenameDialog";
 import { getGridClasses } from "@/lib/gridLayout";
@@ -710,6 +711,18 @@ const MaisonMobileView = () => {
                           );
                         }
 
+                        if (entity.entity_id.startsWith("cover.")) {
+                          return (
+                            <SortableCoverEntityTile
+                              key={entity.entity_id}
+                              entity={entity}
+                              floor={floor}
+                              area={area}
+                              onEditName={(e) => setEntityToRename(e)}
+                            />
+                          );
+                        }
+
                         return (
                           <SortableDeviceCard
                             key={entity.entity_id}
@@ -732,6 +745,9 @@ const MaisonMobileView = () => {
                           const entity = devicesForArea.find((e) => e.entity_id === activeId)!;
                           if (entity.entity_id.startsWith("media_player.")) {
                             return <SortableMediaPlayerCard entity={entity} />;
+                          }
+                          if (entity.entity_id.startsWith("cover.")) {
+                            return <SortableCoverEntityTile entity={entity} />;
                           }
                           return <SortableDeviceCard entity={entity} onToggle={() => {}} />;
                         })()}
@@ -851,6 +867,18 @@ const MaisonMobileView = () => {
                           );
                         }
 
+                        if (entity.entity_id.startsWith("cover.")) {
+                          return (
+                            <SortableCoverEntityTile
+                              key={entity.entity_id}
+                              entity={entity}
+                              floor={floor}
+                              area={area}
+                              onEditName={(e) => setEntityToRename(e)}
+                            />
+                          );
+                        }
+
                         return (
                           <SortableDeviceCard
                             key={entity.entity_id}
@@ -873,6 +901,9 @@ const MaisonMobileView = () => {
                           const entity = devicesForType.find((e) => e.entity_id === activeId)!;
                           if (entity.entity_id.startsWith("media_player.")) {
                             return <SortableMediaPlayerCard entity={entity} />;
+                          }
+                          if (entity.entity_id.startsWith("cover.")) {
+                            return <SortableCoverEntityTile entity={entity} />;
                           }
                           return <SortableDeviceCard entity={entity} onToggle={() => {}} />;
                         })()}
