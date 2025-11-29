@@ -333,15 +333,23 @@ export const useHAStore = create<HAStore>()(
         selectedCity: state.selectedCity,
         labelPositions: state.labelPositions,
       }),
-      merge: (persistedState, currentState) => ({
-        ...currentState,
-        ...(persistedState as Partial<HAStore>),
-        // S'assurer que labelPositions n'est jamais écrasé par un objet vide
-        labelPositions: {
-          ...currentState.labelPositions,
-          ...((persistedState as Partial<HAStore>)?.labelPositions || {}),
-        },
-      }),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<HAStore> | undefined;
+        return {
+          ...currentState,
+          // Préserver explicitement tous les champs persistés
+          favorites: persisted?.favorites ?? currentState.favorites,
+          areaPhotos: persisted?.areaPhotos ?? currentState.areaPhotos,
+          areaOrder: persisted?.areaOrder ?? currentState.areaOrder,
+          entityOrder: persisted?.entityOrder ?? currentState.entityOrder,
+          weatherEntity: persisted?.weatherEntity ?? currentState.weatherEntity,
+          selectedCity: persisted?.selectedCity ?? currentState.selectedCity,
+          labelPositions: {
+            ...currentState.labelPositions,
+            ...(persisted?.labelPositions || {}),
+          },
+        };
+      },
       version: 4,
     }
   )
