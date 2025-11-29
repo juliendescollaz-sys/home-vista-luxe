@@ -59,8 +59,10 @@ export function CoverEntityTile({ entity, onControl }: CoverEntityTileProps) {
   const isPending = !!(pending && !pending.cooldownUntil);
   const isInCooldown = !!(pending?.cooldownUntil && Date.now() < pending.cooldownUntil);
   
-  // Features supportées
-  const supportsPosition = supportsFeature(entity, COVER_FEATURES.SUPPORT_SET_POSITION);
+  // Position supportée = on a une valeur numérique pour current_position
+  const supportsPosition = currentPosition !== null;
+  
+  // Features supportées (fallback buttons)
   const supportsStop = supportsFeature(entity, COVER_FEATURES.SUPPORT_STOP);
   const supportsTilt = supportsFeature(entity, COVER_FEATURES.SUPPORT_SET_TILT_POSITION);
   const supportsOpen = supportsFeature(entity, COVER_FEATURES.SUPPORT_OPEN);
@@ -173,7 +175,7 @@ export function CoverEntityTile({ entity, onControl }: CoverEntityTileProps) {
       isPending && "opacity-70"
     )}>
       <div className="p-4 pt-10">
-        {/* Header */}
+        {/* Header - identique à MediaPlayerCard */}
         <div className="mt-1 flex items-start gap-3 mb-4">
           <div 
             className={cn(
@@ -205,36 +207,35 @@ export function CoverEntityTile({ entity, onControl }: CoverEntityTileProps) {
           </Button>
         </div>
         
-        {/* Controls */}
-        <div className="space-y-3 pt-2 border-t border-border/30">
-          {/* Slider de position */}
-          {supportsPosition && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Position</span>
-                <span className="font-medium">{position}%</span>
-              </div>
-              <Slider
-                value={[position]}
-                onValueChange={(v) => setPosition(v[0])}
-                onValueCommit={handlePositionCommit}
-                min={0}
-                max={100}
-                step={1}
-                disabled={isUnavailable}
-                className="py-1"
-                aria-label="Position du volet"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Fermé</span>
-                <span>Ouvert</span>
-              </div>
+        {/* Slider de position - structure alignée sur MediaPlayerCard */}
+        {supportsPosition && (
+          <div className="space-y-1.5 pt-2 border-t border-border/30">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <span>Position</span>
+              <span>{position}%</span>
             </div>
-          )}
-          
-          {/* Boutons d'action open/stop/close */}
+            <Slider
+              value={[position]}
+              onValueChange={(v) => setPosition(v[0])}
+              onValueCommit={handlePositionCommit}
+              min={0}
+              max={100}
+              step={1}
+              disabled={isUnavailable}
+              className="w-full"
+              aria-label="Position du volet"
+            />
+            <div className="flex justify-between text-[11px] text-muted-foreground">
+              <span>Fermé</span>
+              <span>Ouvert</span>
+            </div>
+          </div>
+        )}
+        
+        {/* Boutons d'action open/stop/close - UNIQUEMENT si pas de position */}
+        {!supportsPosition && (
           <div className={cn(
-            "grid gap-2",
+            "grid gap-2 pt-2 border-t border-border/30",
             supportsStop ? "grid-cols-3" : "grid-cols-2"
           )}>
             {supportsOpen && (
@@ -273,28 +274,28 @@ export function CoverEntityTile({ entity, onControl }: CoverEntityTileProps) {
               </Button>
             )}
           </div>
-          
-          {/* Slider d'inclinaison (tilt) */}
-          {supportsTilt && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Inclinaison</span>
-                <span className="font-medium">{tilt}%</span>
-              </div>
-              <Slider
-                value={[tilt]}
-                onValueChange={(v) => setTilt(v[0])}
-                onValueCommit={handleTiltCommit}
-                min={0}
-                max={100}
-                step={1}
-                disabled={isUnavailable}
-                className="py-1"
-                aria-label="Inclinaison des lames"
-              />
+        )}
+        
+        {/* Slider d'inclinaison (tilt) - uniquement si supporté */}
+        {supportsTilt && (
+          <div className="space-y-1.5 pt-2 border-t border-border/30">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <span>Inclinaison</span>
+              <span>{tilt}%</span>
             </div>
-          )}
-        </div>
+            <Slider
+              value={[tilt]}
+              onValueChange={(v) => setTilt(v[0])}
+              onValueCommit={handleTiltCommit}
+              min={0}
+              max={100}
+              step={1}
+              disabled={isUnavailable}
+              className="w-full"
+              aria-label="Inclinaison des lames"
+            />
+          </div>
+        )}
       </div>
     </Card>
   );
