@@ -1,7 +1,7 @@
 import { HAEntity, HAFloor, HAArea } from "@/types/homeassistant";
 import { getEntityDomain, getBestWidgetForEntity } from "@/lib/entityUtils";
 import { LightTile } from "./LightTile";
-import { CoverTile } from "./CoverTile";
+import { CoverEntityTile } from "./CoverEntityTile";
 import { ClimateTile } from "./ClimateTile";
 import { FanTile } from "./FanTile";
 import { LockTile } from "./LockTile";
@@ -87,7 +87,7 @@ export function UniversalEntityTile({ entity, floor, area }: UniversalEntityTile
           return <LightTile entity={entity} onControl={handleControl} />;
           
         case "cover":
-          return <CoverTile entity={entity} onControl={handleControl} />;
+          return <CoverEntityTile entity={entity} onControl={handleControl} />;
           
         case "climate":
           return <ClimateTile entity={entity} onControl={handleControl} />;
