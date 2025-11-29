@@ -333,6 +333,15 @@ export const useHAStore = create<HAStore>()(
         selectedCity: state.selectedCity,
         labelPositions: state.labelPositions,
       }),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...(persistedState as Partial<HAStore>),
+        // S'assurer que labelPositions n'est jamais écrasé par un objet vide
+        labelPositions: {
+          ...currentState.labelPositions,
+          ...((persistedState as Partial<HAStore>)?.labelPositions || {}),
+        },
+      }),
       version: 4,
     }
   )
