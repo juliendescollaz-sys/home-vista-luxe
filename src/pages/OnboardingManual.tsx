@@ -31,8 +31,23 @@ const OnboardingManual = () => {
   const { displayMode } = useDisplayMode();
   const isPanelMode = displayMode === "panel";
   
-  const [url, setUrl] = useState("");
-  const [token, setToken] = useState("");
+  // Initialiser avec les valeurs pré-remplies depuis localStorage (si provenant du Configurator)
+  const [url, setUrl] = useState(() => {
+    const prefill = localStorage.getItem("neolia_prefill_url");
+    if (prefill) {
+      localStorage.removeItem("neolia_prefill_url"); // Nettoyer après utilisation
+      return prefill;
+    }
+    return "";
+  });
+  const [token, setToken] = useState(() => {
+    const prefill = localStorage.getItem("neolia_prefill_token");
+    if (prefill) {
+      localStorage.removeItem("neolia_prefill_token"); // Nettoyer après utilisation
+      return prefill;
+    }
+    return "";
+  });
   const [isConnecting, setIsConnecting] = useState(false);
   const setConnection = useHAStore((state) => state.setConnection);
   const setConnected = useHAStore((state) => state.setConnected);
