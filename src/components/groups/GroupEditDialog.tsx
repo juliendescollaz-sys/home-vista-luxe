@@ -41,7 +41,22 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
   useEffect(() => { if (group) { setName(group.name); setSelectedEntityIds(group.entityIds); setScope(getGroupScope(group)); const domains = getGroupDomains(group); setSelectedDomains(domains); setIsMixedMode(getGroupMode(group) === "mixedBinary"); } }, [group]);
 
   const handleClose = () => { clearError(); onOpenChange(false); };
-  const handleDomainToggle = (domain: string) => { if (isMixedMode) { setSelectedDomains((prev) => prev.includes(domain) ? prev.filter((d) => d !== domain) : [...prev, domain]); } else { setSelectedDomains([domain]); } setSelectedEntityIds((prev) => prev.filter((id) => { const d = id.split(".")[0]; return isMixedMode ? selectedDomains.includes(d) || domain === d : domain === d; })); };
+  const handleDomainToggle = (domain: string) => { 
+    // Calculer les nouveaux domaines d'abord
+    const newDomains = isMixedMode 
+      ? (selectedDomains.includes(domain) 
+          ? selectedDomains.filter((d) => d !== domain) 
+          : [...selectedDomains, domain])
+      : [domain];
+    
+    setSelectedDomains(newDomains);
+    
+    // Filtrer les entités basé sur les NOUVEAUX domaines (pas les anciens)
+    setSelectedEntityIds((prev) => prev.filter((id) => { 
+      const d = id.split(".")[0]; 
+      return newDomains.includes(d);
+    })); 
+  };
   const toggleMixedMode = (enabled: boolean) => { 
     setIsMixedMode(enabled); 
     if (enabled) {
@@ -54,7 +69,15 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
       setSelectedEntityIds((prev) => prev.filter((id) => id.startsWith(`${firstDomain}.`))); 
     } 
   };
-  const toggleEntity = (entityId: string) => { setSelectedEntityIds((prev) => prev.includes(entityId) ? prev.filter((id) => id !== entityId) : [...prev, entityId]); };
+  const toggleEntity = (entityId: string) => { 
+    setSelectedEntityIds((prev) => {
+      if (prev.includes(entityId)) {
+        return prev.filter((id) => id !== entityId);
+      }
+      // S'assurer qu'on n'ajoute pas de doublon
+      return [...new Set([...prev, entityId])];
+    }); 
+  };
 
   // Déterminer si le groupe peut être partagé
   const isMixedGroup = isMixedMode && selectedDomains.length > 1;

@@ -111,8 +111,11 @@ export const useGroupStore = create<GroupStore>()(
         const { name, domain, domains, mode, entityIds, scope, existingId } = params;
         const effectiveDomains = domains && domains.length > 0 ? domains : [domain];
         const effectiveMode: GroupMode = mode || (effectiveDomains.length > 1 ? "mixedBinary" : "singleDomain");
+        
+        // Dédupliquer les entityIds pour éviter les doublons
+        const uniqueEntityIds = [...new Set(entityIds)];
 
-        console.log("[GroupStore] createOrUpdateGroup called:", { name, domain, domains, mode, entityIds, scope, existingId, effectiveMode });
+        console.log("[GroupStore] createOrUpdateGroup called:", { name, domain, domains, mode, entityIds: uniqueEntityIds, scope, existingId, effectiveMode });
 
         // Validation
         if (!name || name.trim().length < 3) {
@@ -120,7 +123,7 @@ export const useGroupStore = create<GroupStore>()(
           return;
         }
 
-        if (entityIds.length === 0) {
+        if (uniqueEntityIds.length === 0) {
           set({ error: "Au moins une entité doit être sélectionnée" });
           return;
         }
@@ -128,7 +131,7 @@ export const useGroupStore = create<GroupStore>()(
         // Validation selon le mode
         if (effectiveMode === "singleDomain") {
           const targetDomain = effectiveDomains[0];
-          const invalidEntities = entityIds.filter((id) => {
+          const invalidEntities = uniqueEntityIds.filter((id) => {
             const entityDomain = id.split(".")[0];
             return entityDomain !== targetDomain;
           });
@@ -141,7 +144,7 @@ export const useGroupStore = create<GroupStore>()(
         } else {
           // Importer BINARY_CONTROLLABLE_DOMAINS depuis entityUtils
           const { BINARY_CONTROLLABLE_DOMAINS } = await import("@/lib/entityUtils");
-          const invalidEntities = entityIds.filter((id) => {
+          const invalidEntities = uniqueEntityIds.filter((id) => {
             const entityDomain = id.split(".")[0];
             return !BINARY_CONTROLLABLE_DOMAINS.includes(entityDomain);
           });
@@ -169,7 +172,7 @@ export const useGroupStore = create<GroupStore>()(
             console.log("[GroupStore] Creating/updating shared group in HA...");
             
             try {
-              newGroup = await createOrUpdateHaGroup({ name, domain, entityIds });
+              newGroup = await createOrUpdateHaGroup({ name, domain, entityIds: uniqueEntityIds });
               newGroup.scope = "shared";
               newGroup.mode = "singleDomain";
               newGroup.domains = effectiveDomains;
@@ -207,7 +210,7 @@ export const useGroupStore = create<GroupStore>()(
               domain,
               domains: effectiveDomains,
               mode: effectiveMode,
-              entityIds,
+              entityIds: uniqueEntityIds,
               scope: "local",
               haEntityId: undefined,
             };
@@ -227,7 +230,7 @@ export const useGroupStore = create<GroupStore>()(
             domain,
             domains: effectiveDomains,
             mode: effectiveMode,
-            entityIds,
+            entityIds: uniqueEntityIds,
             scope: effectiveMode === "mixedBinary" ? "local" : scope,
             haEntityId: undefined,
           };
