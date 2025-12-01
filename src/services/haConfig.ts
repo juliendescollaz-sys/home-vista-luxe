@@ -122,41 +122,93 @@ export async function setHaConfig(config: HAConfig | HAConfigLegacy): Promise<vo
 
 /**
  * Récupère la configuration depuis NeoliaServer (mode PANEL uniquement)
- * @param installerIp - L'adresse IP du PC de l'installateur
+ * @param installerIpOrHost - L'adresse IP (ou IP:port) du PC de l'installateur
  * @returns La configuration HA { ha_url, token }
  */
 export async function fetchConfigFromNeoliaServer(
-  installerIp: string
+  installerIpOrHost: string
 ): Promise<{ ha_url: string; token: string }> {
-  const url = `http://${installerIp}:8765/config`;
-
-  const response = await fetch(url, {
-    method: "GET",
-    signal: AbortSignal.timeout(4000), // timeout 4s
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Erreur HTTP ${response.status}: ${response.statusText}`
-    );
+  const raw = (installerIpOrHost || "").trim();
+  if (!raw) {
+    throw new Error("Adresse du poste d'installation vide");
   }
 
-  const json = await response.json();
+  // On accepte :
+  // - "192.168.1.34"
+  // - "192.168.1.34:8765"
+  // - "http://192.168.1.34:8765"
+  // - "https://192.168.1.34:8765"
+  let hostPart = raw;
+  let port = 8765;
 
-  // Validation du JSON
-  if (
-    typeof json.ha_url !== "string" ||
-    !json.ha_url ||
-    typeof json.token !== "string" ||
-    !json.token
-  ) {
-    throw new Error("Configuration invalide reçue de NeoliaServer");
+  // Retirer un éventuel schéma
+  if (hostPart.startsWith("http://")) {
+    hostPart = hostPart.substring("http://".length);
+  } else if (hostPart.startsWith("https://")) {
+    hostPart = hostPart.substring("https://".length);
   }
 
-  return {
-    ha_url: json.ha_url,
-    token: json.token,
-  };
+  // Si un port est présent, le récupérer
+  const colonIndex = hostPart.lastIndexOf(":");
+  if (colonIndex > -1) {
+    const hostCandidate = hostPart.substring(0, colonIndex).trim();
+    const portCandidate = hostPart.substring(colonIndex + 1).trim();
+
+    if (hostCandidate) {
+      hostPart = hostCandidate;
+    }
+
+    const parsedPort = parseInt(portCandidate, 10);
+    if (!Number.isNaN(parsedPort) && parsedPort > 0 && parsedPort < 65536) {
+      port = parsedPort;
+    }
+  }
+
+  const url = `http://${hostPart}:${port}/config`;
+  console.log("[NeoliaServer] fetchConfigFromNeoliaServer URL =", url);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, 4000); // timeout 4s
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const json = await response.json();
+
+    if (
+      !json ||
+      typeof json !== "object" ||
+      typeof json.ha_url !== "string" ||
+      !json.ha_url ||
+      typeof json.token !== "string" ||
+      !json.token
+    ) {
+      throw new Error("Configuration invalide reçue de NeoliaServer");
+    }
+
+    return {
+      ha_url: json.ha_url,
+      token: json.token,
+    };
+  } catch (error: any) {
+    console.error("[NeoliaServer] Erreur lors du fetch de la config :", error);
+    // On propage l'erreur pour que PanelOnboarding puisse l'interpréter
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 /**

@@ -28,15 +28,31 @@ export function PanelOnboarding() {
   const setConnection = useHAStore((state) => state.setConnection);
 
   /**
-   * Valide le format de l'adresse IP
+   * Valide le format de l'adresse IP (accepte IP ou IP:port)
    */
   const isValidIp = (ip: string): boolean => {
+    if (!ip) return false;
+
+    // On accepte "ip" ou "ip:port"
+    let hostPart = ip.trim();
+
+    if (hostPart.startsWith("http://")) {
+      hostPart = hostPart.substring("http://".length);
+    } else if (hostPart.startsWith("https://")) {
+      hostPart = hostPart.substring("https://".length);
+    }
+
+    const colonIndex = hostPart.lastIndexOf(":");
+    if (colonIndex > -1) {
+      hostPart = hostPart.substring(0, colonIndex).trim();
+    }
+
     const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (!ipRegex.test(ip)) {
+    if (!ipRegex.test(hostPart)) {
       return false;
     }
-    // Vérifier que chaque octet est entre 0 et 255
-    const octets = ip.split(".");
+
+    const octets = hostPart.split(".");
     return octets.every((octet) => {
       const num = parseInt(octet, 10);
       return num >= 0 && num <= 255;
@@ -61,7 +77,9 @@ export function PanelOnboarding() {
 
     setStatus("loading");
     setErrorMessage("");
-    setStatusMessage("Connexion à NeoliaServer…");
+
+    console.log("[PanelOnboarding] Connexion à NeoliaServer via IP saisie :", trimmedIp);
+    setStatusMessage(`Connexion à NeoliaServer à l'adresse ${trimmedIp}…`);
 
     try {
       // 2. Récupération de la config depuis NeoliaServer (timeout 4s)
@@ -114,9 +132,11 @@ export function PanelOnboarding() {
         }
         // Erreur réseau
         else if (error.name === "TypeError" || error.message.includes("fetch")) {
+          // Message d'erreur réseau explicite
           setErrorMessage(
-            `Impossible de contacter NeoliaServer à l'adresse http://${trimmedIp}:8765/config. ` +
-            "Vérifiez que le PC est sur le même réseau et que NeoliaServer est lancé."
+            `Impossible de contacter NeoliaServer avec l'adresse saisie "${trimmedIp}". ` +
+            "Vérifiez que le PC est sur le même réseau, que NeoliaServer est lancé " +
+            "et que le port 8765 est accessible."
           );
         }
         // Configuration invalide
