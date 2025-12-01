@@ -4,10 +4,15 @@ import { Button } from "@/components/ui/button";
 import { QrCode, Mail, KeyRound, Download, Loader2 } from "lucide-react";
 import neoliaLogo from "@/assets/neolia-logo.png";
 import { isPanelMode } from "@/lib/platform";
+import { useHAStore } from "@/store/useHAStore";
+import { setHaConfig } from "@/services/haConfig";
+import { toast } from "sonner";
 
 const Onboarding = () => {
   const navigate = useNavigate();
   const panelMode = isPanelMode();
+  const setConnection = useHAStore((state) => state.setConnection);
+  const setConnected = useHAStore((state) => state.setConnected);
 
   // États pour le bouton Configurator (Panel uniquement)
   const [isLoadingConfigurator, setIsLoadingConfigurator] = useState(false);
@@ -37,20 +42,39 @@ const Onboarding = () => {
         throw new Error("HTTP " + res.status);
       }
 
-      const data = await res.json();
+      const data = await res.json() as { ha_url?: string; token?: string };
       
       if (!data.ha_url || !data.token) {
-        throw new Error("JSON invalide");
+        throw new Error("JSON invalide (ha_url ou token manquant)");
       }
 
-      // Stocker les valeurs dans localStorage pour pré-remplir OnboardingManual
-      localStorage.setItem("neolia_prefill_url", data.ha_url);
-      localStorage.setItem("neolia_prefill_token", data.token);
+      const trimmedUrl = data.ha_url.trim();
+      const trimmedToken = data.token.trim();
 
-      // Naviguer vers la page manuelle où les champs seront pré-remplis
-      navigate("/onboarding/manual");
+      // Enregistrer la configuration (même logique que OnboardingManual)
+      await setHaConfig({
+        url: trimmedUrl,
+        token: trimmedToken,
+      });
+
+      // Mettre à jour le store
+      setConnection({
+        url: trimmedUrl,
+        token: trimmedToken,
+        connected: true,
+      });
+      setConnected(true);
+
+      toast.success("Configuration importée", {
+        description: "Connexion en cours...",
+      });
+
+      // Naviguer vers la page d'accueil
+      setTimeout(() => {
+        navigate("/");
+      }, 500);
     } catch (e) {
-      console.error("Erreur lors de la récupération de la config depuis NeoliaConfigurator:", e);
+      console.error("Erreur NeoliaConfigurator:", e);
       setErrorConfigurator("Impossible de contacter NeoliaConfigurator");
     } finally {
       setIsLoadingConfigurator(false);
@@ -86,7 +110,7 @@ const Onboarding = () => {
                 {isLoadingConfigurator ? (
                   <>
                     <Loader2 className="mr-3 h-6 w-6 animate-spin" />
-                    Connexion au configurateur...
+                    Connexion en cours...
                   </>
                 ) : (
                   <>
