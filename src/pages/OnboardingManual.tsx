@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Download } from "lucide-react";
 import { useHAStore } from "@/store/useHAStore";
 import { toast } from "sonner";
 import neoliaLogo from "@/assets/neolia-logo.png";
 import { z } from "zod";
 import { setHaConfig } from "@/services/haConfig";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 const urlSchema = z.string()
   .trim()
@@ -27,11 +28,78 @@ const tokenSchema = z.string()
 
 const OnboardingManual = () => {
   const navigate = useNavigate();
-  const [url, setUrl] = useState("https://bl09dhclkeomkczlb0b7ktsssxmevmdq.ui.nabu.casa");
-  const [token, setToken] = useState("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM");
+  const { displayMode } = useDisplayMode();
+  const isPanelMode = displayMode === "panel";
+  
+  const [url, setUrl] = useState("");
+  const [token, setToken] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const setConnection = useHAStore((state) => state.setConnection);
   const setConnected = useHAStore((state) => state.setConnected);
+
+  // États pour l'import depuis NeoliaConfigurator
+  const [configServerUrl, setConfigServerUrl] = useState(
+    () => localStorage.getItem("neolia_configurator_url") || "http://neolia-configurator.local:8765"
+  );
+  const [isLoadingFromConfigurator, setIsLoadingFromConfigurator] = useState(false);
+  const [errorFromConfigurator, setErrorFromConfigurator] = useState<string | null>(null);
+
+  const handleImportFromConfigurator = async () => {
+    setErrorFromConfigurator(null);
+
+    let baseUrl = configServerUrl.trim();
+    if (!baseUrl) {
+      setErrorFromConfigurator("Veuillez saisir l'adresse du serveur NeoliaConfigurator.");
+      return;
+    }
+
+    // Supprime un éventuel "/" final
+    if (baseUrl.endsWith("/")) {
+      baseUrl = baseUrl.slice(0, -1);
+    }
+
+    const fetchUrl = `${baseUrl}/config`;
+
+    try {
+      setIsLoadingFromConfigurator(true);
+
+      const response = await fetch(fetchUrl, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json() as {
+        ha_url?: string;
+        token?: string;
+      };
+
+      if (!data.ha_url || !data.token) {
+        throw new Error("Réponse invalide du configurateur (ha_url ou token manquant).");
+      }
+
+      // Remplir les champs du formulaire
+      setUrl(data.ha_url);
+      setToken(data.token);
+
+      toast.success("Configuration importée", {
+        description: "URL et token récupérés depuis NeoliaConfigurator",
+      });
+      setErrorFromConfigurator(null);
+    } catch (err: any) {
+      console.error("Erreur lors de la récupération de la config depuis NeoliaConfigurator:", err);
+      setErrorFromConfigurator(
+        "Impossible de récupérer la configuration. Vérifiez que NeoliaConfigurator est lancé et accessible sur le réseau."
+      );
+    } finally {
+      setIsLoadingFromConfigurator(false);
+    }
+  };
 
   const handleConnect = async () => {
     // Validate inputs
@@ -117,6 +185,59 @@ const OnboardingManual = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Section import depuis NeoliaConfigurator - Visible uniquement en mode Panel */}
+            {isPanelMode && (
+              <div className="p-3 rounded-xl bg-muted/50 border border-border/40 space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Si NeoliaConfigurator est lancé sur votre PC, vous pouvez importer automatiquement l&apos;URL et le token.
+                </p>
+                
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground mb-1 block">
+                    Adresse du serveur NeoliaConfigurator
+                  </Label>
+                  <Input
+                    type="text"
+                    className="text-sm"
+                    value={configServerUrl}
+                    onChange={(e) => {
+                      setConfigServerUrl(e.target.value);
+                      localStorage.setItem("neolia_configurator_url", e.target.value);
+                    }}
+                    placeholder="http://192.168.x.x:8765"
+                    disabled={isLoadingFromConfigurator}
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleImportFromConfigurator}
+                  disabled={isLoadingFromConfigurator}
+                  className="w-full gap-2"
+                >
+                  {isLoadingFromConfigurator ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Connexion au configurateur...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      Importer depuis NeoliaConfigurator
+                    </>
+                  )}
+                </Button>
+
+                {errorFromConfigurator && (
+                  <p className="text-xs text-destructive">
+                    {errorFromConfigurator}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="url">URL Home Assistant *</Label>
               <Input
