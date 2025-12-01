@@ -13,6 +13,16 @@ const config: CapacitorConfig = {
      */
     androidScheme: "http",
   },
+  /**
+   * On active le plugin CapacitorHttp pour que, si besoin,
+   * fetch/XMLHttpRequest puissent être patchés côté natif.
+   * (On va surtout l'utiliser en direct dans haConfig.ts.)
+   */
+  plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
+  },
 };
 
 export default config;
