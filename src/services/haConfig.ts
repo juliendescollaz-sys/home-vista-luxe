@@ -4,17 +4,38 @@
  */
 
 import { storeHACredentials, getHACredentials } from "@/lib/crypto";
+import { Capacitor, CapacitorHttp, HttpOptions } from "@capacitor/core";
 
 export interface HAConfig {
-  localHaUrl: string;      // OBLIGATOIRE - URL locale (LAN)
-  remoteHaUrl?: string;    // OPTIONNEL - URL cloud (Nabu Casa)
-  token: string;           // OBLIGATOIRE
+  localHaUrl: string; // OBLIGATOIRE - URL locale (LAN)
+  remoteHaUrl?: string; // OPTIONNEL - URL cloud (Nabu Casa)
+  token: string; // OBLIGATOIRE
 }
 
 // Pour compatibilité ascendante
 export interface HAConfigLegacy {
   url: string;
   token: string;
+}
+
+/**
+ * Détecte si on tourne en mode natif (Android / iOS)
+ */
+function isNativePlatform(): boolean {
+  try {
+    // Capacitor v5+ fournit isNativePlatform
+    const direct = (Capacitor as any).isNativePlatform?.();
+    if (typeof direct === "boolean") return direct;
+  } catch {
+    // ignore
+  }
+
+  try {
+    const platform = Capacitor.getPlatform?.();
+    return platform === "android" || platform === "ios";
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -48,10 +69,10 @@ export async function getHaConfig(): Promise<HAConfig | null> {
         const config = JSON.parse(configStr) as { localHaUrl?: string; remoteHaUrl?: string };
         // localHaUrl est obligatoire dans le nouveau format
         if (config.localHaUrl) {
-          return { 
+          return {
             localHaUrl: config.localHaUrl,
             remoteHaUrl: config.remoteHaUrl,
-            token: credentials.token 
+            token: credentials.token,
           };
         }
       } catch {
@@ -91,7 +112,7 @@ export async function setHaConfig(config: HAConfig | HAConfigLegacy): Promise<vo
         JSON.stringify({
           localHaUrl: config.url,
           remoteHaUrl: undefined,
-        })
+        }),
       );
       return;
     }
@@ -112,7 +133,7 @@ export async function setHaConfig(config: HAConfig | HAConfigLegacy): Promise<vo
       JSON.stringify({
         localHaUrl,
         remoteHaUrl: remoteHaUrl || undefined,
-      })
+      }),
     );
   } catch (error) {
     console.error("Erreur lors de l'enregistrement de la config HA:", error);
@@ -124,9 +145,12 @@ export async function setHaConfig(config: HAConfig | HAConfigLegacy): Promise<vo
  * Récupère la configuration depuis NeoliaServer (mode PANEL uniquement)
  * @param installerIpOrHost - L'adresse IP (ou IP:port) du PC de l'installateur
  * @returns La configuration HA { ha_url, token }
+ *
+ * Sur Android/iOS natif, on utilise CapacitorHttp (requête HTTP native).
+ * Sur le web (dev dans le navigateur), on garde fetch().
  */
 export async function fetchConfigFromNeoliaServer(
-  installerIpOrHost: string
+  installerIpOrHost: string,
 ): Promise<{ ha_url: string; token: string }> {
   const raw = (installerIpOrHost || "").trim();
   if (!raw) {
@@ -167,80 +191,163 @@ export async function fetchConfigFromNeoliaServer(
   const url = `http://${hostPart}:${port}/config`;
   console.log("[NeoliaServer] fetchConfigFromNeoliaServer URL =", url);
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    controller.abort();
-  }, 4000); // timeout 4s
+  const isNative = isNativePlatform();
+
+  // Timeout logique côté JS (natifs + web)
+  const timeoutMs = 4000;
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
   try {
-    console.log("[NeoliaServer] Tentative de connexion vers:", url);
-    
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-      signal: controller.signal,
-      // Mode no-cors n'est PAS utilisé car on veut lire la réponse JSON
-    });
+    if (isNative) {
+      // ----- Mode natif : CapacitorHttp (bypass WebView/fetch) -----
+      console.log("[NeoliaServer] Utilisation de CapacitorHttp (mode natif)");
 
-    console.log("[NeoliaServer] Réponse reçue:", response.status, response.statusText);
+      const options: HttpOptions = {
+        url,
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+        connectTimeout: timeoutMs,
+        readTimeout: timeoutMs,
+      };
 
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(new Error("TIMEOUT: NeoliaServer ne répond pas dans les 4 secondes"));
+        }, timeoutMs);
+      });
+
+      const httpPromise = CapacitorHttp.get(options);
+
+      const response = await Promise.race([httpPromise, timeoutPromise]);
+
+      const status = (response as any).status ?? 0;
+      const data = (response as any).data;
+
+      console.log("[NeoliaServer] Réponse native reçue:", status);
+
+      if (status < 200 || status >= 300) {
+        throw new Error(`Erreur HTTP ${status} (CapacitorHttp)`);
+      }
+
+      const json = typeof data === "string" ? JSON.parse(data) : data;
+
+      console.log("[NeoliaServer] JSON reçu (natif):", {
+        ha_url: json?.ha_url ? "***" : undefined,
+        token: json?.token ? "***" : undefined,
+      });
+
+      if (
+        !json ||
+        typeof json !== "object" ||
+        typeof json.ha_url !== "string" ||
+        !json.ha_url ||
+        typeof json.token !== "string" ||
+        !json.token
+      ) {
+        throw new Error("Configuration invalide reçue de NeoliaServer");
+      }
+
+      return {
+        ha_url: json.ha_url,
+        token: json.token,
+      };
+    } else {
+      // ----- Mode web : fetch classique -----
+      console.log("[NeoliaServer] Utilisation de fetch (mode web)");
+
+      const controller = new AbortController();
+      timeoutHandle = setTimeout(() => {
+        controller.abort();
+      }, timeoutMs);
+
+      console.log("[NeoliaServer] Tentative de connexion vers:", url);
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+        signal: controller.signal,
+      });
+
+      console.log("[NeoliaServer] Réponse reçue:", response.status, response.statusText);
+
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const json = await response.json();
+      console.log("[NeoliaServer] JSON reçu:", {
+        ha_url: json?.ha_url ? "***" : undefined,
+        token: json?.token ? "***" : undefined,
+      });
+
+      if (
+        !json ||
+        typeof json !== "object" ||
+        typeof json.ha_url !== "string" ||
+        !json.ha_url ||
+        typeof json.token !== "string" ||
+        !json.token
+      ) {
+        throw new Error("Configuration invalide reçue de NeoliaServer");
+      }
+
+      return {
+        ha_url: json.ha_url,
+        token: json.token,
+      };
     }
-
-    const json = await response.json();
-    console.log("[NeoliaServer] JSON reçu:", { ha_url: json.ha_url ? "***" : undefined, token: json.token ? "***" : undefined });
-
-    if (
-      !json ||
-      typeof json !== "object" ||
-      typeof json.ha_url !== "string" ||
-      !json.ha_url ||
-      typeof json.token !== "string" ||
-      !json.token
-    ) {
-      throw new Error("Configuration invalide reçue de NeoliaServer");
-    }
-
-    return {
-      ha_url: json.ha_url,
-      token: json.token,
-    };
   } catch (error: any) {
     // Logging détaillé pour debug
     console.error("[NeoliaServer] fetchConfigFromNeoliaServer failed", {
       url,
+      isNative,
       errorName: error?.name,
       errorMessage: error?.message,
       errorType: typeof error,
       error,
     });
 
-    // Enrichir l'erreur avec des informations de diagnostic
-    if (error.name === "AbortError") {
+    // Normalisation des erreurs pour PanelOnboarding
+
+    if (error.message?.includes("TIMEOUT")) {
+      const timeoutError = new Error(error.message);
+      (timeoutError as any).type = "timeout";
+      (timeoutError as any).originalError = error;
+      throw timeoutError;
+    }
+
+    if (!isNative && error.name === "AbortError") {
       const timeoutError = new Error("TIMEOUT: NeoliaServer ne répond pas dans les 4 secondes");
       (timeoutError as any).type = "timeout";
       (timeoutError as any).originalError = error;
       throw timeoutError;
     }
 
-    if (error.name === "TypeError" && error.message.includes("fetch")) {
-      // TypeError: Failed to fetch = problème réseau, CORS, ou cleartext bloqué
+    // Erreur réseau typique de fetch (web)
+    if (!isNative && error.name === "TypeError" && error.message.includes("fetch")) {
       const networkError = new Error(
         "NETWORK: Impossible de contacter NeoliaServer. " +
-        "Causes possibles: serveur non démarré, mauvaise IP, CORS, ou cleartext HTTP bloqué."
+          "Causes possibles: serveur non démarré, mauvaise IP, CORS, ou cleartext HTTP bloqué.",
       );
       (networkError as any).type = "network";
       (networkError as any).originalError = error;
       throw networkError;
     }
 
-    // Propager l'erreur originale pour les autres cas
+    // Sur natif, on marque les erreurs génériques comme "network" pour PanelOnboarding
+    if (isNative && !(error as any).type) {
+      (error as any).type = "network";
+    }
+
     throw error;
   } finally {
-    clearTimeout(timeoutId);
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
   }
 }
 
@@ -251,11 +358,7 @@ export async function fetchConfigFromNeoliaServer(
  * @param timeoutMs - Timeout en millisecondes (défaut: 3000ms)
  * @returns true si la connexion réussit, false sinon
  */
-export async function testHaConnection(
-  url: string,
-  token: string,
-  timeoutMs: number = 3000
-): Promise<boolean> {
+export async function testHaConnection(url: string, token: string, timeoutMs: number = 3000): Promise<boolean> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
