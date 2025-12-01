@@ -55,19 +55,26 @@ const Onboarding = () => {
 
     const url = `${baseUrl}/config`;
 
+    // 🔍 LOG DEBUG : URL utilisée
+    console.log("[NeoliaConfigurator] Tentative de connexion vers :", url);
+
     try {
       setIsLoadingConfigurator(true);
+
       const res = await fetch(url, {
         method: "GET",
         headers: { Accept: "application/json" },
       });
-      
+
+      console.log("[NeoliaConfigurator] Réponse brute :", res.status, res.statusText);
+
       if (!res.ok) {
         throw new Error("HTTP " + res.status);
       }
 
-      const data = await res.json() as { ha_url?: string; token?: string };
-      
+      const data = (await res.json()) as { ha_url?: string; token?: string };
+      console.log("[NeoliaConfigurator] JSON reçu :", data);
+
       if (!data.ha_url || !data.token) {
         throw new Error("JSON invalide renvoyé par NeoliaConfigurator (ha_url ou token manquant)");
       }
@@ -75,13 +82,11 @@ const Onboarding = () => {
       const trimmedUrl = data.ha_url.trim();
       const trimmedToken = data.token.trim();
 
-      // Enregistrer la configuration (même logique que OnboardingManual)
       await setHaConfig({
         url: trimmedUrl,
         token: trimmedToken,
       });
 
-      // Mettre à jour le store
       setConnection({
         url: trimmedUrl,
         token: trimmedToken,
@@ -93,12 +98,15 @@ const Onboarding = () => {
         description: "Connexion en cours...",
       });
 
-      // Naviguer vers la page d'accueil
+      console.log("[NeoliaConfigurator] Connexion HA configurée avec succès :", {
+        url: trimmedUrl,
+      });
+
       setTimeout(() => {
         navigate("/");
       }, 500);
     } catch (e: any) {
-      console.error("Erreur NeoliaConfigurator:", e);
+      console.error("[NeoliaConfigurator] Erreur lors du fetch :", e);
       setErrorConfigurator(
         "Impossible de contacter NeoliaConfigurator (" + (e?.message || String(e)) + ")"
       );
