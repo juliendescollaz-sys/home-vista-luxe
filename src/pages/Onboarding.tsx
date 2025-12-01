@@ -3,12 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { QrCode, Mail, KeyRound, Download, Loader2 } from "lucide-react";
 import neoliaLogo from "@/assets/neolia-logo.png";
-import { useDisplayMode } from "@/hooks/useDisplayMode";
+import { isPanelMode } from "@/lib/platform";
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const { displayMode } = useDisplayMode();
-  const isPanelMode = displayMode === "panel";
+  const panelMode = isPanelMode();
 
   // États pour le bouton Configurator (Panel uniquement)
   const [isLoadingConfigurator, setIsLoadingConfigurator] = useState(false);
@@ -75,7 +74,7 @@ const Onboarding = () => {
 
         {/* Boutons de connexion */}
         <div className="space-y-4">
-          {isPanelMode ? (
+          {panelMode ? (
             /* Mode Panel : bouton Configurator au lieu du QR */
             <div className="space-y-2">
               <Button
