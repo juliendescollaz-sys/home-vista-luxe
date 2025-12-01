@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { QrCode, Mail, KeyRound, Download, Loader2 } from "lucide-react";
 import neoliaLogo from "@/assets/neolia-logo.png";
 import { isPanelMode } from "@/lib/platform";
@@ -17,13 +18,26 @@ const Onboarding = () => {
   // États pour le bouton Configurator (Panel uniquement)
   const [isLoadingConfigurator, setIsLoadingConfigurator] = useState(false);
   const [errorConfigurator, setErrorConfigurator] = useState<string | null>(null);
+  const [configServerUrl, setConfigServerUrl] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("neolia_configurator_url") || "http://192.168.1.10:8765";
+    }
+    return "http://192.168.1.10:8765";
+  });
+
+  const handleConfigServerUrlChange = (value: string) => {
+    setConfigServerUrl(value);
+    try {
+      localStorage.setItem("neolia_configurator_url", value);
+    } catch {
+      // ignore storage errors
+    }
+  };
 
   const handleConfiguratorImport = async () => {
     setErrorConfigurator(null);
 
-    // Récupérer l'adresse du configurateur depuis localStorage
-    let baseUrl = localStorage.getItem("neolia_configurator_url") || "http://neolia-configurator.local:8765";
-    baseUrl = baseUrl.trim();
+    let baseUrl = configServerUrl.trim();
 
     if (!baseUrl) {
       setErrorConfigurator("Adresse du configurateur invalide");
@@ -100,10 +114,22 @@ const Onboarding = () => {
         <div className="space-y-4">
           {panelMode ? (
             /* Mode Panel : bouton Configurator au lieu du QR */
-            <div className="space-y-2">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-muted-foreground">
+                  Adresse du serveur NeoliaConfigurator (IP du PC)
+                </label>
+                <Input
+                  type="text"
+                  value={configServerUrl}
+                  onChange={(e) => handleConfigServerUrlChange(e.target.value)}
+                  placeholder="http://192.168.1.10:8765"
+                  className="h-12 text-base"
+                />
+              </div>
               <Button
                 onClick={handleConfiguratorImport}
-                disabled={isLoadingConfigurator}
+                disabled={isLoadingConfigurator || !configServerUrl.trim()}
                 size="lg"
                 className="w-full h-14 text-lg font-semibold"
               >
