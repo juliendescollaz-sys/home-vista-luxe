@@ -173,19 +173,25 @@ export async function fetchConfigFromNeoliaServer(
   }, 4000); // timeout 4s
 
   try {
+    console.log("[NeoliaServer] Tentative de connexion vers:", url);
+    
     const response = await fetch(url, {
       method: "GET",
       headers: {
         Accept: "application/json",
       },
       signal: controller.signal,
+      // Mode no-cors n'est PAS utilisé car on veut lire la réponse JSON
     });
+
+    console.log("[NeoliaServer] Réponse reçue:", response.status, response.statusText);
 
     if (!response.ok) {
       throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
     }
 
     const json = await response.json();
+    console.log("[NeoliaServer] JSON reçu:", { ha_url: json.ha_url ? "***" : undefined, token: json.token ? "***" : undefined });
 
     if (
       !json ||
@@ -203,8 +209,35 @@ export async function fetchConfigFromNeoliaServer(
       token: json.token,
     };
   } catch (error: any) {
-    console.error("[NeoliaServer] Erreur lors du fetch de la config :", error);
-    // On propage l'erreur pour que PanelOnboarding puisse l'interpréter
+    // Logging détaillé pour debug
+    console.error("[NeoliaServer] fetchConfigFromNeoliaServer failed", {
+      url,
+      errorName: error?.name,
+      errorMessage: error?.message,
+      errorType: typeof error,
+      error,
+    });
+
+    // Enrichir l'erreur avec des informations de diagnostic
+    if (error.name === "AbortError") {
+      const timeoutError = new Error("TIMEOUT: NeoliaServer ne répond pas dans les 4 secondes");
+      (timeoutError as any).type = "timeout";
+      (timeoutError as any).originalError = error;
+      throw timeoutError;
+    }
+
+    if (error.name === "TypeError" && error.message.includes("fetch")) {
+      // TypeError: Failed to fetch = problème réseau, CORS, ou cleartext bloqué
+      const networkError = new Error(
+        "NETWORK: Impossible de contacter NeoliaServer. " +
+        "Causes possibles: serveur non démarré, mauvaise IP, CORS, ou cleartext HTTP bloqué."
+      );
+      (networkError as any).type = "network";
+      (networkError as any).originalError = error;
+      throw networkError;
+    }
+
+    // Propager l'erreur originale pour les autres cas
     throw error;
   } finally {
     clearTimeout(timeoutId);
