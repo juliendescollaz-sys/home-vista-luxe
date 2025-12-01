@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Server, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, Server, AlertCircle, CheckCircle2, Bug } from "lucide-react";
 import {
   fetchConfigFromNeoliaServer,
   setHaConfig,
@@ -15,6 +15,7 @@ import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 import neoliaLogo from "@/assets/neolia-logo.png";
 
 type OnboardingStatus = "idle" | "loading" | "success" | "error";
+type TestStatus = "idle" | "testing" | "success" | "error";
 
 /**
  * Écran d'onboarding spécifique au mode PANEL
@@ -25,6 +26,8 @@ export function PanelOnboarding() {
   const [status, setStatus] = useState<OnboardingStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [testStatus, setTestStatus] = useState<TestStatus>("idle");
+  const [testResult, setTestResult] = useState<string>("");
   const setConnection = useHAStore((state) => state.setConnection);
 
   /**
@@ -119,39 +122,73 @@ export function PanelOnboarding() {
       setTimeout(() => {
         window.location.reload();
       }, 500);
-    } catch (error) {
+    } catch (error: any) {
       setStatus("error");
       setStatusMessage("");
 
-      if (error instanceof Error) {
-        // Timeout
-        if (error.name === "TimeoutError" || error.message.includes("timeout")) {
-          setErrorMessage(
-            "NeoliaServer ne répond pas. Vérifiez que le PC est allumé et sur le même réseau."
-          );
-        }
-        // Erreur réseau
-        else if (error.name === "TypeError" || error.message.includes("fetch")) {
-          // Message d'erreur réseau explicite
-          setErrorMessage(
-            `Impossible de contacter NeoliaServer avec l'adresse saisie "${trimmedIp}". ` +
-            "Vérifiez que le PC est sur le même réseau, que NeoliaServer est lancé " +
-            "et que le port 8765 est accessible."
-          );
-        }
-        // Configuration invalide
-        else if (error.message.includes("invalide")) {
-          setErrorMessage(
-            "La configuration reçue est invalide. Vérifiez NeoliaServer et réessayez."
-          );
-        }
-        // Autre erreur
-        else {
-          setErrorMessage(`Erreur: ${error.message}`);
-        }
+      console.error("[PanelOnboarding] Erreur lors de l'import:", error);
+
+      // Détection du type d'erreur enrichi par fetchConfigFromNeoliaServer
+      const errorType = error?.type;
+
+      if (errorType === "timeout" || error.message?.includes("TIMEOUT")) {
+        setErrorMessage(
+          "NeoliaServer ne répond pas (timeout 4s). " +
+          "Vérifiez que le PC est allumé, sur le même réseau, et que NeoliaServer est lancé."
+        );
+      } else if (errorType === "network" || error.message?.includes("NETWORK")) {
+        setErrorMessage(
+          `Impossible de contacter NeoliaServer à l'adresse "${trimmedIp}". ` +
+          "Causes possibles :\n" +
+          "• Le PC n'est pas sur le même réseau WiFi\n" +
+          "• NeoliaServer n'est pas lancé sur le PC\n" +
+          "• Le port 8765 est bloqué par un firewall\n" +
+          "• Problème CORS (voir logs console)"
+        );
+      } else if (error.message?.includes("invalide")) {
+        setErrorMessage(
+          "La configuration reçue est invalide. Vérifiez NeoliaServer et réessayez."
+        );
+      } else if (error.message?.includes("HTTP")) {
+        setErrorMessage(`Erreur serveur: ${error.message}`);
       } else {
-        setErrorMessage("Une erreur inattendue s'est produite.");
+        setErrorMessage(`Erreur: ${error.message || "Erreur inconnue"}`);
       }
+    }
+  };
+
+  /**
+   * Bouton de test de connexion pour debug
+   */
+  const handleTestConnection = async () => {
+    const trimmedIp = installerIp.trim();
+    if (!trimmedIp) {
+      setTestResult("Veuillez d'abord saisir une adresse IP.");
+      setTestStatus("error");
+      return;
+    }
+
+    setTestStatus("testing");
+    setTestResult("Test en cours...");
+
+    try {
+      console.log("[PanelOnboarding] Test de connexion vers:", trimmedIp);
+      const result = await fetchConfigFromNeoliaServer(trimmedIp);
+      
+      setTestStatus("success");
+      setTestResult(
+        `✅ Connexion réussie!\n` +
+        `ha_url: ${result.ha_url}\n` +
+        `token: ${result.token.substring(0, 20)}...`
+      );
+    } catch (error: any) {
+      setTestStatus("error");
+      const errorType = error?.type || "unknown";
+      setTestResult(
+        `❌ Échec (${errorType})\n` +
+        `Message: ${error.message}\n` +
+        `Voir console pour détails.`
+      );
     }
   };
 
@@ -265,6 +302,43 @@ export function PanelOnboarding() {
                 "Importer la configuration"
               )}
             </Button>
+
+            {/* Section Debug - Bouton de test */}
+            <div className="pt-4 border-t border-border">
+              <div className="flex items-center gap-2 mb-3">
+                <Bug className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">Diagnostic</span>
+              </div>
+              
+              <Button
+                onClick={handleTestConnection}
+                disabled={testStatus === "testing" || status === "loading"}
+                variant="outline"
+                size="sm"
+                className="w-full"
+              >
+                {testStatus === "testing" ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Test en cours...
+                  </>
+                ) : (
+                  "Tester la connexion NeoliaServer"
+                )}
+              </Button>
+
+              {testResult && (
+                <pre className={`mt-3 p-3 rounded-md text-xs font-mono whitespace-pre-wrap ${
+                  testStatus === "success" 
+                    ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300" 
+                    : testStatus === "error"
+                    ? "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300"
+                    : "bg-muted text-muted-foreground"
+                }`}>
+                  {testResult}
+                </pre>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
