@@ -37,10 +37,15 @@ const Onboarding = () => {
   const handleConfiguratorImport = async () => {
     setErrorConfigurator(null);
 
-    let baseUrl = configServerUrl.trim();
+    let baseUrl = (configServerUrl || "").trim();
+
+    // Auto-prefix http:// if missing
+    if (baseUrl && !baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
+      baseUrl = "http://" + baseUrl;
+    }
 
     if (!baseUrl) {
-      setErrorConfigurator("Adresse du configurateur invalide");
+      setErrorConfigurator("Veuillez saisir l'adresse du serveur NeoliaConfigurator.");
       return;
     }
 
@@ -48,9 +53,14 @@ const Onboarding = () => {
       baseUrl = baseUrl.slice(0, -1);
     }
 
+    const url = `${baseUrl}/config`;
+
     try {
       setIsLoadingConfigurator(true);
-      const res = await fetch(`${baseUrl}/config`);
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
       
       if (!res.ok) {
         throw new Error("HTTP " + res.status);
@@ -59,7 +69,7 @@ const Onboarding = () => {
       const data = await res.json() as { ha_url?: string; token?: string };
       
       if (!data.ha_url || !data.token) {
-        throw new Error("JSON invalide (ha_url ou token manquant)");
+        throw new Error("JSON invalide renvoyé par NeoliaConfigurator (ha_url ou token manquant)");
       }
 
       const trimmedUrl = data.ha_url.trim();
@@ -87,9 +97,11 @@ const Onboarding = () => {
       setTimeout(() => {
         navigate("/");
       }, 500);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Erreur NeoliaConfigurator:", e);
-      setErrorConfigurator("Impossible de contacter NeoliaConfigurator");
+      setErrorConfigurator(
+        "Impossible de contacter NeoliaConfigurator (" + (e?.message || String(e)) + ")"
+      );
     } finally {
       setIsLoadingConfigurator(false);
     }
