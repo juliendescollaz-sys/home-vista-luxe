@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import neoliaLogo from "@/assets/neolia-logo.png";
 import { z } from "zod";
 import { setHaConfig } from "@/services/haConfig";
-import { useDisplayMode } from "@/hooks/useDisplayMode";
+import { isPanelMode } from "@/lib/platform";
 
 const urlSchema = z.string()
   .trim()
@@ -28,8 +28,7 @@ const tokenSchema = z.string()
 
 const OnboardingManual = () => {
   const navigate = useNavigate();
-  const { displayMode } = useDisplayMode();
-  const isPanelMode = displayMode === "panel";
+  const panelMode = isPanelMode();
   
   // Initialiser avec les valeurs pré-remplies depuis localStorage (si provenant du Configurator)
   const [url, setUrl] = useState(() => {
@@ -201,7 +200,7 @@ const OnboardingManual = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Section import depuis NeoliaConfigurator - Visible uniquement en mode Panel */}
-            {isPanelMode && (
+            {panelMode && (
               <div className="p-3 rounded-xl bg-muted/50 border border-border/40 space-y-3">
                 <p className="text-xs text-muted-foreground">
                   Si NeoliaConfigurator est lancé sur votre PC, vous pouvez importer automatiquement l&apos;URL et le token.
