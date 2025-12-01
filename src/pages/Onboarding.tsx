@@ -20,9 +20,9 @@ const Onboarding = () => {
   const [errorConfigurator, setErrorConfigurator] = useState<string | null>(null);
   const [configServerUrl, setConfigServerUrl] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("neolia_configurator_url") || "http://192.168.1.10:8765";
+      return localStorage.getItem("neolia_configurator_url") || "192.168.1.10:8765";
     }
-    return "http://192.168.1.10:8765";
+    return "192.168.1.10:8765";
   });
 
   const handleConfigServerUrlChange = (value: string) => {
@@ -54,14 +54,15 @@ const Onboarding = () => {
     }
 
     const url = `${baseUrl}/config`;
+    const debugUrl = url;
 
     // 🔍 LOG DEBUG : URL utilisée
-    console.log("[NeoliaConfigurator] Tentative de connexion vers :", url);
+    console.log("[NeoliaConfigurator] Tentative de connexion vers :", debugUrl);
 
     try {
       setIsLoadingConfigurator(true);
 
-      const res = await fetch(url, {
+      const res = await fetch(debugUrl, {
         method: "GET",
         headers: { Accept: "application/json" },
       });
@@ -108,7 +109,7 @@ const Onboarding = () => {
     } catch (e: any) {
       console.error("[NeoliaConfigurator] Erreur lors du fetch :", e);
       setErrorConfigurator(
-        "Impossible de contacter NeoliaConfigurator (" + (e?.message || String(e)) + ")"
+        "Impossible de contacter NeoliaConfigurator (" + (e?.message || String(e)) + ")\nURL: " + debugUrl,
       );
     } finally {
       setIsLoadingConfigurator(false);
@@ -121,11 +122,7 @@ const Onboarding = () => {
         {/* Logo Neolia */}
         <div className="text-center space-y-6">
           <div className="flex justify-center">
-            <img 
-              src={neoliaLogo} 
-              alt="Neolia" 
-              className="h-24 w-auto"
-            />
+            <img src={neoliaLogo} alt="Neolia" className="h-24 w-auto" />
           </div>
           <p className="text-muted-foreground text-xl">Smart Home Premium</p>
         </div>
@@ -143,7 +140,7 @@ const Onboarding = () => {
                   type="text"
                   value={configServerUrl}
                   onChange={(e) => handleConfigServerUrlChange(e.target.value)}
-                  placeholder="http://192.168.1.10:8765"
+                  placeholder="192.168.1.10:8765"
                   className="h-12 text-base"
                 />
               </div>
@@ -166,9 +163,7 @@ const Onboarding = () => {
                 )}
               </Button>
               {errorConfigurator && (
-                <p className="text-xs text-destructive text-center">
-                  {errorConfigurator}
-                </p>
+                <p className="text-xs text-destructive text-center whitespace-pre-line">{errorConfigurator}</p>
               )}
             </div>
           ) : (
