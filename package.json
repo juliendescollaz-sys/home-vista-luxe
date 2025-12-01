@@ -9,12 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-
-    // === PANEL / ANDROID ===
-    // Build du front puis sync Capacitor vers le projet Android
     "build:panel:android": "npm run build && npx cap sync android",
-
-    // Ouvrir le projet Android dans Android Studio
     "android:open": "npx cap open android"
   },
   "dependencies": {
