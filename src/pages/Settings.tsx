@@ -11,6 +11,7 @@ import { clearHACredentials } from "@/lib/crypto";
 import { useConnectionMode } from "@/hooks/useConnectionMode";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useHandedness } from "@/hooks/useHandedness";
+import { NeoliaBootstrapDebugCard } from "@/components/neolia/bootstrap/NeoliaBootstrapDebugCard";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -161,6 +162,14 @@ const Settings = () => {
               <p>© 2025 Neolia. Tous droits réservés.</p>
             </div>
           </Card>
+
+          <div className="mt-8 space-y-4">
+            <h2 className="text-base font-semibold">Debug Neolia</h2>
+            <p className="text-sm text-muted-foreground">
+              Section technique pour tester le bootstrap Neolia à partir du JSON du topic MQTT <code className="bg-muted px-1 py-0.5 rounded">neolia/config/global</code>.
+            </p>
+            <NeoliaBootstrapDebugCard />
+          </div>
 
           <Button
             variant="destructive"
