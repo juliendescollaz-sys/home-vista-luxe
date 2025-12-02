@@ -2,6 +2,8 @@
 
 import mqtt, { MqttClient } from "mqtt";
 import type { NeoliaGlobalConfig } from "./neoliaConfigTypes";
+import { isPanelMode } from "@/lib/platform";
+import { useNeoliaSettings } from "@/store/useNeoliaSettings";
 
 export interface NeoliaMqttConnectOptions {
   host: string;
@@ -28,13 +30,114 @@ export function buildNeoliaMqttWsUrl(options: NeoliaMqttConnectOptions): string 
 }
 
 /**
- * Connexion au broker MQTT Neolia en WebSocket.
+ * Tente une connexion MQTT sur un port donné avec timeout.
+ * Retourne le client connecté ou null si échec.
+ */
+function tryConnectMqttPort(
+  url: string,
+  username?: string,
+  password?: string,
+  timeoutMs: number = 5000
+): Promise<MqttClient | null> {
+  return new Promise((resolve) => {
+    const client = mqtt.connect(url, {
+      username,
+      password,
+      reconnectPeriod: 0, // Pas de reconnexion auto pendant le test
+      connectTimeout: timeoutMs,
+    });
+
+    const timeout = setTimeout(() => {
+      console.warn("[NeoliaMQTT] Connection timeout for", url);
+      try {
+        client.end(true);
+      } catch {}
+      resolve(null);
+    }, timeoutMs);
+
+    client.on("connect", () => {
+      clearTimeout(timeout);
+      console.log("[NeoliaMQTT PANEL] Connecté via", url);
+      resolve(client);
+    });
+
+    client.on("error", (err) => {
+      clearTimeout(timeout);
+      console.warn("[NeoliaMQTT PANEL] Échec connexion", url, err.message);
+      try {
+        client.end(true);
+      } catch {}
+      resolve(null);
+    });
+  });
+}
+
+/**
+ * Connexion MQTT spécifique au mode Panel avec fallback automatique.
+ * Tente d'abord le port 1884 (HA Green / nouvelles configs),
+ * puis fallback sur 9001 (anciennes configs Mosquitto).
+ */
+export async function connectNeoliaMqttPanel(
+  onConnect?: () => void,
+  onError?: (error: Error) => void
+): Promise<NeoliaMqttConnection> {
+  const {
+    mqttHost,
+    mqttUseSecure,
+    mqttUsername,
+    mqttPassword,
+    setMqttPort,
+  } = useNeoliaSettings.getState();
+
+  const scheme = mqttUseSecure ? "wss" : "ws";
+
+  // Ports PnP → fallback automatique silencieux
+  const tryPorts = [1884, 9001];
+
+  console.log("[NeoliaMQTT PANEL] Démarrage connexion Zero-Config, host:", mqttHost);
+
+  for (const port of tryPorts) {
+    const url = `${scheme}://${mqttHost}:${port}/mqtt`;
+
+    console.log("[NeoliaMQTT PANEL] Tentative de connexion :", url);
+
+    const client = await tryConnectMqttPort(url, mqttUsername, mqttPassword);
+
+    if (client) {
+      console.log("[NeoliaMQTT PANEL] Connecté via port", port);
+      setMqttPort(port);
+
+      // Réactiver la reconnexion automatique après succès
+      client.options.reconnectPeriod = 5000;
+
+      if (onConnect) {
+        onConnect();
+      }
+
+      return { client };
+    }
+  }
+
+  const error = new Error(
+    "MQTT WebSocket unreachable on ports 1884 and 9001 (Panel Mode)"
+  );
+  console.error("[NeoliaMQTT PANEL]", error.message);
+
+  if (onError) {
+    onError(error);
+  }
+
+  return { client: null };
+}
+
+/**
+ * Connexion au broker MQTT Neolia en WebSocket (mode standard Mobile/Tablet).
  *
  * - Les options fournies par l'appelant DOIVENT avoir priorité totale
  *   sur les valeurs par défaut.
  * - On logge les options finales et l'URL utilisée pour faciliter le debug.
  */
-export function connectNeoliaMqtt(
+export function connectNeoliaMqttStandard(
   options: NeoliaMqttConnectOptions,
   onConnect?: () => void,
   onError?: (error: Error) => void
@@ -56,7 +159,7 @@ export function connectNeoliaMqtt(
   const url = buildNeoliaMqttWsUrl(finalOptions);
 
   console.log(
-    "[NeoliaMQTT] connectNeoliaMqtt - final options:",
+    "[NeoliaMQTT] connectNeoliaMqttStandard - final options:",
     finalOptions,
     "url:",
     url
@@ -87,6 +190,27 @@ export function connectNeoliaMqtt(
   });
 
   return { client };
+}
+
+/**
+ * Point d'entrée principal de connexion MQTT.
+ * - Mode Panel : utilise connectNeoliaMqttPanel avec fallback automatique
+ * - Mode Mobile/Tablet : utilise connectNeoliaMqttStandard avec options fournies
+ */
+export function connectNeoliaMqtt(
+  options: NeoliaMqttConnectOptions,
+  onConnect?: () => void,
+  onError?: (error: Error) => void
+): NeoliaMqttConnection | Promise<NeoliaMqttConnection> {
+  // Mode Panel : Zero-Config avec fallback automatique
+  if (isPanelMode()) {
+    console.log("[NeoliaMQTT] Mode Panel détecté → connexion Zero-Config");
+    return connectNeoliaMqttPanel(onConnect, onError);
+  }
+
+  // Mode Mobile/Tablet : logique standard avec options fournies
+  console.log("[NeoliaMQTT] Mode non-Panel → connexion standard");
+  return connectNeoliaMqttStandard(options, onConnect, onError);
 }
 
 export type NeoliaConfigHandler = (payload: NeoliaGlobalConfig) => void;
