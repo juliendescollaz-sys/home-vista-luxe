@@ -1,6 +1,7 @@
 // src/components/neolia/bootstrap/neoliaMqttClient.ts
 
-import { connect, MqttClient } from "mqtt";
+import mqtt from "mqtt";
+import type { MqttClient } from "mqtt";
 
 export interface NeoliaMqttConnection {
   client: MqttClient | null;
@@ -35,7 +36,7 @@ export function connectNeoliaMqtt(
 ): NeoliaMqttConnection {
   const url = buildWsUrl(options);
 
-  const client = connect(url, {
+  const client = mqtt.connect(url, {
     username: options.username,
     password: options.password,
   });
