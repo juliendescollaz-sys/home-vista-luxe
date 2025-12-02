@@ -8,6 +8,7 @@ import {
   NeoliaMqttConnectOptions,
 } from "./neoliaMqttClient";
 import { useNeoliaBootstrap } from "./useNeoliaBootstrap";
+import { setHaConfig } from "@/services/haConfig";
 
 export interface UseNeoliaMqttBootstrapOptions extends NeoliaMqttConnectOptions {
   autoStart?: boolean;
@@ -37,6 +38,7 @@ export interface UseNeoliaMqttBootstrapResult {
  * - se connecter au broker MQTT Neolia (WebSocket)
  * - s'abonner à `neolia/config/global`
  * - alimenter automatiquement useNeoliaBootstrap avec le payload reçu
+ * - enregistrer automatiquement la configuration HA si présente dans le payload
  *
  * Il ne gère PAS la découverte automatique du host/port ici :
  * on suppose qu'on lui fournit les options de connexion.
@@ -54,6 +56,7 @@ export function useNeoliaMqttBootstrap(
   );
 
   const clientRef = useRef<MqttClient | null>(null);
+  const haConfigStoredRef = useRef<boolean>(false);
 
   const {
     status,
@@ -70,6 +73,9 @@ export function useNeoliaMqttBootstrap(
       return;
     }
 
+    // Reset the flag when starting a new connection
+    haConfigStoredRef.current = false;
+
     setMqttStatus("connecting");
     setMqttError(undefined);
 
@@ -80,9 +86,39 @@ export function useNeoliaMqttBootstrap(
         const client = connection.client;
         if (!client) return;
 
-        subscribeNeoliaConfigGlobal(client, (payload) => {
+        subscribeNeoliaConfigGlobal(client, async (payload) => {
           setLastPayloadAt(new Date());
           applyFromPayload(payload);
+
+          // Extract HA credentials from payload
+          const haUrl = payload?.home_structure?.ha?.url;
+          const haToken = payload?.home_structure?.ha?.token;
+
+          console.log(
+            "[NeoliaBootstrap] MQTT payload received, haUrl:",
+            haUrl,
+            "hasToken:",
+            !!haToken
+          );
+
+          // If valid HA credentials and not already stored in this session
+          if (haUrl && haToken && !haConfigStoredRef.current) {
+            haConfigStoredRef.current = true;
+            try {
+              await setHaConfig({
+                url: haUrl,
+                token: haToken,
+              });
+              console.log(
+                "[NeoliaBootstrap] HA config stored from MQTT bootstrap"
+              );
+            } catch (error) {
+              console.error(
+                "[NeoliaBootstrap] Error while storing HA config from MQTT bootstrap:",
+                error
+              );
+            }
+          }
         });
       },
       (err) => {
@@ -103,6 +139,7 @@ export function useNeoliaMqttBootstrap(
       }
       clientRef.current = null;
     }
+    haConfigStoredRef.current = false;
     setMqttStatus("idle");
     setMqttError(undefined);
     setLastPayloadAt(undefined);
