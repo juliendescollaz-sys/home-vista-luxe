@@ -4,76 +4,63 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Server, AlertCircle, CheckCircle2, Bug } from "lucide-react";
-import {
-  fetchConfigFromNeoliaServer,
-  setHaConfig,
-  testHaConnection,
-} from "@/services/haConfig";
+import { Loader2, Server, AlertCircle, CheckCircle2 } from "lucide-react";
+import { setHaConfig } from "@/services/haConfig";
 import { useHAStore } from "@/store/useHAStore";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 import neoliaLogo from "@/assets/neolia-logo.png";
 
 type OnboardingStatus = "idle" | "loading" | "success" | "error";
-type TestStatus = "idle" | "testing" | "success" | "error";
+
+const PANEL_CODE = "NEOLIA_DEFAULT_PANEL";
+
+/**
+ * Normalise une URL/host Home Assistant saisie par l'utilisateur.
+ * Accepte :
+ *  - "192.168.1.20:8123"
+ *  - "http://192.168.1.20:8123"
+ *  - "https://ha.local"
+ */
+function normalizeHaBaseUrl(raw: string): string {
+  let url = (raw || "").trim();
+  if (!url) {
+    throw new Error("URL Home Assistant vide");
+  }
+
+  if (!/^https?:\/\//i.test(url)) {
+    url = `http://${url}`;
+  }
+
+  // On supprime les / en fin d'URL pour éviter les // dans les appels
+  return url.replace(/\/+$/, "");
+}
 
 /**
  * Écran d'onboarding spécifique au mode PANEL
- * Permet de récupérer automatiquement la configuration HA depuis NeoliaServer
+ * Nouvelle version : le panneau récupère sa configuration depuis Home Assistant
+ * via l'endpoint GET /api/neolia/panel_config/NEOLIA_DEFAULT_PANEL.
  */
 export function PanelOnboarding() {
-  const [installerIp, setInstallerIp] = useState("");
+  const [haBaseUrl, setHaBaseUrl] = useState("");
   const [status, setStatus] = useState<OnboardingStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
-  const [testStatus, setTestStatus] = useState<TestStatus>("idle");
-  const [testResult, setTestResult] = useState<string>("");
   const setConnection = useHAStore((state) => state.setConnection);
 
-  /**
-   * Valide le format de l'adresse IP (accepte IP ou IP:port)
-   */
-  const isValidIp = (ip: string): boolean => {
-    if (!ip) return false;
-
-    // On accepte "ip" ou "ip:port"
-    let hostPart = ip.trim();
-
-    if (hostPart.startsWith("http://")) {
-      hostPart = hostPart.substring("http://".length);
-    } else if (hostPart.startsWith("https://")) {
-      hostPart = hostPart.substring("https://".length);
-    }
-
-    const colonIndex = hostPart.lastIndexOf(":");
-    if (colonIndex > -1) {
-      hostPart = hostPart.substring(0, colonIndex).trim();
-    }
-
-    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (!ipRegex.test(hostPart)) {
-      return false;
-    }
-
-    const octets = hostPart.split(".");
-    return octets.every((octet) => {
-      const num = parseInt(octet, 10);
-      return num >= 0 && num <= 255;
-    });
-  };
-
   const handleImportConfig = async () => {
-    const trimmedIp = installerIp.trim();
+    const trimmed = haBaseUrl.trim();
 
-    // 1. Validation de l'IP
-    if (!trimmedIp) {
-      setErrorMessage("Veuillez saisir l'adresse IP du poste d'installation.");
+    if (!trimmed) {
+      setErrorMessage("Veuillez saisir l'URL ou l'adresse IP de Home Assistant.");
       setStatus("error");
       return;
     }
 
-    if (!isValidIp(trimmedIp)) {
-      setErrorMessage("Adresse IP invalide. Format attendu : 192.168.1.34");
+    let baseUrl: string;
+    try {
+      baseUrl = normalizeHaBaseUrl(trimmed);
+    } catch (e: any) {
+      setErrorMessage(e?.message || "URL Home Assistant invalide.");
       setStatus("error");
       return;
     }
@@ -81,34 +68,62 @@ export function PanelOnboarding() {
     setStatus("loading");
     setErrorMessage("");
 
-    console.log("[PanelOnboarding] Connexion à NeoliaServer via IP saisie :", trimmedIp);
-    setStatusMessage(`Connexion à NeoliaServer à l'adresse ${trimmedIp}…`);
+    console.log("[PanelOnboarding] Récupération config panel via HA :", baseUrl);
+    setStatusMessage("Connexion à Home Assistant et récupération de la configuration du panneau…");
+
+    const apiUrl = `${baseUrl}/api/neolia/panel_config/${encodeURIComponent(PANEL_CODE)}`;
 
     try {
-      // 2. Récupération de la config depuis NeoliaServer (timeout 4s)
-      const { ha_url, token } = await fetchConfigFromNeoliaServer(trimmedIp);
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          // Pas d'Authorization ici : l'API neolia/panel_config est publique sur le LAN
+        },
+      });
 
-      setStatusMessage("Configuration reçue. Enregistrement…");
-
-      // 3. Enregistrement de la config
-      await setHaConfig({ url: ha_url, token });
-
-      setStatusMessage("Configuration importée. Vérification de la connexion Home Assistant…");
-
-      // 4. Test de connexion à Home Assistant
-      const isConnected = await testHaConnection(ha_url, token, 5000);
-
-      if (!isConnected) {
-        setStatus("error");
-        setErrorMessage(
-          "Les paramètres reçus ne permettent pas de se connecter à Home Assistant. " +
-          "Vérifiez que Home Assistant est accessible depuis ce panneau."
-        );
-        setStatusMessage("");
-        return;
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error(
+            "Aucune configuration trouvée pour ce panneau.\n" +
+            "Vérifiez que l'installateur a bien poussé la configuration depuis son PC."
+          );
+        }
+        throw new Error(`Erreur Home Assistant ${response.status}: ${response.statusText}`);
       }
 
-      // 5. Mise à jour du store
+      const json = await response.json();
+
+      console.log("[PanelOnboarding] Config panel reçue (masquée dans les logs).");
+
+      if (
+        !json ||
+        typeof json !== "object" ||
+        typeof json.ha_url !== "string" ||
+        !json.ha_url ||
+        typeof json.token !== "string" ||
+        !json.token
+      ) {
+        throw new Error("Réponse invalide ou incomplète reçue de Home Assistant.");
+      }
+
+      const ha_url: string = json.ha_url;
+      const token: string = json.token;
+      const remoteHaUrl: string | undefined =
+        typeof json.remoteHaUrl === "string" && json.remoteHaUrl.trim()
+          ? json.remoteHaUrl.trim()
+          : undefined;
+
+      setStatusMessage("Configuration reçue. Enregistrement sur le panneau…");
+
+      // Enregistrement de la configuration complète dans le storage sécurisé
+      await setHaConfig({
+        localHaUrl: ha_url,
+        remoteHaUrl,
+        token,
+      });
+
+      // Mise à jour du store runtime
       setConnection({
         url: ha_url,
         token,
@@ -118,77 +133,20 @@ export function PanelOnboarding() {
       setStatus("success");
       setStatusMessage("Configuration importée avec succès. Connexion à Home Assistant établie.");
 
-      // Redirection automatique immédiate
+      // Redémarrage rapide de l'app pour repartir avec la nouvelle config
       setTimeout(() => {
         window.location.reload();
       }, 500);
     } catch (error: any) {
+      console.error("[PanelOnboarding] Erreur lors de la récupération de config via HA :", error);
       setStatus("error");
       setStatusMessage("");
 
-      console.error("[PanelOnboarding] Erreur lors de l'import:", error);
-
-      // Détection du type d'erreur enrichi par fetchConfigFromNeoliaServer
-      const errorType = error?.type;
-
-      if (errorType === "timeout" || error.message?.includes("TIMEOUT")) {
-        setErrorMessage(
-          "NeoliaServer ne répond pas (timeout 4s). " +
-          "Vérifiez que le PC est allumé, sur le même réseau, et que NeoliaServer est lancé."
-        );
-      } else if (errorType === "network" || error.message?.includes("NETWORK")) {
-        setErrorMessage(
-          `Impossible de contacter NeoliaServer à l'adresse "${trimmedIp}". ` +
-          "Causes possibles :\n" +
-          "• Le PC n'est pas sur le même réseau WiFi\n" +
-          "• NeoliaServer n'est pas lancé sur le PC\n" +
-          "• Le port 8765 est bloqué par un firewall\n" +
-          "• Problème CORS (voir logs console)"
-        );
-      } else if (error.message?.includes("invalide")) {
-        setErrorMessage(
-          "La configuration reçue est invalide. Vérifiez NeoliaServer et réessayez."
-        );
-      } else if (error.message?.includes("HTTP")) {
-        setErrorMessage(`Erreur serveur: ${error.message}`);
+      if (error?.message) {
+        setErrorMessage(error.message);
       } else {
-        setErrorMessage(`Erreur: ${error.message || "Erreur inconnue"}`);
+        setErrorMessage("Une erreur inconnue s'est produite lors de la récupération de la configuration.");
       }
-    }
-  };
-
-  /**
-   * Bouton de test de connexion pour debug
-   */
-  const handleTestConnection = async () => {
-    const trimmedIp = installerIp.trim();
-    if (!trimmedIp) {
-      setTestResult("Veuillez d'abord saisir une adresse IP.");
-      setTestStatus("error");
-      return;
-    }
-
-    setTestStatus("testing");
-    setTestResult("Test en cours...");
-
-    try {
-      console.log("[PanelOnboarding] Test de connexion vers:", trimmedIp);
-      const result = await fetchConfigFromNeoliaServer(trimmedIp);
-      
-      setTestStatus("success");
-      setTestResult(
-        `✅ Connexion réussie!\n` +
-        `ha_url: ${result.ha_url}\n` +
-        `token: ${result.token.substring(0, 20)}...`
-      );
-    } catch (error: any) {
-      setTestStatus("error");
-      const errorType = error?.type || "unknown";
-      setTestResult(
-        `❌ Échec (${errorType})\n` +
-        `Message: ${error.message}\n` +
-        `Voir console pour détails.`
-      );
     }
   };
 
@@ -225,31 +183,31 @@ export function PanelOnboarding() {
               <CardTitle className="text-3xl">Configuration du panneau Neolia</CardTitle>
             </div>
             <CardDescription className="text-lg leading-relaxed">
-              Pour configurer ce panneau, lancez l'outil <strong>NeoliaServer</strong> sur
-              le PC de l'installateur. Assurez-vous que le PC et ce panneau sont sur le
-              même réseau local.
+              L'installateur a déjà poussé la configuration de ce panneau dans Home Assistant,
+              via l'outil <strong>Neolia Configurator</strong>. Saisissez l'URL ou l'adresse IP
+              de Home Assistant sur le réseau local, puis récupérez la configuration.
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {/* Champ IP */}
+            {/* Champ URL HA */}
             <div className="space-y-3">
-              <Label htmlFor="installer-ip" className="text-lg">
-                Adresse IP du poste d'installation
+              <Label htmlFor="ha-base-url" className="text-lg">
+                Adresse de Home Assistant (LAN)
               </Label>
               <Input
-                id="installer-ip"
+                id="ha-base-url"
                 type="text"
-                placeholder="192.168.1.34"
-                value={installerIp}
-                onChange={(e) => setInstallerIp(e.target.value)}
+                placeholder="192.168.1.20:8123 ou http://192.168.1.20:8123"
+                value={haBaseUrl}
+                onChange={(e) => setHaBaseUrl(e.target.value)}
                 onKeyPress={handleKeyPress}
                 disabled={isInputDisabled}
                 className="text-lg h-14"
               />
               <p className="text-sm text-muted-foreground">
-                L'adresse IP est affichée dans la fenêtre de NeoliaServer sur le PC
-                (ex : 192.168.1.34)
+                Utilisez l'adresse IP locale de votre instance Home Assistant. Ne saisissez pas
+                le token ici : il sera récupéré automatiquement si la configuration a été poussée.
               </p>
             </div>
 
@@ -267,7 +225,9 @@ export function PanelOnboarding() {
             {status === "error" && errorMessage && (
               <Alert variant="destructive">
                 <AlertCircle className="h-5 w-5" />
-                <AlertDescription className="text-base">{errorMessage}</AlertDescription>
+                <AlertDescription className="text-base whitespace-pre-line">
+                  {errorMessage}
+                </AlertDescription>
               </Alert>
             )}
 
@@ -291,7 +251,7 @@ export function PanelOnboarding() {
               {status === "loading" ? (
                 <>
                   <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                  Connexion à NeoliaServer…
+                  Récupération de la configuration…
                 </>
               ) : status === "success" ? (
                 <>
@@ -299,46 +259,9 @@ export function PanelOnboarding() {
                   Configuration importée
                 </>
               ) : (
-                "Importer la configuration"
+                "Récupérer la configuration"
               )}
             </Button>
-
-            {/* Section Debug - Bouton de test */}
-            <div className="pt-4 border-t border-border">
-              <div className="flex items-center gap-2 mb-3">
-                <Bug className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-muted-foreground">Diagnostic</span>
-              </div>
-              
-              <Button
-                onClick={handleTestConnection}
-                disabled={testStatus === "testing" || status === "loading"}
-                variant="outline"
-                size="sm"
-                className="w-full"
-              >
-                {testStatus === "testing" ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Test en cours...
-                  </>
-                ) : (
-                  "Tester la connexion NeoliaServer"
-                )}
-              </Button>
-
-              {testResult && (
-                <pre className={`mt-3 p-3 rounded-md text-xs font-mono whitespace-pre-wrap ${
-                  testStatus === "success" 
-                    ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300" 
-                    : testStatus === "error"
-                    ? "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300"
-                    : "bg-muted text-muted-foreground"
-                }`}>
-                  {testResult}
-                </pre>
-              )}
-            </div>
           </CardContent>
         </Card>
       </div>
