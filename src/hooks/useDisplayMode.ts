@@ -73,8 +73,7 @@ export function useDisplayMode(): { displayMode: DisplayMode } {
       applyMode();
     };
 
-    // On garde un interval pour détecter un éventuel changement
-    // de NEOLIA_PANEL_MODE depuis la console ou un script externe.
+    // Surveille un éventuel changement de NEOLIA_PANEL_MODE
     const interval = window.setInterval(() => {
       applyMode();
     }, 1000);
