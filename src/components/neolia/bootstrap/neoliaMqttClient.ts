@@ -1,12 +1,7 @@
 // src/components/neolia/bootstrap/neoliaMqttClient.ts
 
-import mqtt from "mqtt";
-import type { MqttClient } from "mqtt";
-
-export interface NeoliaMqttConnection {
-  client: MqttClient | null;
-  isConnected: boolean;
-}
+import mqtt, { MqttClient } from "mqtt";
+import type { NeoliaGlobalConfig } from "./neoliaConfigTypes";
 
 export interface NeoliaMqttConnectOptions {
   host: string;
@@ -16,78 +11,118 @@ export interface NeoliaMqttConnectOptions {
   useSecure?: boolean;
 }
 
-/**
- * Construit l'URL WebSocket du broker MQTT à partir de host/port et d'un flag de sécurité.
- * Exemple: ws://192.168.1.219:9001 ou wss://...
- */
-function buildWsUrl(options: NeoliaMqttConnectOptions): string {
-  const scheme = options.useSecure ? "wss" : "ws";
-  return `${scheme}://${options.host}:${options.port}/mqtt`;
+export interface NeoliaMqttConnection {
+  client: MqttClient | null;
 }
 
 /**
- * Établit une connexion MQTT (WebSocket) basique.
- * Ne gère pas encore la reconnexion avancée, c'est volontairement simple à ce stade.
+ * Construit l'URL WebSocket du broker MQTT à partir des options de connexion.
+ * On respecte STRICTEMENT le host et le port fournis.
+ */
+export function buildNeoliaMqttWsUrl(options: NeoliaMqttConnectOptions): string {
+  const scheme = options.useSecure ? "wss" : "ws";
+  const host = options.host;
+  const port = options.port;
+
+  return `${scheme}://${host}:${port}/mqtt`;
+}
+
+/**
+ * Connexion au broker MQTT Neolia en WebSocket.
+ *
+ * - Les options fournies par l'appelant DOIVENT avoir priorité totale
+ *   sur les valeurs par défaut.
+ * - On logge les options finales et l'URL utilisée pour faciliter le debug.
  */
 export function connectNeoliaMqtt(
   options: NeoliaMqttConnectOptions,
   onConnect?: () => void,
-  onError?: (err: Error) => void
+  onError?: (error: Error) => void
 ): NeoliaMqttConnection {
-  const url = buildWsUrl(options);
+  const defaultPort = options.useSecure ? 8884 : 1884;
 
-  const client = mqtt.connect(url, {
-    username: options.username,
-    password: options.password,
-  });
-
-  const connection: NeoliaMqttConnection = {
-    client,
-    isConnected: false,
+  const defaults: NeoliaMqttConnectOptions = {
+    host: "192.168.1.219",
+    port: defaultPort,
+    useSecure: false,
   };
 
+  // ⚠️ IMPORTANT : les options de l'appelant écrasent les valeurs par défaut
+  const finalOptions: NeoliaMqttConnectOptions = {
+    ...defaults,
+    ...options,
+  };
+
+  const url = buildNeoliaMqttWsUrl(finalOptions);
+
+  console.log(
+    "[NeoliaMQTT] connectNeoliaMqtt - final options:",
+    finalOptions,
+    "url:",
+    url
+  );
+
+  const client = mqtt.connect(url, {
+    username: finalOptions.username,
+    password: finalOptions.password,
+    reconnectPeriod: 5000,
+  });
+
   client.on("connect", () => {
-    connection.isConnected = true;
-    if (onConnect) onConnect();
+    console.log("[NeoliaMQTT] Connected to broker via WebSocket");
+    if (onConnect) {
+      onConnect();
+    }
   });
 
   client.on("error", (err) => {
-    if (onError) onError(err);
+    console.error("[NeoliaMQTT] MQTT error:", err);
+    if (onError) {
+      onError(err as Error);
+    }
   });
 
   client.on("close", () => {
-    connection.isConnected = false;
+    console.log("[NeoliaMQTT] Connection closed");
   });
 
-  return connection;
+  return { client };
 }
 
+export type NeoliaConfigHandler = (payload: NeoliaGlobalConfig) => void;
+
 /**
- * S'abonne au topic `neolia/config/global` et appelle onMessage
- * avec le payload JSON parsé, ou null si erreur de parsing.
+ * S'abonne au topic neolia/config/global et parse le payload JSON.
  */
 export function subscribeNeoliaConfigGlobal(
   client: MqttClient,
-  onMessage: (payload: unknown) => void
+  handler: NeoliaConfigHandler
 ): void {
   const topic = "neolia/config/global";
 
   client.subscribe(topic, { qos: 0 }, (err) => {
     if (err) {
-      console.error("[NeoliaMQTT] Subscribe error:", err);
+      console.error("[NeoliaMQTT] Subscription error on", topic, ":", err);
+      return;
     }
+    console.log("[NeoliaMQTT] Subscribed to", topic);
   });
 
-  client.on("message", (receivedTopic, message) => {
-    if (receivedTopic !== topic) return;
+  client.on("message", (receivedTopic, payload) => {
+    if (receivedTopic !== topic) {
+      return;
+    }
 
     try {
-      const text = message.toString("utf-8");
-      const parsed = JSON.parse(text);
-      onMessage(parsed);
+      const text = payload.toString("utf-8");
+      const json = JSON.parse(text) as NeoliaGlobalConfig;
+      console.log("[NeoliaMQTT] Received neolia/config/global payload:", json);
+      handler(json);
     } catch (e) {
-      console.error("[NeoliaMQTT] Invalid JSON payload on neolia/config/global:", e);
-      onMessage(null);
+      console.error(
+        "[NeoliaMQTT] Error parsing neolia/config/global payload:",
+        e
+      );
     }
   });
 }
