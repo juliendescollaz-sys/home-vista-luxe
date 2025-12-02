@@ -34,6 +34,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const hasValidConnection = connection && connection.url && connection.token;
   const [showBackButton, setShowBackButton] = useState(false);
   const navigate = useNavigate();
+  const { displayMode } = useDisplayMode();
 
   useEffect(() => {
     if (!hasValidConnection || isConnected) {
@@ -50,6 +51,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     };
   }, [hasValidConnection, isConnected]);
 
+  // Cas 1 : on a une config HA mais pas encore la connexion WebSocket
   if (hasValidConnection && !isConnected) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -68,10 +70,18 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
+  // Cas 2 : aucune configuration Home Assistant
   if (!hasValidConnection) {
+    // En mode PANEL, on laisse le layout panel gérer son onboarding (PanelOnboarding via PanelRootLayout)
+    if (displayMode === "panel") {
+      return <PanelRootLayout />;
+    }
+
+    // En mobile/tablette : onboarding classique
     return <Navigate to="/onboarding" />;
   }
 
+  // Cas 3 : connexion OK → rendu normal
   return <>{children}</>;
 };
 
@@ -90,13 +100,13 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => {
-  // Tous les hooks appelés inconditionnellement au début
+  // Initialisation de la connexion HA
   const isInitialized = useInitializeConnection();
   const { displayMode } = useDisplayMode();
-  
+
   // Établir la connexion WebSocket dès que les credentials sont restaurés
   useHAClient();
-  
+
   // Rafraîchir les entités au retour au premier plan
   useHARefreshOnForeground();
 
@@ -120,12 +130,12 @@ const App = () => {
       lastTouchEnd = now;
     };
 
-    document.addEventListener('touchmove', preventPinchZoom, { passive: false });
-    document.addEventListener('touchend', preventDoubleTapZoom, { passive: false });
+    document.addEventListener("touchmove", preventPinchZoom, { passive: false });
+    document.addEventListener("touchend", preventDoubleTapZoom, { passive: false });
 
     return () => {
-      document.removeEventListener('touchmove', preventPinchZoom);
-      document.removeEventListener('touchend', preventDoubleTapZoom);
+      document.removeEventListener("touchmove", preventPinchZoom);
+      document.removeEventListener("touchend", preventDoubleTapZoom);
     };
   }, []);
 
@@ -151,30 +161,42 @@ const App = () => {
                   {/* Routes publiques (onboarding, auth, admin) */}
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/onboarding" element={<Onboarding />} />
-                  <Route path="/onboarding/scan" element={
-                    <Suspense fallback={<LoadingScreen />}>
-                      <OnboardingScan />
-                    </Suspense>
-                  } />
-                  <Route path="/onboarding/manual" element={
-                    <Suspense fallback={<LoadingScreen />}>
-                      <OnboardingManual />
-                    </Suspense>
-                  } />
-                  <Route path="/admin" element={
-                    <AdminRoute>
+                  <Route
+                    path="/onboarding/scan"
+                    element={
                       <Suspense fallback={<LoadingScreen />}>
-                        <Admin />
+                        <OnboardingScan />
                       </Suspense>
-                    </AdminRoute>
-                  } />
+                    }
+                  />
+                  <Route
+                    path="/onboarding/manual"
+                    element={
+                      <Suspense fallback={<LoadingScreen />}>
+                        <OnboardingManual />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/admin"
+                    element={
+                      <AdminRoute>
+                        <Suspense fallback={<LoadingScreen />}>
+                          <Admin />
+                        </Suspense>
+                      </AdminRoute>
+                    }
+                  />
 
                   {/* Routes protégées avec routage par mode d'affichage */}
-                  <Route path="/*" element={
-                    <PrivateRoute>
-                      <AppContent displayMode={displayMode} />
-                    </PrivateRoute>
-                  } />
+                  <Route
+                    path="/*"
+                    element={
+                      <PrivateRoute>
+                        <AppContent displayMode={displayMode} />
+                      </PrivateRoute>
+                    }
+                  />
                 </Routes>
               </BrowserRouter>
             </div>
@@ -195,17 +217,17 @@ function AppContent({ displayMode }: { displayMode: "mobile" | "tablet" | "panel
     <>
       {/* Overlay bloquant pour mobile en paysage */}
       {showRotateOverlay && <OrientationOverlay type="blocking" />}
-      
+
       {/* Suggestion non bloquante pour tablet/panel en portrait */}
       {showPortraitSuggestion && <OrientationOverlay type="suggestion" />}
-      
+
       {/* Contenu principal selon le mode */}
       {displayMode === "panel" && <PanelRootLayout />}
       {displayMode === "tablet" && <TabletRootLayout />}
       {displayMode === "mobile" && <MobileRootLayout />}
     </>
   );
-};
+}
 
 function LoadingScreen() {
   return (
