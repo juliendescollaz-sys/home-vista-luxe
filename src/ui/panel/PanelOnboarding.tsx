@@ -92,7 +92,10 @@ export function PanelOnboarding() {
           console.log("[PanelOnboarding] Connexion MQTT réussie (callback)");
         },
         (error) => {
-          console.error("[PanelOnboarding] Erreur MQTT (callback):", error);
+          console.log("[PanelOnboarding] Erreur MQTT:", error);
+          setPanelError(true);
+          setPanelConnecting(false);
+          setErrorMessage(String(error?.message || error));
         },
       );
 
