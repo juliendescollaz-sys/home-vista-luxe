@@ -80,7 +80,7 @@ export function PanelOnboarding() {
     setPanelSuccess(false);
 
     // Appliquer les valeurs MQTT par défaut (Zero-Config)
-    setMqttHost("homeassistant.local");
+    setMqttHost("192.168.1.219");
     setMqttPort(1884);
     setMqttUseSecure(false);
     setMqttUsername("panel");
