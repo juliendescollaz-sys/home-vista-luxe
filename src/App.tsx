@@ -4,35 +4,35 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { lazy, Suspense, useEffect, useState } from "react";
-import { useHAStore } from "./store/useHAStore";
-import { ErrorBoundary } from "./components/ErrorBoundary";
+import { useHAStore } from "@/store/useHAStore";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "next-themes";
-import Onboarding from "./pages/Onboarding";
-import Auth from "./pages/Auth";
-import { useAuth } from "./hooks/useAuth";
-import { useInitializeConnection } from "./hooks/useInitializeConnection";
-import { useHAClient } from "./hooks/useHAClient";
-import { useHARefreshOnForeground } from "./hooks/useHARefreshOnForeground";
-import { useDisplayMode } from "./hooks/useDisplayMode";
-import { useOrientationLock } from "./hooks/useOrientationLock";
-import { OrientationOverlay } from "./components/OrientationOverlay";
-import { IOSVisibilityGuard } from "./components/IOSVisibilityGuard";
-import { MobileRootLayout } from "./ui/mobile/MobileRootLayout";
-import { TabletRootLayout } from "./ui/tablet/TabletRootLayout";
-import { PanelRootLayout } from "./ui/panel/PanelRootLayout";
-import { PanelOnboarding } from "./ui/panel/PanelOnboarding";
+import Onboarding from "@/pages/Onboarding";
+import Auth from "@/pages/Auth";
+import { useAuth } from "@/hooks/useAuth";
+import { useInitializeConnection } from "@/hooks/useInitializeConnection";
+import { useHAClient } from "@/hooks/useHAClient";
+import { useHARefreshOnForeground } from "@/hooks/useHARefreshOnForeground";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
+import { useOrientationLock } from "@/hooks/useOrientationLock";
+import { OrientationOverlay } from "@/components/OrientationOverlay";
+import { IOSVisibilityGuard } from "@/components/IOSVisibilityGuard";
+import { MobileRootLayout } from "@/ui/mobile/MobileRootLayout";
+import { TabletRootLayout } from "@/ui/tablet/TabletRootLayout";
+import { PanelRootLayout } from "@/ui/panel/PanelRootLayout";
+import { PanelOnboarding } from "@/ui/panel/PanelOnboarding";
 
 // Lazy load pages avec dependencies lourdes
-const Admin = lazy(() => import("./pages/Admin"));
-const OnboardingScan = lazy(() => import("./pages/OnboardingScan"));
-const OnboardingManual = lazy(() => import("./pages/OnboardingManual"));
+const Admin = lazy(() => import("@/pages/Admin"));
+const OnboardingScan = lazy(() => import("@/pages/OnboardingScan"));
+const OnboardingManual = lazy(() => import("@/pages/OnboardingManual"));
 
 const queryClient = new QueryClient();
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const connection = useHAStore((state) => state.connection);
   const isConnected = useHAStore((state) => state.isConnected);
-  const hasValidConnection = connection && connection.url && connection.token;
+  const hasValidConnection = !!(connection && connection.url && connection.token);
   const [showBackButton, setShowBackButton] = useState(false);
   const navigate = useNavigate();
   const { displayMode } = useDisplayMode();
@@ -102,7 +102,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => {
-  // Initialisation de la connexion HA
+  // Initialisation de la connexion HA (restaure url/token depuis le storage et met à jour le store)
   const isInitialized = useInitializeConnection();
   const { displayMode } = useDisplayMode();
 
