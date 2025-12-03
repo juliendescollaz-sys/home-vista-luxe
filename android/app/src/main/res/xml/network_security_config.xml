@@ -1,14 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!--
-      Autorise le trafic HTTP non chiffré (cleartext) pour l'application.
-      Nécessaire pour joindre Neolia Configurator sur le LAN en http://IP:PORT.
-      Cela ne concerne que l'APK Panel, pas le navigateur.
-    -->
-    <base-config cleartextTrafficPermitted="true">
-        <trust-anchors>
-            <certificates src="system" />
-            <certificates src="user" />
-        </trust-anchors>
-    </base-config>
+    <!-- Autoriser le HTTP clair vers Home Assistant -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain>192.168.1.219</domain>
+    </domain-config>
 </network-security-config>
