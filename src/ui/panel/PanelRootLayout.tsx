@@ -17,17 +17,49 @@ import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
 export function PanelRootLayout() {
   const [hasConfig, setHasConfig] = useState<boolean | null>(null);
 
+  // a) On mémorise si ce panel a déjà eu une config HA au moins une fois
+  const [hasEverHadConfig, setHasEverHadConfig] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem("neolia_panel_has_config") === "1";
+    } catch {
+      return false;
+    }
+  });
+
   // Précharger les plans Neolia dès la connexion HA
   useNeoliaPlansPreloader();
 
   useEffect(() => {
-    hasHaConfig().then(setHasConfig);
+    let isMounted = true;
+
+    hasHaConfig().then((result) => {
+      if (!isMounted) return;
+      setHasConfig(result);
+
+      if (result) {
+        setHasEverHadConfig(true);
+        try {
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem("neolia_panel_has_config", "1");
+          }
+        } catch {
+          // ignore
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  if (hasConfig === false) {
+  // Cas 1 : on sait qu'il n'y a PAS de config ET qu'il n'y en a JAMAIS eu → Onboarding
+  if (hasConfig === false && !hasEverHadConfig) {
     return <PanelOnboarding />;
   }
 
+  // Cas 2 : on ne sait pas encore → écran de chargement
   if (hasConfig === null) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
@@ -39,7 +71,8 @@ export function PanelRootLayout() {
     );
   }
 
-  // Config OK → layout normal
+  // Cas 3 : config OK OU déjà existée par le passé → layout normal
+  // Même si la connexion tombe ensuite, on reste dans l'UI Panel.
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="panel-layout flex h-screen w-screen overflow-hidden bg-background">
@@ -60,7 +93,7 @@ export function PanelRootLayout() {
               <Route path="/" element={<PanelHome />} />
               <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<PanelHome />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
         </div>
