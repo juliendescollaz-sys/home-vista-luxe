@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Server, AlertCircle, CheckCircle2 } from "lucide-react";
 import { setHaConfig } from "@/services/haConfig";
 import { useHAStore } from "@/store/useHAStore";
+import { useNeoliaSettings } from "@/store/useNeoliaSettings";
+import { isPanelMode } from "@/lib/platform";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 import neoliaLogo from "@/assets/neolia-logo.png";
 
@@ -37,8 +39,14 @@ function normalizeHaBaseUrl(raw: string): string {
 
 /**
  * Écran d'onboarding spécifique au mode PANEL
- * Nouvelle version : le panneau récupère sa configuration depuis Home Assistant
- * via l'endpoint GET /api/neolia/panel_config/NEOLIA_DEFAULT_PANEL.
+ * 
+ * Mode Panel (Zero-Config) :
+ * - Skip total de l'UI d'onboarding
+ * - Configuration MQTT automatique avec valeurs par défaut
+ * - Redirection immédiate vers l'écran principal
+ * 
+ * Mode Mobile/Tablet :
+ * - Affiche l'UI classique de récupération de config via HA
  */
 export function PanelOnboarding() {
   const [haBaseUrl, setHaBaseUrl] = useState("");
@@ -46,6 +54,56 @@ export function PanelOnboarding() {
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const setConnection = useHAStore((state) => state.setConnection);
+
+  const {
+    setMqttHost,
+    setMqttPort,
+    setMqttUseSecure,
+    setMqttUsername,
+    setMqttPassword,
+  } = useNeoliaSettings();
+
+  // ============================================
+  // MODE PANEL : Zero-Config automatique
+  // ============================================
+  useEffect(() => {
+    if (isPanelMode()) {
+      console.log("[PanelOnboarding] Mode Panel détecté → Zero-Config automatique");
+
+      // Configuration MQTT par défaut pour le Panel
+      setMqttHost("homeassistant.local");
+      setMqttPort(1884);
+      setMqttUseSecure(false);
+      setMqttUsername("panel");
+      setMqttPassword("PanelMQTT!2025");
+
+      console.log("[PanelOnboarding] Configuration MQTT appliquée, onboarding terminé");
+
+      // Redirection vers l'écran principal après un court délai
+      // pour permettre aux stores de se mettre à jour
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 100);
+    }
+  }, [setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword]);
+
+  // ============================================
+  // MODE PANEL : Ne jamais afficher l'UI
+  // ============================================
+  if (isPanelMode()) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+          <p className="text-lg text-muted-foreground">Configuration automatique du panneau…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================
+  // MODE MOBILE/TABLET : UI d'onboarding classique
+  // ============================================
 
   const handleImportConfig = async () => {
     const trimmed = haBaseUrl.trim();
