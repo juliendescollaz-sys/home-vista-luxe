@@ -53,8 +53,8 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     };
   }, [hasValidConnection, isConnected, displayMode]);
 
-  // Cas 1 : on a une config HA mais pas encore la connexion WebSocket
-  // ⚠️ On NE bloque PAS le mode PANEL ici, sinon le panel reste coincé sur "Connexion en cours..."
+  // Cas 1 : config HA présente mais WebSocket pas encore connecté
+  // → on NE bloque pas le mode PANEL ici, sinon il reste coincé sur "Connexion en cours..."
   if (displayMode !== "panel" && hasValidConnection && !isConnected) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -75,7 +75,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 
   // Cas 2 : aucune configuration Home Assistant
   if (!hasValidConnection) {
-    // En mode PANEL, on affiche directement l'onboarding Panel (auto MQTT / manuel)
+    // En mode PANEL, on reste sur l'onboarding Panel (auto MQTT / manuel)
     if (displayMode === "panel") {
       return <PanelOnboarding />;
     }
@@ -84,7 +84,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/onboarding" />;
   }
 
-  // Cas 3 : connexion OK (ou mode PANEL avec config mais WS pas encore OK) → rendu normal
+  // Cas 3 : connexion OK (ou mode PANEL avec config mais WS pas encore up) → rendu normal
   return <>{children}</>;
 };
 
@@ -117,14 +117,12 @@ const App = () => {
   useEffect(() => {
     let lastTouchEnd = 0;
 
-    // Prevent pinch-zoom (multi-touch)
     const preventPinchZoom = (e: TouchEvent) => {
       if (e.touches.length > 1) {
         e.preventDefault();
       }
     };
 
-    // Prevent double-tap zoom on iOS
     const preventDoubleTapZoom = (e: TouchEvent) => {
       const now = Date.now();
       if (now - lastTouchEnd <= 300) {
@@ -163,7 +161,9 @@ const App = () => {
                 <Routes>
                   {/* Routes publiques (onboarding, auth, admin) */}
                   <Route path="/auth" element={<Auth />} />
-                  <Route path="/onboarding" element={<Onboarding />} />
+
+                  {/* Onboarding : dépend du mode */}
+                  <Route path="/onboarding" element={displayMode === "panel" ? <PanelOnboarding /> : <Onboarding />} />
                   <Route
                     path="/onboarding/scan"
                     element={
@@ -180,6 +180,7 @@ const App = () => {
                       </Suspense>
                     }
                   />
+
                   <Route
                     path="/admin"
                     element={
