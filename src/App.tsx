@@ -37,7 +37,8 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { displayMode } = useDisplayMode();
 
   useEffect(() => {
-    if (!hasValidConnection || isConnected) {
+    // En mode Panel : jamais de bouton "Retour à la configuration"
+    if (!hasValidConnection || isConnected || displayMode === "panel") {
       setShowBackButton(false);
       return;
     }
@@ -49,7 +50,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     return () => {
       clearTimeout(timer);
     };
-  }, [hasValidConnection, isConnected]);
+  }, [hasValidConnection, isConnected, displayMode]);
 
   // Cas 1 : on a une config HA mais pas encore la connexion WebSocket
   if (hasValidConnection && !isConnected) {
