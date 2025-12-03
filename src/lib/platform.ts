@@ -1,8 +1,8 @@
 import { Capacitor } from "@capacitor/core";
 
 /**
- * Retourne true si l'application tourne dans une WebView Capacitor
- * sur Android (cas des panneaux type S563 / APK Panel).
+ * Détecte si l'application tourne dans une WebView Capacitor
+ * sur un appareil Android natif (ex : Panel S563 en APK).
  */
 export function isNativeAndroid(): boolean {
   try {
@@ -14,20 +14,10 @@ export function isNativeAndroid(): boolean {
 }
 
 /**
- * Mode "Panel" :
- *
- * ⚠️ TEMPORAIREMENT DÉSACTIVÉ
- * On force false pour que l'app utilise le même chemin de connexion
- * que sur PC (connectNeoliaMqttStandard + UI classique),
- * même lorsqu'elle tourne dans l'APK panel Android.
- *
- * Dès que l'on aura validé que la connexion MQTT fonctionne bien
- * sur le panel avec ce mode "standard", on pourra réactiver
- * la logique native Android en remettant :
- *
- *   return isNativeAndroid();
+ * Mode Panel activé :
+ * L'application fonctionne en mode Panel lorsqu'elle tourne
+ * dans un runtime Android natif (APK via Capacitor).
  */
 export function isPanelMode(): boolean {
-  return false;
-  // return isNativeAndroid(); // à réactiver plus tard
+  return isNativeAndroid();
 }
