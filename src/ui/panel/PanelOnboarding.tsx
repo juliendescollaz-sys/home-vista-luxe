@@ -79,6 +79,16 @@ export function PanelOnboarding() {
       setPanelSuccess(true);
       setPanelConnecting(false);
 
+      // ✅ Marquer ce panneau comme ayant déjà eu une config,
+      // pour que PanelRootLayout ne renvoie plus vers PanelOnboarding
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("neolia_panel_has_config", "1");
+        }
+      } catch {
+        // on ignore les erreurs de stockage
+      }
+
       setTimeout(() => {
         window.location.href = "/";
       }, 500);
