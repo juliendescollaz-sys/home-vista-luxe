@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Server, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, Server, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { setHaConfig } from "@/services/haConfig";
 import { useHAStore } from "@/store/useHAStore";
 import { useNeoliaSettings } from "@/store/useNeoliaSettings";
 import { isPanelMode } from "@/lib/platform";
+import { connectNeoliaMqttPanel } from "@/components/neolia/bootstrap/neoliaMqttClient";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 import neoliaLogo from "@/assets/neolia-logo.png";
 
@@ -49,11 +50,21 @@ function normalizeHaBaseUrl(raw: string): string {
  * - Affiche l'UI classique de récupération de config via HA
  */
 export function PanelOnboarding() {
+  // ============================================
+  // STATE pour mode Mobile/Tablet (onboarding classique)
+  // ============================================
   const [haBaseUrl, setHaBaseUrl] = useState("");
   const [status, setStatus] = useState<OnboardingStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const setConnection = useHAStore((state) => state.setConnection);
+
+  // ============================================
+  // STATE pour mode Panel (connexion MQTT auto)
+  // ============================================
+  const [panelConnecting, setPanelConnecting] = useState(true);
+  const [panelError, setPanelError] = useState(false);
+  const [panelSuccess, setPanelSuccess] = useState(false);
 
   const {
     setMqttHost,
@@ -64,38 +75,152 @@ export function PanelOnboarding() {
   } = useNeoliaSettings();
 
   // ============================================
-  // MODE PANEL : Zero-Config automatique
+  // MODE PANEL : Tentative de connexion MQTT
   // ============================================
-  useEffect(() => {
-    if (isPanelMode()) {
-      console.log("[PanelOnboarding] Mode Panel détecté → Zero-Config automatique");
+  const attemptPanelConnection = useCallback(async () => {
+    console.log("[PanelOnboarding] Tentative de connexion MQTT Panel...");
+    
+    setPanelConnecting(true);
+    setPanelError(false);
+    setPanelSuccess(false);
 
-      // Configuration MQTT par défaut pour le Panel
-      setMqttHost("homeassistant.local");
-      setMqttPort(1884);
-      setMqttUseSecure(false);
-      setMqttUsername("panel");
-      setMqttPassword("PanelMQTT!2025");
+    // Appliquer les valeurs MQTT par défaut
+    setMqttHost("homeassistant.local");
+    setMqttPort(1884);
+    setMqttUseSecure(false);
+    setMqttUsername("panel");
+    setMqttPassword("PanelMQTT!2025");
 
-      console.log("[PanelOnboarding] Configuration MQTT appliquée, onboarding terminé");
+    try {
+      const result = await connectNeoliaMqttPanel(
+        () => {
+          console.log("[PanelOnboarding] Connexion MQTT réussie");
+        },
+        (error) => {
+          console.error("[PanelOnboarding] Erreur MQTT:", error);
+        }
+      );
 
-      // Redirection vers l'écran principal après un court délai
-      // pour permettre aux stores de se mettre à jour
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 100);
+      if (result.client) {
+        console.log("[PanelOnboarding] Client MQTT connecté, redirection...");
+        setPanelSuccess(true);
+        setPanelConnecting(false);
+
+        // Redirection vers l'écran principal
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 500);
+      } else {
+        console.error("[PanelOnboarding] Échec connexion MQTT (ports 1884 et 9001)");
+        setPanelError(true);
+        setPanelConnecting(false);
+      }
+    } catch (error) {
+      console.error("[PanelOnboarding] Exception lors de la connexion MQTT:", error);
+      setPanelError(true);
+      setPanelConnecting(false);
     }
   }, [setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword]);
 
   // ============================================
-  // MODE PANEL : Ne jamais afficher l'UI
+  // MODE PANEL : Lancer la connexion au montage
+  // ============================================
+  useEffect(() => {
+    if (isPanelMode()) {
+      attemptPanelConnection();
+    }
+  }, [attemptPanelConnection]);
+
+  // ============================================
+  // MODE PANEL : Rendu de l'UI
   // ============================================
   if (isPanelMode()) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-          <p className="text-lg text-muted-foreground">Configuration automatique du panneau…</p>
+      <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-background">
+        <div className="w-full max-w-lg space-y-8">
+          {/* Logo */}
+          <div className="flex justify-center mb-8">
+            <img
+              src={neoliaLogoDark}
+              alt="Neolia Logo Dark"
+              className="h-14 dark:hidden"
+            />
+            <img
+              src={neoliaLogo}
+              alt="Neolia Logo"
+              className="h-14 hidden dark:block"
+            />
+          </div>
+
+          <Card className="shadow-2xl border-2">
+            <CardHeader className="text-center space-y-2">
+              <CardTitle className="text-2xl">Configuration automatique du panneau</CardTitle>
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              {/* État : Connexion en cours */}
+              {panelConnecting && (
+                <div className="flex flex-col items-center gap-4 py-8">
+                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                  <p className="text-lg text-muted-foreground">Connexion à Home Assistant…</p>
+                  <p className="text-sm text-muted-foreground">
+                    Tentative sur les ports 1884 et 9001
+                  </p>
+                </div>
+              )}
+
+              {/* État : Succès */}
+              {panelSuccess && (
+                <div className="flex flex-col items-center gap-4 py-8">
+                  <CheckCircle2 className="h-12 w-12 text-green-500" />
+                  <p className="text-lg text-green-600 dark:text-green-400">Connexion établie</p>
+                  <p className="text-sm text-muted-foreground">Redirection en cours…</p>
+                </div>
+              )}
+
+              {/* État : Échec */}
+              {panelError && (
+                <div className="flex flex-col items-center gap-4 py-4">
+                  <AlertCircle className="h-12 w-12 text-destructive" />
+                  
+                  <p className="text-lg font-medium text-destructive text-center">
+                    Impossible de se connecter automatiquement à Home Assistant.
+                  </p>
+
+                  <div className="text-sm text-muted-foreground space-y-2 text-center mt-2">
+                    <p className="font-medium">Assurez-vous que :</p>
+                    <ul className="space-y-1 text-left list-none">
+                      <li className="flex items-start gap-2">
+                        <span className="text-muted-foreground">–</span>
+                        <span>Votre Home Assistant est bien allumé et connecté au réseau.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-muted-foreground">–</span>
+                        <span>L'addon Mosquitto Broker est installé et en cours d'exécution.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-muted-foreground">–</span>
+                        <span>Le WebSocket MQTT est activé sur le port 1884 (ou 9001 selon votre configuration).</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-muted-foreground">–</span>
+                        <span>Le panel est connecté au même réseau local.</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <Button
+                    onClick={attemptPanelConnection}
+                    size="lg"
+                    className="mt-4 h-14 px-8"
+                  >
+                    <RefreshCw className="mr-2 h-5 w-5" />
+                    Réessayer
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
