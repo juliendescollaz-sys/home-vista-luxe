@@ -20,6 +20,7 @@ import { IOSVisibilityGuard } from "./components/IOSVisibilityGuard";
 import { MobileRootLayout } from "./ui/mobile/MobileRootLayout";
 import { TabletRootLayout } from "./ui/tablet/TabletRootLayout";
 import { PanelRootLayout } from "./ui/panel/PanelRootLayout";
+import { PanelOnboarding } from "./ui/panel/PanelOnboarding";
 
 // Lazy load pages avec dependencies lourdes
 const Admin = lazy(() => import("./pages/Admin"));
@@ -73,9 +74,9 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 
   // Cas 2 : aucune configuration Home Assistant
   if (!hasValidConnection) {
-    // En mode PANEL, on laisse le layout panel gérer son onboarding (PanelOnboarding via PanelRootLayout)
+    // En mode PANEL, on affiche directement l'onboarding Panel (auto MQTT / manuel)
     if (displayMode === "panel") {
-      return <PanelRootLayout />;
+      return <PanelOnboarding />;
     }
 
     // En mobile/tablette : onboarding classique
