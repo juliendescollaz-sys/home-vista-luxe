@@ -10,6 +10,12 @@ import { toast } from "sonner";
 import neoliaLogo from "@/assets/neolia-logo.png";
 import { z } from "zod";
 import { setHaConfig } from "@/services/haConfig";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
+
+// URLs par défaut selon le mode
+const HA_URL_CLOUD = "https://bl09dhclkeomkczlb0b7ktsssxmevmdq.ui.nabu.casa";
+const HA_URL_LAN = "http://192.168.1.219:8123";
+const HA_TOKEN_DEFAULT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM";
 
 const urlSchema = z.string()
   .trim()
@@ -27,24 +33,29 @@ const tokenSchema = z.string()
 
 const OnboardingManual = () => {
   const navigate = useNavigate();
+  const { displayMode } = useDisplayMode();
   
-  // Initialiser avec les valeurs pré-remplies depuis localStorage (si provenant du Configurator)
-  const [url, setUrl] = useState(() => {
+  // URL par défaut selon le mode : Panel = LAN, Mobile/Tablet = Cloud
+  const getDefaultUrl = () => {
     const prefill = localStorage.getItem("neolia_prefill_url");
     if (prefill) {
       localStorage.removeItem("neolia_prefill_url");
       return prefill;
     }
-    return "http://192.168.1.219:8123";
-  });
-  const [token, setToken] = useState(() => {
+    return displayMode === "panel" ? HA_URL_LAN : HA_URL_CLOUD;
+  };
+  
+  const getDefaultToken = () => {
     const prefill = localStorage.getItem("neolia_prefill_token");
     if (prefill) {
       localStorage.removeItem("neolia_prefill_token");
       return prefill;
     }
-    return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM";
-  });
+    return HA_TOKEN_DEFAULT;
+  };
+  
+  const [url, setUrl] = useState(getDefaultUrl);
+  const [token, setToken] = useState(getDefaultToken);
   const [isConnecting, setIsConnecting] = useState(false);
   const setConnection = useHAStore((state) => state.setConnection);
   const setConnected = useHAStore((state) => state.setConnected);
