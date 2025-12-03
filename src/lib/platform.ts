@@ -23,7 +23,7 @@ export function isNativeAndroid(): boolean {
  *
  * Dès que l'on aura validé que la connexion MQTT fonctionne bien
  * sur le panel avec ce mode "standard", on pourra réactiver
- * la logique native Android en remettant:
+ * la logique native Android en remettant :
  *
  *   return isNativeAndroid();
  */
