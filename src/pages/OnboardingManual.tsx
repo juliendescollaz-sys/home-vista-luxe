@@ -35,7 +35,7 @@ const OnboardingManual = () => {
       localStorage.removeItem("neolia_prefill_url");
       return prefill;
     }
-    return "";
+    return "http://192.168.1.219:8123";
   });
   const [token, setToken] = useState(() => {
     const prefill = localStorage.getItem("neolia_prefill_token");
@@ -43,7 +43,7 @@ const OnboardingManual = () => {
       localStorage.removeItem("neolia_prefill_token");
       return prefill;
     }
-    return "";
+    return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM";
   });
   const [isConnecting, setIsConnecting] = useState(false);
   const setConnection = useHAStore((state) => state.setConnection);
