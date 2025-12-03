@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { HAClient } from "@/lib/haClient";
 import { useHAStore } from "@/store/useHAStore";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 import type { HAEntity } from "@/types/homeassistant";
 
 export function useHAClient() {
@@ -11,6 +12,8 @@ export function useHAClient() {
   const setFloors = useHAStore((state) => state.setFloors);
   const setDevices = useHAStore((state) => state.setDevices);
   const setEntityRegistry = useHAStore((state) => state.setEntityRegistry);
+  const { displayMode } = useDisplayMode();
+  const isPanel = displayMode === "panel";
   
   const clientRef = useRef<HAClient | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
@@ -92,7 +95,11 @@ export function useHAClient() {
 
   useEffect(() => {
     if (!connection || !connection.url || !connection.token) {
-      console.log("⚠️ Pas de connexion configurée");
+      if (isPanel) {
+        console.log("[NEOLIA][PANEL] ⚠️ Pas de connexion configurée");
+      } else {
+        console.log("⚠️ Pas de connexion configurée");
+      }
       setConnected(false);
       return;
     }
@@ -104,7 +111,14 @@ export function useHAClient() {
       setError(null);
 
       try {
-        console.log("🔄 Initialisation du client HA...");
+        if (isPanel) {
+          console.log("[NEOLIA][PANEL] 🔄 Initialisation du client HA...");
+          console.log("[NEOLIA][PANEL] HA base URL =", connection.url);
+          console.log("[NEOLIA][PANEL] Tentative de connexion à Home Assistant...");
+        } else {
+          console.log("🔄 Initialisation du client HA...");
+        }
+        
         const client = new HAClient({
           baseUrl: connection.url,
           token: connection.token,
@@ -116,6 +130,10 @@ export function useHAClient() {
         clientRef.current = client;
         useHAStore.getState().setClient(client);
         setConnected(true);
+        
+        if (isPanel) {
+          console.log("[NEOLIA][PANEL] ✅ Connexion HA établie avec succès");
+        }
 
         // Synchronisation initiale
         await fullSync(client);
@@ -156,7 +174,12 @@ export function useHAClient() {
           window.removeEventListener("online", onOnline);
         };
       } catch (error) {
-        console.error("❌ Erreur de connexion:", error);
+        if (isPanel) {
+          console.error("[NEOLIA][PANEL] ❌ Erreur connexion HA:", error);
+          console.error("[NEOLIA][PANEL] URL tentée:", connection.url);
+        } else {
+          console.error("❌ Erreur de connexion:", error);
+        }
         setError(error instanceof Error ? error.message : "Erreur de connexion");
         setConnected(false);
       } finally {
