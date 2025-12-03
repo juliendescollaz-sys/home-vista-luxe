@@ -4,7 +4,6 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TabletSidebar } from "@/components/TabletSidebar";
 import { PanelHome } from "./pages/PanelHome";
-import { PanelOnboarding } from "./PanelOnboarding";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
@@ -17,16 +16,6 @@ import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
 export function PanelRootLayout() {
   const [hasConfig, setHasConfig] = useState<boolean | null>(null);
 
-  // a) On mémorise si ce panel a déjà eu une config HA au moins une fois
-  const [hasEverHadConfig, setHasEverHadConfig] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.localStorage.getItem("neolia_panel_has_config") === "1";
-    } catch {
-      return false;
-    }
-  });
-
   // Précharger les plans Neolia dès la connexion HA
   useNeoliaPlansPreloader();
 
@@ -36,17 +25,6 @@ export function PanelRootLayout() {
     hasHaConfig().then((result) => {
       if (!isMounted) return;
       setHasConfig(result);
-
-      if (result) {
-        setHasEverHadConfig(true);
-        try {
-          if (typeof window !== "undefined") {
-            window.localStorage.setItem("neolia_panel_has_config", "1");
-          }
-        } catch {
-          // ignore
-        }
-      }
     });
 
     return () => {
@@ -54,12 +32,6 @@ export function PanelRootLayout() {
     };
   }, []);
 
-  // Cas 1 : on sait qu'il n'y a PAS de config ET qu'il n'y en a JAMAIS eu → Onboarding
-  if (hasConfig === false && !hasEverHadConfig) {
-    return <PanelOnboarding />;
-  }
-
-  // Cas 2 : on ne sait pas encore → écran de chargement
   if (hasConfig === null) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
@@ -71,8 +43,8 @@ export function PanelRootLayout() {
     );
   }
 
-  // Cas 3 : config OK OU déjà existée par le passé → layout normal
-  // Même si la connexion tombe ensuite, on reste dans l'UI Panel.
+  // Config ou pas : on reste toujours dans le layout PANEL,
+  // plus jamais de retour automatique vers PanelOnboarding.
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="panel-layout flex h-screen w-screen overflow-hidden bg-background">
