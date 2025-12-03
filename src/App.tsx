@@ -54,7 +54,8 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   }, [hasValidConnection, isConnected, displayMode]);
 
   // Cas 1 : on a une config HA mais pas encore la connexion WebSocket
-  if (hasValidConnection && !isConnected) {
+  // ⚠️ On NE bloque PAS le mode PANEL ici, sinon le panel reste coincé sur "Connexion en cours..."
+  if (displayMode !== "panel" && hasValidConnection && !isConnected) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -83,7 +84,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/onboarding" />;
   }
 
-  // Cas 3 : connexion OK → rendu normal
+  // Cas 3 : connexion OK (ou mode PANEL avec config mais WS pas encore OK) → rendu normal
   return <>{children}</>;
 };
 
