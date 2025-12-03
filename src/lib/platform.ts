@@ -14,9 +14,20 @@ export function isNativeAndroid(): boolean {
 }
 
 /**
- * Mode "Panel" = runtime natif Android via Capacitor.
- * Cette fonction est utilisée à la fois par l'onboarding et par le hook useDisplayMode.
+ * Mode "Panel" :
+ *
+ * ⚠️ TEMPORAIREMENT DÉSACTIVÉ
+ * On force false pour que l'app utilise le même chemin de connexion
+ * que sur PC (connectNeoliaMqttStandard + UI classique),
+ * même lorsqu'elle tourne dans l'APK panel Android.
+ *
+ * Dès que l'on aura validé que la connexion MQTT fonctionne bien
+ * sur le panel avec ce mode "standard", on pourra réactiver
+ * la logique native Android en remettant:
+ *
+ *   return isNativeAndroid();
  */
 export function isPanelMode(): boolean {
-  return isNativeAndroid();
+  return false;
+  // return isNativeAndroid(); // à réactiver plus tard
 }
