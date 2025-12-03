@@ -31,28 +31,30 @@ export function buildNeoliaMqttWsUrl(options: NeoliaMqttConnectOptions): string 
 
 /**
  * Tente une connexion MQTT sur un port donné avec timeout.
- * Retourne le client connecté ou null si échec.
+ * - Résout avec un client connecté si succès.
+ * - Rejette en cas d'échec ou de timeout.
  */
 function tryConnectMqttPort(
   url: string,
   username?: string,
   password?: string,
-  timeoutMs: number = 5000
-): Promise<MqttClient | null> {
-  return new Promise((resolve) => {
+  timeoutMs: number = 5000,
+): Promise<MqttClient> {
+  return new Promise((resolve, reject) => {
     const client = mqtt.connect(url, {
       username,
       password,
       reconnectPeriod: 0, // Pas de reconnexion auto pendant le test
       connectTimeout: timeoutMs,
+      protocol: "ws",
     });
 
     const timeout = setTimeout(() => {
-      console.warn("[NeoliaMQTT] Connection timeout for", url);
+      console.warn("[NeoliaMQTT PANEL] Connection timeout for", url);
       try {
         client.end(true);
       } catch {}
-      resolve(null);
+      reject(new Error(`Timeout de connexion MQTT sur ${url}`));
     }, timeoutMs);
 
     client.on("connect", () => {
@@ -63,11 +65,11 @@ function tryConnectMqttPort(
 
     client.on("error", (err) => {
       clearTimeout(timeout);
-      console.warn("[NeoliaMQTT PANEL] Échec connexion", url, err.message);
+      console.warn("[NeoliaMQTT PANEL] Échec connexion", url, err?.message);
       try {
         client.end(true);
       } catch {}
-      resolve(null);
+      reject(err instanceof Error ? err : new Error(String(err)));
     });
   });
 }
@@ -76,18 +78,15 @@ function tryConnectMqttPort(
  * Connexion MQTT spécifique au mode Panel avec fallback automatique.
  * Tente d'abord le port 1884 (HA Green / nouvelles configs),
  * puis fallback sur 9001 (anciennes configs Mosquitto).
+ *
+ * - En cas de succès : retourne { client } avec un client connecté.
+ * - En cas d'échec sur 1884 ET 9001 : lève une exception.
  */
 export async function connectNeoliaMqttPanel(
   onConnect?: () => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
 ): Promise<NeoliaMqttConnection> {
-  const {
-    mqttHost,
-    mqttUseSecure,
-    mqttUsername,
-    mqttPassword,
-    setMqttPort,
-  } = useNeoliaSettings.getState();
+  const { mqttHost, mqttUseSecure, mqttUsername, mqttPassword, setMqttPort } = useNeoliaSettings.getState();
 
   const scheme = mqttUseSecure ? "wss" : "ws";
 
@@ -98,12 +97,12 @@ export async function connectNeoliaMqttPanel(
 
   for (const port of tryPorts) {
     const url = `${scheme}://${mqttHost}:${port}/mqtt`;
-
     console.log("[NeoliaMQTT PANEL] Tentative de connexion :", url);
 
-    const client = await tryConnectMqttPort(url, mqttUsername, mqttPassword);
+    try {
+      const client = await tryConnectMqttPort(url, mqttUsername, mqttPassword);
 
-    if (client) {
+      // Si on arrive ici, la connexion est OK
       console.log("[NeoliaMQTT PANEL] Connecté via port", port);
       setMqttPort(port);
 
@@ -115,19 +114,24 @@ export async function connectNeoliaMqttPanel(
       }
 
       return { client };
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.warn(`[NeoliaMQTT PANEL] Échec sur le port ${port}, on tente le suivant si disponible`, error.message);
+      if (onError) {
+        onError(error);
+      }
+      // on continue la boucle pour tenter le port suivant
     }
   }
 
-  const error = new Error(
-    "MQTT WebSocket unreachable on ports 1884 and 9001 (Panel Mode)"
-  );
-  console.error("[NeoliaMQTT PANEL]", error.message);
-
+  const finalError = new Error("MQTT WebSocket unreachable on ports 1884 and 9001 (Panel Mode)");
+  console.error("[NeoliaMQTT PANEL]", finalError.message);
   if (onError) {
-    onError(error);
+    onError(finalError);
   }
 
-  return { client: null };
+  // Ici on LÈVE l'erreur pour que PanelOnboarding puisse afficher l'aide
+  throw finalError;
 }
 
 /**
@@ -140,12 +144,12 @@ export async function connectNeoliaMqttPanel(
 export function connectNeoliaMqttStandard(
   options: NeoliaMqttConnectOptions,
   onConnect?: () => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
 ): NeoliaMqttConnection {
   const defaultPort = options.useSecure ? 8884 : 1884;
 
   const defaults: NeoliaMqttConnectOptions = {
-    host: "192.168.1.219",
+    host: "192.168.1.219", // valeur de dev, écrasée par options si différent
     port: defaultPort,
     useSecure: false,
   };
@@ -158,17 +162,13 @@ export function connectNeoliaMqttStandard(
 
   const url = buildNeoliaMqttWsUrl(finalOptions);
 
-  console.log(
-    "[NeoliaMQTT] connectNeoliaMqttStandard - final options:",
-    finalOptions,
-    "url:",
-    url
-  );
+  console.log("[NeoliaMQTT] connectNeoliaMqttStandard - final options:", finalOptions, "url:", url);
 
   const client = mqtt.connect(url, {
     username: finalOptions.username,
     password: finalOptions.password,
     reconnectPeriod: 5000,
+    protocol: "ws",
   });
 
   client.on("connect", () => {
@@ -200,7 +200,7 @@ export function connectNeoliaMqttStandard(
 export function connectNeoliaMqtt(
   options: NeoliaMqttConnectOptions,
   onConnect?: () => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
 ): NeoliaMqttConnection | Promise<NeoliaMqttConnection> {
   // Mode Panel : Zero-Config avec fallback automatique
   if (isPanelMode()) {
@@ -218,10 +218,7 @@ export type NeoliaConfigHandler = (payload: NeoliaGlobalConfig) => void;
 /**
  * S'abonne au topic neolia/config/global et parse le payload JSON.
  */
-export function subscribeNeoliaConfigGlobal(
-  client: MqttClient,
-  handler: NeoliaConfigHandler
-): void {
+export function subscribeNeoliaConfigGlobal(client: MqttClient, handler: NeoliaConfigHandler): void {
   const topic = "neolia/config/global";
 
   client.subscribe(topic, { qos: 0 }, (err) => {
@@ -243,10 +240,7 @@ export function subscribeNeoliaConfigGlobal(
       console.log("[NeoliaMQTT] Received neolia/config/global payload:", json);
       handler(json);
     } catch (e) {
-      console.error(
-        "[NeoliaMQTT] Error parsing neolia/config/global payload:",
-        e
-      );
+      console.error("[NeoliaMQTT] Error parsing neolia/config/global payload:", e);
     }
   });
 }
