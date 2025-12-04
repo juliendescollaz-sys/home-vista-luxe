@@ -1,5 +1,6 @@
-import { Routes, Route } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
+import { useEffect, useState, useMemo } from "react";
+import { useTheme } from "next-themes";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TabletSidebar } from "@/components/TabletSidebar";
@@ -19,15 +20,54 @@ import NotFound from "@/pages/NotFound";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
 import { hasHaConfig } from "@/services/haConfig";
 import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
+import neoliaLogoLight from "@/assets/neolia-logo.png";
+import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
+
+// Mapping des routes vers les titres de page
+const ROUTE_TITLES: Record<string, string> = {
+  "/": "Accueil",
+  "/rooms": "Maison",
+  "/favorites": "Favoris",
+  "/scenes": "Scènes",
+  "/routines": "Routines",
+  "/groupes": "Groupes",
+  "/smart": "Smarthome",
+  "/settings": "Paramètres",
+  "/sonos-zones": "Zones Sonos",
+  "/dev": "Développement",
+  "/floor-plan-editor": "Éditeur de plan",
+};
 
 /**
  * Layout racine pour l'interface PANEL (écran mural)
  */
 export function PanelRootLayout() {
   const [hasConfig, setHasConfig] = useState<boolean | null>(null);
+  const location = useLocation();
+  const { theme } = useTheme();
 
   // Précharger les plans Neolia dès la connexion HA
   useNeoliaPlansPreloader();
+
+  // Déterminer le titre de la page actuelle
+  const pageTitle = useMemo(() => {
+    const path = location.pathname;
+    
+    // Vérifier les correspondances exactes d'abord
+    if (ROUTE_TITLES[path]) {
+      return ROUTE_TITLES[path];
+    }
+    
+    // Gérer les routes dynamiques
+    if (path.startsWith("/rooms/")) {
+      return "Détails pièce";
+    }
+    if (path.startsWith("/media-player/")) {
+      return "Lecteur média";
+    }
+    
+    return "";
+  }, [location.pathname]);
 
   useEffect(() => {
     let isMounted = true;
@@ -63,9 +103,24 @@ export function PanelRootLayout() {
 
         {/* Colonne principale */}
         <div className="flex flex-1 flex-col min-w-0 min-h-0">
-          {/* Header fixe */}
-          <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav shrink-0">
-            <SidebarTrigger />
+          {/* Header fixe avec logo NEOLIA et titre centré */}
+          <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav shrink-0 relative">
+            {/* Logo NEOLIA à gauche */}
+            <div className="flex items-center gap-3">
+              <SidebarTrigger />
+              <img 
+                src={theme === "light" ? neoliaLogoDark : neoliaLogoLight} 
+                alt="Neolia" 
+                className="h-6 w-auto" 
+              />
+            </div>
+
+            {/* Titre centré */}
+            {pageTitle && (
+              <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold">
+                {pageTitle}
+              </h1>
+            )}
           </header>
 
           {/* Contenu scrollable uniquement ici */}
