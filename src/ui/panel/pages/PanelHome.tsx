@@ -104,11 +104,9 @@ export function PanelHome() {
   // État de chargement
   if (!client || !entities || entities.length === 0) {
     return (
-      <div className="w-full h-full bg-background p-4">
-        <div className="w-full max-w-[1800px] mx-auto space-y-6">
-          {/* Header titre - aligné avec les autres pages Panel */}
-          <h1 className="text-2xl font-semibold">Accueil</h1>
-          
+      <div className="w-full h-full bg-background p-4 overflow-y-auto">
+        <h1 className="text-2xl font-semibold mb-6">Accueil</h1>
+        <div className="max-w-screen-xl mx-auto space-y-6">
           <Skeleton className="h-56 w-full max-w-md rounded-3xl" />
           <div className="space-y-3">
             <Skeleton className="h-6 w-40" />
@@ -124,11 +122,10 @@ export function PanelHome() {
   }
 
   return (
-    <div className="w-full h-full bg-background overflow-y-auto">
-      <div className="w-full max-w-[1800px] mx-auto p-4 space-y-6">
-        {/* Header titre - aligné avec les autres pages Panel */}
-        <h1 className="text-2xl font-semibold">Accueil</h1>
+    <div className="w-full h-full bg-background p-4 overflow-y-auto">
+      <h1 className="text-2xl font-semibold mb-6">Accueil</h1>
 
+      <div className="max-w-screen-xl mx-auto space-y-6">
         {/* Section météo */}
         <div className="animate-fade-in">
           <AnimatedWeatherTile />
