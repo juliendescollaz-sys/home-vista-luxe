@@ -1,6 +1,5 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
-import { useTheme } from "next-themes";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TabletSidebar } from "@/components/TabletSidebar";
@@ -20,8 +19,6 @@ import NotFound from "@/pages/NotFound";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
 import { hasHaConfig } from "@/services/haConfig";
 import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
-import neoliaLogoLight from "@/assets/neolia-logo.png";
-import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 
 // Mapping des routes vers les titres de page
 const ROUTE_TITLES: Record<string, string> = {
@@ -44,7 +41,6 @@ const ROUTE_TITLES: Record<string, string> = {
 export function PanelRootLayout() {
   const [hasConfig, setHasConfig] = useState<boolean | null>(null);
   const location = useLocation();
-  const { theme } = useTheme();
 
   // Précharger les plans Neolia dès la connexion HA
   useNeoliaPlansPreloader();
@@ -103,17 +99,9 @@ export function PanelRootLayout() {
 
         {/* Colonne principale */}
         <div className="flex flex-1 flex-col min-w-0 min-h-0">
-          {/* Header fixe avec logo NEOLIA et titre centré */}
+          {/* Header fixe avec titre centré */}
           <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav shrink-0 relative">
-            {/* Logo NEOLIA à gauche */}
-            <div className="flex items-center gap-3">
-              <SidebarTrigger />
-              <img 
-                src={theme === "light" ? neoliaLogoDark : neoliaLogoLight} 
-                alt="Neolia" 
-                className="h-6 w-auto" 
-              />
-            </div>
+            <SidebarTrigger />
 
             {/* Titre centré */}
             {pageTitle && (
