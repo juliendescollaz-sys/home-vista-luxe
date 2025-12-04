@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TabletSidebar } from "@/components/TabletSidebar";
-import { PanelHome } from "./pages/PanelHome";
+import Home from "@/pages/Home";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
@@ -62,7 +62,7 @@ export function PanelRootLayout() {
           <main className="flex-1 min-h-0 overflow-y-auto">
             <ScrollToTop />
             <Routes>
-              <Route path="/" element={<PanelHome />} />
+              <Route path="/" element={<Home />} />
               <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<NotFound />} />
