@@ -19,11 +19,10 @@ import NotFound from "@/pages/NotFound";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
 import { hasHaConfig } from "@/services/haConfig";
 import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
-import { useTheme } from "next-themes";
-import neoliaLogoLight from "@/assets/neolia-logo.png";
-import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 
-// Mapping des routes vers les titres de page
+import { TopBarPanel } from "@/components/TopBarPanel"; // ✅ NOUVEAU HEADER PANEL
+
+// Mapping des routes vers les titres
 const ROUTE_TITLES: Record<string, string> = {
   "/": "Accueil",
   "/rooms": "Maison",
@@ -39,43 +38,43 @@ const ROUTE_TITLES: Record<string, string> = {
 };
 
 /**
- * Layout racine pour l'interface PANEL (écran mural)
- * Header pleine largeur en haut, puis ligne Sidebar + Contenu en dessous.
+ * Layout PANEL (murale)
+ * → TopBarPanel pleine largeur
+ * → Sidebar en dessous
+ * → Contenu scrollable
  */
 export function PanelRootLayout() {
   const [hasConfig, setHasConfig] = useState<boolean | null>(null);
   const location = useLocation();
-  const { theme } = useTheme();
 
-  // Précharger les plans Neolia dès la connexion HA
+  // Préchargement des plans dès connexion HA
   useNeoliaPlansPreloader();
 
-  // Déterminer le titre de la page actuelle
+  // Déterminer le titre de la page
   const pageTitle = useMemo(() => {
     const path = location.pathname;
 
-    if (ROUTE_TITLES[path]) {
-      return ROUTE_TITLES[path];
-    }
+    if (ROUTE_TITLES[path]) return ROUTE_TITLES[path];
     if (path.startsWith("/rooms/")) return "Détails pièce";
     if (path.startsWith("/media-player/")) return "Lecteur média";
 
     return "Neolia";
   }, [location.pathname]);
 
+  // Vérifier si config HA présente
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
     hasHaConfig().then((result) => {
-      if (!isMounted) return;
-      setHasConfig(result);
+      if (mounted) setHasConfig(result);
     });
 
     return () => {
-      isMounted = false;
+      mounted = false;
     };
   }, []);
 
+  // Écran de chargement
   if (hasConfig === null) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
@@ -89,28 +88,20 @@ export function PanelRootLayout() {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      {/* Colonne principale : header en haut, row en dessous */}
       <div className="panel-layout flex flex-col h-screen w-screen overflow-hidden bg-background">
-        {/* HEADER PLEINE LARGEUR */}
-        <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav shrink-0">
-          <img
-            src={theme === "light" ? neoliaLogoDark : neoliaLogoLight}
-            alt="Neolia"
-            className="h-8 w-auto"
-          />
-          <h1 className="flex-1 text-center text-2xl font-bold -ml-8">
-            {pageTitle}
-          </h1>
-        </header>
+        
+        {/* ✅ HEADER PANEL PLEINE LARGEUR */}
+        <TopBarPanel title={pageTitle} />
 
-        {/* LIGNE : Sidebar à gauche + contenu à droite */}
+        {/* 🧱 LIGNE PRINCIPALE : Sidebar + Contenu */}
         <div className="flex flex-1 min-h-0">
-          {/* Sidebar sous le header */}
+          {/* Sidebar (naturellement sous le header) */}
           <PanelSidebar />
 
-          {/* Contenu scrollable à droite */}
+          {/* Zone de contenu scrollable */}
           <main className="flex-1 min-h-0 overflow-y-auto">
             <ScrollToTop />
+
             <Routes>
               {/* Pages principales */}
               <Route path="/" element={<PanelHome />} />
