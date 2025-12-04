@@ -14,13 +14,14 @@ import {
   provisionPanelAuto,
   provisionPanelManual,
   applyPanelConfig,
+  DEFAULT_PANEL_CODE,
 } from "@/components/neolia/bootstrap/panelProvisioning";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 import neoliaLogo from "@/assets/neolia-logo.png";
 
 type OnboardingStatus = "idle" | "loading" | "success" | "error";
 
-const PANEL_CODE = "NEOLIA_DEFAULT_PANEL";
+const PANEL_CODE = DEFAULT_PANEL_CODE;
 
 function normalizeHaBaseUrl(raw: string): string {
   let url = (raw || "").trim();
@@ -65,7 +66,7 @@ export function PanelOnboarding() {
     setMqttPassword("PanelMQTT!2025");
 
     try {
-      const config = await provisionPanelAuto();
+      const config = await provisionPanelAuto(PANEL_CODE);
       await applyPanelConfig(config);
 
       setPanelSuccess(true);
@@ -118,7 +119,7 @@ export function PanelOnboarding() {
       setStatusMessage("Connexion au broker MQTT du Home Assistant et récupération de la configuration du panneau…");
 
       try {
-        const config = await provisionPanelManual(host);
+        const config = await provisionPanelManual(host, PANEL_CODE);
         await applyPanelConfig(config);
 
         setStatus("success");
