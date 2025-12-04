@@ -1,5 +1,6 @@
 /**
  * Page Scènes pour le mode PANEL
+ * Copie complète de la version Tablet (src/pages/Scenes.tsx)
  * SANS TopBar ni BottomNav (gérés par PanelRootLayout)
  */
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -38,13 +39,11 @@ export function PanelScenes() {
   const hasScenes = scenes.length > 0;
 
   return (
-    <div className="w-full h-full bg-background p-4 overflow-y-auto">
-      <h1 className="text-2xl font-semibold mb-6">Scènes</h1>
-
+    <div className="min-h-screen bg-background">
       {!hasScenes ? (
         <SceneEmptyState onCreateScene={() => setWizardOpen(true)} />
       ) : (
-        <div className="max-w-screen-xl mx-auto">
+        <div className="max-w-screen-xl mx-auto px-4 pt-[24px] pb-4">
           <div className="flex items-center justify-between mb-6">
             <p className="text-muted-foreground">
               {scenes.length} scène{scenes.length > 1 ? "s" : ""} configurée{scenes.length > 1 ? "s" : ""}

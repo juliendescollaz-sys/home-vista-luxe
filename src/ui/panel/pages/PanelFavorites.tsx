@@ -1,5 +1,6 @@
 /**
  * Page Favoris pour le mode PANEL
+ * Copie complète de la version Tablet (src/pages/Favorites.tsx)
  * SANS TopBar ni BottomNav (gérés par PanelRootLayout)
  */
 import { useHAStore } from "@/store/useHAStore";
@@ -16,9 +17,8 @@ export function PanelFavorites() {
 
   if (!isConnected) {
     return (
-      <div className="w-full h-full bg-background p-4">
-        <h1 className="text-2xl font-semibold mb-6">Favoris</h1>
-        <div className="max-w-2xl mx-auto space-y-6">
+      <div className="w-full flex flex-col items-stretch">
+        <div className="max-w-2xl mx-auto px-4 py-4 space-y-6">
           <Skeleton className="h-64 rounded-2xl" />
         </div>
       </div>
@@ -26,9 +26,7 @@ export function PanelFavorites() {
   }
 
   return (
-    <div className="w-full h-full bg-background p-4 overflow-y-auto">
-      <h1 className="text-2xl font-semibold mb-6">Favoris</h1>
-      
+    <div className="w-full flex flex-col items-stretch">
       <HomeOverviewByTypeAndArea
         entities={entities || []}
         areas={areas}

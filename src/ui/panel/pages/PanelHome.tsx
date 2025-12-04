@@ -1,22 +1,18 @@
+/**
+ * Page Accueil pour le mode PANEL
+ * Copie complète de la version Tablet (src/pages/Home.tsx)
+ * SANS TopBar ni BottomNav (gérés par PanelRootLayout)
+ */
 import { useHAStore } from "@/store/useHAStore";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedWeatherTile } from "@/components/weather/AnimatedWeatherTile";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableCoverEntityTile } from "@/components/entities/SortableCoverEntityTile";
 import { MediaPlayerCard } from "@/components/MediaPlayerCard";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { isControllableEntity, isEntityActive } from "@/lib/entityUtils";
 
-/**
- * Page d'accueil pour le mode PANEL (S563)
- * 
- * Dashboard mural plein écran avec :
- * - Titre "Accueil" en haut (aligné avec les autres pages Panel)
- * - Section météo
- * - Liste des appareils actifs en dessous
- * - UI optimisée pour un écran fixe en paysage
- */
 export function PanelHome() {
   const client = useHAStore((state) => state.client);
   const entities = useHAStore((state) => state.entities);
@@ -24,6 +20,8 @@ export function PanelHome() {
   const floors = useHAStore((state) => state.floors);
   const devices = useHAStore((state) => state.devices);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
+  const favorites = useHAStore((state) => state.favorites);
+  const isConnected = useHAStore((state) => state.isConnected);
 
   // Trouver les device_id des media_players pour filtrer leurs entités associées
   const mediaPlayerDeviceIds = new Set(
@@ -101,20 +99,21 @@ export function PanelHome() {
     }
   };
 
-  // État de chargement
+  useEffect(() => {
+    if (!isConnected) {
+      toast.error("Connexion à Home Assistant perdue");
+    }
+  }, [isConnected]);
+
   if (!client || !entities || entities.length === 0) {
     return (
-      <div className="w-full h-full bg-background p-4 overflow-y-auto">
-        <h1 className="text-2xl font-semibold mb-6">Accueil</h1>
-        <div className="max-w-screen-xl mx-auto space-y-6">
-          <Skeleton className="h-56 w-full max-w-md rounded-3xl" />
+      <div className="min-h-screen bg-background">
+        <div className="w-full px-4 pb-[26px] pt-[24px] space-y-4">
+          <Skeleton className="h-56 w-full rounded-3xl" />
           <div className="space-y-3">
             <Skeleton className="h-6 w-40" />
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Skeleton className="h-20 w-full rounded-2xl" />
-              <Skeleton className="h-20 w-full rounded-2xl" />
-              <Skeleton className="h-20 w-full rounded-2xl" />
-            </div>
+            <Skeleton className="h-20 w-full rounded-2xl" />
+            <Skeleton className="h-20 w-full rounded-2xl" />
           </div>
         </div>
       </div>
@@ -122,10 +121,8 @@ export function PanelHome() {
   }
 
   return (
-    <div className="w-full h-full bg-background p-4 overflow-y-auto">
-      <h1 className="text-2xl font-semibold mb-6">Accueil</h1>
-
-      <div className="max-w-screen-xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background">
+      <div className="w-full px-4 pb-[26px] pt-[24px] space-y-6">
         {/* Section météo */}
         <div className="animate-fade-in">
           <AnimatedWeatherTile />
@@ -137,10 +134,10 @@ export function PanelHome() {
 
           {enrichedActiveDevices.length === 0 ? (
             <div className="flex-1 flex items-center justify-center min-h-[200px]">
-              <p className="text-lg text-muted-foreground">Aucun appareil actif</p>
+              <p className="text-muted-foreground">Aucun appareil actif</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {enrichedActiveDevices.map(({ entity, area, floor }) => {
                 const isMediaPlayer = entity.entity_id.startsWith("media_player.");
                 const isCover = entity.entity_id.startsWith("cover.");

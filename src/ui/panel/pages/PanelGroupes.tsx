@@ -1,5 +1,6 @@
 /**
  * Page Groupes pour le mode PANEL
+ * Copie complète de la version Tablet (src/pages/Groupes.tsx)
  * SANS TopBar ni BottomNav (gérés par PanelRootLayout)
  */
 import { useState, useEffect, useMemo } from "react";
@@ -32,10 +33,8 @@ export function PanelGroupes() {
   }, [syncSharedGroupsFromHA]);
 
   return (
-    <div className="w-full h-full bg-background p-4 overflow-y-auto">
-      <h1 className="text-2xl font-semibold mb-6">Groupes</h1>
-      
-      <div className="max-w-screen-xl mx-auto">
+    <div className="min-h-screen bg-background">
+      <div className="max-w-screen-xl mx-auto px-4 pt-[24px] pb-4">
         {/* Bannière d'erreur globale pour les groupes */}
         {groupErrors.length > 0 && (
           <Alert variant="destructive" className="mb-4">
