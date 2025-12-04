@@ -10,18 +10,13 @@ import { setHaConfig } from "@/services/haConfig";
 import { useHAStore } from "@/store/useHAStore";
 import { useNeoliaSettings } from "@/store/useNeoliaSettings";
 import { isPanelMode } from "@/lib/platform";
-import {
-  provisionPanelAuto,
-  provisionPanelManual,
-  applyPanelConfig,
-  DEFAULT_PANEL_CODE,
-} from "@/components/neolia/bootstrap/panelProvisioning";
+import { connectNeoliaMqttPanel } from "@/components/neolia/bootstrap/neoliaMqttClient";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 import neoliaLogo from "@/assets/neolia-logo.png";
 
 type OnboardingStatus = "idle" | "loading" | "success" | "error";
 
-const PANEL_CODE = DEFAULT_PANEL_CODE;
+const PANEL_CODE = "NEOLIA_DEFAULT_PANEL";
 
 function normalizeHaBaseUrl(raw: string): string {
   let url = (raw || "").trim();
@@ -49,16 +44,19 @@ export function PanelOnboarding() {
 
   const { setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword } = useNeoliaSettings();
 
+  /**
+   * Connexion automatique : on garde la mécanique qui marchait déjà.
+   * Host / port MQTT par défaut sont fixés ici.
+   */
   const attemptPanelConnection = useCallback(async () => {
-    console.log("[PanelOnboarding] Tentative de provisioning MQTT automatique (Panel)…");
+    console.log("[PanelOnboarding] Tentative de connexion MQTT Panel (auto)…");
 
     setPanelConnecting(true);
     setPanelError(false);
     setPanelSuccess(false);
     setPanelErrorMessage("");
 
-    // Configuration MQTT "PnP" par défaut pour le panneau
-    // (en prod, ce host pourra être adapté par l’installateur / image panel)
+    // Configuration MQTT "PnP" pour le panneau (comme auparavant)
     setMqttHost("192.168.1.219");
     setMqttPort(1884);
     setMqttUseSecure(false);
@@ -66,13 +64,27 @@ export function PanelOnboarding() {
     setMqttPassword("PanelMQTT!2025");
 
     try {
-      const config = await provisionPanelAuto(PANEL_CODE);
-      await applyPanelConfig(config);
+      const result = await connectNeoliaMqttPanel(
+        () => {
+          console.log("[PanelOnboarding] Connexion MQTT réussie (callback)");
+        },
+        (error) => {
+          console.log("[PanelOnboarding] Erreur MQTT:", error);
+          setPanelError(true);
+          setPanelConnecting(false);
+          setPanelErrorMessage(String(error?.message || error));
+        },
+      );
+
+      if (!result?.client) {
+        setPanelError(true);
+        setPanelConnecting(false);
+        return;
+      }
 
       setPanelSuccess(true);
       setPanelConnecting(false);
 
-      // Marquer ce panneau comme configuré
       try {
         if (typeof window !== "undefined") {
           window.localStorage.setItem("neolia_panel_has_config", "1");
@@ -84,28 +96,32 @@ export function PanelOnboarding() {
       setTimeout(() => {
         window.location.href = "/";
       }, 500);
-    } catch (error: any) {
-      console.error("[PanelOnboarding] Erreur provisioning automatique:", error);
+    } catch (error) {
+      console.error("[PanelOnboarding] Exception lors de la connexion MQTT:", error);
       setPanelError(true);
       setPanelConnecting(false);
-      setPanelErrorMessage(String(error?.message || error));
+      setPanelErrorMessage(String((error as any)?.message || error));
     }
   }, [setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword]);
 
-  // =================================================
-  // MODE PANEL : double choix Auto (MQTT) / Manuel (MQTT)
-  // =================================================
+  /**
+   * MODE PANEL : Auto (MQTT) / Manuel (MQTT aussi)
+   */
   if (isPanelMode()) {
+    /**
+     * Connexion manuelle : même mécanique que l’auto,
+     * mais en prenant l’IP saisie comme host MQTT.
+     */
     const handleImportConfig = async () => {
       const trimmed = haBaseUrl.trim();
 
       if (!trimmed) {
-        setErrorMessage("Veuillez saisir l'adresse IP du Home Assistant.");
+        setErrorMessage("Veuillez saisir l'adresse IP de Home Assistant.");
         setStatus("error");
         return;
       }
 
-      // Autoriser éventuellement "ip:port" mais n'utiliser que l'IP comme host MQTT
+      // On autorise éventuellement "ip:port", mais on utilise seulement la partie IP comme host MQTT
       const host = trimmed.split(":")[0].trim();
 
       if (!host) {
@@ -114,22 +130,59 @@ export function PanelOnboarding() {
         return;
       }
 
+      console.log("[PanelOnboarding] Connexion manuelle via MQTT, host:", host);
+
       setStatus("loading");
       setErrorMessage("");
-      setStatusMessage("Connexion au broker MQTT du Home Assistant et récupération de la configuration du panneau…");
+      setStatusMessage(
+        "Connexion au broker MQTT du Home Assistant et récupération de la configuration du panneau…",
+      );
+
+      // On réutilise la même mécanique que pour l’auto, mais avec un host différent
+      setMqttHost(host);
+      setMqttPort(1884);
+      setMqttUseSecure(false);
+      setMqttUsername("panel");
+      setMqttPassword("PanelMQTT!2025");
 
       try {
-        const config = await provisionPanelManual(host, PANEL_CODE);
-        await applyPanelConfig(config);
+        const result = await connectNeoliaMqttPanel(
+          () => {
+            console.log("[PanelOnboarding] Connexion MQTT manuelle réussie (callback)");
+          },
+          (error) => {
+            console.log("[PanelOnboarding] Erreur MQTT manuelle:", error);
+            setStatus("error");
+            setStatusMessage("");
+            setErrorMessage(String(error?.message || error));
+          },
+        );
+
+        if (!result?.client) {
+          setStatus("error");
+          setStatusMessage("");
+          if (!errorMessage) {
+            setErrorMessage("Connexion MQTT échouée (client indisponible).");
+          }
+          return;
+        }
 
         setStatus("success");
-        setStatusMessage("Configuration reçue et appliquée avec succès. Redirection en cours…");
+        setStatusMessage("Configuration reçue et appliquée. Redirection en cours…");
+
+        try {
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem("neolia_panel_has_config", "1");
+          }
+        } catch {
+          // ignore storage errors
+        }
 
         setTimeout(() => {
           window.location.href = "/";
         }, 500);
       } catch (error: any) {
-        console.error("[PanelOnboarding] Erreur provisioning manuel:", error);
+        console.error("[PanelOnboarding] Exception lors de la connexion MQTT manuelle:", error);
         setStatus("error");
         setStatusMessage("");
         setErrorMessage(error?.message || "Erreur inconnue lors de la connexion manuelle.");
@@ -330,7 +383,7 @@ export function PanelOnboarding() {
   }
 
   // =================================================
-  // MODE MOBILE / TABLET (inchangé : HTTP vers HA)
+  // MODE MOBILE / TABLET (inchangé)
   // =================================================
   const handleImportConfig = async () => {
     const trimmed = haBaseUrl.trim();
@@ -431,7 +484,7 @@ export function PanelOnboarding() {
               <CardTitle className="text-3xl">Configuration du panneau Neolia</CardTitle>
             </div>
             <CardDescription className="text-lg leading-relaxed">
-              L&apos;installateur a déjà poussé la configuration via Neolia Configurator.
+              L'installateur a déjà poussé la configuration via Neolia Configurator.
             </CardDescription>
           </CardHeader>
 
