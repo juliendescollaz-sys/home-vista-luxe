@@ -4,7 +4,17 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TabletSidebar } from "@/components/TabletSidebar";
 import { PanelHome } from "./pages/PanelHome";
-import Settings from "@/pages/Settings";
+import { PanelRooms } from "./pages/PanelRooms";
+import { PanelRoomDetails } from "./pages/PanelRoomDetails";
+import { PanelFavorites } from "./pages/PanelFavorites";
+import { PanelScenes } from "./pages/PanelScenes";
+import { PanelRoutines } from "./pages/PanelRoutines";
+import { PanelGroupes } from "./pages/PanelGroupes";
+import { PanelSmart } from "./pages/PanelSmart";
+import { PanelSettings } from "./pages/PanelSettings";
+import { PanelMediaPlayerDetails } from "./pages/PanelMediaPlayerDetails";
+import { PanelSonosZones } from "./pages/PanelSonosZones";
+import { PanelDev } from "./pages/PanelDev";
 import NotFound from "@/pages/NotFound";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
 import { hasHaConfig } from "@/services/haConfig";
@@ -62,9 +72,24 @@ export function PanelRootLayout() {
           <main className="flex-1 min-h-0 overflow-y-auto">
             <ScrollToTop />
             <Routes>
+              {/* Pages principales */}
               <Route path="/" element={<PanelHome />} />
+              <Route path="/rooms" element={<PanelRooms />} />
+              <Route path="/rooms/:areaId" element={<PanelRoomDetails />} />
+              <Route path="/favorites" element={<PanelFavorites />} />
+              <Route path="/scenes" element={<PanelScenes />} />
+              <Route path="/routines" element={<PanelRoutines />} />
+              <Route path="/groupes" element={<PanelGroupes />} />
+              <Route path="/smart" element={<PanelSmart />} />
+              <Route path="/settings" element={<PanelSettings />} />
+              
+              {/* Pages secondaires */}
+              <Route path="/media-player/:entityId" element={<PanelMediaPlayerDetails />} />
+              <Route path="/sonos-zones" element={<PanelSonosZones />} />
               <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/dev" element={<PanelDev />} />
+              
+              {/* 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
