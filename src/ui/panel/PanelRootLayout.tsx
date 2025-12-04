@@ -19,7 +19,9 @@ import NotFound from "@/pages/NotFound";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
 import { hasHaConfig } from "@/services/haConfig";
 import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
-import { TopBar } from "@/components/TopBar";
+import { useTheme } from "next-themes";
+import neoliaLogoLight from "@/assets/neolia-logo.png";
+import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 
 // Mapping des routes vers les titres de page
 const ROUTE_TITLES: Record<string, string> = {
@@ -38,13 +40,13 @@ const ROUTE_TITLES: Record<string, string> = {
 
 /**
  * Layout racine pour l'interface PANEL (écran mural)
- * → Sidebar à gauche
- * → TopBar en haut (logo + titre centré), comme en mode Tablet
- * → Contenu scrollable en dessous
+ * Sidebar à gauche + header local dans la colonne de droite
+ * (pas de barre fixe sur toute la largeur).
  */
 export function PanelRootLayout() {
   const [hasConfig, setHasConfig] = useState<boolean | null>(null);
   const location = useLocation();
+  const { theme } = useTheme();
 
   // Précharger les plans Neolia dès la connexion HA
   useNeoliaPlansPreloader();
@@ -93,19 +95,28 @@ export function PanelRootLayout() {
     );
   }
 
-  // Config ou pas : on reste toujours dans le layout PANEL
+  // Layout PANEL : sidebar + colonne principale
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="panel-layout flex h-screen w-screen overflow-hidden bg-background">
         {/* Sidebar à gauche (menu uniquement) */}
         <PanelSidebar />
 
-        {/* Colonne principale : TopBar + contenu scrollable */}
+        {/* Colonne principale : header local + contenu scrollable */}
         <div className="flex flex-1 flex-col min-w-0 min-h-0">
-          {/* TopBar fixe, comme en Tablet (logo + titre centré) */}
-          <TopBar title={pageTitle} />
+          {/* Header local, NON fixed, limité à la colonne de droite */}
+          <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav shrink-0">
+            <img
+              src={theme === "light" ? neoliaLogoDark : neoliaLogoLight}
+              alt="Neolia"
+              className="h-8 w-auto"
+            />
+            <h1 className="flex-1 text-center text-2xl font-bold -ml-8">
+              {pageTitle}
+            </h1>
+          </header>
 
-          {/* Zone de contenu scrollable (padding géré par les pages) */}
+          {/* Zone de contenu scrollable */}
           <main className="flex-1 min-h-0 overflow-y-auto">
             <ScrollToTop />
             <Routes>
