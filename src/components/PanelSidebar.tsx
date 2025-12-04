@@ -1,7 +1,15 @@
-import { Home, Star, Sparkles, Repeat, Package, Wand2, LayoutDashboard, Settings } from "lucide-react";
+import {
+  Home,
+  Star,
+  Sparkles,
+  Repeat,
+  Package,
+  Wand2,
+  LayoutDashboard,
+  Settings,
+} from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useTheme } from "next-themes";
 import {
   Sidebar,
   SidebarContent,
@@ -12,8 +20,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import neoliaLogoLight from "@/assets/neolia-logo.png";
-import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Accueil" },
@@ -25,20 +31,17 @@ const navItems = [
   { to: "/smart", icon: Wand2, label: "Smarthome" },
 ];
 
-interface PanelSidebarProps {
-  pageTitle?: string;
-}
-
 /**
- * Sidebar Panel avec header intégré (logo + titre)
+ * Sidebar Panel
+ * → plus de titre de page dans la barre latérale
+ * → le header (logo + titre) est géré par TopBar dans la zone principale
  */
-export function PanelSidebar({ pageTitle }: PanelSidebarProps) {
+export function PanelSidebar() {
   const { state } = useSidebar();
-  const { theme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const currentPath = location.pathname;
-  
+
   const isCollapsed = state === "collapsed";
 
   const isActive = (path: string) => {
@@ -48,28 +51,16 @@ export function PanelSidebar({ pageTitle }: PanelSidebarProps) {
 
   return (
     <Sidebar className={isCollapsed ? "w-20" : "w-64"}>
-      {/* Header avec logo et titre */}
-      <div className="h-14 flex items-center px-4 border-b border-border/30 shrink-0">
-        <img 
-          src={theme === "light" ? neoliaLogoDark : neoliaLogoLight} 
-          alt="Neolia" 
-          className="h-6 w-auto" 
-        />
-        {!isCollapsed && pageTitle && (
-          <span className="ml-4 text-lg font-semibold truncate">{pageTitle}</span>
-        )}
-      </div>
-
-      <SidebarContent className="flex flex-col h-full pt-2">
+      <SidebarContent className="flex flex-col h-full pt-4">
         <SidebarGroup className="flex-1">
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.to}>
                   <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.to} 
-                      end={item.to === "/"} 
+                    <NavLink
+                      to={item.to}
+                      end={item.to === "/"}
                       className="flex items-center gap-3 px-4 py-4 rounded-lg transition-colors hover:bg-muted/50 h-14"
                       activeClassName="bg-primary/10 text-primary font-medium"
                     >
@@ -87,10 +78,12 @@ export function PanelSidebar({ pageTitle }: PanelSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton 
+                <SidebarMenuButton
                   onClick={() => navigate("/settings")}
                   className={`flex items-center gap-3 px-4 py-4 rounded-lg transition-colors hover:bg-muted/50 h-14 ${
-                    currentPath === "/settings" ? "bg-primary/10 text-primary font-medium" : ""
+                    currentPath === "/settings"
+                      ? "bg-primary/10 text-primary font-medium"
+                      : ""
                   }`}
                 >
                   <Settings className="h-5 w-5 flex-shrink-0" />
@@ -104,3 +97,5 @@ export function PanelSidebar({ pageTitle }: PanelSidebarProps) {
     </Sidebar>
   );
 }
+
+export default PanelSidebar;
