@@ -30,7 +30,7 @@ import { toast } from "sonner";
 import type { HAEntity, HAArea } from "@/types/homeassistant";
 
 // ============== MaisonTabletPanelView ==============
-const MaisonTabletPanelView = () => {
+export const MaisonTabletPanelView = () => {
   const connection = useHAStore((state) => state.connection);
   const floors = useHAStore((state) => state.floors);
   const areas = useHAStore((state) => state.areas);
