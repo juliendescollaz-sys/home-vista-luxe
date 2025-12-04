@@ -1,8 +1,7 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
-import { useTheme } from "next-themes";
 import { ScrollToTop } from "@/components/ScrollToTop";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { PanelSidebar } from "@/components/PanelSidebar";
 import { PanelHome } from "./pages/PanelHome";
 import { PanelRooms } from "./pages/PanelRooms";
@@ -20,8 +19,6 @@ import NotFound from "@/pages/NotFound";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
 import { hasHaConfig } from "@/services/haConfig";
 import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
-import neoliaLogoLight from "@/assets/neolia-logo.png";
-import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 
 // Mapping des routes vers les titres de page
 const ROUTE_TITLES: Record<string, string> = {
@@ -44,7 +41,6 @@ const ROUTE_TITLES: Record<string, string> = {
 export function PanelRootLayout() {
   const [hasConfig, setHasConfig] = useState<boolean | null>(null);
   const location = useLocation();
-  const { theme } = useTheme();
 
   // Précharger les plans Neolia dès la connexion HA
   useNeoliaPlansPreloader();
@@ -97,58 +93,35 @@ export function PanelRootLayout() {
   // plus jamais de retour automatique vers PanelOnboarding.
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="panel-layout flex flex-col h-screen w-screen overflow-hidden bg-background">
-        {/* Header global au-dessus de tout */}
-        <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav shrink-0 relative z-10">
-          {/* Logo NEOLIA à gauche */}
-          <div className="flex items-center gap-3">
-            <SidebarTrigger />
-            <img 
-              src={theme === "light" ? neoliaLogoDark : neoliaLogoLight} 
-              alt="Neolia" 
-              className="h-6 w-auto" 
-            />
-          </div>
+      <div className="panel-layout flex h-screen w-screen overflow-hidden bg-background">
+        {/* Sidebar avec header intégré (logo + menu) */}
+        <PanelSidebar pageTitle={pageTitle} />
 
-          {/* Titre centré */}
-          {pageTitle && (
-            <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold">
-              {pageTitle}
-            </h1>
-          )}
-        </header>
-
-        {/* Contenu : sidebar + main */}
-        <div className="flex flex-1 min-h-0 overflow-hidden">
-          {/* Sidebar sans header (logo déjà dans le header global) */}
-          <PanelSidebar />
-
-          {/* Contenu scrollable */}
-          <main className="flex-1 min-h-0 overflow-y-auto">
-            <ScrollToTop />
-            <Routes>
-              {/* Pages principales */}
-              <Route path="/" element={<PanelHome />} />
-              <Route path="/rooms" element={<PanelRooms />} />
-              <Route path="/rooms/:areaId" element={<PanelRoomDetails />} />
-              <Route path="/favorites" element={<PanelFavorites />} />
-              <Route path="/scenes" element={<PanelScenes />} />
-              <Route path="/routines" element={<PanelRoutines />} />
-              <Route path="/groupes" element={<PanelGroupes />} />
-              <Route path="/smart" element={<PanelSmart />} />
-              <Route path="/settings" element={<PanelSettings />} />
-              
-              {/* Pages secondaires */}
-              <Route path="/media-player/:entityId" element={<PanelMediaPlayerDetails />} />
-              <Route path="/sonos-zones" element={<PanelSonosZones />} />
-              <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
-              <Route path="/dev" element={<PanelDev />} />
-              
-              {/* 404 */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
-        </div>
+        {/* Contenu scrollable */}
+        <main className="flex-1 min-h-0 overflow-y-auto">
+          <ScrollToTop />
+          <Routes>
+            {/* Pages principales */}
+            <Route path="/" element={<PanelHome />} />
+            <Route path="/rooms" element={<PanelRooms />} />
+            <Route path="/rooms/:areaId" element={<PanelRoomDetails />} />
+            <Route path="/favorites" element={<PanelFavorites />} />
+            <Route path="/scenes" element={<PanelScenes />} />
+            <Route path="/routines" element={<PanelRoutines />} />
+            <Route path="/groupes" element={<PanelGroupes />} />
+            <Route path="/smart" element={<PanelSmart />} />
+            <Route path="/settings" element={<PanelSettings />} />
+            
+            {/* Pages secondaires */}
+            <Route path="/media-player/:entityId" element={<PanelMediaPlayerDetails />} />
+            <Route path="/sonos-zones" element={<PanelSonosZones />} />
+            <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
+            <Route path="/dev" element={<PanelDev />} />
+            
+            {/* 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </main>
       </div>
     </SidebarProvider>
   );
