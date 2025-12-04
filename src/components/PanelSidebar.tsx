@@ -1,6 +1,7 @@
 import { Home, Star, Sparkles, Repeat, Package, Wand2, LayoutDashboard, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useTheme } from "next-themes";
 import {
   Sidebar,
   SidebarContent,
@@ -11,6 +12,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import neoliaLogoLight from "@/assets/neolia-logo.png";
+import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Accueil" },
@@ -22,11 +25,16 @@ const navItems = [
   { to: "/smart", icon: Wand2, label: "Smarthome" },
 ];
 
+interface PanelSidebarProps {
+  pageTitle?: string;
+}
+
 /**
- * Sidebar Panel sans header (le logo est dans le header global)
+ * Sidebar Panel avec header intégré (logo + titre)
  */
-export function PanelSidebar() {
+export function PanelSidebar({ pageTitle }: PanelSidebarProps) {
   const { state } = useSidebar();
+  const { theme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const currentPath = location.pathname;
@@ -40,6 +48,18 @@ export function PanelSidebar() {
 
   return (
     <Sidebar className={isCollapsed ? "w-20" : "w-64"}>
+      {/* Header avec logo et titre */}
+      <div className="h-14 flex items-center px-4 border-b border-border/30 shrink-0">
+        <img 
+          src={theme === "light" ? neoliaLogoDark : neoliaLogoLight} 
+          alt="Neolia" 
+          className="h-6 w-auto" 
+        />
+        {!isCollapsed && pageTitle && (
+          <span className="ml-4 text-lg font-semibold truncate">{pageTitle}</span>
+        )}
+      </div>
+
       <SidebarContent className="flex flex-col h-full pt-2">
         <SidebarGroup className="flex-1">
           <SidebarGroupContent>
