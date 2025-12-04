@@ -40,8 +40,7 @@ const ROUTE_TITLES: Record<string, string> = {
 
 /**
  * Layout racine pour l'interface PANEL (écran mural)
- * Sidebar à gauche + header local dans la colonne de droite
- * (pas de barre fixe sur toute la largeur).
+ * Header pleine largeur en haut, puis ligne Sidebar + Contenu en dessous.
  */
 export function PanelRootLayout() {
   const [hasConfig, setHasConfig] = useState<boolean | null>(null);
@@ -55,18 +54,11 @@ export function PanelRootLayout() {
   const pageTitle = useMemo(() => {
     const path = location.pathname;
 
-    // Correspondances exactes
     if (ROUTE_TITLES[path]) {
       return ROUTE_TITLES[path];
     }
-
-    // Routes dynamiques
-    if (path.startsWith("/rooms/")) {
-      return "Détails pièce";
-    }
-    if (path.startsWith("/media-player/")) {
-      return "Lecteur média";
-    }
+    if (path.startsWith("/rooms/")) return "Détails pièce";
+    if (path.startsWith("/media-player/")) return "Lecteur média";
 
     return "Neolia";
   }, [location.pathname]);
@@ -95,28 +87,28 @@ export function PanelRootLayout() {
     );
   }
 
-  // Layout PANEL : sidebar + colonne principale
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="panel-layout flex h-screen w-screen overflow-hidden bg-background">
-        {/* Sidebar à gauche (menu uniquement) */}
-        <PanelSidebar />
+      {/* Colonne principale : header en haut, row en dessous */}
+      <div className="panel-layout flex flex-col h-screen w-screen overflow-hidden bg-background">
+        {/* HEADER PLEINE LARGEUR */}
+        <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav shrink-0">
+          <img
+            src={theme === "light" ? neoliaLogoDark : neoliaLogoLight}
+            alt="Neolia"
+            className="h-8 w-auto"
+          />
+          <h1 className="flex-1 text-center text-2xl font-bold -ml-8">
+            {pageTitle}
+          </h1>
+        </header>
 
-        {/* Colonne principale : header local + contenu scrollable */}
-        <div className="flex flex-1 flex-col min-w-0 min-h-0">
-          {/* Header local, NON fixed, limité à la colonne de droite */}
-          <header className="h-14 flex items-center border-b border-border/30 px-4 glass-nav shrink-0">
-            <img
-              src={theme === "light" ? neoliaLogoDark : neoliaLogoLight}
-              alt="Neolia"
-              className="h-8 w-auto"
-            />
-            <h1 className="flex-1 text-center text-2xl font-bold -ml-8">
-              {pageTitle}
-            </h1>
-          </header>
+        {/* LIGNE : Sidebar à gauche + contenu à droite */}
+        <div className="flex flex-1 min-h-0">
+          {/* Sidebar sous le header */}
+          <PanelSidebar />
 
-          {/* Zone de contenu scrollable */}
+          {/* Contenu scrollable à droite */}
           <main className="flex-1 min-h-0 overflow-y-auto">
             <ScrollToTop />
             <Routes>
