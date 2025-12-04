@@ -31,11 +31,6 @@ const navItems = [
   { to: "/smart", icon: Wand2, label: "Smarthome" },
 ];
 
-/**
- * Sidebar Panel
- * → plus de titre de page dans la barre latérale
- * → le header (logo + titre) est géré par TopBar dans la zone principale
- */
 export function PanelSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
@@ -50,7 +45,15 @@ export function PanelSidebar() {
   };
 
   return (
-    <Sidebar className={isCollapsed ? "w-20" : "w-64"}>
+    <Sidebar
+      /** On neutralise le "position: fixed" du composant Sidebar */
+      className={`${isCollapsed ? "w-20" : "w-64"} relative h-full shrink-0`}
+      style={{
+        position: "relative",
+        top: "auto",
+        height: "100%",
+      }}
+    >
       <SidebarContent className="flex flex-col h-full pt-4">
         <SidebarGroup className="flex-1">
           <SidebarGroupContent>
