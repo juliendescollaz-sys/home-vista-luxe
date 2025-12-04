@@ -1,0 +1,13 @@
+{
+	"appId": "com.neolia.app",
+	"appName": "neolia",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "http"
+	},
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": true
+		}
+	}
+}
