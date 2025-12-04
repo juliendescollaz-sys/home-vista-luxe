@@ -1,9 +1,15 @@
 /**
  * Page Routines pour le mode PANEL
- * Wrapper autour de la page Routines existante pour permettre une divergence future
+ * SANS TopBar ni BottomNav (gérés par PanelRootLayout)
  */
-import Routines from "@/pages/Routines";
-
 export function PanelRoutines() {
-  return <Routines />;
+  return (
+    <div className="w-full h-full bg-background p-4 overflow-y-auto">
+      <h1 className="text-2xl font-semibold mb-6">Routines</h1>
+      
+      <div className="max-w-screen-xl mx-auto text-center py-12">
+        <p className="text-muted-foreground">Vos routines automatiques apparaîtront ici...</p>
+      </div>
+    </div>
+  );
 }
