@@ -34,7 +34,8 @@ const DEFAULT_MQTT_PASSWORD = "PanelMQTT!2025";
 const DEFAULT_TIMEOUT_MS = 15000;
 const FALLBACK_PORTS = [1884, 9001];
 
-// On passe en config PAR PANNEAU : neolia/panel/<panelCode>/config
+// Deux possibilités de topics : global ou par panneau
+const CONFIG_TOPIC_GLOBAL = "neolia/config/global";
 const CONFIG_TOPIC_PREFIX = "neolia/panel";
 
 /**
@@ -87,35 +88,42 @@ function tryConnectMqttPort(
 }
 
 /**
- * Attend la réception d'un message de configuration sur le topic neolia/panel/<panelCode>/config.
+ * Attend la réception d'un message de configuration
+ * soit sur neolia/config/global, soit sur neolia/panel/<panelCode>/config.
  */
-function waitForConfigMessage(client: MqttClient, panelCode: string, timeoutMs: number): Promise<NeoliaGlobalConfig> {
+function waitForConfigMessage(
+  client: MqttClient,
+  panelCode: string,
+  timeoutMs: number,
+): Promise<NeoliaGlobalConfig> {
   return new Promise((resolve, reject) => {
-    const topic = `${CONFIG_TOPIC_PREFIX}/${panelCode}/config`;
-    console.log("[PanelProvisioning] Subscription au topic de config:", topic);
+    const panelTopic = `${CONFIG_TOPIC_PREFIX}/${panelCode}/config`;
+    const topics = [CONFIG_TOPIC_GLOBAL, panelTopic];
+
+    console.log("[PanelProvisioning] Subscription aux topics de config:", topics);
 
     const timeout = setTimeout(() => {
-      console.warn("[PanelProvisioning] Timeout en attente du message de configuration sur", topic);
+      console.warn("[PanelProvisioning] Timeout en attente du message de configuration sur", topics);
       reject(new Error("Timeout en attente de la configuration du panneau"));
     }, timeoutMs);
 
-    client.subscribe(topic, { qos: 0 }, (err) => {
+    client.subscribe(topics, { qos: 0 }, (err) => {
       if (err) {
         clearTimeout(timeout);
         console.error("[PanelProvisioning] Erreur subscription:", err);
         reject(new Error(`Erreur subscription MQTT: ${err.message}`));
         return;
       }
-      console.log("[PanelProvisioning] Abonné à", topic);
+      console.log("[PanelProvisioning] Abonné à", topics);
     });
 
     client.on("message", (receivedTopic, payload) => {
-      if (receivedTopic !== topic) return;
+      if (!topics.includes(receivedTopic)) return;
 
       try {
         const text = payload.toString("utf-8");
         const json = JSON.parse(text) as NeoliaGlobalConfig;
-        console.log("[PanelProvisioning] Configuration reçue sur", topic, ":", json);
+        console.log("[PanelProvisioning] Configuration reçue sur", receivedTopic, ":", json);
         clearTimeout(timeout);
         resolve(json);
       } catch (e) {
@@ -139,7 +147,7 @@ function extractPanelConfig(raw: NeoliaGlobalConfig): PanelConfig {
   return {
     haBaseUrl: ha.url,
     haToken: ha.token,
-    remoteHaUrl: undefined, // pas présent dans la structure actuelle
+    remoteHaUrl: undefined,
     mqttHost: raw?.network?.mqtt_host,
     mqttPort: raw?.network?.mqtt_port,
     panelLayout: raw?.panel?.default_page,
