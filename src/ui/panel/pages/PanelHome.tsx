@@ -12,7 +12,8 @@ import { isControllableEntity, isEntityActive } from "@/lib/entityUtils";
  * Page d'accueil pour le mode PANEL (S563)
  * 
  * Dashboard mural plein écran avec :
- * - Section météo en haut
+ * - Titre "Accueil" en haut (aligné avec les autres pages Panel)
+ * - Section météo
  * - Liste des appareils actifs en dessous
  * - UI optimisée pour un écran fixe en paysage
  */
@@ -103,8 +104,11 @@ export function PanelHome() {
   // État de chargement
   if (!client || !entities || entities.length === 0) {
     return (
-      <div className="w-full h-full bg-background p-6">
+      <div className="w-full h-full bg-background p-4">
         <div className="w-full max-w-[1800px] mx-auto space-y-6">
+          {/* Header titre - aligné avec les autres pages Panel */}
+          <h1 className="text-2xl font-semibold">Accueil</h1>
+          
           <Skeleton className="h-56 w-full max-w-md rounded-3xl" />
           <div className="space-y-3">
             <Skeleton className="h-6 w-40" />
@@ -121,7 +125,10 @@ export function PanelHome() {
 
   return (
     <div className="w-full h-full bg-background overflow-y-auto">
-      <div className="w-full max-w-[1800px] mx-auto p-6 space-y-6">
+      <div className="w-full max-w-[1800px] mx-auto p-4 space-y-6">
+        {/* Header titre - aligné avec les autres pages Panel */}
+        <h1 className="text-2xl font-semibold">Accueil</h1>
+
         {/* Section météo */}
         <div className="animate-fade-in">
           <AnimatedWeatherTile />
@@ -129,7 +136,7 @@ export function PanelHome() {
 
         {/* Appareils actifs */}
         <div className="space-y-3 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-          <h2 className="text-2xl font-semibold">Appareils actifs</h2>
+          <h2 className="text-xl font-semibold">Appareils actifs</h2>
 
           {enrichedActiveDevices.length === 0 ? (
             <div className="flex-1 flex items-center justify-center min-h-[200px]">

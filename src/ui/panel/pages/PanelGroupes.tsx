@@ -1,9 +1,82 @@
 /**
  * Page Groupes pour le mode PANEL
- * Wrapper autour de la page Groupes existante pour permettre une divergence future
+ * SANS TopBar ni BottomNav (gérés par PanelRootLayout)
  */
-import Groupes from "@/pages/Groupes";
+import { useState, useEffect, useMemo } from "react";
+import { useGroupStore } from "@/store/useGroupStore";
+import { GroupWizard } from "@/components/groups/GroupWizard";
+import { GroupTile } from "@/components/groups/GroupTile";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Plus, X, AlertTriangle } from "lucide-react";
+import { getGridClasses } from "@/lib/gridLayout";
 
 export function PanelGroupes() {
-  return <Groupes />;
+  const [wizardOpen, setWizardOpen] = useState(false);
+
+  const groups = useGroupStore((state) => state.groups);
+  const syncSharedGroupsFromHA = useGroupStore((state) => state.syncSharedGroupsFromHA);
+  const runtime = useGroupStore((state) => state.runtime);
+  const setGroupError = useGroupStore((state) => state.setGroupError);
+
+  // Collecter les erreurs de groupes
+  const groupErrors = useMemo(() => {
+    return Object.entries(runtime)
+      .filter(([_, r]) => r.lastError)
+      .map(([groupId, r]) => ({ groupId, error: r.lastError! }));
+  }, [runtime]);
+
+  // Synchroniser les groupes partagés au montage
+  useEffect(() => {
+    syncSharedGroupsFromHA().catch(console.error);
+  }, [syncSharedGroupsFromHA]);
+
+  return (
+    <div className="w-full h-full bg-background p-4 overflow-y-auto">
+      <h1 className="text-2xl font-semibold mb-6">Groupes</h1>
+      
+      <div className="max-w-screen-xl mx-auto">
+        {/* Bannière d'erreur globale pour les groupes */}
+        {groupErrors.length > 0 && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Erreur de contrôle de groupe</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              <span>{groupErrors[0].error}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 -mr-2"
+                onClick={() => setGroupError(groupErrors[0].groupId, null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-muted-foreground">
+            Créez des groupes pour contrôler plusieurs appareils simultanément
+          </p>
+          <Button onClick={() => setWizardOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Créer un groupe
+          </Button>
+        </div>
+
+        {groups.length === 0 ? (
+          <div className="text-center py-12" />
+        ) : (
+          <div className={getGridClasses("cards", "tablet")}>
+            {groups.map(group => (
+              <GroupTile key={group.id} group={group} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <GroupWizard open={wizardOpen} onOpenChange={setWizardOpen} />
+    </div>
+  );
 }
