@@ -9,8 +9,8 @@ import { MaisonTabletPanelView } from "@/pages/Rooms";
 
 /**
  * Page "Maison" pour le mode PANEL
- * Logique alignée sur la version Tablet, mais sans TopBar ni BottomNav
- * (gérés par PanelRootLayout / PanelSidebar).
+ * Logique alignée sur la branche Tablet de Rooms.tsx
+ * mais sans TopBar / BottomNav (gérés par PanelRootLayout).
  */
 export function PanelRooms() {
   const connection = useHAStore((state) => state.connection);
@@ -26,20 +26,21 @@ export function PanelRooms() {
   const rootClassName = "w-full h-full flex flex-col overflow-hidden";
   const ptClass = "pt-[24px]";
 
-  // État "HA initialisé"
   const isHAInitialized = !!connection && floors.length > 0;
 
-  // On considère que les plans sont "utilisables" dès qu'on en a au moins un
+  // On considère qu'on a des plans utilisables dès qu'on en a au moins 1
   const hasUsablePlans = neoliaFloorPlans.length > 0;
 
-  // Chargement des plans au démarrage (sécurité, même si le preloader les déclenche déjà)
+  // Charger les plans au démarrage (au cas où le preloader n'a pas encore déclenché)
   useEffect(() => {
     if (
       isHAInitialized &&
       !isLoadingNeoliaPlans &&
       neoliaFloorPlans.length === 0
     ) {
-      console.info("[Neolia PANEL] Chargement initial des plans (Panel)");
+      console.info(
+        "[Neolia PANEL] Chargement initial des plans (fallback du preloader)"
+      );
       loadNeoliaPlans(connection!, floors);
     }
   }, [
@@ -51,15 +52,11 @@ export function PanelRooms() {
     floors,
   ]);
 
-  // Spinner pendant toute l'init (HA + plans)
   const shouldShowPlansSpinner =
-    !isHAInitialized ||
-    isLoadingNeoliaPlans ||
-    (!hasUsablePlans && neoliaFloorPlans.length === 0);
+    !isHAInitialized || isLoadingNeoliaPlans || neoliaFloorPlans.length === 0;
 
   return (
     <div className={rootClassName}>
-      {/* Pas de TopBar ici : le titre "Maison" est géré par PanelSidebar via pageTitle */}
       <div className={cn("w-full px-4", ptClass)}>
         {shouldShowPlansSpinner ? (
           <div className="flex items-center justify-center w-full h-full min-h-[400px]">
