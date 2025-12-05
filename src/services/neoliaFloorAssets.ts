@@ -32,20 +32,7 @@ type FloorLike = {
 };
 
 /**
- * Slug basique pour transformer le nom de l'étage en nom de fichier
- * ex: "Étage" -> "etage", "Rez-de-chaussée" -> "rez_de_chaussee"
- */
-function toSlug(name: string): string {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // accents
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")     // espaces / caractères spéciaux -> _
-    .replace(/^_+|_+$/g, "");        // trim
-}
-
-/**
- * Charge un JSON local depuis Home Assistant pour un floorId donné
+ * Charge un JSON local depuis Home Assistant si Supabase renvoie null
  */
 async function fetchFallbackJson(
   haBaseUrl: string,
@@ -53,7 +40,7 @@ async function fetchFallbackJson(
   floorId: string
 ): Promise<NeoliaFloorJson | null> {
   try {
-    const url = `${haBaseUrl}/local/neolia/${floorId}.json`;
+    const url = `${haBaseUrl.replace(/\/+$/, "")}/local/neolia/${floorId}.json`;
 
     const response = await fetch(url, {
       headers: {
@@ -61,7 +48,9 @@ async function fetchFallbackJson(
       },
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      return null;
+    }
 
     const raw = await response.json();
     return {
@@ -76,106 +65,106 @@ async function fetchFallbackJson(
       })),
     };
   } catch (e) {
-    console.warn("[Neolia] JSON fallback introuvable pour", floorId);
+    console.warn("[Neolia] JSON fallback introuvable pour", floorId, e);
     return null;
   }
 }
 
 /**
- * Fallback complet basé uniquement sur Home Assistant (sans Supabase).
- * On essaie de détecter les PNG et JSON dans /local/neolia
- * en testant à la fois floor_id HA et un slug du nom de l'étage.
+ * Détection directe des assets en parlant uniquement à Home Assistant
+ * → utilisée si Supabase n'est pas configuré ou répond trop lentement.
+ * On parallélise les requêtes pour éviter de cumuler les latences par étage.
  */
 async function buildAssetsFromHaOnly(
   floors: FloorLike[],
   haBaseUrl: string,
   haToken: string,
-  includeJson: boolean,
+  includeJson: boolean
 ): Promise<NeoliaFloorAsset[]> {
-  const results: NeoliaFloorAsset[] = [];
+  if (!haBaseUrl || !floors || floors.length === 0) {
+    console.debug("[Neolia] buildAssetsFromHaOnly: paramètres incomplets");
+    return [];
+  }
 
-  for (const f of floors) {
-    const floorIdFromHa = f.floor_id || f.id || "";
-    const slugName = toSlug(f.name || "");
+  const baseUrl = haBaseUrl.replace(/\/+$/, "");
 
-    // Liste des candidats de nom de fichier à tester
-    const candidates = Array.from(
-      new Set(
-        [floorIdFromHa, slugName].filter((v) => typeof v === "string" && v.length > 0),
-      ),
-    );
+  const tasks = floors.map(async (floor) => {
+    const floorIdFromHa = (floor as any).floor_id || (floor as any).id;
+    const floorName = (floor as any).name || "Étage";
 
-    if (candidates.length === 0) {
-      console.warn("[Neolia] Aucun identifiant exploitable pour l'étage:", f);
-      continue;
+    if (!floorIdFromHa) {
+      console.warn("[Neolia] Étape sans id dans buildAssetsFromHaOnly:", floor);
+      return null;
     }
 
-    console.debug("[Neolia] Fallback HA-only pour étage:", {
-      floorIdFromHa,
-      name: f.name,
-      candidates,
-    });
+    const candidateIds = [String(floorIdFromHa)];
 
-    let pngAvailable = false;
-    let jsonData: NeoliaFloorJson | null = null;
-    let chosenId = candidates[0];
+    for (const candidateId of candidateIds) {
+      const pngUrl = `${baseUrl}/local/neolia/${candidateId}.png`;
+      let pngAvailable = false;
 
-    // --- Détection PNG ---
-    for (const candidate of candidates) {
       try {
-        const pngUrl = `${haBaseUrl}/local/neolia/${candidate}.png`;
-        const resp = await fetch(pngUrl, {
+        // On commence par un HEAD ; si le serveur ne le supporte pas on retombe sur un GET.
+        const headRes = await fetch(pngUrl, {
           method: "HEAD",
           headers: {
             Authorization: `Bearer ${haToken}`,
           },
         });
-        if (resp.ok) {
+
+        if (headRes.ok) {
           pngAvailable = true;
-          chosenId = candidate;
-          console.info("[Neolia] PNG détecté (fallback HA) pour", candidate);
-          break;
+        } else if (headRes.status === 405 || headRes.status === 501) {
+          const getRes = await fetch(pngUrl, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${haToken}`,
+            },
+          });
+          pngAvailable = getRes.ok;
         }
-      } catch (e) {
-        console.warn("[Neolia] Erreur check PNG fallback HA pour", candidate, e);
+      } catch (err) {
+        console.warn("[Neolia] buildAssetsFromHaOnly: PNG introuvable pour", candidateId, err);
+        pngAvailable = false;
       }
+
+      let jsonData: NeoliaFloorJson | null = null;
+      if (includeJson) {
+        jsonData = await fetchFallbackJson(baseUrl, haToken, candidateId);
+      }
+
+      if (!pngAvailable && !jsonData) {
+        // Rien pour cet id, on tente éventuellement un autre candidateId
+        continue;
+      }
+
+      return {
+        floorId: candidateId,
+        floorName,
+        pngAvailable,
+        jsonAvailable: !!jsonData,
+        jsonData,
+      } as NeoliaFloorAsset;
     }
 
-    // --- Détection JSON ---
-    if (includeJson) {
-      for (const candidate of candidates) {
-        const json = await fetchFallbackJson(haBaseUrl, haToken, candidate);
-        if (json) {
-          jsonData = json;
-          chosenId = candidate;
-          console.info("[Neolia] JSON détecté (fallback HA) pour", candidate);
-          break;
-        }
-      }
-    }
+    // Aucun asset trouvé pour cet étage
+    console.debug("[Neolia] Aucun asset trouvé en direct HA pour l'étage", floorName);
+    return null;
+  });
 
-    results.push({
-      floorId: chosenId,
-      floorName: f.name,
-      pngAvailable,
-      jsonAvailable: !!jsonData,
-      jsonData,
-    });
-  }
-
-  console.info("[Neolia] Fallback HA-only terminé. Assets trouvés:", results);
-  return results;
+  const assets = await Promise.all(tasks);
+  return assets.filter((a): a is NeoliaFloorAsset => a !== null);
 }
 
 /**
- * Vérifie les assets Neolia pour tous les étages via l'Edge Function Supabase,
- * avec timeout court et fallback complet vers Home Assistant si nécessaire.
+ * Vérifie les assets Neolia pour tous les étages via l'Edge Function Supabase.
+ * Si Supabase est indisponible ou trop lent, on bascule sur un fallback direct HA.
  */
 export async function checkAllFloorsNeoliaAssets(
   floors: FloorLike[],
   haBaseUrl: string,
   haToken: string,
-  includeJson = true,
+  includeJson = true
 ): Promise<NeoliaFloorAsset[]> {
   if (!haBaseUrl || !floors || floors.length === 0) {
     console.debug("[Neolia] Paramètres manquants pour checkAllFloorsNeoliaAssets");
@@ -183,20 +172,24 @@ export async function checkAllFloorsNeoliaAssets(
   }
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  if (!supabaseUrl) {
-    console.warn("[Neolia] VITE_SUPABASE_URL non défini, fallback direct HA-only");
-    return await buildAssetsFromHaOnly(floors, haBaseUrl, haToken, includeJson);
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+  const hasSupabase = !!supabaseUrl && !!supabaseKey;
+
+  // Si Supabase n'est pas configuré, on passe directement par Home Assistant
+  if (!hasSupabase) {
+    console.warn("[Neolia] Supabase non configuré, utilisation du fallback direct HA");
+    return buildAssetsFromHaOnly(floors, haBaseUrl, haToken, includeJson);
   }
 
   const edgeFunctionUrl = `${supabaseUrl}/functions/v1/neolia-assets`;
-
   const payload = {
     haBaseUrl,
     haToken,
     includeJson,
     floors: floors.map((f) => ({
-      id: f.floor_id || f.id || "",
-      name: f.name,
+      id: (f as any).floor_id || (f as any).id || "",
+      name: (f as any).name,
     })),
   };
 
@@ -205,17 +198,18 @@ export async function checkAllFloorsNeoliaAssets(
     floorsCount: floors.length,
   });
 
-  // Timeout explicite pour éviter d'attendre 2 minutes en cas de réseau impossible
+  // Timeout agressif pour ne pas bloquer l'UI
   const timeoutMs = 4000;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     const response = await fetch(edgeFunctionUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        apikey: supabaseKey,
       },
       body: JSON.stringify(payload),
       signal: controller.signal,
@@ -226,27 +220,33 @@ export async function checkAllFloorsNeoliaAssets(
     if (!response.ok) {
       const text = await response.text().catch(() => "");
       console.error("[Neolia] Erreur fonction neolia-assets:", response.status, text);
-      // Fallback complet via HA
-      return await buildAssetsFromHaOnly(floors, haBaseUrl, haToken, includeJson);
+      throw new Error(
+        `Edge function neolia-assets failed: ${response.status} ${response.statusText}`
+      );
     }
 
     const data = await response.json();
     if (!data || !Array.isArray(data.assets)) {
       console.error("[Neolia] Réponse inattendue de neolia-assets:", data);
-      // Fallback complet via HA
-      return await buildAssetsFromHaOnly(floors, haBaseUrl, haToken, includeJson);
+      return [];
     }
 
     console.debug("[Neolia] Assets récupérés via Supabase:", data.assets);
 
+    // Si Supabase n'a rien pour nous, on tente le fallback HA
+    if (!data.assets || data.assets.length === 0) {
+      console.warn("[Neolia] Edge function neolia-assets ne retourne aucun asset, fallback direct HA");
+      return buildAssetsFromHaOnly(floors, haBaseUrl, haToken, includeJson);
+    }
+
     const results: NeoliaFloorAsset[] = [];
 
     for (const asset of data.assets) {
-      let jsonData = asset.jsonData || null;
+      let jsonData: NeoliaFloorJson | null = asset.jsonData || null;
 
-      // ---- Fallback si Supabase renvoie null pour le JSON ----
-      if (includeJson && !jsonData) {
-        console.warn("[Neolia] JSON absent via Supabase, fallback HA:", asset.floorId);
+      // Fallback JSON si Supabase n'a pas le fichier mais qu'on souhaite le JSON
+      if (includeJson && !jsonData && asset.floorId) {
+        console.warn("[Neolia] JSON absent via Supabase, fallback HA pour", asset.floorId);
         jsonData = await fetchFallbackJson(haBaseUrl, haToken, asset.floorId);
       }
 
@@ -259,21 +259,15 @@ export async function checkAllFloorsNeoliaAssets(
       });
     }
 
-    // Si Supabase a répondu mais qu'on n'a rien d'exploitable, on tente quand même HA-only
-    if (results.length === 0) {
-      console.warn("[Neolia] Aucun asset exploitable via Supabase, fallback HA-only");
-      return await buildAssetsFromHaOnly(floors, haBaseUrl, haToken, includeJson);
-    }
-
     return results;
   } catch (error: any) {
-    clearTimeout(timeoutId);
+    // Timeout ou erreur réseau / CORS de Supabase → fallback local
     if (error?.name === "AbortError") {
-      console.warn("[Neolia] Timeout Edge Function neolia-assets → fallback HA-only");
+      console.warn("[Neolia] Edge function neolia-assets timeout, fallback direct HA");
     } else {
       console.error("[Neolia] Exception lors de l'appel Edge Function:", error);
     }
-    // Fallback complet via HA
-    return await buildAssetsFromHaOnly(floors, haBaseUrl, haToken, includeJson);
+
+    return buildAssetsFromHaOnly(floors, haBaseUrl, haToken, includeJson);
   }
 }
