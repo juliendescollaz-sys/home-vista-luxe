@@ -169,7 +169,7 @@ async function buildAssetsFromHaOnly(
 
 /**
  * Vérifie les assets Neolia pour tous les étages via l'Edge Function Supabase,
- * avec fallback complet vers Home Assistant si nécessaire.
+ * avec timeout court et fallback complet vers Home Assistant si nécessaire.
  */
 export async function checkAllFloorsNeoliaAssets(
   floors: FloorLike[],
@@ -183,6 +183,11 @@ export async function checkAllFloorsNeoliaAssets(
   }
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  if (!supabaseUrl) {
+    console.warn("[Neolia] VITE_SUPABASE_URL non défini, fallback direct HA-only");
+    return await buildAssetsFromHaOnly(floors, haBaseUrl, haToken, includeJson);
+  }
+
   const edgeFunctionUrl = `${supabaseUrl}/functions/v1/neolia-assets`;
 
   const payload = {
@@ -200,6 +205,11 @@ export async function checkAllFloorsNeoliaAssets(
     floorsCount: floors.length,
   });
 
+  // Timeout explicite pour éviter d'attendre 2 minutes en cas de réseau impossible
+  const timeoutMs = 4000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const response = await fetch(edgeFunctionUrl, {
       method: "POST",
@@ -208,7 +218,10 @@ export async function checkAllFloorsNeoliaAssets(
         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
@@ -253,8 +266,13 @@ export async function checkAllFloorsNeoliaAssets(
     }
 
     return results;
-  } catch (error) {
-    console.error("[Neolia] Exception lors de l'appel Edge Function:", error);
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error?.name === "AbortError") {
+      console.warn("[Neolia] Timeout Edge Function neolia-assets → fallback HA-only");
+    } else {
+      console.error("[Neolia] Exception lors de l'appel Edge Function:", error);
+    }
     // Fallback complet via HA
     return await buildAssetsFromHaOnly(floors, haBaseUrl, haToken, includeJson);
   }
