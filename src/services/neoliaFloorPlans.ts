@@ -40,9 +40,13 @@ function preloadImage(url: string): Promise<void> {
 }
 
 /**
- * Charge et précharge tous les plans Neolia disponibles
+ * Charge tous les plans Neolia disponibles
+ * ⚠️ Optimisé : ne bloque plus sur le préchargement des images.
  */
-export async function loadNeoliaFloorPlans(connection: HAConnection, floors: HAFloor[]): Promise<NeoliaFloorPlan[]> {
+export async function loadNeoliaFloorPlans(
+  connection: HAConnection,
+  floors: HAFloor[]
+): Promise<NeoliaFloorPlan[]> {
   if (!connection || !floors || floors.length === 0) {
     console.debug("[Neolia Plans] Pas de connexion ou d'étages disponibles");
     return [];
@@ -61,7 +65,6 @@ export async function loadNeoliaFloorPlans(connection: HAConnection, floors: HAF
 
     console.debug("[Neolia Plans] Assets récupérés:", assets);
 
-    // Convertir et précharger les images
     const plans: NeoliaFloorPlan[] = [];
     const preloadPromises: Promise<void>[] = [];
 
@@ -75,8 +78,9 @@ export async function loadNeoliaFloorPlans(connection: HAConnection, floors: HAF
 
       // Générer l'URL de l'image si disponible
       if (asset.pngAvailable) {
-        plan.imageUrl = `${connection.url}/local/neolia/${asset.floorId}.png`;
-        // Précharger l'image en arrière-plan
+        plan.imageUrl = `${connection.url.replace(/\/+$/, "")}/local/neolia/${asset.floorId}.png`;
+
+        // Précharger en ARRIÈRE-PLAN (sans bloquer le retour de la fonction)
         preloadPromises.push(
           preloadImage(plan.imageUrl).catch((err) => {
             console.warn(`[Neolia Plans] Échec du préchargement de l'image pour ${asset.floorId}:`, err);
@@ -93,7 +97,7 @@ export async function loadNeoliaFloorPlans(connection: HAConnection, floors: HAF
             areaId: a.area_id,
             name: a.name,
           })),
-          polygons: asset.jsonData.polygons.map((p) => ({
+          polygons: (asset.jsonData.polygons || []).map((p) => ({
             areaId: p.area_id,
             relative: p.relative,
           })),
@@ -103,10 +107,18 @@ export async function loadNeoliaFloorPlans(connection: HAConnection, floors: HAF
       plans.push(plan);
     }
 
-    // Attendre que toutes les images soient préchargées
-    await Promise.allSettled(preloadPromises);
-    console.log("[Neolia Plans] Préchargement terminé pour", plans.length, "plans");
+    // Lancer le préchargement en tâche de fond, SANS await
+    if (preloadPromises.length > 0) {
+      Promise.allSettled(preloadPromises)
+        .then(() => {
+          console.log("[Neolia Plans] Préchargement terminé pour", plans.length, "plans");
+        })
+        .catch((err) => {
+          console.warn("[Neolia Plans] Erreur inattendue pendant le préchargement:", err);
+        });
+    }
 
+    // ➜ On retourne les plans tout de suite, l'UI peut s'afficher
     return plans;
   } catch (error) {
     console.error("[Neolia Plans] Erreur lors du chargement des plans:", error);
