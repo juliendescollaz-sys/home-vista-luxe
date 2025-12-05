@@ -31,8 +31,7 @@ export function PanelRooms() {
   const isHAInitialized = !!connection && floors.length > 0;
 
   // Vérifier si au moins un plan est complet (PNG + JSON)
-  const hasUsablePlans =
-    neoliaFloorPlans.some((plan) => plan.hasPng && plan.hasJson);
+  const hasUsablePlans = neoliaFloorPlans.some((plan) => plan.hasPng && plan.hasJson);
 
   // Charger les plans Neolia au démarrage
   useEffect(() => {
@@ -53,11 +52,10 @@ export function PanelRooms() {
     floors,
   ]);
 
-  // Spinner pendant toute l'init (HA + plans)
+  // 🛠️ Nouveau : le spinner ne dépend PLUS de la longueur du tableau,
+  // uniquement de l'init HA + état de chargement.
   const shouldShowPlansSpinner =
-    !isHAInitialized ||
-    isLoadingNeoliaPlans ||
-    neoliaFloorPlans.length === 0;
+    !isHAInitialized || isLoadingNeoliaPlans;
 
   return (
     <div className={rootClassName}>
