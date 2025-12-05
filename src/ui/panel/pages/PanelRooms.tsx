@@ -1,6 +1,6 @@
 // src/ui/panel/pages/PanelRooms.tsx
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHAStore } from "@/store/useHAStore";
@@ -9,7 +9,7 @@ import { MaisonTabletPanelView } from "@/pages/Rooms";
 
 /**
  * Page "Maison" pour le mode PANEL
- * Logique strictement alignée sur la version Tablet (Rooms),
+ * Logique alignée sur la version Tablet (Rooms),
  * mais sans TopBar ni BottomNav (gérés par PanelRootLayout / PanelSidebar).
  */
 export function PanelRooms() {
@@ -23,7 +23,6 @@ export function PanelRooms() {
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const devices = useHAStore((state) => state.devices);
 
-  // On se comporte comme la branche Tablet/Panel de Rooms.tsx
   const rootClassName = "w-full h-full flex flex-col overflow-hidden";
   const ptClass = "pt-[24px]";
 
@@ -33,7 +32,10 @@ export function PanelRooms() {
   // Vérifier si au moins un plan est complet (PNG + JSON)
   const hasUsablePlans = neoliaFloorPlans.some((plan) => plan.hasPng && plan.hasJson);
 
-  // Charger les plans Neolia au démarrage
+  // Timeout local pour éviter un spinner infini si quelque chose se passe mal
+  const [loadTimeoutReached, setLoadTimeoutReached] = useState(false);
+
+  // Charger les plans Neolia au démarrage (si possible)
   useEffect(() => {
     if (
       isHAInitialized &&
@@ -41,7 +43,7 @@ export function PanelRooms() {
       neoliaFloorPlans.length === 0
     ) {
       console.info("[Neolia PANEL] Chargement initial des plans Neolia (Panel)");
-      loadNeoliaPlans(connection, floors);
+      loadNeoliaPlans(connection!, floors);
     }
   }, [
     isHAInitialized,
@@ -52,10 +54,40 @@ export function PanelRooms() {
     floors,
   ]);
 
-  // 🛠️ Nouveau : le spinner ne dépend PLUS de la longueur du tableau,
-  // uniquement de l'init HA + état de chargement.
+  // Timeout de sécurité : si ça “charge” trop longtemps, on arrête le spinner
+  useEffect(() => {
+    if (!isHAInitialized) {
+      // Si HA n'est pas initialisé, on laisse le spinner (sinon la page serait vide)
+      return;
+    }
+
+    if (isLoadingNeoliaPlans) {
+      setLoadTimeoutReached(false);
+      const timer = setTimeout(() => {
+        console.warn("[Neolia PANEL] Timeout de chargement des plans atteint → arrêt du spinner");
+        setLoadTimeoutReached(true);
+      }, 8000); // 8 secondes de marge
+
+      return () => clearTimeout(timer);
+    } else {
+      // Dès que le chargement est terminé, on reset le flag
+      setLoadTimeoutReached(false);
+    }
+  }, [isHAInitialized, isLoadingNeoliaPlans]);
+
+  // Spinner pendant l'init HA, ou pendant le chargement des plans
+  // tant que le timeout n'est pas atteint
   const shouldShowPlansSpinner =
-    !isHAInitialized || isLoadingNeoliaPlans;
+    !isHAInitialized || (isLoadingNeoliaPlans && !loadTimeoutReached);
+
+  console.debug("[Neolia PANEL] State PanelRooms", {
+    isHAInitialized,
+    isLoadingNeoliaPlans,
+    loadTimeoutReached,
+    floorsCount: floors.length,
+    plansCount: neoliaFloorPlans.length,
+    hasUsablePlans,
+  });
 
   return (
     <div className={rootClassName}>
@@ -65,6 +97,9 @@ export function PanelRooms() {
           <div className="flex items-center justify-center w-full h-full min-h-[400px]">
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Chargement des plans Neolia...
+              </p>
             </div>
           </div>
         ) : !hasUsablePlans ? (
