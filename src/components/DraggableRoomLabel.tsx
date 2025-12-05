@@ -1,21 +1,33 @@
-import { useRef, useState } from "react";
+// src/components/DraggableRoomLabel.tsx
+
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-type DraggableRoomLabelProps = {
+interface DraggableRoomLabelProps {
   floorId: string;
   areaId: string;
   roomName: string;
-  // position de base (centroïde) en coordonnées normalisées 0–1
+  /** Position de base (0–1) en X/Y, calculée à partir du centroïde du polygone */
   baseX: number;
   baseY: number;
-  // position custom éventuelle (issue du store) en coordonnées 0–1
-  overridePos?: { x: number; y: number } | null;
+  /** Position override (0–1) sauvegardée dans le store, si existante */
+  overridePos?: { x: number; y: number };
+  /** True si cette pièce est actuellement sélectionnée (sidebar ouverte) */
   isSelected: boolean;
+  /** Callback pour persister la nouvelle position dans le store */
   onPositionChange: (x: number, y: number) => void;
-  onClickRoom?: () => void;
-};
+  /** Callback lorsqu’on « clique » sur la pièce (ou drag très court) */
+  onClickRoom: () => void;
+}
 
-export function DraggableRoomLabel({
+/**
+ * Label draggable pour une pièce sur le plan.
+ *
+ * ⚠ IMPORTANT :
+ *  - pointer-events-auto pour que les clics & drags fonctionnent
+ *    même si le conteneur parent est en pointer-events-none.
+ */
+export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
   floorId,
   areaId,
   roomName,
@@ -25,107 +37,147 @@ export function DraggableRoomLabel({
   isSelected,
   onPositionChange,
   onClickRoom,
-}: DraggableRoomLabelProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const longPressTimer = useRef<number | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+}) => {
+  const labelRef = useRef<HTMLDivElement | null>(null);
 
-  const currentX = overridePos?.x ?? baseX;
-  const currentY = overridePos?.y ?? baseY;
+  // Position effective (en coordonnées relatives 0–1)
+  const [pos, setPos] = useState<{ x: number; y: number }>({
+    x: overridePos?.x ?? baseX,
+    y: overridePos?.y ?? baseY,
+  });
 
-  const startLongPress = () => {
-    clearTimeout(longPressTimer.current!);
-    longPressTimer.current = window.setTimeout(() => {
-      setIsDragging(true);
-    }, 450); // long-press ~450ms
-  };
+  // Mettre à jour si le store change (ex: reset)
+  useEffect(() => {
+    setPos({
+      x: overridePos?.x ?? baseX,
+      y: overridePos?.y ?? baseY,
+    });
+  }, [overridePos?.x, overridePos?.y, baseX, baseY]);
 
-  const cancelLongPress = () => {
-    clearTimeout(longPressTimer.current!);
-    longPressTimer.current = null;
-  };
+  // Etat de drag
+  const dragState = useRef<{
+    dragging: boolean;
+    startX: number;
+    startY: number;
+    startPosX: number;
+    startPosY: number;
+    moved: boolean;
+  }>({
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    startPosX: 0,
+    startPosY: 0,
+    moved: false,
+  });
 
-  const handlePointerDown = (
-    e: React.MouseEvent<HTMLButtonElement> | React.TouchEvent<HTMLButtonElement>,
-  ) => {
-    if ("button" in e && e.button !== 0) return;
-    startLongPress();
-  };
+  const finishDrag = useCallback(
+    (asClickCandidate: boolean) => {
+      const state = dragState.current;
 
-  const handlePointerUp = (
-    e: React.MouseEvent<HTMLButtonElement> | React.TouchEvent<HTMLButtonElement>,
-  ) => {
-    if (isDragging) {
-      e.preventDefault();
-      e.stopPropagation();
-    } else {
-      // court clic = sélection de la pièce
-      onClickRoom?.();
-    }
-    setIsDragging(false);
-    cancelLongPress();
-  };
+      if (state.dragging) {
+        state.dragging = false;
 
-  const updatePositionFromEvent = (clientX: number, clientY: number) => {
-    const container = containerRef.current;
+        // Persistance de la position dans le store
+        onPositionChange(state.startPosX, state.startPosY);
+      }
+
+      // Si quasiment pas bougé → on considère que c’est un clic
+      if (asClickCandidate && !state.moved) {
+        onClickRoom();
+      }
+    },
+    [onClickRoom, onPositionChange],
+  );
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const label = labelRef.current;
+    if (!label) return;
+
+    const container = label.parentElement; // -> <div class="absolute inset-0 ...">
     if (!container) return;
 
     const rect = container.getBoundingClientRect();
-    let xNorm = (clientX - rect.left) / rect.width;
-    let yNorm = (clientY - rect.top) / rect.height;
 
-    // clamp entre 0 et 1
-    xNorm = Math.min(1, Math.max(0, xNorm));
-    yNorm = Math.min(1, Math.max(0, yNorm));
+    dragState.current.dragging = true;
+    dragState.current.moved = false;
+    dragState.current.startX = e.clientX;
+    dragState.current.startY = e.clientY;
+    dragState.current.startPosX = pos.x;
+    dragState.current.startPosY = pos.y;
 
-    onPositionChange(xNorm, yNorm);
+    const handleMove = (event: PointerEvent) => {
+      if (!dragState.current.dragging) return;
+
+      const dx = event.clientX - dragState.current.startX;
+      const dy = event.clientY - dragState.current.startY;
+
+      // Seuil pour distinguer drag vs clic
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance > 4) {
+        dragState.current.moved = true;
+      }
+
+      const newX =
+        dragState.current.startPosX + dx / Math.max(rect.width, 1);
+      const newY =
+        dragState.current.startPosY + dy / Math.max(rect.height, 1);
+
+      // Clamp 0–1
+      const clampedX = Math.min(0.98, Math.max(0.02, newX));
+      const clampedY = Math.min(0.98, Math.max(0.02, newY));
+
+      dragState.current.startPosX = clampedX;
+      dragState.current.startPosY = clampedY;
+
+      setPos({ x: clampedX, y: clampedY });
+    };
+
+    const handleUp = (event: PointerEvent) => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      finishDrag(true);
+    };
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
-    updatePositionFromEvent(e.clientX, e.clientY);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
-    const touch = e.touches[0];
-    if (!touch) return;
-    updatePositionFromEvent(touch.clientX, touch.clientY);
-  };
+  const left = `${pos.x * 100}%`;
+  const top = `${pos.y * 100}%`;
 
   return (
     <div
-      ref={containerRef}
-      className="absolute inset-0 pointer-events-none"
-      onMouseMove={handleMouseMove}
-      onTouchMove={handleTouchMove}
+      ref={labelRef}
+      className={cn(
+        "absolute pointer-events-auto select-none",
+        "transform -translate-x-1/2 -translate-y-1/2",
+      )}
+      style={{ left, top }}
+      onPointerDown={handlePointerDown}
+      // Au cas où : clic simple (ex: navigation clavier / screenreader)
+      onClick={(e) => {
+        e.stopPropagation();
+        onClickRoom();
+      }}
+      aria-label={roomName}
+      role="button"
     >
-      <button
-        type="button"
+      <div
         className={cn(
-          "pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2",
-          "px-4 py-2 rounded-lg text-sm md:text-base font-medium",
-          "shadow-lg border transition-all select-none backdrop-blur",
-          isDragging
-            ? "bg-primary text-primary-foreground border-primary scale-105 cursor-grabbing shadow-primary/30"
-            : isSelected
-            ? "bg-primary text-primary-foreground border-primary scale-105 shadow-primary/30"
-            : "bg-background/90 text-foreground border-border/60 hover:bg-primary hover:text-primary-foreground hover:scale-[1.02] cursor-pointer",
+          "px-3 py-1.5 rounded-full border text-xs font-medium shadow-sm",
+          "bg-background/90 backdrop-blur border-primary/40",
+          "hover:bg-primary hover:text-primary-foreground transition-colors",
+          isSelected && "bg-primary text-primary-foreground border-primary",
         )}
-        style={{
-          left: `${currentX * 100}%`,
-          top: `${currentY * 100}%`,
-        }}
-        onMouseDown={handlePointerDown}
-        onMouseUp={handlePointerUp}
-        onMouseLeave={() => {
-          if (!isDragging) cancelLongPress();
-        }}
-        onTouchStart={handlePointerDown}
-        onTouchEnd={handlePointerUp}
       >
         {roomName}
-      </button>
+      </div>
     </div>
   );
-}
+};
+
+export default DraggableRoomLabel;
