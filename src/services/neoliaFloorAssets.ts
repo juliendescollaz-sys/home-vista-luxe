@@ -32,9 +32,26 @@ type FloorLike = {
 };
 
 /**
- * Charge un JSON local depuis Home Assistant si Supabase renvoie null
+ * Slug basique pour transformer le nom de l'étage en nom de fichier
+ * ex: "Étage" -> "etage", "Rez-de-chaussée" -> "rez_de_chaussee"
  */
-async function fetchFallbackJson(haBaseUrl: string, haToken: string, floorId: string): Promise<NeoliaFloorJson | null> {
+function toSlug(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // accents
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")     // espaces / caractères spéciaux -> _
+    .replace(/^_+|_+$/g, "");        // trim
+}
+
+/**
+ * Charge un JSON local depuis Home Assistant pour un floorId donné
+ */
+async function fetchFallbackJson(
+  haBaseUrl: string,
+  haToken: string,
+  floorId: string
+): Promise<NeoliaFloorJson | null> {
   try {
     const url = `${haBaseUrl}/local/neolia/${floorId}.json`;
 
@@ -66,7 +83,8 @@ async function fetchFallbackJson(haBaseUrl: string, haToken: string, floorId: st
 
 /**
  * Fallback complet basé uniquement sur Home Assistant (sans Supabase).
- * On essaie de détecter les PNG et JSON dans /local/neolia.
+ * On essaie de détecter les PNG et JSON dans /local/neolia
+ * en testant à la fois floor_id HA et un slug du nom de l'étage.
  */
 async function buildAssetsFromHaOnly(
   floors: FloorLike[],
@@ -77,38 +95,68 @@ async function buildAssetsFromHaOnly(
   const results: NeoliaFloorAsset[] = [];
 
   for (const f of floors) {
-    const floorId = f.floor_id || f.id || "";
-    if (!floorId) continue;
+    const floorIdFromHa = f.floor_id || f.id || "";
+    const slugName = toSlug(f.name || "");
 
-    const floorName = f.name;
+    // Liste des candidats de nom de fichier à tester
+    const candidates = Array.from(
+      new Set(
+        [floorIdFromHa, slugName].filter((v) => typeof v === "string" && v.length > 0),
+      ),
+    );
 
-    // Détection du PNG
-    let pngAvailable = false;
-    try {
-      const pngUrl = `${haBaseUrl}/local/neolia/${floorId}.png`;
-      const resp = await fetch(pngUrl, {
-        method: "HEAD",
-        headers: {
-          Authorization: `Bearer ${haToken}`,
-        },
-      });
-      pngAvailable = resp.ok;
-      if (!pngAvailable) {
-        console.warn("[Neolia] PNG introuvable en fallback HA pour", floorId);
-      }
-    } catch (e) {
-      console.warn("[Neolia] Erreur lors du check PNG fallback HA pour", floorId, e);
+    if (candidates.length === 0) {
+      console.warn("[Neolia] Aucun identifiant exploitable pour l'étage:", f);
+      continue;
     }
 
-    // JSON optionnel
+    console.debug("[Neolia] Fallback HA-only pour étage:", {
+      floorIdFromHa,
+      name: f.name,
+      candidates,
+    });
+
+    let pngAvailable = false;
     let jsonData: NeoliaFloorJson | null = null;
+    let chosenId = candidates[0];
+
+    // --- Détection PNG ---
+    for (const candidate of candidates) {
+      try {
+        const pngUrl = `${haBaseUrl}/local/neolia/${candidate}.png`;
+        const resp = await fetch(pngUrl, {
+          method: "HEAD",
+          headers: {
+            Authorization: `Bearer ${haToken}`,
+          },
+        });
+        if (resp.ok) {
+          pngAvailable = true;
+          chosenId = candidate;
+          console.info("[Neolia] PNG détecté (fallback HA) pour", candidate);
+          break;
+        }
+      } catch (e) {
+        console.warn("[Neolia] Erreur check PNG fallback HA pour", candidate, e);
+      }
+    }
+
+    // --- Détection JSON ---
     if (includeJson) {
-      jsonData = await fetchFallbackJson(haBaseUrl, haToken, floorId);
+      for (const candidate of candidates) {
+        const json = await fetchFallbackJson(haBaseUrl, haToken, candidate);
+        if (json) {
+          jsonData = json;
+          chosenId = candidate;
+          console.info("[Neolia] JSON détecté (fallback HA) pour", candidate);
+          break;
+        }
+      }
     }
 
     results.push({
-      floorId,
-      floorName,
+      floorId: chosenId,
+      floorName: f.name,
       pngAvailable,
       jsonAvailable: !!jsonData,
       jsonData,
