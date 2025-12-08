@@ -40,6 +40,12 @@ export const CLOUD_BASE_URL = "https://bl09dhclkeomkczlb0b7ktsssxmevmdq.ui.nabu.
 export const DEV_SHARED_TOKEN = import.meta.env.VITE_DEV_HA_TOKEN ?? "";
 
 /**
+ * Token par défaut pour Mobile/Tablet (connexion cloud Nabu Casa).
+ * Ce token est pré-rempli automatiquement pour simplifier la connexion.
+ */
+export const MOBILE_TABLET_DEFAULT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM";
+
+/**
  * Retourne l'URL Home Assistant initiale pour le développement.
  * En PROD (DEV_DEFAULT_HA_HOST vide), retourne une chaîne vide.
  */

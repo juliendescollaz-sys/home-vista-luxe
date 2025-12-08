@@ -14,6 +14,7 @@ import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { 
   CLOUD_BASE_URL, 
   DEV_SHARED_TOKEN, 
+  MOBILE_TABLET_DEFAULT_TOKEN,
   getDevInitialHaUrl 
 } from "@/config/networkDefaults";
 
@@ -59,7 +60,14 @@ const OnboardingManual = () => {
       localStorage.removeItem("neolia_prefill_token");
       return prefill;
     }
-    return DEV_SHARED_TOKEN; // Vide en PROD
+    
+    // En mode Mobile/Tablet, utiliser le token par défaut
+    if (displayMode === "mobile" || displayMode === "tablet") {
+      return MOBILE_TABLET_DEFAULT_TOKEN;
+    }
+    
+    // En mode Panel, utiliser le token de dev si disponible
+    return DEV_SHARED_TOKEN;
   };
   
   const [url, setUrl] = useState(getDefaultUrl);
