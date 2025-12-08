@@ -13,6 +13,7 @@ import { isPanelMode } from "@/lib/platform";
 import { connectNeoliaMqttPanel } from "@/components/neolia/bootstrap/neoliaMqttClient";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 import neoliaLogo from "@/assets/neolia-logo.png";
+import { DEFAULT_MQTT_PORT, DEV_DEFAULT_MQTT_HOST } from "@/config/networkDefaults";
 
 type OnboardingStatus = "idle" | "loading" | "success" | "error";
 
@@ -42,11 +43,11 @@ export function PanelOnboarding() {
   const [panelErrorMessage, setPanelErrorMessage] = useState("");
   const [manualMode, setManualMode] = useState(false);
 
-  const { setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword } = useNeoliaSettings();
+  const { mqttHost, setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword } = useNeoliaSettings();
 
   /**
-   * Connexion automatique : on garde la mécanique qui marchait déjà.
-   * Host / port MQTT par défaut sont fixés ici.
+   * Connexion automatique : utilise le host MQTT du store ou de l'env de dev.
+   * En PROD, si aucun host n'est configuré, affiche une erreur explicite.
    */
   const attemptPanelConnection = useCallback(async () => {
     console.log("[PanelOnboarding] Tentative de connexion MQTT Panel (auto)…");
@@ -56,9 +57,23 @@ export function PanelOnboarding() {
     setPanelSuccess(false);
     setPanelErrorMessage("");
 
-    // Configuration MQTT "PnP" pour le panneau (comme auparavant)
-    setMqttHost("192.168.1.80");
-    setMqttPort(1884);
+    // Vérifier si un host MQTT est disponible
+    const effectiveMqttHost = mqttHost || DEV_DEFAULT_MQTT_HOST;
+    
+    if (!effectiveMqttHost) {
+      console.error("[PanelOnboarding] Aucun host MQTT configuré");
+      setPanelError(true);
+      setPanelConnecting(false);
+      setPanelErrorMessage(
+        "Aucune adresse de serveur MQTT configurée.\n\n" +
+        "Utilisez la connexion manuelle pour spécifier l'adresse IP de Home Assistant."
+      );
+      return;
+    }
+
+    // Configurer les paramètres MQTT
+    setMqttHost(effectiveMqttHost);
+    setMqttPort(DEFAULT_MQTT_PORT);
     setMqttUseSecure(false);
     setMqttUsername("panel");
     setMqttPassword("PanelMQTT!2025");
@@ -102,15 +117,15 @@ export function PanelOnboarding() {
       setPanelConnecting(false);
       setPanelErrorMessage(String((error as any)?.message || error));
     }
-  }, [setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword]);
+  }, [mqttHost, setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword]);
 
   /**
    * MODE PANEL : Auto (MQTT) / Manuel (MQTT aussi)
    */
   if (isPanelMode()) {
     /**
-     * Connexion manuelle : même mécanique que l’auto,
-     * mais en prenant l’IP saisie comme host MQTT.
+     * Connexion manuelle : même mécanique que l'auto,
+     * mais en prenant l'IP saisie comme host MQTT.
      */
     const handleImportConfig = async () => {
       const trimmed = haBaseUrl.trim();
@@ -138,9 +153,9 @@ export function PanelOnboarding() {
         "Connexion au broker MQTT du Home Assistant et récupération de la configuration du panneau…",
       );
 
-      // On réutilise la même mécanique que pour l’auto, mais avec un host différent
+      // Configuration MQTT avec le host saisi par l'utilisateur
       setMqttHost(host);
-      setMqttPort(1884);
+      setMqttPort(DEFAULT_MQTT_PORT);
       setMqttUseSecure(false);
       setMqttUsername("panel");
       setMqttPassword("PanelMQTT!2025");
@@ -302,13 +317,16 @@ export function PanelOnboarding() {
                     <Input
                       id="ha-base-url-panel"
                       type="text"
-                      placeholder="192.168.1.50"
+                      placeholder="ex: 192.168.1.50"
                       value={haBaseUrl}
                       onChange={(e) => setHaBaseUrl(e.target.value)}
                       onKeyPress={handleKeyPress}
                       disabled={isInputDisabled}
                       className="text-lg h-14"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Saisissez l'adresse IP locale de votre Home Assistant
+                    </p>
                   </div>
 
                   {status === "loading" && statusMessage && (
@@ -481,22 +499,22 @@ export function PanelOnboarding() {
           <CardHeader className="space-y-3">
             <div className="flex items-center gap-3">
               <Server className="h-8 w-8 text-primary" />
-              <CardTitle className="text-3xl">Configuration du panneau Neolia</CardTitle>
+              <CardTitle className="text-3xl">Connexion à Home Assistant</CardTitle>
             </div>
             <CardDescription className="text-lg leading-relaxed">
-              L'installateur a déjà poussé la configuration via Neolia Configurator.
+              Entrez l'URL de votre Home Assistant pour récupérer la configuration du panneau.
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-6">
             <div className="space-y-3">
               <Label htmlFor="ha-base-url" className="text-lg">
-                Adresse de Home Assistant (LAN)
+                URL ou IP de Home Assistant
               </Label>
               <Input
                 id="ha-base-url"
                 type="text"
-                placeholder="192.168.1.20:8123"
+                placeholder="ex: 192.168.1.20:8123"
                 value={haBaseUrl}
                 onChange={(e) => setHaBaseUrl(e.target.value)}
                 onKeyPress={handleKeyPress}

@@ -1,21 +1,26 @@
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useHAStore } from "@/store/useHAStore";
-
-// URLs configurées
-const PANEL_BASE_URL = "http://192.168.1.80:8123";
-const CLOUD_BASE_URL = "https://bl09dhclkeomkczlb0b7ktsssxmevmdq.ui.nabu.casa";
-const SHARED_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM";
+import { 
+  CLOUD_BASE_URL, 
+  DEV_SHARED_TOKEN, 
+  getDevInitialHaUrl 
+} from "@/config/networkDefaults";
 
 export interface EffectiveHAConfig {
   baseUrl: string;
   token: string;
   isPanel: boolean;
+  /** Indique si la configuration HA est prête (URL et token disponibles) */
+  configured: boolean;
 }
 
 /**
  * Hook centralisé pour obtenir la configuration HA effective selon le mode d'affichage.
- * En mode Panel: force l'URL LAN locale (ignore le store).
- * En mode Mobile/Tablet: utilise les valeurs du store ou fallback sur le cloud.
+ * 
+ * En mode Panel: utilise la config du store (remplie par onboarding MQTT).
+ * En mode Mobile/Tablet: utilise les valeurs du store ou fallback sur le cloud en dev.
+ * 
+ * IMPORTANT: Plus aucune IP codée en dur. Tout vient du store (onboarding) ou des variables d'env.
  */
 export function useEffectiveHAConfig(): EffectiveHAConfig {
   const { displayMode } = useDisplayMode();
@@ -23,49 +28,73 @@ export function useEffectiveHAConfig(): EffectiveHAConfig {
   
   const isPanel = displayMode === "panel";
   
-  // En mode Panel, on force toujours l'URL LAN et le token partagé
+  // Récupérer l'URL et le token du store
+  const storeUrl = connection?.url || "";
+  const storeToken = connection?.token || "";
+  
+  // En mode Panel, on utilise uniquement le store (rempli par onboarding)
   if (isPanel) {
-    if (typeof window !== "undefined") {
-      console.log("[NEOLIA][PANEL] Mode Panel détecté, forçage URL LAN:", PANEL_BASE_URL);
+    const hasConfig = Boolean(storeUrl && storeToken);
+    
+    if (hasConfig) {
+      console.log("[NEOLIA][PANEL] Config HA depuis store:", storeUrl);
+    } else {
+      console.log("[NEOLIA][PANEL] Aucune config HA disponible, onboarding requis");
     }
+    
     return {
-      baseUrl: PANEL_BASE_URL,
-      token: SHARED_TOKEN,
+      baseUrl: storeUrl,
+      token: storeToken,
       isPanel: true,
+      configured: hasConfig,
     };
   }
   
-  // En mode Mobile/Tablet, on utilise le store ou les valeurs par défaut cloud
+  // En mode Mobile/Tablet, on utilise le store ou les valeurs de dev/cloud
+  const devHaUrl = getDevInitialHaUrl();
+  const effectiveUrl = storeUrl || devHaUrl || CLOUD_BASE_URL;
+  const effectiveToken = storeToken || DEV_SHARED_TOKEN;
+  
   return {
-    baseUrl: connection?.url || CLOUD_BASE_URL,
-    token: connection?.token || SHARED_TOKEN,
+    baseUrl: effectiveUrl,
+    token: effectiveToken,
     isPanel: false,
+    configured: Boolean(effectiveUrl && effectiveToken),
   };
 }
 
 /**
  * Version non-hook pour usage dans des contextes non-React (initialisation, etc.)
  * Utilise une détection basique du mode Panel.
+ * 
+ * ATTENTION: Cette version ne peut pas accéder au store, 
+ * elle retourne donc les valeurs de dev uniquement.
  */
 export function getEffectiveHAConfigSync(displayMode: "mobile" | "tablet" | "panel"): EffectiveHAConfig {
   const isPanel = displayMode === "panel";
+  const devHaUrl = getDevInitialHaUrl();
   
   if (isPanel) {
+    // En mode Panel sync, on ne peut pas accéder au store
+    // Retourne non-configuré (l'appelant doit utiliser le hook dans un contexte React)
     return {
-      baseUrl: PANEL_BASE_URL,
-      token: SHARED_TOKEN,
+      baseUrl: devHaUrl,
+      token: DEV_SHARED_TOKEN,
       isPanel: true,
+      configured: Boolean(devHaUrl && DEV_SHARED_TOKEN),
     };
   }
   
-  // Pour mobile/tablet, on retourne les valeurs cloud par défaut
-  // Le store sera utilisé si disponible dans le contexte React
+  // Pour mobile/tablet, on retourne les valeurs cloud/dev par défaut
+  const effectiveUrl = devHaUrl || CLOUD_BASE_URL;
+  
   return {
-    baseUrl: CLOUD_BASE_URL,
-    token: SHARED_TOKEN,
+    baseUrl: effectiveUrl,
+    token: DEV_SHARED_TOKEN,
     isPanel: false,
+    configured: Boolean(effectiveUrl && DEV_SHARED_TOKEN),
   };
 }
 
-// Export des constantes pour usage externe
-export { PANEL_BASE_URL, CLOUD_BASE_URL, SHARED_TOKEN };
+// Export des constantes pour usage externe (compatibilité)
+export { CLOUD_BASE_URL };

@@ -4,6 +4,7 @@ import mqtt, { MqttClient } from "mqtt";
 import type { NeoliaGlobalConfig } from "./neoliaConfigTypes";
 import { isPanelMode } from "@/lib/platform";
 import { useNeoliaSettings } from "@/store/useNeoliaSettings";
+import { DEFAULT_MQTT_PORT, DEV_DEFAULT_MQTT_HOST } from "@/config/networkDefaults";
 
 export interface NeoliaMqttConnectOptions {
   host: string;
@@ -79,6 +80,8 @@ function tryConnectMqttPort(
  * Tente d'abord le port 1884 (HA Green / nouvelles configs),
  * puis fallback sur 9001 (anciennes configs Mosquitto).
  *
+ * IMPORTANT: Si aucun host MQTT n'est configuré, lève une erreur explicite.
+ *
  * - En cas de succès : retourne { client } avec un client connecté.
  * - En cas d'échec sur 1884 ET 9001 : lève une exception.
  */
@@ -87,6 +90,18 @@ export async function connectNeoliaMqttPanel(
   onError?: (error: Error) => void,
 ): Promise<NeoliaMqttConnection> {
   const { mqttHost, mqttUseSecure, mqttUsername, mqttPassword, setMqttPort } = useNeoliaSettings.getState();
+
+  // Vérifier qu'un host est configuré
+  if (!mqttHost) {
+    const error = new Error(
+      "Aucun host MQTT configuré. L'onboarding est requis pour configurer l'adresse du serveur."
+    );
+    console.error("[NeoliaMQTT PANEL]", error.message);
+    if (onError) {
+      onError(error);
+    }
+    throw error;
+  }
 
   const scheme = mqttUseSecure ? "wss" : "ws";
 
@@ -137,27 +152,34 @@ export async function connectNeoliaMqttPanel(
 /**
  * Connexion au broker MQTT Neolia en WebSocket (mode standard Mobile/Tablet).
  *
- * - Les options fournies par l'appelant DOIVENT avoir priorité totale
- *   sur les valeurs par défaut.
- * - On logge les options finales et l'URL utilisée pour faciliter le debug.
+ * IMPORTANT: Si aucun host n'est fourni dans les options, lève une erreur.
+ * On ne se connecte jamais à une IP arbitraire.
  */
 export function connectNeoliaMqttStandard(
   options: NeoliaMqttConnectOptions,
   onConnect?: () => void,
   onError?: (error: Error) => void,
 ): NeoliaMqttConnection {
-  const defaultPort = options.useSecure ? 8884 : 1884;
+  // Vérifier qu'un host est fourni
+  if (!options.host) {
+    const error = new Error(
+      "Aucun host MQTT fourni dans les options. La configuration réseau est requise."
+    );
+    console.error("[NeoliaMQTT]", error.message);
+    if (onError) {
+      onError(error);
+    }
+    return { client: null };
+  }
 
-  const defaults: NeoliaMqttConnectOptions = {
-    host: "192.168.1.80", // valeur de dev, écrasée par options si différent
-    port: defaultPort,
-    useSecure: false,
-  };
+  const defaultPort = options.useSecure ? 8884 : DEFAULT_MQTT_PORT;
 
-  // ⚠️ IMPORTANT : les options de l'appelant écrasent les valeurs par défaut
   const finalOptions: NeoliaMqttConnectOptions = {
-    ...defaults,
-    ...options,
+    host: options.host,
+    port: options.port || defaultPort,
+    useSecure: options.useSecure ?? false,
+    username: options.username,
+    password: options.password,
   };
 
   const url = buildNeoliaMqttWsUrl(finalOptions);
