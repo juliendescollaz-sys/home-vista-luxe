@@ -57,7 +57,7 @@ export function PanelOnboarding() {
     setPanelErrorMessage("");
 
     // Configuration MQTT "PnP" pour le panneau (comme auparavant)
-    setMqttHost("192.168.1.219");
+    setMqttHost("192.168.1.80");
     setMqttPort(1884);
     setMqttUseSecure(false);
     setMqttUsername("panel");
