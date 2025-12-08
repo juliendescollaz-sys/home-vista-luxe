@@ -14,7 +14,7 @@ import { useDisplayMode } from "@/hooks/useDisplayMode";
 
 // URLs par défaut selon le mode
 const HA_URL_CLOUD = "https://bl09dhclkeomkczlb0b7ktsssxmevmdq.ui.nabu.casa";
-const HA_URL_LAN = "http://192.168.1.219:8123";
+const HA_URL_LAN = "http://192.168.1.80:8123";
 const HA_TOKEN_DEFAULT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM";
 
 const urlSchema = z.string()

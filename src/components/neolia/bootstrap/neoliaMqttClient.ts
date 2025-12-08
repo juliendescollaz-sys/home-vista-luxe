@@ -149,7 +149,7 @@ export function connectNeoliaMqttStandard(
   const defaultPort = options.useSecure ? 8884 : 1884;
 
   const defaults: NeoliaMqttConnectOptions = {
-    host: "192.168.1.219", // valeur de dev, écrasée par options si différent
+    host: "192.168.1.80", // valeur de dev, écrasée par options si différent
     port: defaultPort,
     useSecure: false,
   };
