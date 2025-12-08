@@ -436,16 +436,58 @@ const MaisonMobileView = () => {
   }, [roomPhotos]);
 
   const handleRoomPhotoChange = (areaId: string, file: File) => {
+    // Compress image before storing
+    const img = new Image();
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    img.onload = () => {
+      // Limit size to 400px max dimension for localStorage quota
+      const maxSize = 400;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxSize) {
+          height = (height * maxSize) / width;
+          width = maxSize;
+        }
+      } else {
+        if (height > maxSize) {
+          width = (width * maxSize) / height;
+          height = maxSize;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx?.drawImage(img, 0, 0, width, height);
+
+      const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.7);
+      setRoomPhotos((prev) => {
+        const updated = { ...prev, [areaId]: compressedDataUrl };
+        // Persist immediately to avoid race conditions
+        try {
+          window.localStorage.setItem(LS_ROOM_PHOTOS, JSON.stringify(updated));
+        } catch (err) {
+          console.error("Failed to save room photo to localStorage:", err);
+          toast.error("Espace de stockage insuffisant");
+        }
+        return updated;
+      });
+      toast.success("Photo ajoutée");
+    };
+
+    img.onerror = () => {
+      toast.error("Erreur lors de la lecture de l'image");
+    };
+
     const reader = new FileReader();
     reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      if (dataUrl) {
-        setRoomPhotos((prev) => ({ ...prev, [areaId]: dataUrl }));
-        toast.success("Photo ajoutée");
-      }
+      img.src = e.target?.result as string;
     };
     reader.onerror = () => {
-      toast.error("Erreur lors de la lecture de l'image");
+      toast.error("Erreur lors de la lecture du fichier");
     };
     reader.readAsDataURL(file);
   };
