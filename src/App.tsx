@@ -37,6 +37,16 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const { displayMode } = useDisplayMode();
 
+  // En mode Panel, vérifier si l'onboarding a déjà été complété
+  const [panelOnboardingCompleted, setPanelOnboardingCompleted] = useState(() => {
+    if (displayMode !== "panel") return false;
+    try {
+      return window.localStorage.getItem("neolia_panel_onboarding_completed") === "1";
+    } catch {
+      return false;
+    }
+  });
+
   useEffect(() => {
     // En mode Panel : jamais de bouton "Retour à la configuration"
     if (!hasValidConnection || isConnected || displayMode === "panel") {
@@ -75,13 +85,20 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 
   // Cas 2 : aucune configuration Home Assistant
   if (!hasValidConnection) {
-    // En mode PANEL, on reste sur l'onboarding Panel (auto MQTT / manuel)
+    // En mode PANEL : 
+    // - Si l'onboarding n'a jamais été complété → afficher PanelOnboarding
+    // - Si l'onboarding a été complété mais la connexion est perdue → laisser passer (erreur affichée dans le layout)
     if (displayMode === "panel") {
-      return <PanelOnboarding />;
+      if (!panelOnboardingCompleted) {
+        return <PanelOnboarding />;
+      }
+      // Onboarding déjà fait mais config perdue → on laisse passer, 
+      // le layout affichera une erreur de connexion
+      console.log("[PrivateRoute] Panel: onboarding complété mais config perdue, on laisse passer");
+    } else {
+      // En mobile/tablette : onboarding classique
+      return <Navigate to="/onboarding" />;
     }
-
-    // En mobile/tablette : onboarding classique
-    return <Navigate to="/onboarding" />;
   }
 
   // Cas 3 : connexion OK (ou mode PANEL avec config mais WS pas encore up) → rendu normal
