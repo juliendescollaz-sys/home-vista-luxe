@@ -20,6 +20,7 @@ import { getGridClasses } from "@/lib/gridLayout";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DraggableRoomLabel } from "@/components/DraggableRoomLabel";
+import { RoomDevicesGrid } from "@/components/RoomDevicesGrid";
 import type { HAEntity, HAArea } from "@/types/homeassistant";
 import { getEntityDomain, filterPrimaryControlEntities } from "@/lib/entityUtils";
 
@@ -312,11 +313,8 @@ export const MaisonTabletPanelView = () => {
   );
 };
 
-// Petit wrapper pour éviter une import circulaire directe dans le haut du fichier
+// Wrapper pour RoomDevicesGrid (import statique ESM)
 const RoomDevicesGridWrapper = ({ areaId }: { areaId: string }) => {
-  const RoomDevicesGrid = require("@/components/RoomDevicesGrid")
-    .RoomDevicesGrid as typeof import("@/components/RoomDevicesGrid").RoomDevicesGrid;
-
   return (
     <RoomDevicesGrid areaId={areaId} singleColumn enableDragAndDrop />
   );
