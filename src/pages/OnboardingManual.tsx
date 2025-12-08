@@ -11,11 +11,11 @@ import neoliaLogo from "@/assets/neolia-logo.png";
 import { z } from "zod";
 import { setHaConfig } from "@/services/haConfig";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
-
-// URLs par défaut selon le mode
-const HA_URL_CLOUD = "https://bl09dhclkeomkczlb0b7ktsssxmevmdq.ui.nabu.casa";
-const HA_URL_LAN = "http://192.168.1.80:8123";
-const HA_TOKEN_DEFAULT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM";
+import { 
+  CLOUD_BASE_URL, 
+  DEV_SHARED_TOKEN, 
+  getDevInitialHaUrl 
+} from "@/config/networkDefaults";
 
 const urlSchema = z.string()
   .trim()
@@ -35,14 +35,22 @@ const OnboardingManual = () => {
   const navigate = useNavigate();
   const { displayMode } = useDisplayMode();
   
-  // URL par défaut selon le mode : Panel = LAN, Mobile/Tablet = Cloud
+  // URL par défaut selon le mode et les variables d'environnement
   const getDefaultUrl = () => {
+    // Vérifier si une URL a été pré-remplie
     const prefill = localStorage.getItem("neolia_prefill_url");
     if (prefill) {
       localStorage.removeItem("neolia_prefill_url");
       return prefill;
     }
-    return displayMode === "panel" ? HA_URL_LAN : HA_URL_CLOUD;
+    
+    // En mode Panel, utiliser l'URL de dev si disponible, sinon vide
+    if (displayMode === "panel") {
+      return getDevInitialHaUrl(); // Vide en PROD
+    }
+    
+    // En mode Mobile/Tablet, utiliser l'URL de dev ou cloud
+    return getDevInitialHaUrl() || CLOUD_BASE_URL;
   };
   
   const getDefaultToken = () => {
@@ -51,7 +59,7 @@ const OnboardingManual = () => {
       localStorage.removeItem("neolia_prefill_token");
       return prefill;
     }
-    return HA_TOKEN_DEFAULT;
+    return DEV_SHARED_TOKEN; // Vide en PROD
   };
   
   const [url, setUrl] = useState(getDefaultUrl);

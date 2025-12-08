@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import { getHACredentials } from "@/lib/crypto";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
-import { PANEL_BASE_URL, CLOUD_BASE_URL, SHARED_TOKEN } from "@/hooks/useEffectiveHAConfig";
+import { 
+  CLOUD_BASE_URL, 
+  DEV_SHARED_TOKEN, 
+  getDevInitialHaUrl 
+} from "@/config/networkDefaults";
 
 export function useInitializeConnection() {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -11,18 +15,23 @@ export function useInitializeConnection() {
   useEffect(() => {
     const initializeConnection = async () => {
       const isPanel = displayMode === "panel";
+      const devHaUrl = getDevInitialHaUrl();
       
-      // En mode Panel, on force toujours l'URL LAN et le token partagé
+      // En mode Panel, on utilise l'URL de dev si disponible, sinon on attend l'onboarding
       if (isPanel) {
         console.log("[NEOLIA][PANEL] Initialisation connexion HA en mode Panel");
-        console.log("[NEOLIA][PANEL] URL forcée:", PANEL_BASE_URL);
-        console.log("[NEOLIA][PANEL] Tentative de connexion à Home Assistant...");
         
-        useHAStore.getState().setConnection({
-          url: PANEL_BASE_URL,
-          token: SHARED_TOKEN,
-          connected: false,
-        });
+        if (devHaUrl && DEV_SHARED_TOKEN) {
+          console.log("[NEOLIA][PANEL] URL de dev disponible:", devHaUrl);
+          useHAStore.getState().setConnection({
+            url: devHaUrl,
+            token: DEV_SHARED_TOKEN,
+            connected: false,
+          });
+        } else {
+          console.log("[NEOLIA][PANEL] Pas de config de dev, onboarding requis");
+          // Ne pas définir de connexion - l'onboarding sera déclenché
+        }
         
         setIsInitialized(true);
         return;
@@ -43,22 +52,23 @@ export function useInitializeConnection() {
               connected: false,
             });
           } else {
-            // Fallback sur le cloud par défaut
-            console.log("[NEOLIA] Pas de credentials stockés, utilisation cloud par défaut:", CLOUD_BASE_URL);
-            useHAStore.getState().setConnection({
-              url: CLOUD_BASE_URL,
-              token: SHARED_TOKEN,
-              connected: false,
-            });
+            // Fallback sur le cloud par défaut (ou URL de dev)
+            const fallbackUrl = devHaUrl || CLOUD_BASE_URL;
+            const fallbackToken = DEV_SHARED_TOKEN;
+            
+            if (fallbackToken) {
+              console.log("[NEOLIA] Pas de credentials stockés, utilisation fallback:", fallbackUrl);
+              useHAStore.getState().setConnection({
+                url: fallbackUrl,
+                token: fallbackToken,
+                connected: false,
+              });
+            } else {
+              console.log("[NEOLIA] Pas de credentials, onboarding requis");
+            }
           }
         } catch (error) {
           console.error("❌ Erreur lors de la restauration des credentials:", error);
-          // Fallback sur le cloud en cas d'erreur
-          useHAStore.getState().setConnection({
-            url: CLOUD_BASE_URL,
-            token: SHARED_TOKEN,
-            connected: false,
-          });
         }
       }
       

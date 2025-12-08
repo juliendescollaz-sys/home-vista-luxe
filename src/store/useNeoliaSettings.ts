@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { isPanelMode } from "@/lib/platform";
+import { DEFAULT_MQTT_PORT, DEV_DEFAULT_MQTT_HOST } from "@/config/networkDefaults";
 
 export interface NeoliaSettingsState {
   // MQTT settings
@@ -23,25 +24,25 @@ export interface NeoliaSettingsState {
 
 /**
  * Retourne les valeurs par défaut MQTT selon le mode d'exécution.
- * En mode Panel : credentials pré-configurés pour Zero-Config.
- * En mode Mobile/Tablet : valeurs vides (configuration manuelle requise).
+ * En mode Panel : credentials pré-configurés pour Zero-Config (host vide, sera fourni par MQTT/onboarding).
+ * En mode Mobile/Tablet : valeurs vides ou de dev (configuration manuelle requise en PROD).
  */
 function getDefaultMqttSettings() {
   if (isPanelMode()) {
-    // Mode Panel : Zero-Config avec credentials hardcodés
+    // Mode Panel : Zero-Config avec credentials hardcodés, mais host vide (sera rempli par onboarding)
     return {
-      mqttHost: "homeassistant.local",
-      mqttPort: 1884,
+      mqttHost: DEV_DEFAULT_MQTT_HOST, // Vide en PROD, rempli par onboarding
+      mqttPort: DEFAULT_MQTT_PORT,
       mqttUseSecure: false,
       mqttUsername: "panel",
       mqttPassword: "PanelMQTT!2025",
     };
   }
 
-  // Mode Mobile/Tablet : configuration manuelle
+  // Mode Mobile/Tablet : configuration manuelle requise en PROD
   return {
-    mqttHost: "192.168.1.80",
-    mqttPort: 1884,
+    mqttHost: DEV_DEFAULT_MQTT_HOST, // Vide en PROD
+    mqttPort: DEFAULT_MQTT_PORT,
     mqttUseSecure: false,
     mqttUsername: "",
     mqttPassword: "",

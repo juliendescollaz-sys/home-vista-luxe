@@ -8,6 +8,7 @@ import { isPanelMode } from "@/lib/platform";
 import { useHAStore } from "@/store/useHAStore";
 import { setHaConfig } from "@/services/haConfig";
 import { toast } from "sonner";
+import { DEFAULT_CONFIGURATOR_PORT } from "@/config/networkDefaults";
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -18,11 +19,13 @@ const Onboarding = () => {
   // États pour le bouton Configurator (Panel uniquement)
   const [isLoadingConfigurator, setIsLoadingConfigurator] = useState(false);
   const [errorConfigurator, setErrorConfigurator] = useState<string | null>(null);
+  
+  // URL du serveur Configurator : depuis localStorage ou vide (PROD)
   const [configServerUrl, setConfigServerUrl] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("neolia_configurator_url") || "192.168.1.10:8765";
+      return localStorage.getItem("neolia_configurator_url") || "";
     }
-    return "192.168.1.10:8765";
+    return "";
   });
 
   const handleConfigServerUrlChange = (value: string) => {
@@ -39,14 +42,19 @@ const Onboarding = () => {
 
     let baseUrl = (configServerUrl || "").trim();
 
+    if (!baseUrl) {
+      setErrorConfigurator("Veuillez saisir l'adresse IP du serveur NeoliaConfigurator.");
+      return;
+    }
+
     // Auto-prefix http:// if missing
-    if (baseUrl && !baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
+    if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
       baseUrl = "http://" + baseUrl;
     }
 
-    if (!baseUrl) {
-      setErrorConfigurator("Veuillez saisir l'adresse du serveur NeoliaConfigurator.");
-      return;
+    // Ajouter le port par défaut si non spécifié
+    if (!baseUrl.includes(":", baseUrl.indexOf("//") + 2)) {
+      baseUrl = `${baseUrl}:${DEFAULT_CONFIGURATOR_PORT}`;
     }
 
     if (baseUrl.endsWith("/")) {
@@ -134,15 +142,18 @@ const Onboarding = () => {
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-muted-foreground">
-                  Adresse du serveur NeoliaConfigurator (IP du PC)
+                  Adresse IP du serveur NeoliaConfigurator
                 </label>
                 <Input
                   type="text"
                   value={configServerUrl}
                   onChange={(e) => handleConfigServerUrlChange(e.target.value)}
-                  placeholder="192.168.1.10:8765"
+                  placeholder="ex: 192.168.1.10"
                   className="h-12 text-base"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Saisissez l'adresse IP du PC où tourne NeoliaConfigurator
+                </p>
               </div>
               <Button
                 onClick={handleConfiguratorImport}
