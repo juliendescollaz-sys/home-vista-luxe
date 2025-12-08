@@ -40,7 +40,7 @@ function getDefaultMqttSettings() {
 
   // Mode Mobile/Tablet : configuration manuelle
   return {
-    mqttHost: "192.168.1.219",
+    mqttHost: "192.168.1.80",
     mqttPort: 1884,
     mqttUseSecure: false,
     mqttUsername: "",
