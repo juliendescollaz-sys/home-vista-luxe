@@ -49,9 +49,14 @@ export const SortableRoomCardWithPhoto = ({
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
     const file = e.target.files?.[0];
     if (file) {
       onPhotoChange(area.area_id, file);
+      // Reset input pour permettre de re-sélectionner le même fichier
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -103,8 +108,8 @@ export const SortableRoomCardWithPhoto = ({
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={handleFileChange}
+            onClick={(e) => e.stopPropagation()}
             className="hidden"
           />
 
