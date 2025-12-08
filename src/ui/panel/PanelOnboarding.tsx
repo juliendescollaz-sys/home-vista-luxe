@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,12 @@ import { setHaConfig } from "@/services/haConfig";
 import { useHAStore } from "@/store/useHAStore";
 import { useNeoliaSettings } from "@/store/useNeoliaSettings";
 import { isPanelMode } from "@/lib/platform";
-import { connectNeoliaMqttPanel } from "@/components/neolia/bootstrap/neoliaMqttClient";
+import { connectNeoliaMqttPanel, subscribeNeoliaConfigGlobal } from "@/components/neolia/bootstrap/neoliaMqttClient";
+import { parseNeoliaConfig, extractHaConnection } from "@/components/neolia/bootstrap/neoliaBootstrap";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 import neoliaLogo from "@/assets/neolia-logo.png";
 import { DEFAULT_MQTT_PORT, DEV_DEFAULT_MQTT_HOST } from "@/config/networkDefaults";
+import type { MqttClient } from "mqtt";
 
 type OnboardingStatus = "idle" | "loading" | "success" | "error";
 
@@ -44,6 +46,82 @@ export function PanelOnboarding() {
   const [manualMode, setManualMode] = useState(false);
 
   const { mqttHost, setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword } = useNeoliaSettings();
+
+  /**
+   * Applique la configuration HA reçue via MQTT et redirige vers l'accueil.
+   * Gère les états pour les modes auto ET manuel.
+   */
+  const applyHaConfigFromMqtt = useCallback(async (payload: unknown) => {
+    console.log("[PanelOnboarding] Payload MQTT reçu:", payload);
+    
+    const config = parseNeoliaConfig(payload);
+    if (!config) {
+      console.error("[PanelOnboarding] Payload Neolia invalide");
+      // Mode auto
+      setPanelError(true);
+      setPanelConnecting(false);
+      setPanelErrorMessage("Configuration Neolia invalide reçue via MQTT.");
+      // Mode manuel
+      setStatus("error");
+      setStatusMessage("");
+      setErrorMessage("Configuration Neolia invalide reçue via MQTT.");
+      return;
+    }
+    
+    const haConn = extractHaConnection(config);
+    if (!haConn) {
+      console.error("[PanelOnboarding] Impossible d'extraire la config HA du payload");
+      // Mode auto
+      setPanelError(true);
+      setPanelConnecting(false);
+      setPanelErrorMessage("Configuration Home Assistant manquante dans le payload MQTT.");
+      // Mode manuel
+      setStatus("error");
+      setStatusMessage("");
+      setErrorMessage("Configuration Home Assistant manquante dans le payload MQTT.");
+      return;
+    }
+    
+    console.log("[PanelOnboarding] Configuration HA extraite:", haConn.baseUrl);
+    
+    // Persister la config HA
+    try {
+      await setHaConfig({
+        localHaUrl: haConn.baseUrl,
+        token: haConn.token,
+      });
+    } catch (e) {
+      console.error("[PanelOnboarding] Erreur lors de la persistance de la config HA:", e);
+    }
+    
+    // Mettre à jour le store HA
+    setConnection({
+      url: haConn.baseUrl,
+      token: haConn.token,
+      connected: false,
+    });
+    
+    // Marquer l'onboarding Panel comme terminé
+    try {
+      window.localStorage.setItem("neolia_panel_onboarding_completed", "1");
+    } catch {
+      // ignore storage errors
+    }
+    
+    // Mode auto
+    setPanelSuccess(true);
+    setPanelConnecting(false);
+    // Mode manuel
+    setStatus("success");
+    setStatusMessage("Configuration reçue et appliquée. Redirection en cours…");
+    
+    console.log("[PanelOnboarding] Configuration appliquée, redirection...");
+    
+    // Redirection vers l'accueil
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 500);
+  }, [setConnection]);
 
   /**
    * Connexion automatique : utilise le host MQTT du store ou de l'env de dev.
@@ -97,27 +175,18 @@ export function PanelOnboarding() {
         return;
       }
 
-      setPanelSuccess(true);
-      setPanelConnecting(false);
-
-      try {
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem("neolia_panel_has_config", "1");
-        }
-      } catch {
-        // ignore storage errors
-      }
-
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 500);
+      console.log("[PanelOnboarding] Connexion MQTT OK, souscription au topic neolia/config/global...");
+      
+      // S'abonner au topic de configuration et attendre le payload
+      subscribeNeoliaConfigGlobal(result.client, applyHaConfigFromMqtt);
+      
     } catch (error) {
       console.error("[PanelOnboarding] Exception lors de la connexion MQTT:", error);
       setPanelError(true);
       setPanelConnecting(false);
       setPanelErrorMessage(String((error as any)?.message || error));
     }
-  }, [mqttHost, setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword]);
+  }, [mqttHost, setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword, applyHaConfigFromMqtt]);
 
   /**
    * MODE PANEL : Auto (MQTT) / Manuel (MQTT aussi)
@@ -182,20 +251,12 @@ export function PanelOnboarding() {
           return;
         }
 
-        setStatus("success");
-        setStatusMessage("Configuration reçue et appliquée. Redirection en cours…");
-
-        try {
-          if (typeof window !== "undefined") {
-            window.localStorage.setItem("neolia_panel_has_config", "1");
-          }
-        } catch {
-          // ignore storage errors
-        }
-
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 500);
+        console.log("[PanelOnboarding] Connexion MQTT manuelle OK, souscription au topic...");
+        setStatusMessage("Connexion MQTT établie. Attente de la configuration Home Assistant…");
+        
+        // S'abonner au topic de configuration et attendre le payload
+        subscribeNeoliaConfigGlobal(result.client, applyHaConfigFromMqtt);
+        
       } catch (error: any) {
         console.error("[PanelOnboarding] Exception lors de la connexion MQTT manuelle:", error);
         setStatus("error");
