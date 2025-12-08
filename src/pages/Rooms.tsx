@@ -3,18 +3,19 @@ import { BottomNav } from "@/components/BottomNav";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useHAStore } from "@/store/useHAStore";
 import { useEffect, useMemo, useState } from "react";
-import { MapPin, Grid3x3, Loader2 } from "lucide-react";
+import { MapPin, Grid3x3, Loader2, ChevronLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { HomeOverviewByTypeAndArea } from "@/components/HomeOverviewByTypeAndArea";
 import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, closestCenter, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { SortableAreaCard } from "@/components/SortableAreaCard";
+import { SortableRoomCardWithPhoto } from "@/components/SortableRoomCardWithPhoto";
 import { SortableTypeCard } from "@/components/SortableTypeCard";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { SortableCoverEntityTile } from "@/components/entities/SortableCoverEntityTile";
-import { DeviceEntitiesDrawer } from "@/components/DeviceEntitiesDrawer";
+
 import { RenameDialog } from "@/components/RenameDialog";
 import { getGridClasses } from "@/lib/gridLayout";
 import { toast } from "sonner";
@@ -337,7 +338,6 @@ const MaisonMobileView = () => {
   const [selectedAreaId, setSelectedAreaId] = useState<string | undefined>();
   const [selectedTypeName, setSelectedTypeName] = useState<string | undefined>();
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [detailsEntity, setDetailsEntity] = useState<HAEntity | null>(null);
   const [areaToRename, setAreaToRename] = useState<HAArea | null>(null);
   const [entityToRename, setEntityToRename] = useState<HAEntity | null>(null);
 
@@ -345,6 +345,7 @@ const MaisonMobileView = () => {
   const LS_TYPE_ORDER = "neolia_mobile_type_order";
   const LS_DEVICE_AREA_ORDER = "neolia_mobile_device_order_by_area";
   const LS_DEVICE_TYPE_ORDER = "neolia_mobile_device_order_by_type";
+  const LS_ROOM_PHOTOS = "neolia_mobile_room_photos";
 
   const [areaOrder, setAreaOrder] = useState<string[]>(() => {
     try {
@@ -374,6 +375,14 @@ const MaisonMobileView = () => {
     try {
       const dt = window.localStorage.getItem(LS_DEVICE_TYPE_ORDER);
       return dt ? JSON.parse(dt) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [roomPhotos, setRoomPhotos] = useState<Record<string, string>>(() => {
+    try {
+      const rp = window.localStorage.getItem(LS_ROOM_PHOTOS);
+      return rp ? JSON.parse(rp) : {};
     } catch {
       return {};
     }
@@ -419,6 +428,27 @@ const MaisonMobileView = () => {
       window.localStorage.setItem(LS_DEVICE_TYPE_ORDER, JSON.stringify(deviceOrderByType));
     } catch {}
   }, [deviceOrderByType]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(LS_ROOM_PHOTOS, JSON.stringify(roomPhotos));
+    } catch {}
+  }, [roomPhotos]);
+
+  const handleRoomPhotoChange = (areaId: string, file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (dataUrl) {
+        setRoomPhotos((prev) => ({ ...prev, [areaId]: dataUrl }));
+        toast.success("Photo ajoutée");
+      }
+    };
+    reader.onerror = () => {
+      toast.error("Erreur lors de la lecture de l'image");
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -662,8 +692,184 @@ const MaisonMobileView = () => {
         </button>
       </div>
 
-      {/* le reste de MaisonMobileView reste identique à ta version actuelle */}
-      {/* ... */}
+      {/* Contenu principal avec DnD */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        {viewMode === "room" && !selectedAreaId && (
+          <SortableContext
+            items={orderedAreas.map((a) => a.area_id)}
+            strategy={rectSortingStrategy}
+          >
+            <div className="grid grid-cols-1 gap-4">
+              {orderedAreas.map((area) => {
+                const floor = floors.find((f) => f.floor_id === area.floor_id);
+                return (
+                  <SortableRoomCardWithPhoto
+                    key={area.area_id}
+                    area={area}
+                    floor={floor}
+                    deviceCount={deviceCountByArea[area.area_id] || 0}
+                    customPhoto={roomPhotos[area.area_id]}
+                    onPhotoChange={handleRoomPhotoChange}
+                    onClick={() => setSelectedAreaId(area.area_id)}
+                    onEditName={setAreaToRename}
+                  />
+                );
+              })}
+            </div>
+          </SortableContext>
+        )}
+
+        {viewMode === "room" && selectedAreaId && (
+          <div className="space-y-4">
+            <button
+              onClick={() => setSelectedAreaId(undefined)}
+              className="flex items-center gap-2 text-sm text-muted-foreground active:text-foreground transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Retour aux pièces
+            </button>
+            <h2 className="text-lg font-semibold">
+              {areas.find((a) => a.area_id === selectedAreaId)?.name}
+            </h2>
+            <SortableContext
+              items={devicesForArea.map((e) => e.entity_id)}
+              strategy={rectSortingStrategy}
+            >
+              <div className={getGridClasses("devices", "mobile")}>
+                {devicesForArea.map((entity) => {
+                  const domain = getEntityDomain(entity.entity_id);
+                  if (domain === "cover") {
+                    return (
+                      <SortableCoverEntityTile
+                        key={entity.entity_id}
+                        entity={entity}
+                      />
+                    );
+                  }
+                  if (domain === "media_player") {
+                    return (
+                      <SortableMediaPlayerCard
+                        key={entity.entity_id}
+                        entity={entity}
+                      />
+                    );
+                  }
+                  return (
+                    <SortableDeviceCard
+                      key={entity.entity_id}
+                      entity={entity}
+                      onToggle={() => handleDeviceToggle(entity.entity_id)}
+                      onOpenDetails={() => {}}
+                      onEditName={() => setEntityToRename(entity)}
+                    />
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </div>
+        )}
+
+        {viewMode === "type" && !selectedTypeName && (
+          <SortableContext items={orderedTypeNames} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 gap-3">
+              {orderedTypeNames.map((typeName) => {
+                const count = entitiesByType[typeName]?.length || 0;
+                return (
+                  <SortableTypeCard
+                    key={typeName}
+                    typeName={typeName}
+                    deviceCount={count}
+                    onClick={() => setSelectedTypeName(typeName)}
+                  />
+                );
+              })}
+            </div>
+          </SortableContext>
+        )}
+
+        {viewMode === "type" && selectedTypeName && (
+          <div className="space-y-4">
+            <button
+              onClick={() => setSelectedTypeName(undefined)}
+              className="flex items-center gap-2 text-sm text-muted-foreground active:text-foreground transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Retour aux types
+            </button>
+            <h2 className="text-lg font-semibold">{selectedTypeName}</h2>
+            <SortableContext
+              items={devicesForType.map((e) => e.entity_id)}
+              strategy={rectSortingStrategy}
+            >
+              <div className={getGridClasses("devices", "mobile")}>
+                {devicesForType.map((entity) => {
+                  const domain = getEntityDomain(entity.entity_id);
+                  if (domain === "cover") {
+                    return (
+                      <SortableCoverEntityTile
+                        key={entity.entity_id}
+                        entity={entity}
+                      />
+                    );
+                  }
+                  if (domain === "media_player") {
+                    return (
+                      <SortableMediaPlayerCard
+                        key={entity.entity_id}
+                        entity={entity}
+                      />
+                    );
+                  }
+                  return (
+                    <SortableDeviceCard
+                      key={entity.entity_id}
+                      entity={entity}
+                      onToggle={() => handleDeviceToggle(entity.entity_id)}
+                      onOpenDetails={() => {}}
+                      onEditName={() => setEntityToRename(entity)}
+                    />
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </div>
+        )}
+      </DndContext>
+
+      {/* Dialog renommage pièce */}
+      <RenameDialog
+        open={!!areaToRename}
+        title="Renommer la pièce"
+        initialValue={areaToRename?.name || ""}
+        placeholder="Nom de la pièce"
+        onConfirm={async (newName) => {
+          if (areaToRename) {
+            await renameArea(areaToRename.area_id, newName);
+            setAreaToRename(null);
+          }
+        }}
+        onClose={() => setAreaToRename(null)}
+      />
+
+      {/* Dialog renommage appareil */}
+      <RenameDialog
+        open={!!entityToRename}
+        title="Renommer l'appareil"
+        initialValue={entityToRename?.attributes?.friendly_name || ""}
+        placeholder="Nom de l'appareil"
+        onConfirm={async (newName) => {
+          if (entityToRename) {
+            await renameEntity(entityToRename.entity_id, newName);
+            setEntityToRename(null);
+          }
+        }}
+        onClose={() => setEntityToRename(null)}
+      />
     </div>
   );
 };
