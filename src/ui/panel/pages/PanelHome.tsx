@@ -107,9 +107,9 @@ export function PanelHome() {
 
   if (!client || !entities || entities.length === 0) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="w-full px-4 pb-[26px] pt-[24px] space-y-4">
-          <Skeleton className="h-56 w-full rounded-3xl" />
+      <div className="h-full flex flex-col bg-background">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+          <Skeleton className="h-48 w-full rounded-3xl shrink-0" />
           <div className="space-y-3">
             <Skeleton className="h-6 w-40" />
             <Skeleton className="h-20 w-full rounded-2xl" />
@@ -121,23 +121,24 @@ export function PanelHome() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="w-full px-4 pb-[26px] pt-[24px] space-y-6">
-        {/* Section météo */}
-        <div className="animate-fade-in">
+    <div className="h-full flex flex-col bg-background">
+      {/* Container scrollable qui occupe tout l'espace disponible */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+        {/* Section météo - hauteur réduite pour Panel */}
+        <div className="animate-fade-in shrink-0">
           <AnimatedWeatherTile />
         </div>
 
         {/* Appareils actifs */}
         <div className="space-y-3 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-          <h2 className="text-xl font-semibold">Appareils actifs</h2>
+          <h2 className="text-lg font-semibold">Appareils actifs</h2>
 
           {enrichedActiveDevices.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center min-h-[200px]">
+            <div className="flex items-center justify-center min-h-[120px]">
               <p className="text-muted-foreground">Aucun appareil actif</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {enrichedActiveDevices.map(({ entity, area, floor }) => {
                 const isMediaPlayer = entity.entity_id.startsWith("media_player.");
                 const isCover = entity.entity_id.startsWith("cover.");
