@@ -23,9 +23,8 @@ export function PanelRooms() {
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const devices = useHAStore((state) => state.devices);
 
+  // Layout Panel: marges uniformes sur les 4 côtés (24px)
   const rootClassName = "w-full h-full flex flex-col overflow-hidden";
-  const ptClass = "pt-[24px]";
-
   const isHAInitialized = !!connection && floors.length > 0;
 
   // On considère qu'on a des plans utilisables dès qu'on en a au moins 1
@@ -57,7 +56,8 @@ export function PanelRooms() {
 
   return (
     <div className={rootClassName}>
-      <div className={cn("w-full h-full px-4 overflow-hidden", ptClass)}>
+      {/* Conteneur avec marges uniformes (24px) sur les 4 côtés */}
+      <div className="w-full h-full p-6 overflow-hidden">
         {shouldShowPlansSpinner ? (
           <div className="flex items-center justify-center w-full h-full min-h-[400px]">
             <div className="flex flex-col items-center gap-3">
