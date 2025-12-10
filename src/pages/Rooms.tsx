@@ -41,6 +41,7 @@ export const MaisonTabletPanelView = () => {
   const renameArea = useHAStore((state) => state.renameArea);
 
   const [areaToRename, setAreaToRename] = useState<HAArea | null>(null);
+  const [overlayClickGuard, setOverlayClickGuard] = useState(false);
 
   // Réinitialiser selectedAreaId quand on change d'étage
   useEffect(() => {
@@ -222,7 +223,10 @@ export const MaisonTabletPanelView = () => {
                                 );
                               }}
                               onClickRoom={() => {
+                                setOverlayClickGuard(true);
                                 setSelectedAreaId(effectiveAreaId);
+                                // Reset guard after a short delay
+                                setTimeout(() => setOverlayClickGuard(false), 300);
                               }}
                             />
                           );
@@ -254,7 +258,11 @@ export const MaisonTabletPanelView = () => {
         {selectedAreaId && (
           <div
             className="absolute inset-0 bg-black/20 backdrop-blur-sm z-40"
-            onClick={() => setSelectedAreaId(null)}
+            onClick={() => {
+              if (!overlayClickGuard) {
+                setSelectedAreaId(null);
+              }
+            }}
           />
         )}
 

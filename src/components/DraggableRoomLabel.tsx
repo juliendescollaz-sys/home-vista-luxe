@@ -115,7 +115,7 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
       setPos({ x: clampedX, y: clampedY });
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (e: PointerEvent) => {
       const state = dragStateRef.current;
       if (!state.isDragging) return;
 
@@ -129,7 +129,14 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
       if (wasDrag) {
         onPositionChangeRef.current(state.currentPosX, state.currentPosY);
       } else {
-        onClickRoomRef.current();
+        // Prevent synthetic click event from firing after pointerup (Panel mode issue)
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Use setTimeout to ensure the click happens after event processing
+        setTimeout(() => {
+          onClickRoomRef.current();
+        }, 0);
       }
     };
 
