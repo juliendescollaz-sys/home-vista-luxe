@@ -29,17 +29,13 @@ const Settings = () => {
     window.location.href = "/onboarding";
   };
 
-  const rootClassName = displayMode === "mobile" 
-    ? `min-h-screen bg-background pb-24 ${ptClass}`
-    : "w-full h-full flex items-center justify-center";
-
-  return (
-    <div className={rootClassName}>
-      <TopBar title="Paramètres" />
-      
-      <div className="max-w-screen-xl mx-auto px-4 py-4 space-y-8">
-
-        <div className="space-y-4">
+  // Mobile: layout vertical avec scroll
+  if (displayMode === "mobile") {
+    return (
+      <div className={`min-h-screen bg-background pb-24 ${ptClass}`}>
+        <TopBar title="Paramètres" />
+        
+        <div className="max-w-screen-xl mx-auto px-4 py-4 space-y-4">
           <Card className="p-6 bg-gradient-card border-border/50">
             <h3 className="text-lg font-semibold mb-4">Connexion</h3>
             <div className="space-y-3">
@@ -98,35 +94,33 @@ const Settings = () => {
                 </div>
               </div>
 
-              {displayMode === "mobile" && (
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">Préférence de main</p>
-                  <div className="flex gap-3">
-                    <Button 
-                      variant={handedness === "left" ? "default" : "outline"} 
-                      className="flex-1"
-                      onClick={() => {
-                        setHandedness("left");
-                        toast.success("Mode gaucher activé");
-                      }}
-                    >
-                      <Hand className="mr-2 h-4 w-4 scale-x-[-1]" />
-                      Gaucher
-                    </Button>
-                    <Button 
-                      variant={handedness === "right" ? "default" : "outline"} 
-                      className="flex-1"
-                      onClick={() => {
-                        setHandedness("right");
-                        toast.success("Mode droitier activé");
-                      }}
-                    >
-                      <Hand className="mr-2 h-4 w-4" />
-                      Droitier
-                    </Button>
-                  </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Préférence de main</p>
+                <div className="flex gap-3">
+                  <Button 
+                    variant={handedness === "left" ? "default" : "outline"} 
+                    className="flex-1"
+                    onClick={() => {
+                      setHandedness("left");
+                      toast.success("Mode gaucher activé");
+                    }}
+                  >
+                    <Hand className="mr-2 h-4 w-4 scale-x-[-1]" />
+                    Gaucher
+                  </Button>
+                  <Button 
+                    variant={handedness === "right" ? "default" : "outline"} 
+                    className="flex-1"
+                    onClick={() => {
+                      setHandedness("right");
+                      toast.success("Mode droitier activé");
+                    }}
+                  >
+                    <Hand className="mr-2 h-4 w-4" />
+                    Droitier
+                  </Button>
                 </div>
-              )}
+              </div>
             </div>
           </Card>
 
@@ -169,6 +163,127 @@ const Settings = () => {
             <LogOut className="mr-2 h-4 w-4" />
             Se déconnecter
           </Button>
+        </div>
+
+        <BottomNav />
+      </div>
+    );
+  }
+
+  // Tablet: layout en grille horizontale (sans scroll)
+  return (
+    <div className="w-full h-full flex flex-col bg-background">
+      <TopBar title="Paramètres" />
+      
+      <div className="flex-1 min-h-0 p-4">
+        <div className="h-full grid grid-cols-3 gap-4">
+          {/* Colonne 1: Connexion + Déconnexion */}
+          <div className="flex flex-col gap-4">
+            <Card className="flex-1 p-5 bg-gradient-card border-border/50">
+              <h3 className="text-base font-semibold mb-3">Connexion</h3>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">URL Home Assistant</p>
+                  <p className="font-mono text-xs break-all">{connection?.url}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Statut</p>
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
+                    <span className="text-xs">Connecté</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Mode de connexion</p>
+                  <div className="flex items-center gap-2">
+                    {connectionMode === "remote" ? (
+                      <>
+                        <Cloud className="h-3 w-3 text-primary" />
+                        <span className="text-xs font-medium">Cloud (Nabu Casa)</span>
+                      </>
+                    ) : (
+                      <>
+                        <HomeIcon className="h-3 w-3 text-primary" />
+                        <span className="text-xs font-medium">Local</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
+            
+            <Button
+              variant="destructive"
+              className="w-full"
+              onClick={handleDisconnect}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Se déconnecter
+            </Button>
+          </div>
+
+          {/* Colonne 2: Apparence + Journal */}
+          <div className="flex flex-col gap-4">
+            <Card className="p-5 bg-gradient-card border-border/50">
+              <h3 className="text-base font-semibold mb-3">Apparence</h3>
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Thème</p>
+                <div className="flex gap-2">
+                  <Button 
+                    variant={theme === "light" ? "default" : "outline"} 
+                    className="flex-1"
+                    size="sm"
+                    onClick={() => setTheme("light")}
+                  >
+                    <Sun className="mr-1 h-3 w-3" />
+                    Clair
+                  </Button>
+                  <Button 
+                    variant={theme === "dark" ? "default" : "outline"} 
+                    className="flex-1"
+                    size="sm"
+                    onClick={() => setTheme("dark")}
+                  >
+                    <Moon className="mr-1 h-3 w-3" />
+                    Sombre
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="flex-1 p-5 bg-gradient-card border-border/50">
+              <h3 className="text-base font-semibold mb-3">Journal d'activité</h3>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <Activity className="h-4 w-4 text-primary mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-xs font-medium">Suivi des événements</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enregistre toutes les actions de votre maison.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  size="sm"
+                  onClick={() => toast.info("Fonctionnalité à venir")}
+                >
+                  Voir le journal
+                </Button>
+              </div>
+            </Card>
+          </div>
+
+          {/* Colonne 3: À propos */}
+          <Card className="p-5 bg-gradient-card border-border/50">
+            <h3 className="text-base font-semibold mb-3">À propos</h3>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>Neolia Smart Home v1.0.0</p>
+              <p>Powered by Home Assistant</p>
+              <p>© 2025 Neolia. Tous droits réservés.</p>
+            </div>
+          </Card>
         </div>
       </div>
 
