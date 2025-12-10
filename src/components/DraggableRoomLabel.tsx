@@ -61,11 +61,14 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
   }, [pos]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-
+    // Capture le pointer pour recevoir tous les événements même si le doigt sort de l'élément
     const label = labelRef.current;
     if (!label) return;
+
+    label.setPointerCapture(e.pointerId);
+    
+    e.preventDefault();
+    e.stopPropagation();
 
     const container = label.parentElement;
     if (!container) return;
@@ -76,14 +79,17 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
     const startPosX = currentPosRef.current.x;
     const startPosY = currentPosRef.current.y;
     let moved = false;
+    const pointerId = e.pointerId;
 
     const handleMove = (event: PointerEvent) => {
+      if (event.pointerId !== pointerId) return;
+      
       const dx = event.clientX - startClientX;
       const dy = event.clientY - startClientY;
 
-      // Seuil pour distinguer drag vs clic
+      // Seuil pour distinguer drag vs clic (un peu plus grand pour le tactile)
       const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance > 4) {
+      if (distance > 8) {
         moved = true;
       }
 
@@ -99,23 +105,31 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
       setPos({ x: clampedX, y: clampedY });
     };
 
-    const handleUp = () => {
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleUp);
-      window.removeEventListener("pointercancel", handleUp);
+    const handleUp = (event: PointerEvent) => {
+      if (event.pointerId !== pointerId) return;
+      
+      label.removeEventListener("pointermove", handleMove);
+      label.removeEventListener("pointerup", handleUp);
+      label.removeEventListener("pointercancel", handleUp);
+      
+      try {
+        label.releasePointerCapture(pointerId);
+      } catch {
+        // Ignore si déjà relâché
+      }
 
-      // Persister la position finale
-      onPositionChange(currentPosRef.current.x, currentPosRef.current.y);
-
-      // Si quasiment pas bougé → c'est un clic
-      if (!moved) {
+      // Persister la position finale si on a bougé
+      if (moved) {
+        onPositionChange(currentPosRef.current.x, currentPosRef.current.y);
+      } else {
+        // Si pas bougé → c'est un clic, ouvrir la sidebar
         onClickRoom();
       }
     };
 
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleUp);
-    window.addEventListener("pointercancel", handleUp);
+    label.addEventListener("pointermove", handleMove);
+    label.addEventListener("pointerup", handleUp);
+    label.addEventListener("pointercancel", handleUp);
   }, [onClickRoom, onPositionChange]);
 
   const left = `${pos.x * 100}%`;
@@ -125,16 +139,11 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
     <div
       ref={labelRef}
       className={cn(
-        "absolute pointer-events-auto select-none",
+        "absolute pointer-events-auto select-none touch-none",
         "transform -translate-x-1/2 -translate-y-1/2",
       )}
       style={{ left, top }}
       onPointerDown={handlePointerDown}
-      // Au cas où : clic simple (ex: navigation clavier / screenreader)
-      onClick={(e) => {
-        e.stopPropagation();
-        onClickRoom();
-      }}
       aria-label={roomName}
       role="button"
     >
