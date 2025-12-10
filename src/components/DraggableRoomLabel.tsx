@@ -16,7 +16,7 @@ interface DraggableRoomLabelProps {
   isSelected: boolean;
   /** Callback pour persister la nouvelle position dans le store */
   onPositionChange: (x: number, y: number) => void;
-  /** Callback lorsqu’on « clique » sur la pièce (ou drag très court) */
+  /** Callback lorsqu'on « clique » sur la pièce (ou drag très court) */
   onClickRoom: () => void;
 }
 
@@ -54,97 +54,69 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
     });
   }, [overridePos?.x, overridePos?.y, baseX, baseY]);
 
-  // Etat de drag
-  const dragState = useRef<{
-    dragging: boolean;
-    startX: number;
-    startY: number;
-    startPosX: number;
-    startPosY: number;
-    moved: boolean;
-  }>({
-    dragging: false,
-    startX: 0,
-    startY: 0,
-    startPosX: 0,
-    startPosY: 0,
-    moved: false,
-  });
+  // Ref pour stocker la position courante pendant le drag (évite les problèmes de state async)
+  const currentPosRef = useRef(pos);
+  useEffect(() => {
+    currentPosRef.current = pos;
+  }, [pos]);
 
-  const finishDrag = useCallback(
-    (asClickCandidate: boolean) => {
-      const state = dragState.current;
-
-      if (state.dragging) {
-        state.dragging = false;
-
-        // Persistance de la position dans le store
-        onPositionChange(state.startPosX, state.startPosY);
-      }
-
-      // Si quasiment pas bougé → on considère que c’est un clic
-      if (asClickCandidate && !state.moved) {
-        onClickRoom();
-      }
-    },
-    [onClickRoom, onPositionChange],
-  );
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
 
     const label = labelRef.current;
     if (!label) return;
 
-    const container = label.parentElement; // -> <div class="absolute inset-0 ...">
+    const container = label.parentElement;
     if (!container) return;
 
     const rect = container.getBoundingClientRect();
-
-    dragState.current.dragging = true;
-    dragState.current.moved = false;
-    dragState.current.startX = e.clientX;
-    dragState.current.startY = e.clientY;
-    dragState.current.startPosX = pos.x;
-    dragState.current.startPosY = pos.y;
+    const startClientX = e.clientX;
+    const startClientY = e.clientY;
+    const startPosX = currentPosRef.current.x;
+    const startPosY = currentPosRef.current.y;
+    let moved = false;
 
     const handleMove = (event: PointerEvent) => {
-      if (!dragState.current.dragging) return;
-
-      const dx = event.clientX - dragState.current.startX;
-      const dy = event.clientY - dragState.current.startY;
+      const dx = event.clientX - startClientX;
+      const dy = event.clientY - startClientY;
 
       // Seuil pour distinguer drag vs clic
       const distance = Math.sqrt(dx * dx + dy * dy);
       if (distance > 4) {
-        dragState.current.moved = true;
+        moved = true;
       }
 
-      const newX =
-        dragState.current.startPosX + dx / Math.max(rect.width, 1);
-      const newY =
-        dragState.current.startPosY + dy / Math.max(rect.height, 1);
+      // Calculer la nouvelle position relative à la position de départ (pas de cumul)
+      const newX = startPosX + dx / Math.max(rect.width, 1);
+      const newY = startPosY + dy / Math.max(rect.height, 1);
 
       // Clamp 0–1
       const clampedX = Math.min(0.98, Math.max(0.02, newX));
       const clampedY = Math.min(0.98, Math.max(0.02, newY));
 
-      dragState.current.startPosX = clampedX;
-      dragState.current.startPosY = clampedY;
-
+      currentPosRef.current = { x: clampedX, y: clampedY };
       setPos({ x: clampedX, y: clampedY });
     };
 
-    const handleUp = (event: PointerEvent) => {
+    const handleUp = () => {
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerup", handleUp);
-      finishDrag(true);
+      window.removeEventListener("pointercancel", handleUp);
+
+      // Persister la position finale
+      onPositionChange(currentPosRef.current.x, currentPosRef.current.y);
+
+      // Si quasiment pas bougé → c'est un clic
+      if (!moved) {
+        onClickRoom();
+      }
     };
 
     window.addEventListener("pointermove", handleMove);
     window.addEventListener("pointerup", handleUp);
-  };
+    window.addEventListener("pointercancel", handleUp);
+  }, [onClickRoom, onPositionChange]);
 
   const left = `${pos.x * 100}%`;
   const top = `${pos.y * 100}%`;
