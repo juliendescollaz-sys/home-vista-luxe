@@ -56,8 +56,8 @@ export function PanelRooms() {
 
   return (
     <div className={rootClassName}>
-      {/* Conteneur avec marges uniformes (24px) sur les 4 côtés */}
-      <div className="w-full h-full p-6 overflow-hidden">
+      {/* Conteneur avec padding identique à PanelHome (px-4 py-4 = 16px) */}
+      <div className="w-full h-full px-4 py-4 overflow-hidden">
         {shouldShowPlansSpinner ? (
           <div className="flex items-center justify-center w-full h-full min-h-[400px]">
             <div className="flex flex-col items-center gap-3">
