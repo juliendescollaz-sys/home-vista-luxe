@@ -57,7 +57,7 @@ export function PanelRooms() {
 
   return (
     <div className={rootClassName}>
-      <div className={cn("w-full px-4", ptClass)}>
+      <div className={cn("w-full h-full px-4 overflow-hidden", ptClass)}>
         {shouldShowPlansSpinner ? (
           <div className="flex items-center justify-center w-full h-full min-h-[400px]">
             <div className="flex flex-col items-center gap-3">
@@ -68,7 +68,9 @@ export function PanelRooms() {
             </div>
           </div>
         ) : hasUsablePlans ? (
-          <MaisonTabletPanelView />
+          <div className="w-full h-full">
+            <MaisonTabletPanelView />
+          </div>
         ) : (
           <HomeOverviewByTypeAndArea
             entities={entities || []}
