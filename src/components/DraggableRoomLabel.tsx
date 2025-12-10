@@ -22,10 +22,6 @@ interface DraggableRoomLabelProps {
 
 /**
  * Label draggable pour une pièce sur le plan.
- *
- * ⚠ IMPORTANT :
- *  - pointer-events-auto pour que les clics & drags fonctionnent
- *    même si le conteneur parent est en pointer-events-none.
  */
 export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
   floorId,
@@ -39,6 +35,7 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
   onClickRoom,
 }) => {
   const labelRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLElement | null>(null);
 
   // Position effective (en coordonnées relatives 0–1)
   const [pos, setPos] = useState<{ x: number; y: number }>({
@@ -54,90 +51,89 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
     });
   }, [overridePos?.x, overridePos?.y, baseX, baseY]);
 
-  // Ref pour stocker la position courante pendant le drag (évite les problèmes de state async)
-  const currentPosRef = useRef(pos);
-  useEffect(() => {
-    currentPosRef.current = pos;
-  }, [pos]);
+  // Drag state refs (pas de state React pour éviter les re-renders pendant le drag)
+  const isDraggingRef = useRef(false);
+  const startClientRef = useRef({ x: 0, y: 0 });
+  const startPosRef = useRef({ x: 0, y: 0 });
+  const maxDistanceRef = useRef(0);
+  const containerRectRef = useRef<DOMRect | null>(null);
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const label = labelRef.current;
-    if (!label) return;
-
     e.preventDefault();
     e.stopPropagation();
+
+    const label = labelRef.current;
+    if (!label) return;
 
     const container = label.parentElement;
     if (!container) return;
 
-    const rect = container.getBoundingClientRect();
-    const startClientX = e.clientX;
-    const startClientY = e.clientY;
-    const startPosX = currentPosRef.current.x;
-    const startPosY = currentPosRef.current.y;
-    let maxDistance = 0;
-    const pointerId = e.pointerId;
+    // Initialiser le drag state
+    isDraggingRef.current = true;
+    startClientRef.current = { x: e.clientX, y: e.clientY };
+    startPosRef.current = { x: pos.x, y: pos.y };
+    maxDistanceRef.current = 0;
+    containerRef.current = container;
+    containerRectRef.current = container.getBoundingClientRect();
 
-    // Capture le pointer
-    try {
-      label.setPointerCapture(pointerId);
-    } catch {
-      // Ignore si non supporté
+    // Ajouter les listeners au document pour capturer tous les mouvements
+    document.addEventListener("pointermove", handlePointerMove);
+    document.addEventListener("pointerup", handlePointerUp);
+    document.addEventListener("pointercancel", handlePointerUp);
+  }, [pos.x, pos.y]);
+
+  const handlePointerMove = useCallback((e: PointerEvent) => {
+    if (!isDraggingRef.current || !containerRectRef.current) return;
+
+    const dx = e.clientX - startClientRef.current.x;
+    const dy = e.clientY - startClientRef.current.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Tracker la distance max parcourue
+    if (distance > maxDistanceRef.current) {
+      maxDistanceRef.current = distance;
     }
 
-    const handleMove = (event: PointerEvent) => {
-      if (event.pointerId !== pointerId) return;
-      
-      const dx = event.clientX - startClientX;
-      const dy = event.clientY - startClientY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      // Garder trace de la distance max parcourue
-      if (distance > maxDistance) {
-        maxDistance = distance;
-      }
+    // Calculer nouvelle position relative
+    const rect = containerRectRef.current;
+    const newX = startPosRef.current.x + dx / Math.max(rect.width, 1);
+    const newY = startPosRef.current.y + dy / Math.max(rect.height, 1);
 
-      // Calculer la nouvelle position relative à la position de départ
-      const newX = startPosX + dx / Math.max(rect.width, 1);
-      const newY = startPosY + dy / Math.max(rect.height, 1);
+    // Clamp 0–1
+    const clampedX = Math.min(0.98, Math.max(0.02, newX));
+    const clampedY = Math.min(0.98, Math.max(0.02, newY));
 
-      // Clamp 0–1
-      const clampedX = Math.min(0.98, Math.max(0.02, newX));
-      const clampedY = Math.min(0.98, Math.max(0.02, newY));
+    setPos({ x: clampedX, y: clampedY });
+  }, []);
 
-      currentPosRef.current = { x: clampedX, y: clampedY };
-      setPos({ x: clampedX, y: clampedY });
+  const handlePointerUp = useCallback((e: PointerEvent) => {
+    if (!isDraggingRef.current) return;
+
+    // Cleanup listeners
+    document.removeEventListener("pointermove", handlePointerMove);
+    document.removeEventListener("pointerup", handlePointerUp);
+    document.removeEventListener("pointercancel", handlePointerUp);
+
+    const wasDrag = maxDistanceRef.current > 15;
+    isDraggingRef.current = false;
+
+    if (wasDrag) {
+      // C'était un drag → persister la position
+      onPositionChange(pos.x, pos.y);
+    } else {
+      // C'était un tap → ouvrir la sidebar
+      onClickRoom();
+    }
+  }, [onPositionChange, onClickRoom, pos.x, pos.y]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", handlePointerUp);
+      document.removeEventListener("pointercancel", handlePointerUp);
     };
-
-    const handleUp = (event: PointerEvent) => {
-      if (event.pointerId !== pointerId) return;
-      
-      label.removeEventListener("pointermove", handleMove);
-      label.removeEventListener("pointerup", handleUp);
-      label.removeEventListener("pointercancel", handleUp);
-      
-      try {
-        label.releasePointerCapture(pointerId);
-      } catch {
-        // Ignore si déjà relâché
-      }
-
-      // Seuil élevé (20px) pour distinguer clairement drag vs tap
-      const wasDrag = maxDistance > 20;
-
-      if (wasDrag) {
-        // C'était un drag, persister la position
-        onPositionChange(currentPosRef.current.x, currentPosRef.current.y);
-      } else {
-        // C'était un tap, ouvrir la sidebar
-        onClickRoom();
-      }
-    };
-
-    label.addEventListener("pointermove", handleMove);
-    label.addEventListener("pointerup", handleUp);
-    label.addEventListener("pointercancel", handleUp);
-  }, [onClickRoom, onPositionChange]);
+  }, [handlePointerMove, handlePointerUp]);
 
   const left = `${pos.x * 100}%`;
   const top = `${pos.y * 100}%`;
@@ -146,10 +142,10 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
     <div
       ref={labelRef}
       className={cn(
-        "absolute pointer-events-auto select-none touch-none",
+        "absolute pointer-events-auto select-none",
         "transform -translate-x-1/2 -translate-y-1/2",
       )}
-      style={{ left, top }}
+      style={{ left, top, touchAction: "none" }}
       onPointerDown={handlePointerDown}
       aria-label={roomName}
       role="button"
