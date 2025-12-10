@@ -61,12 +61,9 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
   }, [pos]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    // Capture le pointer pour recevoir tous les événements même si le doigt sort de l'élément
     const label = labelRef.current;
     if (!label) return;
 
-    label.setPointerCapture(e.pointerId);
-    
     e.preventDefault();
     e.stopPropagation();
 
@@ -78,22 +75,29 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
     const startClientY = e.clientY;
     const startPosX = currentPosRef.current.x;
     const startPosY = currentPosRef.current.y;
-    let moved = false;
+    let maxDistance = 0;
     const pointerId = e.pointerId;
+
+    // Capture le pointer
+    try {
+      label.setPointerCapture(pointerId);
+    } catch {
+      // Ignore si non supporté
+    }
 
     const handleMove = (event: PointerEvent) => {
       if (event.pointerId !== pointerId) return;
       
       const dx = event.clientX - startClientX;
       const dy = event.clientY - startClientY;
-
-      // Seuil pour distinguer drag vs clic (un peu plus grand pour le tactile)
       const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance > 8) {
-        moved = true;
+      
+      // Garder trace de la distance max parcourue
+      if (distance > maxDistance) {
+        maxDistance = distance;
       }
 
-      // Calculer la nouvelle position relative à la position de départ (pas de cumul)
+      // Calculer la nouvelle position relative à la position de départ
       const newX = startPosX + dx / Math.max(rect.width, 1);
       const newY = startPosY + dy / Math.max(rect.height, 1);
 
@@ -118,11 +122,14 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
         // Ignore si déjà relâché
       }
 
-      // Persister la position finale si on a bougé
-      if (moved) {
+      // Seuil élevé (20px) pour distinguer clairement drag vs tap
+      const wasDrag = maxDistance > 20;
+
+      if (wasDrag) {
+        // C'était un drag, persister la position
         onPositionChange(currentPosRef.current.x, currentPosRef.current.y);
       } else {
-        // Si pas bougé → c'est un clic, ouvrir la sidebar
+        // C'était un tap, ouvrir la sidebar
         onClickRoom();
       }
     };
