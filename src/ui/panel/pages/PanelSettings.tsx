@@ -25,7 +25,7 @@ export function PanelSettings() {
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-background p-4">
+    <div className="w-full h-full flex flex-col bg-background px-4 py-4">
       <div className="flex-1 min-h-0 grid grid-cols-3 gap-4">
         {/* Colonne 1: Connexion + Déconnexion */}
         <div className="flex flex-col gap-4">

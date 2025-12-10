@@ -175,7 +175,7 @@ const Settings = () => {
     <div className="w-full h-full flex flex-col bg-background">
       <TopBar title="Paramètres" />
       
-      <div className="flex-1 min-h-0 p-4">
+      <div className="flex-1 min-h-0 px-4 py-4">
         <div className="h-full grid grid-cols-3 gap-4">
           {/* Colonne 1: Connexion + Déconnexion */}
           <div className="flex flex-col gap-4">
