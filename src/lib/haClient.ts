@@ -293,6 +293,7 @@ export class HAClient {
   async createScene(config: {
     id: string;
     name: string;
+    description?: string;
     entities: Record<string, any>;
     icon?: string;
   }): Promise<void> {
@@ -314,6 +315,7 @@ export class HAClient {
         sceneId: config.id,
         sceneConfig: {
           name: config.name,
+          description: config.description,
           entities: config.entities,
           icon: config.icon,
         },
@@ -332,6 +334,7 @@ export class HAClient {
   async updateHAScene(config: {
     id: string;
     name?: string;
+    description?: string;
     entities?: Record<string, any>;
     icon?: string;
   }): Promise<void> {
@@ -353,6 +356,7 @@ export class HAClient {
         sceneId: config.id,
         sceneConfig: {
           name: config.name || "",
+          description: config.description,
           entities: config.entities || {},
           icon: config.icon,
         },
