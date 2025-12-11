@@ -1,5 +1,3 @@
-// src/ui/panel/components/PanelSnEntryStep.tsx
-
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,196 +5,193 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, HelpCircle, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useNeoliaPanelConfigStore } from "@/store/useNeoliaPanelConfigStore";
+import { useNeoliaSettings } from "@/store/useNeoliaSettings";
+import { setHaConfig } from "@/services/haConfig";
+import { resolvePanelConfigByCode } from "@/api/panelDiscoveryClient";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 import neoliaLogo from "@/assets/neolia-logo.png";
-
-// Placeholder pour l'image - à remplacer par l'asset réel quand disponible
 import haSnLocationPlaceholder from "@/assets/ha-sn-location.png";
 
 export function PanelSnEntryStep() {
-  const [code, setCode] = useState("");
-  const [error, setError] = useState("");
-  const [isValidating, setIsValidating] = useState(false);
-
+  const navigate = useNavigate();
   const {
-    config: neoliaPanelConfig,
-    loading: configLoading,
-    error: configError,
+    enteredNeoliaCode,
     setEnteredNeoliaCode,
-    setHasCompletedSnStep,
+    setLoading,
+    setError,
+    setConfig,
+    markSnStepCompleted,
   } = useNeoliaPanelConfigStore();
 
-  // Validation du format : exactement 4 chiffres
-  const isValidFormat = /^\d{4}$/.test(code);
+  const { setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword } =
+    useNeoliaSettings();
 
-  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    // Limiter à 4 caractères et filtrer les non-chiffres
-    const filtered = value.replace(/\D/g, "").slice(0, 4);
-    setCode(filtered);
-    setError("");
+  const [localCode, setLocalCode] = useState(enteredNeoliaCode || "");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 4); // 4 chiffres max
+    setLocalCode(value);
   };
 
-  const handleValidate = useCallback(() => {
-    if (!isValidFormat) {
-      setError("Veuillez saisir exactement 4 chiffres.");
-      return;
-    }
+  const handleSubmit = useCallback(
+    async (e?: React.FormEvent) => {
+      e?.preventDefault();
 
-    setIsValidating(true);
-    setError("");
-
-    // Si la config HA est disponible, comparer le code
-    if (neoliaPanelConfig?.neoliaCode) {
-      const expectedCode = neoliaPanelConfig.neoliaCode;
-      
-      if (code !== expectedCode) {
-        setError(
-          "Le code ne correspond pas à l'installation détectée. " +
-          "Vérifiez le numéro de série ou contactez votre installateur."
-        );
-        setIsValidating(false);
+      const code = localCode.trim();
+      if (code.length !== 4) {
+        setError("Veuillez entrer les 4 derniers chiffres du numéro de série.");
         return;
       }
-    }
 
-    // Code valide (ou pas encore de config HA pour comparer)
-    setEnteredNeoliaCode(code);
-    setHasCompletedSnStep(true);
+      try {
+        setError(null);
+        setLoading(true);
+        setSubmitting(true);
 
-    // Marquer l'onboarding Panel comme terminé dans localStorage
-    try {
-      window.localStorage.setItem("neolia_panel_onboarding_completed", "1");
-    } catch {
-      // Ignorer les erreurs de storage
-    }
+        // 1) On résout la config depuis le service de découverte
+        const result = await resolvePanelConfigByCode(code);
 
-    console.log("[PanelSnEntryStep] Code SN validé, redirection vers la page principale...");
+        // 2) On configure le store MQTT
+        setMqttHost(result.mqttHost);
+        setMqttPort(result.mqttWsPort);
+        setMqttUseSecure(false); // en général en LAN interne, WS non sécurisé
+        setMqttUsername(result.mqttUsername);
+        setMqttPassword(result.mqttPassword);
 
-    // Rediriger directement vers la page principale du Panel
-    setTimeout(() => {
-      window.location.href = "/";
-    }, 300);
-  }, [code, isValidFormat, neoliaPanelConfig, setEnteredNeoliaCode, setHasCompletedSnStep]);
+        // 3) On met à jour le store PanelConfig (panelHost/mqttWsPort)
+        setConfig({
+          neoliaCode: code,
+          panelHost: result.mqttHost,
+          mqttWsPort: result.mqttWsPort,
+        });
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && isValidFormat && !isValidating) {
-      handleValidate();
-    }
-  };
+        // 4) On persiste le code + flag "étape SN complétée"
+        setEnteredNeoliaCode(code);
+        markSnStepCompleted();
+
+        // 5) Si le backend fournit déjà HA URL + token, on peut les enregistrer tout de suite
+        if (result.haBaseUrl && result.haToken) {
+          await setHaConfig({
+            localHaUrl: result.haBaseUrl,
+            token: result.haToken,
+          });
+        }
+
+        // 6) On passe à l'onboarding principal (PanelOnboarding gère la connexion MQTT)
+        navigate("/");
+      } catch (err: any) {
+        console.error("[PanelSnEntryStep] Erreur discovery:", err);
+        setError(err?.message || "Impossible de joindre le service de découverte.");
+      } finally {
+        setLoading(false);
+        setSubmitting(false);
+      }
+    },
+    [
+      localCode,
+      setError,
+      setLoading,
+      setConfig,
+      setEnteredNeoliaCode,
+      markSnStepCompleted,
+      setMqttHost,
+      setMqttPort,
+      setMqttUseSecure,
+      setMqttUsername,
+      setMqttPassword,
+      navigate,
+    ]
+  );
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-background">
-      <div className="w-full max-w-2xl space-y-8">
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <img src={neoliaLogoDark} alt="Neolia Logo Dark" className="h-16 dark:hidden" />
-          <img src={neoliaLogo} alt="Neolia Logo" className="h-16 hidden dark:block" />
-        </div>
-
-        <Card className="shadow-2xl border-2">
-          <CardHeader className="space-y-3">
-            <div className="flex items-center gap-3">
-              <HelpCircle className="h-8 w-8 text-primary" />
-              <CardTitle className="text-3xl">Associer ce panneau à votre installation</CardTitle>
-            </div>
-            <CardDescription className="text-lg leading-relaxed">
-              Pour identifier la bonne installation sur votre réseau, veuillez saisir les{" "}
-              <strong>4 derniers chiffres</strong> du numéro de série de votre Home Assistant.
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <div className="w-full max-w-md">
+        <Card className="shadow-lg">
+          <CardHeader className="flex flex-col items-center">
+            <img
+              src={neoliaLogoDark}
+              alt="Neolia"
+              className="h-10 dark:block hidden mb-2"
+            />
+            <img
+              src={neoliaLogo}
+              alt="Neolia"
+              className="h-10 block dark:hidden mb-2"
+            />
+            <CardTitle className="text-xl font-bold text-center">
+              Configuration du panneau Neolia
+            </CardTitle>
+            <CardDescription className="text-center">
+              Entrez les 4 derniers chiffres du numéro de série du panneau pour
+              détecter automatiquement la bonne installation.
             </CardDescription>
           </CardHeader>
+          <CardContent className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="sn">Code Neolia (4 derniers chiffres du SN)</Label>
+                <Input
+                  id="sn"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={localCode}
+                  onChange={handleChange}
+                  className="text-center text-2xl tracking-[0.3em]"
+                />
+              </div>
 
-          <CardContent className="space-y-6">
-            {/* Image d'aide */}
-            <div className="flex justify-center">
-              <img
-                src={haSnLocationPlaceholder}
-                alt="Emplacement du numéro de série sur votre Home Assistant"
-                className="max-w-full h-auto rounded-lg border border-border shadow-sm"
-                style={{ maxHeight: "200px" }}
-              />
-            </div>
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <HelpCircle className="h-4 w-4" />
+                <span>
+                  Le numéro de série se trouve dans Home Assistant, dans le menu
+                  des appareils Neolia.
+                </span>
+              </div>
 
-            <p className="text-sm text-muted-foreground text-center">
-              Le numéro de série se trouve sur l'étiquette située sous votre boîtier Home Assistant.
-            </p>
+              {/* Image explicative */}
+              <div className="rounded-md overflow-hidden border">
+                <img
+                  src={haSnLocationPlaceholder}
+                  alt="Emplacement du SN dans Home Assistant"
+                  className="w-full object-cover"
+                />
+              </div>
 
-            {/* Champ de saisie */}
-            <div className="space-y-3">
-              <Label htmlFor="neolia-sn-code" className="text-lg">
-                Code Neolia (4 derniers chiffres)
-              </Label>
-              <Input
-                id="neolia-sn-code"
-                type="text"
-                inputMode="numeric"
-                pattern="\d{4}"
-                maxLength={4}
-                placeholder="ex: 1234"
-                value={code}
-                onChange={handleCodeChange}
-                onKeyPress={handleKeyPress}
-                disabled={isValidating}
-                className="text-2xl h-16 text-center tracking-[0.5em] font-mono"
-                autoFocus
-              />
-              {code.length > 0 && code.length < 4 && (
-                <p className="text-sm text-muted-foreground">
-                  {4 - code.length} chiffre{4 - code.length > 1 ? "s" : ""} restant{4 - code.length > 1 ? "s" : ""}
-                </p>
-              )}
-            </div>
-
-            {/* Message d'erreur */}
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-5 w-5" />
-                <AlertDescription className="text-base">{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Message de connexion en cours */}
-            {configLoading && (
-              <Alert className="border-blue-500 bg-blue-50 dark:bg-blue-950">
-                <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
-                <AlertDescription className="text-base text-blue-600 dark:text-blue-400">
-                  Connexion à votre installation en cours…
-                  {" "}Si le problème persiste, rapprochez-vous de votre installateur.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Message si config en erreur mais pas bloquant */}
-            {configError && !error && (
-              <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
-                <AlertCircle className="h-5 w-5 text-yellow-600" />
-                <AlertDescription className="text-sm text-yellow-600 dark:text-yellow-400">
-                  Impossible de vérifier le code avec Home Assistant pour l'instant.
-                  Vous pouvez tout de même continuer.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Bouton de validation */}
-            <Button
-              onClick={handleValidate}
-              disabled={!isValidFormat || isValidating}
-              size="lg"
-              className="w-full h-16 text-lg"
-            >
-              {isValidating ? (
-                <>
-                  <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                  Vérification…
-                </>
-              ) : (
-                "Continuer"
-              )}
-            </Button>
+              {/* Zone erreur éventuelle */}
+              <PanelSnErrorAlert />
+              <Button
+                type="submit"
+                className="w-full h-12 text-base font-semibold"
+                disabled={submitting || !localCode}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                    Vérification…
+                  </>
+                ) : (
+                  "Continuer"
+                )}
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>
     </div>
+  );
+}
+
+function PanelSnErrorAlert() {
+  const { error } = useNeoliaPanelConfigStore();
+  if (!error) return null;
+
+  return (
+    <Alert variant="destructive" className="mt-2">
+      <AlertCircle className="h-4 w-4" />
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
   );
 }
