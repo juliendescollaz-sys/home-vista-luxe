@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,14 @@ import { setHaConfig } from "@/services/haConfig";
 import { useHAStore } from "@/store/useHAStore";
 import { useNeoliaSettings } from "@/store/useNeoliaSettings";
 import { isPanelMode } from "@/lib/platform";
-import { connectNeoliaMqttPanel, subscribeNeoliaConfigGlobal } from "@/components/neolia/bootstrap/neoliaMqttClient";
-import { parseNeoliaConfig, extractHaConnection } from "@/components/neolia/bootstrap/neoliaBootstrap";
+import {
+  connectNeoliaMqttPanel,
+  subscribeNeoliaConfigGlobal,
+} from "@/components/neolia/bootstrap/neoliaMqttClient";
+import {
+  parseNeoliaConfig,
+  extractHaConnection,
+} from "@/components/neolia/bootstrap/neoliaBootstrap";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 import neoliaLogo from "@/assets/neolia-logo.png";
 import { DEFAULT_MQTT_PORT, DEV_DEFAULT_MQTT_HOST } from "@/config/networkDefaults";
@@ -47,83 +53,105 @@ export function PanelOnboarding() {
   const [panelErrorMessage, setPanelErrorMessage] = useState("");
   const [manualMode, setManualMode] = useState(false);
 
-  const { mqttHost, setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword } = useNeoliaSettings();
+  const { mqttHost, setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword } =
+    useNeoliaSettings();
+
+  // NEW: permet de bypass l'onboarding panel une fois qu'il est marqué comme terminé
+  const [shouldBypassPanelOnboarding, setShouldBypassPanelOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (!isPanelMode()) return;
+
+    try {
+      const flag = window.localStorage.getItem("neolia_panel_onboarding_completed");
+      if (flag === "1") {
+        setShouldBypassPanelOnboarding(true);
+        // On redirige vers la racine de l'app (UI principale du panneau)
+        window.location.href = "/";
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   /**
    * Applique la configuration HA reçue via MQTT et redirige vers l'accueil.
    * Gère les états pour les modes auto ET manuel.
    */
-  const applyHaConfigFromMqtt = useCallback(async (payload: unknown) => {
-    console.log("[PanelOnboarding] Payload MQTT reçu:", payload);
-    
-    const config = parseNeoliaConfig(payload);
-    if (!config) {
-      console.error("[PanelOnboarding] Payload Neolia invalide");
-      // Mode auto
-      setPanelError(true);
-      setPanelConnecting(false);
-      setPanelErrorMessage("Configuration Neolia invalide reçue via MQTT.");
-      // Mode manuel
-      setStatus("error");
-      setStatusMessage("");
-      setErrorMessage("Configuration Neolia invalide reçue via MQTT.");
-      return;
-    }
-    
-    const haConn = extractHaConnection(config);
-    if (!haConn) {
-      console.error("[PanelOnboarding] Impossible d'extraire la config HA du payload");
-      // Mode auto
-      setPanelError(true);
-      setPanelConnecting(false);
-      setPanelErrorMessage("Configuration Home Assistant manquante dans le payload MQTT.");
-      // Mode manuel
-      setStatus("error");
-      setStatusMessage("");
-      setErrorMessage("Configuration Home Assistant manquante dans le payload MQTT.");
-      return;
-    }
-    
-    console.log("[PanelOnboarding] Configuration HA extraite:", haConn.baseUrl);
-    
-    // Persister la config HA
-    try {
-      await setHaConfig({
-        localHaUrl: haConn.baseUrl,
+  const applyHaConfigFromMqtt = useCallback(
+    async (payload: unknown) => {
+      console.log("[PanelOnboarding] Payload MQTT reçu:", payload);
+
+      const config = parseNeoliaConfig(payload);
+      if (!config) {
+        console.error("[PanelOnboarding] Payload Neolia invalide");
+        // Mode auto
+        setPanelError(true);
+        setPanelConnecting(false);
+        setPanelErrorMessage("Configuration Neolia invalide reçue via MQTT.");
+        // Mode manuel
+        setStatus("error");
+        setStatusMessage("");
+        setErrorMessage("Configuration Neolia invalide reçue via MQTT.");
+        return;
+      }
+
+      const haConn = extractHaConnection(config);
+      if (!haConn) {
+        console.error("[PanelOnboarding] Impossible d'extraire la config HA du payload");
+        // Mode auto
+        setPanelError(true);
+        setPanelConnecting(false);
+        setPanelErrorMessage("Configuration Home Assistant manquante dans le payload MQTT.");
+        // Mode manuel
+        setStatus("error");
+        setStatusMessage("");
+        setErrorMessage("Configuration Home Assistant manquante dans le payload MQTT.");
+        return;
+      }
+
+      console.log("[PanelOnboarding] Configuration HA extraite:", haConn.baseUrl);
+
+      // Persister la config HA
+      try {
+        await setHaConfig({
+          localHaUrl: haConn.baseUrl,
+          token: haConn.token,
+        });
+      } catch (e) {
+        console.error("[PanelOnboarding] Erreur lors de la persistance de la config HA:", e);
+      }
+
+      // Mettre à jour le store HA
+      setConnection({
+        url: haConn.baseUrl,
         token: haConn.token,
+        connected: false,
       });
-    } catch (e) {
-      console.error("[PanelOnboarding] Erreur lors de la persistance de la config HA:", e);
-    }
-    
-    // Mettre à jour le store HA
-    setConnection({
-      url: haConn.baseUrl,
-      token: haConn.token,
-      connected: false,
-    });
-    
-    // Marquer l'onboarding Panel comme terminé
-    try {
-      window.localStorage.setItem("neolia_panel_onboarding_completed", "1");
-    } catch {
-      // ignore storage errors
-    }
-    
-    // Mode auto
-    setPanelSuccess(true);
-    setPanelConnecting(false);
-    // Mode manuel
-    setStatus("success");
-    setStatusMessage("Configuration reçue et appliquée. Redirection en cours…");
-    
-    console.log("[PanelOnboarding] Configuration appliquée, redirection...");
-    
-    // Redirection vers l'accueil
-    setTimeout(() => {
-      window.location.href = "/";
-    }, 500);
-  }, [setConnection]);
+
+      // Marquer l'onboarding Panel comme terminé
+      try {
+        window.localStorage.setItem("neolia_panel_onboarding_completed", "1");
+      } catch {
+        // ignore storage errors
+      }
+
+      // Mode auto
+      setPanelSuccess(true);
+      setPanelConnecting(false);
+      // Mode manuel
+      setStatus("success");
+      setStatusMessage("Configuration reçue et appliquée. Redirection en cours…");
+
+      console.log("[PanelOnboarding] Configuration appliquée, redirection...");
+
+      // Redirection vers l'accueil
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
+    },
+    [setConnection],
+  );
 
   /**
    * Connexion automatique : utilise le host MQTT du store ou de l'env de dev.
@@ -139,14 +167,14 @@ export function PanelOnboarding() {
 
     // Vérifier si un host MQTT est disponible
     const effectiveMqttHost = mqttHost || DEV_DEFAULT_MQTT_HOST;
-    
+
     if (!effectiveMqttHost) {
       console.error("[PanelOnboarding] Aucun host MQTT configuré");
       setPanelError(true);
       setPanelConnecting(false);
       setPanelErrorMessage(
         "Aucune adresse de serveur MQTT configurée.\n\n" +
-        "Utilisez la connexion manuelle pour spécifier l'adresse IP de Home Assistant."
+          "Utilisez la connexion manuelle pour spécifier l'adresse IP de Home Assistant.",
       );
       return;
     }
@@ -178,27 +206,43 @@ export function PanelOnboarding() {
       }
 
       console.log("[PanelOnboarding] Connexion MQTT OK, souscription au topic neolia/config/global...");
-      
+
       // S'abonner au topic de configuration et attendre le payload
       subscribeNeoliaConfigGlobal(result.client, applyHaConfigFromMqtt);
-      
     } catch (error) {
       console.error("[PanelOnboarding] Exception lors de la connexion MQTT:", error);
       setPanelError(true);
       setPanelConnecting(false);
       setPanelErrorMessage(String((error as any)?.message || error));
     }
-  }, [mqttHost, setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword, applyHaConfigFromMqtt]);
+  }, [
+    mqttHost,
+    setMqttHost,
+    setMqttPort,
+    setMqttUseSecure,
+    setMqttUsername,
+    setMqttPassword,
+    applyHaConfigFromMqtt,
+  ]);
 
   /**
    * MODE PANEL : Étape SN puis Auto (MQTT) / Manuel (MQTT aussi)
    */
   if (isPanelMode()) {
+    // Si l'onboarding est déjà marqué comme complété, on ne montre plus la page
+    if (shouldBypassPanelOnboarding) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      );
+    }
+
     // Si l'étape SN n'est pas encore complétée, afficher l'écran de saisie du code
-    // (PanelSnEntryStep redirige automatiquement vers "/" après validation)
     if (!hasCompletedSnStep) {
       return <PanelSnEntryStep />;
     }
+
     /**
      * Connexion manuelle : même mécanique que l'auto,
      * mais en prenant l'IP saisie comme host MQTT.
@@ -258,17 +302,23 @@ export function PanelOnboarding() {
           return;
         }
 
-        console.log("[PanelOnboarding] Connexion MQTT manuelle OK, souscription au topic...");
+        console.log(
+          "[PanelOnboarding] Connexion MQTT manuelle OK, souscription au topic...",
+        );
         setStatusMessage("Connexion MQTT établie. Attente de la configuration Home Assistant…");
-        
+
         // S'abonner au topic de configuration et attendre le payload
         subscribeNeoliaConfigGlobal(result.client, applyHaConfigFromMqtt);
-        
       } catch (error: any) {
-        console.error("[PanelOnboarding] Exception lors de la connexion MQTT manuelle:", error);
+        console.error(
+          "[PanelOnboarding] Exception lors de la connexion MQTT manuelle:",
+          error,
+        );
         setStatus("error");
         setStatusMessage("");
-        setErrorMessage(error?.message || "Erreur inconnue lors de la connexion manuelle.");
+        setErrorMessage(
+          error?.message || "Erreur inconnue lors de la connexion manuelle.",
+        );
       }
     };
 
@@ -296,8 +346,8 @@ export function PanelOnboarding() {
                 <CardTitle className="text-3xl">Configuration du panneau Neolia</CardTitle>
               </div>
               <CardDescription className="text-lg leading-relaxed">
-                Ce panneau peut se connecter automatiquement au bon Home Assistant via MQTT (recommandé) ou manuellement
-                à une instance spécifique du réseau local.
+                Ce panneau peut se connecter automatiquement au bon Home Assistant via MQTT
+                (recommandé) ou manuellement à une instance spécifique du réseau local.
               </CardDescription>
             </CardHeader>
 
@@ -334,8 +384,12 @@ export function PanelOnboarding() {
                   {panelConnecting && (
                     <div className="flex flex-col items-center gap-4 py-6">
                       <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                      <p className="text-base text-muted-foreground">Connexion à Home Assistant via MQTT…</p>
-                      <p className="text-xs text-muted-foreground">Tentative sur les ports 1884 et 9001.</p>
+                      <p className="text-base text-muted-foreground">
+                        Connexion à Home Assistant via MQTT…
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Tentative sur les ports 1884 et 9001.
+                      </p>
                     </div>
                   )}
 
@@ -367,7 +421,11 @@ export function PanelOnboarding() {
                         </ul>
                       </div>
 
-                      <Button onClick={attemptPanelConnection} size="lg" className="w-full h-14">
+                      <Button
+                        onClick={attemptPanelConnection}
+                        size="lg"
+                        className="w-full h-14"
+                      >
                         <RefreshCw className="mr-2 h-5 w-5" />
                         Réessayer la connexion automatique
                       </Button>
@@ -393,7 +451,7 @@ export function PanelOnboarding() {
                       className="text-lg h-14"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Saisissez l'adresse IP locale de votre Home Assistant
+                      Saisissez l&apos;adresse IP locale de votre Home Assistant
                     </p>
                   </div>
 
@@ -409,7 +467,9 @@ export function PanelOnboarding() {
                   {status === "error" && errorMessage && (
                     <Alert variant="destructive">
                       <AlertCircle className="h-5 w-5" />
-                      <AlertDescription className="text-base whitespace-pre-line">{errorMessage}</AlertDescription>
+                      <AlertDescription className="text-base whitespace-pre-line">
+                        {errorMessage}
+                      </AlertDescription>
                     </Alert>
                   )}
 
@@ -492,7 +552,9 @@ export function PanelOnboarding() {
     setStatus("loading");
     setErrorMessage("");
 
-    setStatusMessage("Connexion à Home Assistant et récupération de la configuration du panneau…");
+    setStatusMessage(
+      "Connexion à Home Assistant et récupération de la configuration du panneau…",
+    );
 
     const apiUrl = `${baseUrl}/api/neolia/panel_config/${encodeURIComponent(PANEL_CODE)}`;
 
@@ -506,13 +568,17 @@ export function PanelOnboarding() {
         if (response.status === 404) {
           throw new Error("Aucune configuration trouvée pour ce panneau.");
         }
-        throw new Error(`Erreur Home Assistant ${response.status}: ${response.statusText}`);
+        throw new Error(
+          `Erreur Home Assistant ${response.status}: ${response.statusText}`,
+        );
       }
 
       const json = await response.json();
 
       if (!json || typeof json !== "object" || !json.ha_url || !json.token) {
-        throw new Error("Réponse invalide ou incomplète reçue de Home Assistant.");
+        throw new Error(
+          "Réponse invalide ou incomplète reçue de Home Assistant.",
+        );
       }
 
       const ha_url: string = json.ha_url;
@@ -603,7 +669,9 @@ export function PanelOnboarding() {
             {status === "error" && errorMessage && (
               <Alert variant="destructive">
                 <AlertCircle className="h-5 w-5" />
-                <AlertDescription className="text-base whitespace-pre-line">{errorMessage}</AlertDescription>
+                <AlertDescription className="text-base whitespace-pre-line">
+                  {errorMessage}
+                </AlertDescription>
               </Alert>
             )}
 
@@ -616,7 +684,12 @@ export function PanelOnboarding() {
               </Alert>
             )}
 
-            <Button onClick={handleImportConfig} disabled={isButtonDisabled} size="lg" className="w-full h-16 text-lg">
+            <Button
+              onClick={handleImportConfig}
+              disabled={isButtonDisabled}
+              size="lg"
+              className="w-full h-16 text-lg"
+            >
               {status === "loading" ? (
                 <>
                   <Loader2 className="mr-2 h-6 w-6 animate-spin" />
