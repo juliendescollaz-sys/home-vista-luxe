@@ -127,15 +127,15 @@ const Home = () => {
     <div className={rootClassName}>
       <TopBar title="Accueil" />
 
-      <div className={`w-full ${displayMode === "mobile" ? "px-[26px]" : "px-4"} pb-[26px] ${contentPaddingTop} space-y-6`}>
+      <div className={`w-full ${displayMode === "mobile" ? "px-[26px]" : "px-4"} ${displayMode === "mobile" ? "pb-[26px]" : "pb-4"} ${contentPaddingTop} ${displayMode === "mobile" ? "space-y-6" : "space-y-3"}`}>
         {/* Section météo */}
         <div className="animate-fade-in">
           <AnimatedWeatherTile />
         </div>
 
         {/* Appareils actifs */}
-        <div className="space-y-3 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-          <h2 className="text-xl font-semibold">Appareils actifs</h2>
+        <div className={`${displayMode === "mobile" ? "space-y-3" : "space-y-2"} animate-fade-in`} style={{ animationDelay: "0.1s" }}>
+          <h2 className={`${displayMode === "mobile" ? "text-xl" : "text-lg"} font-semibold`}>Appareils actifs</h2>
 
           {enrichedActiveDevices.length === 0 ? (
             <div className="flex-1 flex items-center justify-center min-h-[200px]">

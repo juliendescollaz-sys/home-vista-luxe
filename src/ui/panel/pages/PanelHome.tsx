@@ -122,15 +122,15 @@ export function PanelHome() {
 
   return (
     <div className="h-full flex flex-col bg-background">
-      {/* Container scrollable qui occupe tout l'espace disponible */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+      {/* Container scrollable qui occupe tout l'espace disponible - pb-4 = 16px en bas */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-3 pb-4 space-y-3">
         {/* Section météo - hauteur réduite pour Panel */}
         <div className="animate-fade-in shrink-0">
           <AnimatedWeatherTile />
         </div>
 
         {/* Appareils actifs */}
-        <div className="space-y-3 animate-fade-in" style={{ animationDelay: "0.1s" }}>
+        <div className="space-y-2 animate-fade-in" style={{ animationDelay: "0.1s" }}>
           <h2 className="text-lg font-semibold">Appareils actifs</h2>
 
           {enrichedActiveDevices.length === 0 ? (
