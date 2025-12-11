@@ -35,7 +35,6 @@ function normalizeHaBaseUrl(raw: string): string {
 
 export function PanelOnboarding() {
   const { hasCompletedSnStep } = useNeoliaPanelConfigStore();
-  const [snStepCompleted, setSnStepCompleted] = useState(hasCompletedSnStep);
   const [haBaseUrl, setHaBaseUrl] = useState("");
   const [status, setStatus] = useState<OnboardingStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -196,12 +195,9 @@ export function PanelOnboarding() {
    */
   if (isPanelMode()) {
     // Si l'étape SN n'est pas encore complétée, afficher l'écran de saisie du code
-    if (!snStepCompleted) {
-      return (
-        <PanelSnEntryStep
-          onComplete={() => setSnStepCompleted(true)}
-        />
-      );
+    // (PanelSnEntryStep redirige automatiquement vers "/" après validation)
+    if (!hasCompletedSnStep) {
+      return <PanelSnEntryStep />;
     }
     /**
      * Connexion manuelle : même mécanique que l'auto,
