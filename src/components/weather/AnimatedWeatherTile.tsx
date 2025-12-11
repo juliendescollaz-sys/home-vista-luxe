@@ -76,12 +76,12 @@ export function AnimatedWeatherTile() {
 
   // Optimisation pour Panel et Tablet - LARGE avec prévisions toujours affichées
   const isCompact = displayMode === "panel" || displayMode === "tablet";
-  const padding = isCompact ? "p-4" : "p-6";
-  const minHeight = isCompact ? "min-h-[520px]" : (isExpanded ? "min-h-[500px]" : "min-h-[200px]");
-  const backdropHeight = isCompact ? "h-[280px]" : "h-[200px]";
-  const titleSize = isCompact ? "text-2xl" : "text-lg";
-  const tempSize = isCompact ? "text-7xl" : "text-5xl";
-  const iconSize = isCompact ? 28 : 24;
+  const padding = isCompact ? "p-3" : "p-6";
+  const minHeight = isCompact ? "min-h-[380px]" : (isExpanded ? "min-h-[500px]" : "min-h-[200px]");
+  const backdropHeight = isCompact ? "h-[200px]" : "h-[200px]";
+  const titleSize = isCompact ? "text-xl" : "text-lg";
+  const tempSize = isCompact ? "text-5xl" : "text-5xl";
+  const iconSize = isCompact ? 24 : 24;
   const widthClass = isCompact ? "w-full" : "w-full";
   
   // En mode compact, les prévisions sont toujours affichées
@@ -190,7 +190,7 @@ export function AnimatedWeatherTile() {
         </div>
 
         {/* Contenu */}
-        <div className={`relative z-10 ${isCompact ? "space-y-6" : "space-y-4"}`}>
+        <div className={`relative z-10 ${isCompact ? "space-y-3" : "space-y-4"}`}>
           {/* En-tête compact */}
           <div className="flex items-start justify-between">
             <div className={isCompact ? "space-y-2" : "space-y-1"}>
@@ -251,7 +251,7 @@ export function AnimatedWeatherTile() {
           {/* Panneau étendu (prévisions) - Toujours affiché en mode compact */}
           {shouldShowForecast && (
             <div 
-              className={`${isCompact ? "mt-6 h-[260px]" : "mt-6"} weather-expand text-slate-700 dark:text-white overflow-hidden`}
+              className={`${isCompact ? "mt-3 h-[180px]" : "mt-6"} weather-expand text-slate-700 dark:text-white overflow-hidden`}
               onClick={(e) => e.stopPropagation()}
             >
               <ForecastPanel
