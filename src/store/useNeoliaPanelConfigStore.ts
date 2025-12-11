@@ -1,31 +1,26 @@
-// src/store/useNeoliaPanelConfigStore.ts
-
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { NeoliaPanelConfig } from "@/api/neoliaHaClient";
 
 export interface NeoliaPanelConfigState {
-  /** Configuration Neolia récupérée depuis HA (null si pas encore chargée) */
+  /** Configuration Neolia récupérée depuis discovery/HA (null si pas encore chargée) */
   config: NeoliaPanelConfig | null;
-  /** Erreur lors du chargement (null si pas d'erreur) */
   error: string | null;
-  /** Indique si le chargement est en cours */
   loading: boolean;
-  /** Indique si le chargement a été tenté au moins une fois */
   loaded: boolean;
 
-  /** Code Neolia (4 derniers chiffres SN) saisi par l'utilisateur */
+  /** 4 derniers chiffres du SN saisis par l'installateur */
   enteredNeoliaCode: string;
-  /** Indique si l'étape de saisie du code SN a été validée */
+  /** L'étape SN a été validée (même si on repasse par l'onboarding plus tard) */
   hasCompletedSnStep: boolean;
 
   // Actions
-  setConfig: (config: NeoliaPanelConfig) => void;
-  setError: (error: string) => void;
   setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  setConfig: (config: NeoliaPanelConfig | null) => void;
   setEnteredNeoliaCode: (code: string) => void;
-  setHasCompletedSnStep: (completed: boolean) => void;
-  reset: () => void;
+  markSnStepCompleted: () => void;
+  resetAll: () => void;
 }
 
 export const useNeoliaPanelConfigStore = create<NeoliaPanelConfigState>()(
@@ -38,28 +33,17 @@ export const useNeoliaPanelConfigStore = create<NeoliaPanelConfigState>()(
       enteredNeoliaCode: "",
       hasCompletedSnStep: false,
 
+      setLoading: (loading) => set({ loading }),
+      setError: (error) => set({ error }),
       setConfig: (config) =>
         set({
           config,
+          loaded: true,
           error: null,
-          loading: false,
-          loaded: true,
         }),
-
-      setError: (error) =>
-        set({
-          error,
-          loading: false,
-          loaded: true,
-        }),
-
-      setLoading: (loading) => set({ loading }),
-
       setEnteredNeoliaCode: (code) => set({ enteredNeoliaCode: code }),
-
-      setHasCompletedSnStep: (completed) => set({ hasCompletedSnStep: completed }),
-
-      reset: () =>
+      markSnStepCompleted: () => set({ hasCompletedSnStep: true }),
+      resetAll: () =>
         set({
           config: null,
           error: null,
@@ -71,6 +55,8 @@ export const useNeoliaPanelConfigStore = create<NeoliaPanelConfigState>()(
     }),
     {
       name: "neolia-panel-config",
+      // On ne persiste PAS la config réseau (par sécurité),
+      // seulement le code et le fait que l'étape SN est faites.
       partialize: (state) => ({
         enteredNeoliaCode: state.enteredNeoliaCode,
         hasCompletedSnStep: state.hasCompletedSnStep,
