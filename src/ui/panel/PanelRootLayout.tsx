@@ -19,6 +19,7 @@ import NotFound from "@/pages/NotFound";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
 import { hasHaConfig } from "@/services/haConfig";
 import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
+import { useNeoliaPanelConfigLoader } from "@/hooks/useNeoliaPanelConfigLoader";
 
 import { TopBarPanel } from "@/components/TopBarPanel"; // ✅ NOUVEAU HEADER PANEL
 
@@ -49,6 +50,9 @@ export function PanelRootLayout() {
 
   // Préchargement des plans dès connexion HA
   useNeoliaPlansPreloader();
+
+  // Chargement de la config Neolia Panel depuis HA (en arrière-plan)
+  useNeoliaPanelConfigLoader();
 
   // Déterminer le titre de la page
   const pageTitle = useMemo(() => {
