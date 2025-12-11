@@ -21,7 +21,10 @@ import { hasHaConfig } from "@/services/haConfig";
 import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
 import { useNeoliaPanelConfigLoader } from "@/hooks/useNeoliaPanelConfigLoader";
 
-import { TopBarPanel } from "@/components/TopBarPanel"; // ✅ NOUVEAU HEADER PANEL
+import { TopBarPanel } from "@/components/TopBarPanel";
+
+// 🔌 MQTT PANEL – on l’importe ici
+import { connectNeoliaMqttPanel } from "@/components/neolia/bootstrap/neoliaMqttClient";
 
 // Mapping des routes vers les titres
 const ROUTE_TITLES: Record<string, string> = {
@@ -53,6 +56,23 @@ export function PanelRootLayout() {
 
   // Chargement de la config Neolia Panel depuis HA (en arrière-plan)
   useNeoliaPanelConfigLoader();
+
+  // ✅ DEBUG / INIT MQTT PANEL
+  // On force une tentative de connexion MQTT au démarrage du Panel.
+  useEffect(() => {
+    console.log("[PanelRootLayout][MQTT] Tentative de connexion Panel → MQTT (debug)");
+
+    connectNeoliaMqttPanel(
+      () => {
+        console.log("[PanelRootLayout][MQTT] Connexion MQTT Panel OK (debug)");
+      },
+      (error) => {
+        console.error("[PanelRootLayout][MQTT] Erreur connexion MQTT Panel (debug):", error?.message || error);
+      },
+    ).catch((err) => {
+      console.error("[PanelRootLayout][MQTT] Exception lors de la connexion MQTT Panel (debug):", err);
+    });
+  }, []);
 
   // Déterminer le titre de la page
   const pageTitle = useMemo(() => {
@@ -93,13 +113,12 @@ export function PanelRootLayout() {
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="panel-layout flex flex-col h-screen w-screen overflow-hidden bg-background">
-        
-        {/* ✅ HEADER PANEL PLEINE LARGEUR */}
+        {/* HEADER PANEL PLEINE LARGEUR */}
         <TopBarPanel title={pageTitle} />
 
-        {/* 🧱 LIGNE PRINCIPALE : Sidebar + Contenu */}
+        {/* LIGNE PRINCIPALE : Sidebar + Contenu */}
         <div className="flex flex-1 min-h-0">
-          {/* Sidebar (naturellement sous le header) */}
+          {/* Sidebar (sous le header) */}
           <PanelSidebar />
 
           {/* Zone de contenu scrollable */}
@@ -119,10 +138,7 @@ export function PanelRootLayout() {
               <Route path="/settings" element={<PanelSettings />} />
 
               {/* Pages secondaires */}
-              <Route
-                path="/media-player/:entityId"
-                element={<PanelMediaPlayerDetails />}
-              />
+              <Route path="/media-player/:entityId" element={<PanelMediaPlayerDetails />} />
               <Route path="/sonos-zones" element={<PanelSonosZones />} />
               <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
               <Route path="/dev" element={<PanelDev />} />
