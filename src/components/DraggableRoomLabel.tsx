@@ -50,6 +50,7 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
     currentPosX: 0,
     currentPosY: 0,
     containerRect: null as DOMRect | null,
+    clickHandled: false,
   });
 
   // Keep current pos in ref for callbacks
@@ -66,12 +67,27 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
     onClickRoomRef.current = onClickRoom;
   }, [onPositionChange, onClickRoom]);
 
+  // Direct click handler as primary method for tap detection
+  const handleClick = (e: React.MouseEvent) => {
+    const state = dragStateRef.current;
+    // Only handle click if we didn't just finish a drag
+    if (state.maxDistance <= 10 && !state.clickHandled) {
+      state.clickHandled = true;
+      e.stopPropagation();
+      onClickRoomRef.current();
+      // Reset flag after a short delay
+      setTimeout(() => {
+        state.clickHandled = false;
+      }, 100);
+    }
+  };
+
   useEffect(() => {
     const label = labelRef.current;
     if (!label) return;
 
     const handlePointerDown = (e: PointerEvent) => {
-      e.preventDefault();
+      // Don't prevent default - let click events fire naturally
       e.stopPropagation();
 
       const container = label.parentElement;
@@ -84,6 +100,7 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
       state.startPosX = state.currentPosX;
       state.startPosY = state.currentPosY;
       state.maxDistance = 0;
+      state.clickHandled = false;
       state.containerRect = container.getBoundingClientRect();
 
       document.addEventListener("pointermove", handlePointerMove);
@@ -103,19 +120,22 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
         state.maxDistance = distance;
       }
 
-      const rect = state.containerRect;
-      const newX = state.startPosX + dx / Math.max(rect.width, 1);
-      const newY = state.startPosY + dy / Math.max(rect.height, 1);
+      // Only update position if we're actually dragging (threshold: 10px)
+      if (distance > 10) {
+        const rect = state.containerRect;
+        const newX = state.startPosX + dx / Math.max(rect.width, 1);
+        const newY = state.startPosY + dy / Math.max(rect.height, 1);
 
-      const clampedX = Math.min(0.98, Math.max(0.02, newX));
-      const clampedY = Math.min(0.98, Math.max(0.02, newY));
+        const clampedX = Math.min(0.98, Math.max(0.02, newX));
+        const clampedY = Math.min(0.98, Math.max(0.02, newY));
 
-      state.currentPosX = clampedX;
-      state.currentPosY = clampedY;
-      setPos({ x: clampedX, y: clampedY });
+        state.currentPosX = clampedX;
+        state.currentPosY = clampedY;
+        setPos({ x: clampedX, y: clampedY });
+      }
     };
 
-    const handlePointerUp = (e: PointerEvent) => {
+    const handlePointerUp = () => {
       const state = dragStateRef.current;
       if (!state.isDragging) return;
 
@@ -123,21 +143,14 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
       document.removeEventListener("pointerup", handlePointerUp);
       document.removeEventListener("pointercancel", handlePointerUp);
 
-      const wasDrag = state.maxDistance > 15;
+      const wasDrag = state.maxDistance > 10;
       state.isDragging = false;
 
       if (wasDrag) {
+        state.clickHandled = true; // Prevent click from firing
         onPositionChangeRef.current(state.currentPosX, state.currentPosY);
-      } else {
-        // Prevent synthetic click event from firing after pointerup (Panel mode issue)
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // Use setTimeout to ensure the click happens after event processing
-        setTimeout(() => {
-          onClickRoomRef.current();
-        }, 0);
       }
+      // For taps, let the onClick handler deal with it
     };
 
     label.addEventListener("pointerdown", handlePointerDown);
@@ -154,10 +167,11 @@ export const DraggableRoomLabel: React.FC<DraggableRoomLabelProps> = ({
     <div
       ref={labelRef}
       className={cn(
-        "absolute pointer-events-auto select-none",
+        "absolute pointer-events-auto select-none cursor-pointer",
         "transform -translate-x-1/2 -translate-y-1/2",
       )}
       style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%`, touchAction: "none" }}
+      onClick={handleClick}
       aria-label={roomName}
       role="button"
     >
