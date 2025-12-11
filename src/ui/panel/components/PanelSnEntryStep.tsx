@@ -1,3 +1,5 @@
+// src/ui/panel/components/PanelSnEntryStep.tsx
+
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,26 +9,20 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, HelpCircle, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useNeoliaPanelConfigStore } from "@/store/useNeoliaPanelConfigStore";
-import { useNeoliaSettings } from "@/store/useNeoliaSettings";
-import { setHaConfig } from "@/services/haConfig";
-import { resolvePanelConfigByCode } from "@/api/panelDiscoveryClient";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 import neoliaLogo from "@/assets/neolia-logo.png";
 import haSnLocationPlaceholder from "@/assets/ha-sn-location.png";
 
 export function PanelSnEntryStep() {
   const navigate = useNavigate();
+
   const {
     enteredNeoliaCode,
     setEnteredNeoliaCode,
-    setLoading,
     setError,
-    setConfig,
     markSnStepCompleted,
+    error,
   } = useNeoliaPanelConfigStore();
-
-  const { setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword } =
-    useNeoliaSettings();
 
   const [localCode, setLocalCode] = useState(enteredNeoliaCode || "");
   const [submitting, setSubmitting] = useState(false);
@@ -46,64 +42,22 @@ export function PanelSnEntryStep() {
         return;
       }
 
+      // Découverte réseau désactivée pour l’instant :
+      // on se contente d’enregistrer le code et de passer à l’onboarding principal.
       try {
-        setError(null);
-        setLoading(true);
         setSubmitting(true);
+        setError(null);
 
-        // 1) On résout la config depuis le service de découverte
-        const result = await resolvePanelConfigByCode(code);
-
-        // 2) On configure le store MQTT
-        setMqttHost(result.mqttHost);
-        setMqttPort(result.mqttWsPort);
-        setMqttUseSecure(false); // en général en LAN interne, WS non sécurisé
-        setMqttUsername(result.mqttUsername);
-        setMqttPassword(result.mqttPassword);
-
-        // 3) On met à jour le store PanelConfig (panelHost/mqttWsPort)
-        setConfig({
-          neoliaCode: code,
-          panelHost: result.mqttHost,
-          mqttWsPort: result.mqttWsPort,
-        });
-
-        // 4) On persiste le code + flag "étape SN complétée"
         setEnteredNeoliaCode(code);
         markSnStepCompleted();
 
-        // 5) Si le backend fournit déjà HA URL + token, on peut les enregistrer tout de suite
-        if (result.haBaseUrl && result.haToken) {
-          await setHaConfig({
-            localHaUrl: result.haBaseUrl,
-            token: result.haToken,
-          });
-        }
-
-        // 6) On passe à l'onboarding principal (PanelOnboarding gère la connexion MQTT)
+        // On enchaîne sur l'onboarding panel (auto/manuelle)
         navigate("/");
-      } catch (err: any) {
-        console.error("[PanelSnEntryStep] Erreur discovery:", err);
-        setError(err?.message || "Impossible de joindre le service de découverte.");
       } finally {
-        setLoading(false);
         setSubmitting(false);
       }
     },
-    [
-      localCode,
-      setError,
-      setLoading,
-      setConfig,
-      setEnteredNeoliaCode,
-      markSnStepCompleted,
-      setMqttHost,
-      setMqttPort,
-      setMqttUseSecure,
-      setMqttUsername,
-      setMqttPassword,
-      navigate,
-    ]
+    [localCode, setError, setEnteredNeoliaCode, markSnStepCompleted, navigate]
   );
 
   return (
@@ -126,7 +80,7 @@ export function PanelSnEntryStep() {
             </CardTitle>
             <CardDescription className="text-center">
               Entrez les 4 derniers chiffres du numéro de série du panneau pour
-              détecter automatiquement la bonne installation.
+              initialiser la configuration.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -151,7 +105,6 @@ export function PanelSnEntryStep() {
                 </span>
               </div>
 
-              {/* Image explicative */}
               <div className="rounded-md overflow-hidden border">
                 <img
                   src={haSnLocationPlaceholder}
@@ -160,8 +113,13 @@ export function PanelSnEntryStep() {
                 />
               </div>
 
-              {/* Zone erreur éventuelle */}
-              <PanelSnErrorAlert />
+              {error && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
               <Button
                 type="submit"
                 className="w-full h-12 text-base font-semibold"
@@ -181,17 +139,5 @@ export function PanelSnEntryStep() {
         </Card>
       </div>
     </div>
-  );
-}
-
-function PanelSnErrorAlert() {
-  const { error } = useNeoliaPanelConfigStore();
-  if (!error) return null;
-
-  return (
-    <Alert variant="destructive" className="mt-2">
-      <AlertCircle className="h-4 w-4" />
-      <AlertDescription>{error}</AlertDescription>
-    </Alert>
   );
 }
