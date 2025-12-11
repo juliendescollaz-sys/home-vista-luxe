@@ -4,7 +4,8 @@ import mqtt, { MqttClient } from "mqtt";
 import type { NeoliaGlobalConfig } from "./neoliaConfigTypes";
 import { isPanelMode } from "@/lib/platform";
 import { useNeoliaSettings } from "@/store/useNeoliaSettings";
-import { DEFAULT_MQTT_PORT, DEV_DEFAULT_MQTT_HOST } from "@/config/networkDefaults";
+import { useNeoliaPanelConfigStore } from "@/store/useNeoliaPanelConfigStore";
+import { DEFAULT_MQTT_PORT } from "@/config/networkDefaults";
 
 export interface NeoliaMqttConnectOptions {
   host: string;
@@ -76,27 +77,75 @@ function tryConnectMqttPort(
 }
 
 /**
- * Connexion MQTT spécifique au mode Panel avec fallback automatique.
- * Tente d'abord le port 1884 (HA Green / nouvelles configs),
- * puis fallback sur 9001 (anciennes configs Mosquitto).
- *
- * IMPORTANT: Si aucun host MQTT n'est configuré, lève une erreur explicite.
+ * Connexion MQTT spécifique au mode Panel.
+ * 
+ * PRIORITÉ DE CONFIGURATION :
+ * 1. NeoliaPanelConfig (panelHost + mqttWsPort) depuis le store si disponible et valide
+ * 2. Fallback sur useNeoliaSettings.mqttHost avec ports 1884/9001
  *
  * - En cas de succès : retourne { client } avec un client connecté.
- * - En cas d'échec sur 1884 ET 9001 : lève une exception.
+ * - En cas d'échec : lève une exception.
  */
 export async function connectNeoliaMqttPanel(
   onConnect?: () => void,
   onError?: (error: Error) => void,
 ): Promise<NeoliaMqttConnection> {
+  // 1. Vérifier d'abord la config NeoliaPanelConfig (prioritaire)
+  const panelConfig = useNeoliaPanelConfigStore.getState().config;
+  
+  if (panelConfig && panelConfig.panelHost && panelConfig.mqttWsPort > 0) {
+    // Utiliser la config Panel provenant de HA
+    const host = panelConfig.panelHost;
+    const port = panelConfig.mqttWsPort;
+    const url = `ws://${host}:${port}/mqtt`;
+
+    console.log("[NeoliaPanel][MQTT] Connecting to", url, "(from NeoliaPanelConfig)");
+
+    try {
+      const client = await tryConnectMqttPort(url);
+
+      console.log("[NeoliaPanel][MQTT] Connecté via NeoliaPanelConfig:", url);
+
+      // Réactiver la reconnexion automatique après succès
+      client.options.reconnectPeriod = 5000;
+
+      // Mettre à jour le port dans les settings pour cohérence
+      const { setMqttPort } = useNeoliaSettings.getState();
+      setMqttPort(port);
+
+      if (onConnect) {
+        onConnect();
+      }
+
+      return { client };
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error("[NeoliaPanel][MQTT] Échec connexion via NeoliaPanelConfig:", error.message);
+      if (onError) {
+        onError(error);
+      }
+      throw error;
+    }
+  }
+
+  // 2. Config Panel incomplète ou absente → log explicite et fallback
+  if (panelConfig) {
+    console.error("[NeoliaPanel][MQTT] NeoliaPanelConfig incomplete, cannot build MQTT URL", {
+      panelHost: panelConfig.panelHost,
+      mqttWsPort: panelConfig.mqttWsPort,
+    });
+  } else {
+    console.warn("[NeoliaPanel][MQTT] NeoliaPanelConfig non disponible, tentative fallback sur useNeoliaSettings");
+  }
+
+  // 3. Fallback sur l'ancienne logique (useNeoliaSettings)
   const { mqttHost, mqttUseSecure, mqttUsername, mqttPassword, setMqttPort } = useNeoliaSettings.getState();
 
-  // Vérifier qu'un host est configuré
   if (!mqttHost) {
     const error = new Error(
       "Aucun host MQTT configuré. L'onboarding est requis pour configurer l'adresse du serveur."
     );
-    console.error("[NeoliaMQTT PANEL]", error.message);
+    console.error("[NeoliaPanel][MQTT]", error.message);
     if (onError) {
       onError(error);
     }
@@ -104,24 +153,20 @@ export async function connectNeoliaMqttPanel(
   }
 
   const scheme = mqttUseSecure ? "wss" : "ws";
-
-  // Ports PnP → fallback automatique silencieux
   const tryPorts = [1884, 9001];
 
-  console.log("[NeoliaMQTT PANEL] Démarrage connexion Zero-Config, host:", mqttHost);
+  console.log("[NeoliaPanel][MQTT] Fallback - Démarrage connexion, host:", mqttHost);
 
   for (const port of tryPorts) {
     const url = `${scheme}://${mqttHost}:${port}/mqtt`;
-    console.log("[NeoliaMQTT PANEL] Tentative de connexion :", url);
+    console.log("[NeoliaPanel][MQTT] Connecting to", url, "(fallback)");
 
     try {
       const client = await tryConnectMqttPort(url, mqttUsername, mqttPassword);
 
-      // Si on arrive ici, la connexion est OK
-      console.log("[NeoliaMQTT PANEL] Connecté via port", port);
+      console.log("[NeoliaPanel][MQTT] Connecté via port", port);
       setMqttPort(port);
 
-      // Réactiver la reconnexion automatique après succès
       client.options.reconnectPeriod = 5000;
 
       if (onConnect) {
@@ -131,21 +176,19 @@ export async function connectNeoliaMqttPanel(
       return { client };
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      console.warn(`[NeoliaMQTT PANEL] Échec sur le port ${port}, on tente le suivant si disponible`, error.message);
+      console.warn(`[NeoliaPanel][MQTT] Échec sur le port ${port}`, error.message);
       if (onError) {
         onError(error);
       }
-      // on continue la boucle pour tenter le port suivant
     }
   }
 
-  const finalError = new Error("MQTT WebSocket unreachable on ports 1884 and 9001 (Panel Mode)");
-  console.error("[NeoliaMQTT PANEL]", finalError.message);
+  const finalError = new Error("MQTT WebSocket unreachable (Panel Mode)");
+  console.error("[NeoliaPanel][MQTT]", finalError.message);
   if (onError) {
     onError(finalError);
   }
 
-  // Ici on LÈVE l'erreur pour que PanelOnboarding puisse afficher l'aide
   throw finalError;
 }
 
