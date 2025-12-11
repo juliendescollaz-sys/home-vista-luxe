@@ -14,11 +14,7 @@ import neoliaLogo from "@/assets/neolia-logo.png";
 // Placeholder pour l'image - à remplacer par l'asset réel quand disponible
 import haSnLocationPlaceholder from "@/assets/ha-sn-location.png";
 
-interface PanelSnEntryStepProps {
-  onComplete: () => void;
-}
-
-export function PanelSnEntryStep({ onComplete }: PanelSnEntryStepProps) {
+export function PanelSnEntryStep() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [isValidating, setIsValidating] = useState(false);
@@ -68,9 +64,21 @@ export function PanelSnEntryStep({ onComplete }: PanelSnEntryStepProps) {
     // Code valide (ou pas encore de config HA pour comparer)
     setEnteredNeoliaCode(code);
     setHasCompletedSnStep(true);
-    setIsValidating(false);
-    onComplete();
-  }, [code, isValidFormat, neoliaPanelConfig, setEnteredNeoliaCode, setHasCompletedSnStep, onComplete]);
+
+    // Marquer l'onboarding Panel comme terminé dans localStorage
+    try {
+      window.localStorage.setItem("neolia_panel_onboarding_completed", "1");
+    } catch {
+      // Ignorer les erreurs de storage
+    }
+
+    console.log("[PanelSnEntryStep] Code SN validé, redirection vers la page principale...");
+
+    // Rediriger directement vers la page principale du Panel
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 300);
+  }, [code, isValidFormat, neoliaPanelConfig, setEnteredNeoliaCode, setHasCompletedSnStep]);
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && isValidFormat && !isValidating) {
