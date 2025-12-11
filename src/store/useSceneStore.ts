@@ -191,6 +191,7 @@ export const useSceneStore = create<SceneStore>()(
           await client.createScene({
             id: sceneId,
             name: sceneData.name,
+            description: sceneData.description,
             entities: buildHASceneEntities(sceneData.entities),
             icon: lucideToMdi(sceneData.icon),
           });
@@ -240,6 +241,7 @@ export const useSceneStore = create<SceneStore>()(
           await client.updateHAScene({
             id: sceneId,
             name: updates.name,
+            description: updates.description,
             entities: updates.entities ? buildHASceneEntities(updates.entities) : undefined,
             icon: updates.icon ? lucideToMdi(updates.icon) : undefined,
           });

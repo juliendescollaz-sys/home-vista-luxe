@@ -13,6 +13,7 @@ interface SceneRequest {
   sceneId: string;
   sceneConfig?: {
     name: string;
+    description?: string;
     entities: Record<string, any>;
     icon?: string;
   };
@@ -68,12 +69,24 @@ serve(async (req) => {
 
       console.log(`[ha-scene-manager] ${action.toUpperCase()} scene: ${sceneId}`);
       
-      const payload = {
+      // Build payload - icon is already prefixed with mdi: from the client
+      const payload: Record<string, any> = {
         id: sceneId,
         name: sceneConfig.name,
         entities: sceneConfig.entities,
-        ...(sceneConfig.icon && { icon: `mdi:${sceneConfig.icon.toLowerCase()}` }),
       };
+      
+      // Add description if provided
+      if (sceneConfig.description) {
+        payload.description = sceneConfig.description;
+      }
+      
+      // Add icon - avoid double mdi: prefix
+      if (sceneConfig.icon) {
+        payload.icon = sceneConfig.icon.startsWith("mdi:") 
+          ? sceneConfig.icon 
+          : `mdi:${sceneConfig.icon}`;
+      }
 
       response = await fetch(endpoint, {
         method: "POST",
