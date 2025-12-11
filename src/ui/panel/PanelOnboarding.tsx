@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import type React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,8 @@ import { parseNeoliaConfig, extractHaConnection } from "@/components/neolia/boot
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 import neoliaLogo from "@/assets/neolia-logo.png";
 import { DEFAULT_MQTT_PORT, DEV_DEFAULT_MQTT_HOST } from "@/config/networkDefaults";
-import type { MqttClient } from "mqtt";
+import { useNeoliaPanelConfigStore } from "@/store/useNeoliaPanelConfigStore";
+import { PanelSnEntryStep } from "@/ui/panel/components/PanelSnEntryStep";
 
 type OnboardingStatus = "idle" | "loading" | "success" | "error";
 
@@ -33,6 +34,8 @@ function normalizeHaBaseUrl(raw: string): string {
 }
 
 export function PanelOnboarding() {
+  const { hasCompletedSnStep } = useNeoliaPanelConfigStore();
+  const [snStepCompleted, setSnStepCompleted] = useState(hasCompletedSnStep);
   const [haBaseUrl, setHaBaseUrl] = useState("");
   const [status, setStatus] = useState<OnboardingStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -189,9 +192,17 @@ export function PanelOnboarding() {
   }, [mqttHost, setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword, applyHaConfigFromMqtt]);
 
   /**
-   * MODE PANEL : Auto (MQTT) / Manuel (MQTT aussi)
+   * MODE PANEL : Étape SN puis Auto (MQTT) / Manuel (MQTT aussi)
    */
   if (isPanelMode()) {
+    // Si l'étape SN n'est pas encore complétée, afficher l'écran de saisie du code
+    if (!snStepCompleted) {
+      return (
+        <PanelSnEntryStep
+          onComplete={() => setSnStepCompleted(true)}
+        />
+      );
+    }
     /**
      * Connexion manuelle : même mécanique que l'auto,
      * mais en prenant l'IP saisie comme host MQTT.
