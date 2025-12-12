@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Server, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
-import { setHaConfig, discoverHA } from "@/services/haConfig";
+import { setHaConfig, discoverHA, testHaConnection } from "@/services/haConfig";
 import { useHAStore } from "@/store/useHAStore";
 import { useNeoliaSettings } from "@/store/useNeoliaSettings";
 import { isPanelMode } from "@/lib/platform";
@@ -14,10 +14,7 @@ import {
   connectNeoliaMqttPanel,
   subscribeNeoliaConfigGlobal,
 } from "@/components/neolia/bootstrap/neoliaMqttClient";
-import {
-  parseNeoliaConfig,
-  extractHaConnection,
-} from "@/components/neolia/bootstrap/neoliaBootstrap";
+import { parseNeoliaConfig, extractHaConnection } from "@/components/neolia/bootstrap/neoliaBootstrap";
 import neoliaLogoDark from "@/assets/neolia-logo-dark.png";
 import neoliaLogo from "@/assets/neolia-logo.png";
 import { DEFAULT_MQTT_PORT, DEV_DEFAULT_MQTT_HOST } from "@/config/networkDefaults";
@@ -36,12 +33,10 @@ function normalizeHaBaseUrl(raw: string): string {
 }
 
 function extractHostFromUrlLike(rawUrl: string): string {
-  // rawUrl ex: http://192.168.1.80:8123
   try {
     const u = new URL(normalizeHaBaseUrl(rawUrl));
-    return u.hostname; // "192.168.1.80"
+    return u.hostname;
   } catch {
-    // fallback très permissif
     return rawUrl
       .replace(/^https?:\/\//i, "")
       .replace(/\/.*$/, "")
@@ -77,10 +72,14 @@ function sendPanelDiscoveryRequest(client: any, mode: "auto" | "manual") {
 
 export function PanelOnboarding() {
   const { hasCompletedSnStep } = useNeoliaPanelConfigStore();
+
   const [haBaseUrl, setHaBaseUrl] = useState("");
+  const [haToken, setHaToken] = useState("");
+
   const [status, setStatus] = useState<OnboardingStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+
   const setConnection = useHAStore((state) => state.setConnection);
 
   const [panelConnecting, setPanelConnecting] = useState(false);
@@ -113,7 +112,6 @@ export function PanelOnboarding() {
     }
   }, []);
 
-  // Scan PnP (uniquement panel + après étape SN)
   const runPnPScan = useCallback(async () => {
     if (!isPanelMode()) return;
     if (!hasCompletedSnStep) return;
@@ -144,7 +142,6 @@ export function PanelOnboarding() {
   }, [hasCompletedSnStep]);
 
   useEffect(() => {
-    // Lance automatiquement un scan à l'arrivée sur l'onboarding panel
     if (!isPanelMode()) return;
     if (!hasCompletedSnStep) return;
     runPnPScan();
@@ -152,8 +149,6 @@ export function PanelOnboarding() {
 
   const applyHaConfigFromMqtt = useCallback(
     async (payload: unknown) => {
-      console.log("[PanelOnboarding] Payload MQTT reçu:", payload);
-
       const config = parseNeoliaConfig(payload);
       if (!config) {
         setPanelError(true);
@@ -280,64 +275,74 @@ export function PanelOnboarding() {
       return <PanelSnEntryStep />;
     }
 
-    const handleImportConfig = async () => {
-      const trimmed = haBaseUrl.trim();
-
-      if (!trimmed) {
-        setErrorMessage("Veuillez saisir l'adresse IP de Home Assistant.");
-        setStatus("error");
-        return;
-      }
-
-      const host = trimmed.split(":")[0].trim();
-      if (!host) {
-        setErrorMessage("Adresse IP du Home Assistant invalide.");
-        setStatus("error");
-        return;
-      }
-
-      setStatus("loading");
-      setErrorMessage("");
-      setStatusMessage(
-        "Connexion au broker MQTT du Home Assistant et récupération de la configuration du panneau…",
-      );
-
-      setMqttHost(host);
-      setMqttPort(DEFAULT_MQTT_PORT);
-      setMqttUseSecure(false);
-      setMqttUsername("panel");
-      setMqttPassword("PanelMQTT!2025");
-
-      try {
-        const result = await connectNeoliaMqttPanel(
-          () => {},
-          (error) => {
-            setStatus("error");
-            setStatusMessage("");
-            setErrorMessage(String(error?.message || error));
-          },
-        );
-
-        if (!result?.client) {
-          setStatus("error");
-          setStatusMessage("");
-          setErrorMessage("Connexion MQTT échouée (client indisponible).");
-          return;
-        }
-
-        setStatusMessage("Connexion MQTT établie. Attente de la configuration Home Assistant…");
-        subscribeNeoliaConfigGlobal(result.client, applyHaConfigFromMqtt);
-        sendPanelDiscoveryRequest(result.client, "manual");
-      } catch (error: any) {
-        setStatus("error");
-        setStatusMessage("");
-        setErrorMessage(error?.message || "Erreur inconnue lors de la connexion manuelle.");
+    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter" && status !== "loading" && status !== "success") {
+        // sur panel, Enter valide la connexion PnP manuelle
+        void handlePnPConnect();
       }
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter" && status !== "loading" && status !== "success") {
-        handleImportConfig();
+    const handlePnPConnect = async () => {
+      try {
+        const host = (haBaseUrl || "").trim();
+        const token = (haToken || "").trim();
+
+        if (!host) {
+          setStatus("error");
+          setErrorMessage("Veuillez saisir l'adresse IP de Home Assistant.");
+          return;
+        }
+        if (!token) {
+          setStatus("error");
+          setErrorMessage("Veuillez coller le token Home Assistant.");
+          return;
+        }
+
+        const baseUrl = normalizeHaBaseUrl(host.includes(":") ? host : `${host}:8123`);
+
+        setStatus("loading");
+        setErrorMessage("");
+        setStatusMessage("Test de connexion à Home Assistant…");
+
+        const ok = await testHaConnection(baseUrl, token, 1500);
+        if (!ok) {
+          setStatus("error");
+          setStatusMessage("");
+          setErrorMessage(
+            "Connexion refusée. Vérifie : IP/port 8123, token, et que Home Assistant est joignable en HTTP local.",
+          );
+          return;
+        }
+
+        setStatusMessage("Connexion OK. Enregistrement de la configuration…");
+
+        await setHaConfig({
+          localHaUrl: baseUrl,
+          token,
+        });
+
+        setConnection({
+          url: baseUrl,
+          token,
+          connected: false,
+        });
+
+        try {
+          window.localStorage.setItem("neolia_panel_onboarding_completed", "1");
+        } catch {
+          // ignore
+        }
+
+        setStatus("success");
+        setStatusMessage("Configuration appliquée. Redirection…");
+
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 500);
+      } catch (e: any) {
+        setStatus("error");
+        setStatusMessage("");
+        setErrorMessage(e?.message || "Erreur inconnue.");
       }
     };
 
@@ -359,7 +364,7 @@ export function PanelOnboarding() {
                 <CardTitle className="text-3xl">Configuration du panneau Neolia</CardTitle>
               </div>
               <CardDescription className="text-lg leading-relaxed">
-                Connexion automatique (MQTT) ou manuelle. Bandeau PnP ci-dessous pour détecter HA sans saisie.
+                Connexion automatique (MQTT) ou Plug &amp; Play via détection réseau + token.
               </CardDescription>
             </CardHeader>
 
@@ -409,6 +414,7 @@ export function PanelOnboarding() {
                 )}
               </Button>
 
+              {/* ---- Choix mode ---- */}
               {!manualMode && (
                 <>
                   <div className="space-y-4">
@@ -424,7 +430,7 @@ export function PanelOnboarding() {
                           Connexion automatique en cours…
                         </>
                       ) : (
-                        "Connexion automatique (recommandée)"
+                        "Connexion automatique (MQTT)"
                       )}
                     </Button>
 
@@ -434,7 +440,7 @@ export function PanelOnboarding() {
                       size="lg"
                       className="w-full h-16 text-lg"
                     >
-                      Connexion manuelle
+                      Plug &amp; Play (détection + token)
                     </Button>
                   </div>
 
@@ -465,15 +471,6 @@ export function PanelOnboarding() {
                         </AlertDescription>
                       </Alert>
 
-                      <div className="text-sm text-muted-foreground space-y-2">
-                        <p className="font-medium">Assurez-vous que :</p>
-                        <ul className="space-y-1 list-disc list-inside">
-                          <li>Home Assistant est allumé et sur le même réseau que le panneau.</li>
-                          <li>L&apos;addon Mosquitto tourne.</li>
-                          <li>Le WebSocket MQTT est actif sur 1884 (ou 9001).</li>
-                        </ul>
-                      </div>
-
                       <Button onClick={attemptPanelConnection} size="lg" className="w-full h-14">
                         <RefreshCw className="mr-2 h-5 w-5" />
                         Réessayer la connexion automatique
@@ -483,6 +480,7 @@ export function PanelOnboarding() {
                 </>
               )}
 
+              {/* ---- Plug & Play réel (détection + token + test + save) ---- */}
               {manualMode && (
                 <div className="space-y-6">
                   <div className="space-y-3">
@@ -492,7 +490,7 @@ export function PanelOnboarding() {
                     <Input
                       id="ha-base-url-panel"
                       type="text"
-                      placeholder="ex: 192.168.1.50"
+                      placeholder="ex: 192.168.1.80"
                       value={haBaseUrl}
                       onChange={(e) => setHaBaseUrl(e.target.value)}
                       onKeyPress={handleKeyPress}
@@ -500,8 +498,25 @@ export function PanelOnboarding() {
                       className="text-lg h-14"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Astuce : si le PnP a trouvé HA, le champ est pré-rempli.
-                      {pnpFoundUrl ? ` (${pnpFoundUrl})` : ""}
+                      Détecté automatiquement : <span className="font-medium">{pnpFoundUrl || "—"}</span>
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="ha-token-panel" className="text-lg">
+                      Token Home Assistant (Long-Lived)
+                    </Label>
+                    <Input
+                      id="ha-token-panel"
+                      type="password"
+                      placeholder="Collez ici le token"
+                      value={haToken}
+                      onChange={(e) => setHaToken(e.target.value)}
+                      disabled={isInputDisabled}
+                      className="text-lg h-14"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Ce token authentifie le panneau auprès de Home Assistant (accès local).
                     </p>
                   </div>
 
@@ -534,7 +549,7 @@ export function PanelOnboarding() {
 
                   <div className="flex flex-col gap-3">
                     <Button
-                      onClick={handleImportConfig}
+                      onClick={handlePnPConnect}
                       disabled={isButtonDisabled}
                       size="lg"
                       className="w-full h-16 text-lg"
@@ -542,15 +557,15 @@ export function PanelOnboarding() {
                       {status === "loading" ? (
                         <>
                           <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                          Récupération de la configuration…
+                          Connexion en cours…
                         </>
                       ) : status === "success" ? (
                         <>
                           <CheckCircle2 className="mr-2 h-6 w-6" />
-                          Configuration importée
+                          Config appliquée
                         </>
                       ) : (
-                        "Valider la connexion manuelle"
+                        "Valider et connecter (PnP)"
                       )}
                     </Button>
 
@@ -566,7 +581,7 @@ export function PanelOnboarding() {
                         setErrorMessage("");
                       }}
                     >
-                      Retour à la connexion automatique
+                      Retour
                     </Button>
                   </div>
                 </div>
@@ -649,14 +664,14 @@ export function PanelOnboarding() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPressMobile = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && status !== "loading" && status !== "success") {
       handleImportConfig();
     }
   };
 
-  const isInputDisabled = status === "loading" || status === "success";
-  const isButtonDisabled = status === "loading" || status === "success";
+  const isInputDisabledMobile = status === "loading" || status === "success";
+  const isButtonDisabledMobile = status === "loading" || status === "success";
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-background">
@@ -673,7 +688,7 @@ export function PanelOnboarding() {
               <CardTitle className="text-3xl">Connexion à Home Assistant</CardTitle>
             </div>
             <CardDescription className="text-lg leading-relaxed">
-              Entrez l'URL de votre Home Assistant pour récupérer la configuration du panneau.
+              Entrez l&apos;URL de votre Home Assistant pour récupérer la configuration du panneau.
             </CardDescription>
           </CardHeader>
 
@@ -688,8 +703,8 @@ export function PanelOnboarding() {
                 placeholder="ex: 192.168.1.20:8123"
                 value={haBaseUrl}
                 onChange={(e) => setHaBaseUrl(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isInputDisabled}
+                onKeyPress={handleKeyPressMobile}
+                disabled={isInputDisabledMobile}
                 className="text-lg h-14"
               />
             </div>
@@ -719,7 +734,12 @@ export function PanelOnboarding() {
               </Alert>
             )}
 
-            <Button onClick={handleImportConfig} disabled={isButtonDisabled} size="lg" className="w-full h-16 text-lg">
+            <Button
+              onClick={handleImportConfig}
+              disabled={isButtonDisabledMobile}
+              size="lg"
+              className="w-full h-16 text-lg"
+            >
               {status === "loading" ? (
                 <>
                   <Loader2 className="mr-2 h-6 w-6 animate-spin" />
