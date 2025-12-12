@@ -1,6 +1,10 @@
 /**
  * Service centralisé pour la gestion de la configuration Home Assistant
  * Utilisé pour vérifier, récupérer et enregistrer l'URL HA et le token
+ *
+ * Étape 1 (PnP clean) :
+ * - Ajout d'une découverte HA autonome (sans MQTT) : discoverHA()
+ * - Tests réseau fiables en natif via CapacitorHttp (bypass CORS/WebView)
  */
 
 import { storeHACredentials, getHACredentials } from "@/lib/crypto";
@@ -23,7 +27,6 @@ export interface HAConfigLegacy {
  */
 function isNativePlatform(): boolean {
   try {
-    // Capacitor v5+ fournit isNativePlatform
     const direct = (Capacitor as any).isNativePlatform?.();
     if (typeof direct === "boolean") return direct;
   } catch {
@@ -36,6 +39,228 @@ function isNativePlatform(): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Normalise une URL (trim + supprime trailing slash)
+ */
+function normalizeBaseUrl(url: string): string {
+  return (url || "").trim().replace(/\/+$/, "");
+}
+
+/**
+ * Petit helper "sleep" pour laisser respirer le runtime si besoin
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Effectue une requête HTTP GET en mode natif (CapacitorHttp) si possible,
+ * sinon en fetch (web).
+ */
+async function httpGet(
+  url: string,
+  headers: Record<string, string> = {},
+  timeoutMs: number = 1200,
+): Promise<{ status: number; data?: any; ok: boolean }> {
+  const native = isNativePlatform();
+
+  if (native) {
+    const options: HttpOptions = {
+      url,
+      method: "GET",
+      headers,
+      connectTimeout: timeoutMs,
+      readTimeout: timeoutMs,
+    };
+
+    try {
+      const resp = await CapacitorHttp.get(options);
+      const status = (resp as any).status ?? 0;
+      const data = (resp as any).data;
+      return { status, data, ok: status >= 200 && status < 300 };
+    } catch {
+      return { status: 0, ok: false };
+    }
+  }
+
+  // Web : fetch + AbortController
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const resp = await fetch(url, {
+      method: "GET",
+      headers,
+      signal: controller.signal,
+    });
+    let data: any = undefined;
+    try {
+      data = await resp.json();
+    } catch {
+      // ignore
+    }
+    return { status: resp.status, data, ok: resp.ok };
+  } catch {
+    return { status: 0, ok: false };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Probe Home Assistant sans token :
+ * - HA répond généralement /api/ avec 401 + JSON
+ * - On considère "trouvé" si status 401 ou 200
+ */
+async function probeHomeAssistantBaseUrl(baseUrl: string, timeoutMs: number): Promise<boolean> {
+  const base = normalizeBaseUrl(baseUrl);
+  if (!base) return false;
+
+  const probeUrl = `${base}/api/`;
+  const res = await httpGet(
+    probeUrl,
+    {
+      Accept: "application/json",
+    },
+    timeoutMs,
+  );
+
+  // 401 = HA trouvé mais auth requise (normal)
+  if (res.status === 401 || res.status === 200) return true;
+  return false;
+}
+
+/**
+ * Génère des candidats d'URL HA "probables"
+ */
+function buildCandidateBaseUrls(): string[] {
+  const candidates: string[] = [];
+
+  // Hostnames mDNS fréquents
+  candidates.push("http://homeassistant.local:8123");
+  candidates.push("http://hass.local:8123");
+
+  // Quelques IP "classiques" (on évite de trop charger, le scan fera le reste)
+  candidates.push("http://192.168.1.2:8123");
+  candidates.push("http://192.168.1.3:8123");
+  candidates.push("http://192.168.1.10:8123");
+  candidates.push("http://192.168.1.80:8123");
+  candidates.push("http://192.168.0.10:8123");
+  candidates.push("http://10.0.0.10:8123");
+
+  return candidates;
+}
+
+/**
+ * Scan rapide d'un /24 (ex: 192.168.1.*) sur le port HA 8123
+ * - concurrence limitée pour ne pas tuer la WebView/Android
+ * - timeout court
+ */
+async function scanSubnetForHA(
+  subnetPrefix: string, // ex "192.168.1"
+  timeoutMs: number,
+  concurrency: number,
+): Promise<string | null> {
+  const ips: string[] = [];
+  for (let i = 1; i <= 254; i++) {
+    ips.push(`${subnetPrefix}.${i}`);
+  }
+
+  let found: string | null = null;
+  let index = 0;
+
+  const worker = async () => {
+    while (!found && index < ips.length) {
+      const ip = ips[index++];
+      const baseUrl = `http://${ip}:8123`;
+
+      const ok = await probeHomeAssistantBaseUrl(baseUrl, timeoutMs);
+      if (ok) {
+        found = baseUrl;
+        return;
+      }
+
+      // petite pause micro pour éviter de saturer
+      await sleep(5);
+    }
+  };
+
+  const workers: Promise<void>[] = [];
+  for (let w = 0; w < concurrency; w++) {
+    workers.push(worker());
+  }
+  await Promise.all(workers);
+
+  return found;
+}
+
+/**
+ * Découverte Plug & Play de Home Assistant (sans MQTT)
+ * Stratégie:
+ * 1) Réutilise ce qui existe (credentials + ha_config_v2)
+ * 2) Teste quelques hostnames/candidats
+ * 3) Scan de subnets privés usuels (limité)
+ *
+ * Retourne une URL base HA (ex: http://192.168.1.80:8123) ou null
+ */
+export async function discoverHA(options?: {
+  timeoutMs?: number; // timeout par probe
+  concurrency?: number; // scan concurrency
+  scanSubnets?: string[]; // préfixes /24 (sans le dernier octet)
+  verbose?: boolean;
+}): Promise<string | null> {
+  const timeoutMs = options?.timeoutMs ?? 550;
+  const concurrency = options?.concurrency ?? 18;
+  const verbose = !!options?.verbose;
+
+  const log = (...args: any[]) => {
+    if (verbose) console.log("[PnP][discoverHA]", ...args);
+  };
+
+  // 1) Priorité: config déjà connue
+  try {
+    const cfg = await getHaConfig();
+    if (cfg?.localHaUrl) {
+      log("Test URL sauvegardée:", cfg.localHaUrl);
+      if (await probeHomeAssistantBaseUrl(cfg.localHaUrl, timeoutMs)) return normalizeBaseUrl(cfg.localHaUrl);
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    const creds = await getHACredentials();
+    if (creds?.baseUrl) {
+      log("Test baseUrl credentials:", creds.baseUrl);
+      if (await probeHomeAssistantBaseUrl(creds.baseUrl, timeoutMs)) return normalizeBaseUrl(creds.baseUrl);
+    }
+  } catch {
+    // ignore
+  }
+
+  // 2) Candidats "probables"
+  const candidates = buildCandidateBaseUrls();
+  for (const c of candidates) {
+    log("Probe candidat:", c);
+    if (await probeHomeAssistantBaseUrl(c, timeoutMs)) return normalizeBaseUrl(c);
+  }
+
+  // 3) Scan /24 : on scanne quelques subnets standards
+  const subnets = options?.scanSubnets ?? ["192.168.1", "192.168.0", "10.0.0", "172.16.0"];
+
+  for (const prefix of subnets) {
+    log("Scan subnet:", prefix);
+    const found = await scanSubnetForHA(prefix, timeoutMs, concurrency);
+    if (found) {
+      log("HA trouvé:", found);
+      return normalizeBaseUrl(found);
+    }
+  }
+
+  log("Aucun HA trouvé");
+  return null;
 }
 
 /**
@@ -67,24 +292,22 @@ export async function getHaConfig(): Promise<HAConfig | null> {
     if (configStr) {
       try {
         const config = JSON.parse(configStr) as { localHaUrl?: string; remoteHaUrl?: string };
-        // localHaUrl est obligatoire dans le nouveau format
         if (config.localHaUrl) {
           return {
-            localHaUrl: config.localHaUrl,
-            remoteHaUrl: config.remoteHaUrl,
+            localHaUrl: normalizeBaseUrl(config.localHaUrl),
+            remoteHaUrl: config.remoteHaUrl ? normalizeBaseUrl(config.remoteHaUrl) : undefined,
             token: credentials.token,
           };
         }
       } catch {
-        // Format invalide, continuer avec l'ancien format
+        // ignore
       }
     }
 
     // Ancien format : baseUrl unique (compatibilité ascendante)
-    // On le traite comme localHaUrl, peu importe si c'est nabu.casa ou local
     if (credentials.baseUrl) {
       return {
-        localHaUrl: credentials.baseUrl,
+        localHaUrl: normalizeBaseUrl(credentials.baseUrl),
         remoteHaUrl: undefined,
         token: credentials.token,
       };
@@ -105,12 +328,12 @@ export async function setHaConfig(config: HAConfig | HAConfigLegacy): Promise<vo
   try {
     // Si c'est l'ancien format (url unique)
     if ("url" in config) {
-      await storeHACredentials(config.url, config.token);
-      // Le traiter comme localHaUrl pour compatibilité
+      const url = normalizeBaseUrl(config.url);
+      await storeHACredentials(url, config.token);
       localStorage.setItem(
         "ha_config_v2",
         JSON.stringify({
-          localHaUrl: config.url,
+          localHaUrl: url,
           remoteHaUrl: undefined,
         }),
       );
@@ -118,16 +341,16 @@ export async function setHaConfig(config: HAConfig | HAConfigLegacy): Promise<vo
     }
 
     // Nouveau format : localHaUrl est obligatoire
-    const { localHaUrl, remoteHaUrl, token } = config;
+    const localHaUrl = normalizeBaseUrl(config.localHaUrl);
+    const remoteHaUrl = config.remoteHaUrl ? normalizeBaseUrl(config.remoteHaUrl) : undefined;
+    const token = config.token;
 
     if (!localHaUrl) {
       throw new Error("L'URL locale est obligatoire");
     }
 
-    // Stocker le token avec localHaUrl comme baseUrl
     await storeHACredentials(localHaUrl, token);
 
-    // Stocker la config complète séparément pour la nouvelle logique
     localStorage.setItem(
       "ha_config_v2",
       JSON.stringify({
@@ -145,9 +368,6 @@ export async function setHaConfig(config: HAConfig | HAConfigLegacy): Promise<vo
  * Récupère la configuration depuis NeoliaServer (mode PANEL uniquement)
  * @param installerIpOrHost - L'adresse IP (ou IP:port) du PC de l'installateur
  * @returns La configuration HA { ha_url, token }
- *
- * Sur Android/iOS natif, on utilise CapacitorHttp (requête HTTP native).
- * Sur le web (dev dans le navigateur), on garde fetch().
  */
 export async function fetchConfigFromNeoliaServer(
   installerIpOrHost: string,
@@ -157,22 +377,15 @@ export async function fetchConfigFromNeoliaServer(
     throw new Error("Adresse du poste d'installation vide");
   }
 
-  // On accepte :
-  // - "192.168.1.34"
-  // - "192.168.1.34:8765"
-  // - "http://192.168.1.34:8765"
-  // - "https://192.168.1.34:8765"
   let hostPart = raw;
   let port = 8765;
 
-  // Retirer un éventuel schéma
   if (hostPart.startsWith("http://")) {
     hostPart = hostPart.substring("http://".length);
   } else if (hostPart.startsWith("https://")) {
     hostPart = hostPart.substring("https://".length);
   }
 
-  // Si un port est présent, le récupérer
   const colonIndex = hostPart.lastIndexOf(":");
   if (colonIndex > -1) {
     const hostCandidate = hostPart.substring(0, colonIndex).trim();
@@ -193,21 +406,17 @@ export async function fetchConfigFromNeoliaServer(
 
   const isNative = isNativePlatform();
 
-  // Timeout logique côté JS (natifs + web)
   const timeoutMs = 4000;
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
   try {
     if (isNative) {
-      // ----- Mode natif : CapacitorHttp (bypass WebView/fetch) -----
       console.log("[NeoliaServer] Utilisation de CapacitorHttp (mode natif)");
 
       const options: HttpOptions = {
         url,
         method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
+        headers: { Accept: "application/json" },
         connectTimeout: timeoutMs,
         readTimeout: timeoutMs,
       };
@@ -219,7 +428,6 @@ export async function fetchConfigFromNeoliaServer(
       });
 
       const httpPromise = CapacitorHttp.get(options);
-
       const response = await Promise.race([httpPromise, timeoutPromise]);
 
       const status = (response as any).status ?? 0;
@@ -249,26 +457,18 @@ export async function fetchConfigFromNeoliaServer(
         throw new Error("Configuration invalide reçue de NeoliaServer");
       }
 
-      return {
-        ha_url: json.ha_url,
-        token: json.token,
-      };
+      return { ha_url: json.ha_url, token: json.token };
     } else {
-      // ----- Mode web : fetch classique -----
       console.log("[NeoliaServer] Utilisation de fetch (mode web)");
 
       const controller = new AbortController();
-      timeoutHandle = setTimeout(() => {
-        controller.abort();
-      }, timeoutMs);
+      timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
 
       console.log("[NeoliaServer] Tentative de connexion vers:", url);
 
       const response = await fetch(url, {
         method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
+        headers: { Accept: "application/json" },
         signal: controller.signal,
       });
 
@@ -279,6 +479,7 @@ export async function fetchConfigFromNeoliaServer(
       }
 
       const json = await response.json();
+
       console.log("[NeoliaServer] JSON reçu:", {
         ha_url: json?.ha_url ? "***" : undefined,
         token: json?.token ? "***" : undefined,
@@ -295,13 +496,9 @@ export async function fetchConfigFromNeoliaServer(
         throw new Error("Configuration invalide reçue de NeoliaServer");
       }
 
-      return {
-        ha_url: json.ha_url,
-        token: json.token,
-      };
+      return { ha_url: json.ha_url, token: json.token };
     }
   } catch (error: any) {
-    // Logging détaillé pour debug
     console.error("[NeoliaServer] fetchConfigFromNeoliaServer failed", {
       url,
       isNative,
@@ -310,8 +507,6 @@ export async function fetchConfigFromNeoliaServer(
       errorType: typeof error,
       error,
     });
-
-    // Normalisation des erreurs pour PanelOnboarding
 
     if (error.message?.includes("TIMEOUT")) {
       const timeoutError = new Error(error.message);
@@ -327,64 +522,53 @@ export async function fetchConfigFromNeoliaServer(
       throw timeoutError;
     }
 
-    // Erreur réseau typique de fetch (web)
     if (!isNative && error.name === "TypeError" && error.message.includes("fetch")) {
       const networkError = new Error(
-        "NETWORK: Impossible de contacter NeoliaServer. " +
-          "Causes possibles: serveur non démarré, mauvaise IP, CORS, ou cleartext HTTP bloqué.",
+        "NETWORK: Impossible de contacter NeoliaServer. Causes possibles: serveur non démarré, mauvaise IP, CORS, ou cleartext HTTP bloqué.",
       );
       (networkError as any).type = "network";
       (networkError as any).originalError = error;
       throw networkError;
     }
 
-    // Sur natif, on marque les erreurs génériques comme "network" pour PanelOnboarding
     if (isNative && !(error as any).type) {
       (error as any).type = "network";
     }
 
     throw error;
   } finally {
-    if (timeoutHandle) {
-      clearTimeout(timeoutHandle);
-    }
+    if (timeoutHandle) clearTimeout(timeoutHandle);
   }
 }
 
 /**
  * Teste la connexion à Home Assistant avec une URL et un token
- * @param url - L'URL à tester
- * @param token - Le token d'authentification
- * @param timeoutMs - Timeout en millisecondes (défaut: 3000ms)
- * @returns true si la connexion réussit, false sinon
+ * IMPORTANT: en natif, on utilise CapacitorHttp (fiable, pas de CORS)
  */
-export async function testHaConnection(url: string, token: string, timeoutMs: number = 3000): Promise<boolean> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+export async function testHaConnection(url: string, token: string, timeoutMs: number = 1200): Promise<boolean> {
+  const base = normalizeBaseUrl(url);
+  if (!base || !token) return false;
 
+  const testUrl = `${base}/api/config`;
+
+  const res = await httpGet(
+    testUrl,
+    {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    timeoutMs,
+  );
+
+  if (!(res.status >= 200 && res.status < 300)) return false;
+
+  // Valide légèrement la structure attendue
   try {
-    const testUrl = `${url.replace(/\/+$/, "")}/api/config`;
-
-    const response = await fetch(testUrl, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      return false;
-    }
-
-    // Tenter de parser JSON pour valider la réponse
-    await response.json();
+    const data = res.data;
+    if (!data || typeof data !== "object") return false;
     return true;
   } catch {
-    // Toute erreur (CORS, mixed content, timeout, réseau, JSON invalide, etc.) = connexion échouée
     return false;
-  } finally {
-    clearTimeout(timeoutId);
   }
 }
