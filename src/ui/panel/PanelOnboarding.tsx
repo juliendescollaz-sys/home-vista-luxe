@@ -707,3 +707,38 @@ export function PanelOnboarding() {
     </div>
   );
 }
+import { useEffect, useState } from "react";
+import { discoverHA } from "@/services/haConfig";
+
+export default function PanelOnboarding() {
+  const [status, setStatus] = useState("Recherche de Home Assistant...");
+
+  useEffect(() => {
+    (async () => {
+      const haUrl = await discoverHA({ verbose: false });
+
+      if (haUrl) {
+        setStatus(`Home Assistant détecté : ${haUrl}`);
+      } else {
+        setStatus("Aucun Home Assistant trouvé sur le réseau");
+      }
+    })();
+  }, []);
+
+  return (
+    <div
+      style={{
+        height: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 22,
+        fontWeight: 600,
+        textAlign: "center",
+        padding: 20,
+      }}
+    >
+      {status}
+    </div>
+  );
+}
