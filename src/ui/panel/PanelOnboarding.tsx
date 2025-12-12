@@ -25,6 +25,10 @@ type OnboardingStatus = "idle" | "loading" | "success" | "error";
 
 const PANEL_CODE = "NEOLIA_DEFAULT_PANEL";
 
+// ⚠️ TEMP TEST ONLY — À SUPPRIMER + RÉVOQUER APRÈS VALIDATION
+const HARDCODED_HA_TOKEN =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM";
+
 function normalizeHaBaseUrl(raw: string): string {
   let url = (raw || "").trim();
   if (!url) throw new Error("URL Home Assistant vide");
@@ -63,7 +67,6 @@ function sendPanelDiscoveryRequest(client: any, mode: "auto" | "manual") {
       ts: new Date().toISOString(),
     });
 
-    console.log("[PanelOnboarding] Publication discovery MQTT →", topic, payload);
     client.publish(topic, payload, { qos: 0 });
   } catch (e) {
     console.error("[PanelOnboarding] Erreur lors de l'envoi discovery MQTT:", e);
@@ -74,7 +77,6 @@ export function PanelOnboarding() {
   const { hasCompletedSnStep } = useNeoliaPanelConfigStore();
 
   const [haBaseUrl, setHaBaseUrl] = useState("");
-  const [haToken, setHaToken] = useState("");
 
   const [status, setStatus] = useState<OnboardingStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -132,7 +134,7 @@ export function PanelOnboarding() {
       setPnpState("found");
       setPnpHint(`Home Assistant détecté : ${found}`);
 
-      // Pré-remplit le champ manuel avec l'IP
+      // Pré-remplit le champ avec l'IP
       const host = extractHostFromUrlLike(found);
       if (host) setHaBaseUrl(host);
     } else {
@@ -217,7 +219,7 @@ export function PanelOnboarding() {
       setPanelConnecting(false);
       setPanelErrorMessage(
         "Aucune adresse de serveur MQTT configurée.\n\n" +
-          "Utilisez la connexion manuelle pour spécifier l'adresse IP de Home Assistant.",
+          "Utilisez le mode Plug & Play (détection + token hardcodé) pour tester.",
       );
       return;
     }
@@ -275,26 +277,20 @@ export function PanelOnboarding() {
       return <PanelSnEntryStep />;
     }
 
-    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter" && status !== "loading" && status !== "success") {
-        // sur panel, Enter valide la connexion PnP manuelle
-        void handlePnPConnect();
-      }
-    };
-
     const handlePnPConnect = async () => {
       try {
         const host = (haBaseUrl || "").trim();
-        const token = (haToken || "").trim();
 
         if (!host) {
           setStatus("error");
-          setErrorMessage("Veuillez saisir l'adresse IP de Home Assistant.");
+          setErrorMessage("Adresse IP Home Assistant manquante.");
           return;
         }
+
+        const token = (HARDCODED_HA_TOKEN || "").trim();
         if (!token) {
           setStatus("error");
-          setErrorMessage("Veuillez coller le token Home Assistant.");
+          setErrorMessage("Token hardcodé manquant (HARDCODED_HA_TOKEN).");
           return;
         }
 
@@ -309,7 +305,7 @@ export function PanelOnboarding() {
           setStatus("error");
           setStatusMessage("");
           setErrorMessage(
-            "Connexion refusée. Vérifie : IP/port 8123, token, et que Home Assistant est joignable en HTTP local.",
+            "Connexion refusée. Vérifie : IP/port 8123, et access_token valide.",
           );
           return;
         }
@@ -364,7 +360,7 @@ export function PanelOnboarding() {
                 <CardTitle className="text-3xl">Configuration du panneau Neolia</CardTitle>
               </div>
               <CardDescription className="text-lg leading-relaxed">
-                Connexion automatique (MQTT) ou Plug &amp; Play via détection réseau + token.
+                Test PnP : détection réseau + token hardcodé (temporaire).
               </CardDescription>
             </CardHeader>
 
@@ -414,7 +410,6 @@ export function PanelOnboarding() {
                 )}
               </Button>
 
-              {/* ---- Choix mode ---- */}
               {!manualMode && (
                 <>
                   <div className="space-y-4">
@@ -427,7 +422,7 @@ export function PanelOnboarding() {
                       {panelConnecting ? (
                         <>
                           <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                          Connexion automatique en cours…
+                          Connexion MQTT en cours…
                         </>
                       ) : (
                         "Connexion automatique (MQTT)"
@@ -440,47 +435,21 @@ export function PanelOnboarding() {
                       size="lg"
                       className="w-full h-16 text-lg"
                     >
-                      Plug &amp; Play (détection + token)
+                      Plug &amp; Play (détection + token hardcodé)
                     </Button>
                   </div>
 
-                  {panelConnecting && (
-                    <div className="flex flex-col items-center gap-4 py-6">
-                      <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                      <p className="text-base text-muted-foreground">Connexion à Home Assistant via MQTT…</p>
-                      <p className="text-xs text-muted-foreground">Tentative sur les ports 1884 et 9001.</p>
-                    </div>
-                  )}
-
-                  {!panelConnecting && panelSuccess && (
-                    <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
-                      <CheckCircle2 className="h-5 w-5 text-green-600" />
-                      <AlertDescription className="text-base text-green-600 dark:text-green-400">
-                        Connexion automatique établie. Redirection en cours…
+                  {!panelConnecting && panelError && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-5 w-5" />
+                      <AlertDescription className="text-base whitespace-pre-line">
+                        {panelErrorMessage || "Erreur de connexion MQTT."}
                       </AlertDescription>
                     </Alert>
-                  )}
-
-                  {!panelConnecting && panelError && (
-                    <div className="space-y-4">
-                      <Alert variant="destructive">
-                        <AlertCircle className="h-5 w-5" />
-                        <AlertDescription className="text-base whitespace-pre-line">
-                          Impossible de se connecter automatiquement à Home Assistant.
-                          {panelErrorMessage && `\n\nDétail : ${panelErrorMessage}`}
-                        </AlertDescription>
-                      </Alert>
-
-                      <Button onClick={attemptPanelConnection} size="lg" className="w-full h-14">
-                        <RefreshCw className="mr-2 h-5 w-5" />
-                        Réessayer la connexion automatique
-                      </Button>
-                    </div>
                   )}
                 </>
               )}
 
-              {/* ---- Plug & Play réel (détection + token + test + save) ---- */}
               {manualMode && (
                 <div className="space-y-6">
                   <div className="space-y-3">
@@ -493,30 +462,14 @@ export function PanelOnboarding() {
                       placeholder="ex: 192.168.1.80"
                       value={haBaseUrl}
                       onChange={(e) => setHaBaseUrl(e.target.value)}
-                      onKeyPress={handleKeyPress}
                       disabled={isInputDisabled}
                       className="text-lg h-14"
                     />
                     <p className="text-xs text-muted-foreground">
                       Détecté automatiquement : <span className="font-medium">{pnpFoundUrl || "—"}</span>
                     </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label htmlFor="ha-token-panel" className="text-lg">
-                      Token Home Assistant (Long-Lived)
-                    </Label>
-                    <Input
-                      id="ha-token-panel"
-                      type="password"
-                      placeholder="Collez ici le token"
-                      value={haToken}
-                      onChange={(e) => setHaToken(e.target.value)}
-                      disabled={isInputDisabled}
-                      className="text-lg h-14"
-                    />
                     <p className="text-xs text-muted-foreground">
-                      Ce token authentifie le panneau auprès de Home Assistant (accès local).
+                      Token : <span className="font-medium">hardcodé (temporaire)</span>
                     </p>
                   </div>
 
@@ -594,7 +547,7 @@ export function PanelOnboarding() {
   }
 
   // ---------------- MODE MOBILE / TABLET (inchangé) ----------------
-  const handleImportConfig = async () => {
+  const handleImportConfigMobile = async () => {
     const trimmed = haBaseUrl.trim();
 
     if (!trimmed) {
@@ -666,7 +619,7 @@ export function PanelOnboarding() {
 
   const handleKeyPressMobile = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && status !== "loading" && status !== "success") {
-      handleImportConfig();
+      handleImportConfigMobile();
     }
   };
 
@@ -721,7 +674,9 @@ export function PanelOnboarding() {
             {status === "error" && errorMessage && (
               <Alert variant="destructive">
                 <AlertCircle className="h-5 w-5" />
-                <AlertDescription className="text-base whitespace-pre-line">{errorMessage}</AlertDescription>
+                <AlertDescription className="text-base whitespace-pre-line">
+                  {errorMessage}
+                </AlertDescription>
               </Alert>
             )}
 
@@ -735,7 +690,7 @@ export function PanelOnboarding() {
             )}
 
             <Button
-              onClick={handleImportConfig}
+              onClick={handleImportConfigMobile}
               disabled={isButtonDisabledMobile}
               size="lg"
               className="w-full h-16 text-lg"
