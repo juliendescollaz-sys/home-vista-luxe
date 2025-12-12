@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Server, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
-import { setHaConfig } from "@/services/haConfig";
+import { setHaConfig, discoverHA } from "@/services/haConfig";
 import { useHAStore } from "@/store/useHAStore";
 import { useNeoliaSettings } from "@/store/useNeoliaSettings";
 import { isPanelMode } from "@/lib/platform";
@@ -30,13 +30,24 @@ const PANEL_CODE = "NEOLIA_DEFAULT_PANEL";
 
 function normalizeHaBaseUrl(raw: string): string {
   let url = (raw || "").trim();
-  if (!url) {
-    throw new Error("URL Home Assistant vide");
-  }
-  if (!/^https?:\/\//i.test(url)) {
-    url = `http://${url}`;
-  }
+  if (!url) throw new Error("URL Home Assistant vide");
+  if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
   return url.replace(/\/+$/, "");
+}
+
+function extractHostFromUrlLike(rawUrl: string): string {
+  // rawUrl ex: http://192.168.1.80:8123
+  try {
+    const u = new URL(normalizeHaBaseUrl(rawUrl));
+    return u.hostname; // "192.168.1.80"
+  } catch {
+    // fallback très permissif
+    return rawUrl
+      .replace(/^https?:\/\//i, "")
+      .replace(/\/.*$/, "")
+      .split(":")[0]
+      .trim();
+  }
 }
 
 // Envoie la requête de découverte PnP sur MQTT après connexion
@@ -83,6 +94,11 @@ export function PanelOnboarding() {
 
   const [shouldBypassPanelOnboarding, setShouldBypassPanelOnboarding] = useState(false);
 
+  // ---- PnP UI visible (sans console) ----
+  const [pnpState, setPnpState] = useState<"idle" | "scanning" | "found" | "not_found">("idle");
+  const [pnpFoundUrl, setPnpFoundUrl] = useState<string | null>(null);
+  const [pnpHint, setPnpHint] = useState<string>("");
+
   useEffect(() => {
     if (!isPanelMode()) return;
 
@@ -97,13 +113,49 @@ export function PanelOnboarding() {
     }
   }, []);
 
+  // Scan PnP (uniquement panel + après étape SN)
+  const runPnPScan = useCallback(async () => {
+    if (!isPanelMode()) return;
+    if (!hasCompletedSnStep) return;
+
+    setPnpState("scanning");
+    setPnpFoundUrl(null);
+    setPnpHint("Scan du réseau en cours (PnP)…");
+
+    const found = await discoverHA({
+      verbose: false,
+      timeoutMs: 650,
+      concurrency: 14,
+      scanSubnets: ["192.168.1", "192.168.0", "10.0.0", "172.16.0"],
+    });
+
+    if (found) {
+      setPnpFoundUrl(found);
+      setPnpState("found");
+      setPnpHint(`Home Assistant détecté : ${found}`);
+
+      // Pré-remplit le champ manuel avec l'IP
+      const host = extractHostFromUrlLike(found);
+      if (host) setHaBaseUrl(host);
+    } else {
+      setPnpState("not_found");
+      setPnpHint("Aucun Home Assistant détecté automatiquement sur le réseau.");
+    }
+  }, [hasCompletedSnStep]);
+
+  useEffect(() => {
+    // Lance automatiquement un scan à l'arrivée sur l'onboarding panel
+    if (!isPanelMode()) return;
+    if (!hasCompletedSnStep) return;
+    runPnPScan();
+  }, [hasCompletedSnStep, runPnPScan]);
+
   const applyHaConfigFromMqtt = useCallback(
     async (payload: unknown) => {
       console.log("[PanelOnboarding] Payload MQTT reçu:", payload);
 
       const config = parseNeoliaConfig(payload);
       if (!config) {
-        console.error("[PanelOnboarding] Payload Neolia invalide");
         setPanelError(true);
         setPanelConnecting(false);
         setPanelErrorMessage("Configuration Neolia invalide reçue via MQTT.");
@@ -115,19 +167,14 @@ export function PanelOnboarding() {
 
       const haConn = extractHaConnection(config);
       if (!haConn) {
-        console.error("[PanelOnboarding] Impossible d'extraire la config HA du payload");
         setPanelError(true);
         setPanelConnecting(false);
-        setPanelErrorMessage(
-          "Configuration Home Assistant manquante dans le payload MQTT.",
-        );
+        setPanelErrorMessage("Configuration Home Assistant manquante dans le payload MQTT.");
         setStatus("error");
         setStatusMessage("");
         setErrorMessage("Configuration Home Assistant manquante dans le payload MQTT.");
         return;
       }
-
-      console.log("[PanelOnboarding] Configuration HA extraite:", haConn.baseUrl);
 
       try {
         await setHaConfig({
@@ -155,8 +202,6 @@ export function PanelOnboarding() {
       setStatus("success");
       setStatusMessage("Configuration reçue et appliquée. Redirection en cours…");
 
-      console.log("[PanelOnboarding] Configuration appliquée, redirection...");
-
       setTimeout(() => {
         window.location.href = "/";
       }, 500);
@@ -165,8 +210,6 @@ export function PanelOnboarding() {
   );
 
   const attemptPanelConnection = useCallback(async () => {
-    console.log("[PanelOnboarding] Tentative de connexion MQTT Panel (auto)…");
-
     setPanelConnecting(true);
     setPanelError(false);
     setPanelSuccess(false);
@@ -175,7 +218,6 @@ export function PanelOnboarding() {
     const effectiveMqttHost = mqttHost || DEV_DEFAULT_MQTT_HOST;
 
     if (!effectiveMqttHost) {
-      console.error("[PanelOnboarding] Aucun host MQTT configuré");
       setPanelError(true);
       setPanelConnecting(false);
       setPanelErrorMessage(
@@ -193,11 +235,8 @@ export function PanelOnboarding() {
 
     try {
       const result = await connectNeoliaMqttPanel(
-        () => {
-          console.log("[PanelOnboarding] Connexion MQTT réussie (auto)");
-        },
+        () => {},
         (error) => {
-          console.log("[PanelOnboarding] Erreur MQTT auto:", error);
           setPanelError(true);
           setPanelConnecting(false);
           setPanelErrorMessage(String(error?.message || error));
@@ -210,17 +249,9 @@ export function PanelOnboarding() {
         return;
       }
 
-      console.log(
-        "[PanelOnboarding] Connexion MQTT OK (auto), souscription + discovery...",
-      );
-
       subscribeNeoliaConfigGlobal(result.client, applyHaConfigFromMqtt);
       sendPanelDiscoveryRequest(result.client, "auto");
     } catch (error) {
-      console.error(
-        "[PanelOnboarding] Exception lors de la connexion MQTT auto:",
-        error,
-      );
       setPanelError(true);
       setPanelConnecting(false);
       setPanelErrorMessage(String((error as any)?.message || error));
@@ -235,6 +266,7 @@ export function PanelOnboarding() {
     applyHaConfigFromMqtt,
   ]);
 
+  // ---------------- PANEL MODE ----------------
   if (isPanelMode()) {
     if (shouldBypassPanelOnboarding) {
       return (
@@ -258,14 +290,11 @@ export function PanelOnboarding() {
       }
 
       const host = trimmed.split(":")[0].trim();
-
       if (!host) {
         setErrorMessage("Adresse IP du Home Assistant invalide.");
         setStatus("error");
         return;
       }
-
-      console.log("[PanelOnboarding] Connexion manuelle via MQTT, host:", host);
 
       setStatus("loading");
       setErrorMessage("");
@@ -281,11 +310,8 @@ export function PanelOnboarding() {
 
       try {
         const result = await connectNeoliaMqttPanel(
-          () => {
-            console.log("[PanelOnboarding] Connexion MQTT manuelle réussie");
-          },
+          () => {},
           (error) => {
-            console.log("[PanelOnboarding] Erreur MQTT manuelle:", error);
             setStatus("error");
             setStatusMessage("");
             setErrorMessage(String(error?.message || error));
@@ -295,29 +321,17 @@ export function PanelOnboarding() {
         if (!result?.client) {
           setStatus("error");
           setStatusMessage("");
-          if (!errorMessage) {
-            setErrorMessage("Connexion MQTT échouée (client indisponible).");
-          }
+          setErrorMessage("Connexion MQTT échouée (client indisponible).");
           return;
         }
 
-        console.log(
-          "[PanelOnboarding] Connexion MQTT manuelle OK, souscription + discovery...",
-        );
         setStatusMessage("Connexion MQTT établie. Attente de la configuration Home Assistant…");
-
         subscribeNeoliaConfigGlobal(result.client, applyHaConfigFromMqtt);
         sendPanelDiscoveryRequest(result.client, "manual");
       } catch (error: any) {
-        console.error(
-          "[PanelOnboarding] Exception lors de la connexion MQTT manuelle:",
-          error,
-        );
         setStatus("error");
         setStatusMessage("");
-        setErrorMessage(
-          error?.message || "Erreur inconnue lors de la connexion manuelle.",
-        );
+        setErrorMessage(error?.message || "Erreur inconnue lors de la connexion manuelle.");
       }
     };
 
@@ -345,12 +359,56 @@ export function PanelOnboarding() {
                 <CardTitle className="text-3xl">Configuration du panneau Neolia</CardTitle>
               </div>
               <CardDescription className="text-lg leading-relaxed">
-                Ce panneau peut se connecter automatiquement au bon Home Assistant via MQTT
-                (recommandé) ou manuellement à une instance spécifique du réseau local.
+                Connexion automatique (MQTT) ou manuelle. Bandeau PnP ci-dessous pour détecter HA sans saisie.
               </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-6">
+              {/* ---- Bandeau PnP visible ---- */}
+              <Alert
+                className={
+                  pnpState === "found"
+                    ? "border-green-500 bg-green-50 dark:bg-green-950"
+                    : pnpState === "not_found"
+                      ? "border-red-500 bg-red-50 dark:bg-red-950"
+                      : "border-blue-500 bg-blue-50 dark:bg-blue-950"
+                }
+              >
+                {pnpState === "scanning" ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                ) : pnpState === "found" ? (
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                ) : pnpState === "not_found" ? (
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                ) : (
+                  <RefreshCw className="h-5 w-5 text-blue-600" />
+                )}
+
+                <AlertDescription className="text-base whitespace-pre-line">
+                  {pnpHint || "PnP prêt."}
+                </AlertDescription>
+              </Alert>
+
+              <Button
+                variant="outline"
+                onClick={runPnPScan}
+                disabled={pnpState === "scanning"}
+                size="lg"
+                className="w-full h-14"
+              >
+                {pnpState === "scanning" ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Scan PnP en cours…
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-5 w-5" />
+                    Relancer le scan PnP
+                  </>
+                )}
+              </Button>
+
               {!manualMode && (
                 <>
                   <div className="space-y-4">
@@ -383,12 +441,8 @@ export function PanelOnboarding() {
                   {panelConnecting && (
                     <div className="flex flex-col items-center gap-4 py-6">
                       <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                      <p className="text-base text-muted-foreground">
-                        Connexion à Home Assistant via MQTT…
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Tentative sur les ports 1884 et 9001.
-                      </p>
+                      <p className="text-base text-muted-foreground">Connexion à Home Assistant via MQTT…</p>
+                      <p className="text-xs text-muted-foreground">Tentative sur les ports 1884 et 9001.</p>
                     </div>
                   )}
 
@@ -420,11 +474,7 @@ export function PanelOnboarding() {
                         </ul>
                       </div>
 
-                      <Button
-                        onClick={attemptPanelConnection}
-                        size="lg"
-                        className="w-full h-14"
-                      >
+                      <Button onClick={attemptPanelConnection} size="lg" className="w-full h-14">
                         <RefreshCw className="mr-2 h-5 w-5" />
                         Réessayer la connexion automatique
                       </Button>
@@ -450,7 +500,8 @@ export function PanelOnboarding() {
                       className="text-lg h-14"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Saisissez l&apos;adresse IP locale de votre Home Assistant
+                      Astuce : si le PnP a trouvé HA, le champ est pré-rempli.
+                      {pnpFoundUrl ? ` (${pnpFoundUrl})` : ""}
                     </p>
                   </div>
 
@@ -527,7 +578,7 @@ export function PanelOnboarding() {
     );
   }
 
-  // MODE MOBILE / TABLET (inchangé)
+  // ---------------- MODE MOBILE / TABLET (inchangé) ----------------
   const handleImportConfig = async () => {
     const trimmed = haBaseUrl.trim();
 
@@ -548,10 +599,7 @@ export function PanelOnboarding() {
 
     setStatus("loading");
     setErrorMessage("");
-
-    setStatusMessage(
-      "Connexion à Home Assistant et récupération de la configuration du panneau…",
-    );
+    setStatusMessage("Connexion à Home Assistant et récupération de la configuration du panneau…");
 
     const apiUrl = `${baseUrl}/api/neolia/panel_config/${encodeURIComponent(PANEL_CODE)}`;
 
@@ -562,20 +610,14 @@ export function PanelOnboarding() {
       });
 
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error("Aucune configuration trouvée pour ce panneau.");
-        }
-        throw new Error(
-          `Erreur Home Assistant ${response.status}: ${response.statusText}`,
-        );
+        if (response.status === 404) throw new Error("Aucune configuration trouvée pour ce panneau.");
+        throw new Error(`Erreur Home Assistant ${response.status}: ${response.statusText}`);
       }
 
       const json = await response.json();
 
       if (!json || typeof json !== "object" || !json.ha_url || !json.token) {
-        throw new Error(
-          "Réponse invalide ou incomplète reçue de Home Assistant.",
-        );
+        throw new Error("Réponse invalide ou incomplète reçue de Home Assistant.");
       }
 
       const ha_url: string = json.ha_url;
@@ -599,9 +641,7 @@ export function PanelOnboarding() {
       setStatus("success");
       setStatusMessage("Configuration importée avec succès.");
 
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      setTimeout(() => window.location.reload(), 500);
     } catch (error: any) {
       setStatus("error");
       setStatusMessage("");
@@ -666,9 +706,7 @@ export function PanelOnboarding() {
             {status === "error" && errorMessage && (
               <Alert variant="destructive">
                 <AlertCircle className="h-5 w-5" />
-                <AlertDescription className="text-base whitespace-pre-line">
-                  {errorMessage}
-                </AlertDescription>
+                <AlertDescription className="text-base whitespace-pre-line">{errorMessage}</AlertDescription>
               </Alert>
             )}
 
@@ -681,12 +719,7 @@ export function PanelOnboarding() {
               </Alert>
             )}
 
-            <Button
-              onClick={handleImportConfig}
-              disabled={isButtonDisabled}
-              size="lg"
-              className="w-full h-16 text-lg"
-            >
+            <Button onClick={handleImportConfig} disabled={isButtonDisabled} size="lg" className="w-full h-16 text-lg">
               {status === "loading" ? (
                 <>
                   <Loader2 className="mr-2 h-6 w-6 animate-spin" />
@@ -704,41 +737,6 @@ export function PanelOnboarding() {
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
-}
-import { useEffect, useState } from "react";
-import { discoverHA } from "@/services/haConfig";
-
-export default function PanelOnboarding() {
-  const [status, setStatus] = useState("Recherche de Home Assistant...");
-
-  useEffect(() => {
-    (async () => {
-      const haUrl = await discoverHA({ verbose: false });
-
-      if (haUrl) {
-        setStatus(`Home Assistant détecté : ${haUrl}`);
-      } else {
-        setStatus("Aucun Home Assistant trouvé sur le réseau");
-      }
-    })();
-  }, []);
-
-  return (
-    <div
-      style={{
-        height: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 22,
-        fontWeight: 600,
-        textAlign: "center",
-        padding: 20,
-      }}
-    >
-      {status}
     </div>
   );
 }
