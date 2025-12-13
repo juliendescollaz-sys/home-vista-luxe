@@ -17,15 +17,11 @@ const Routines = () => {
   const hasLoadedRef = useRef(false);
 
   const entitiesLength = useHAStore((s) => s.entities.length);
-  const localRoutines = useRoutineStore((s) => s.localRoutines);
   const sharedRoutines = useRoutineStore((s) => s.sharedRoutines);
   const loadSharedRoutines = useRoutineStore((s) => s.loadSharedRoutines);
 
-  // Memoize combined routines to avoid new array on each render
-  const routines = useMemo(
-    () => [...localRoutines, ...sharedRoutines],
-    [localRoutines, sharedRoutines]
-  );
+  // All routines are now shared (HA automations)
+  const routines = sharedRoutines;
 
   // Load shared routines once when HA entities are available
   useEffect(() => {
