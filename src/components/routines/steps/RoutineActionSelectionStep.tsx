@@ -64,7 +64,7 @@ export function RoutineActionSelectionStep({ draft, onUpdate }: RoutineActionSel
     }
 
     return { grouped, noArea };
-  }, [eligibleEntities, entityRegistry, deviceRegistry]);
+  }, [eligibleEntities, entityRegistry, devices]);
 
   // Check if item is selected
   const isItemSelected = (type: RoutineAction["type"], id: string): boolean => {
