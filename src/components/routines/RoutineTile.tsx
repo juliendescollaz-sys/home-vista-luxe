@@ -1,15 +1,27 @@
 import { useState, useMemo } from "react";
-import { NeoliaRoutine } from "@/types/routines";
+import { NeoliaRoutine, DAYS_OF_WEEK, MONTHS } from "@/types/routines";
 import { useRoutineStore } from "@/store/useRoutineStore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
-import { Star, Users, Pencil, Clock } from "lucide-react";
+import { Star, Users, Pencil, Clock, Trash2 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { RoutineWizard } from "./RoutineWizard";
 import { RoutineBadge } from "./RoutineBadge";
+import { format, parseISO, isBefore } from "date-fns";
+import { fr } from "date-fns/locale";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface RoutineTileProps {
   routineId: string;
@@ -24,10 +36,12 @@ interface RoutineTileProps {
 
 export function RoutineTile({ routineId, hideEditButton = false, sortableProps }: RoutineTileProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   
   const sharedRoutines = useRoutineStore((s) => s.sharedRoutines);
   const toggleRoutineFavorite = useRoutineStore((s) => s.toggleRoutineFavorite);
   const toggleRoutineEnabled = useRoutineStore((s) => s.toggleRoutineEnabled);
+  const deleteRoutine = useRoutineStore((s) => s.deleteRoutine);
 
   const routine = useMemo(
     () => sharedRoutines.find((r) => r.id === routineId),
@@ -39,6 +53,15 @@ export function RoutineTile({ routineId, hideEditButton = false, sortableProps }
   const IconComponent = (LucideIcons as any)[routine.icon] || LucideIcons.Clock;
   const isFavorite = routine.isFavorite ?? false;
 
+  // Check if routine is expired (for "once" frequency)
+  const isExpired = useMemo(() => {
+    if (routine.schedule.frequency !== "once" || !routine.schedule.date) {
+      return false;
+    }
+    const scheduledDateTime = parseISO(`${routine.schedule.date}T${routine.schedule.time}:00`);
+    return isBefore(scheduledDateTime, new Date());
+  }, [routine.schedule]);
+
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -49,6 +72,21 @@ export function RoutineTile({ routineId, hideEditButton = false, sortableProps }
     e.stopPropagation();
     e.preventDefault();
     setEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    await deleteRoutine(routineId);
+    setDeleteDialogOpen(false);
+    toast({
+      title: "Routine supprimée",
+      description: `"${routine.name}" a été supprimée.`,
+    });
   };
 
   const handleEnabledChange = (checked: boolean) => {
@@ -65,22 +103,32 @@ export function RoutineTile({ routineId, hideEditButton = false, sortableProps }
     
     switch (schedule.frequency) {
       case "once":
-        return `${schedule.date} à ${time}`;
+        if (schedule.date) {
+          try {
+            const dateObj = parseISO(schedule.date);
+            const formattedDate = format(dateObj, "d MMMM yyyy", { locale: fr });
+            return `Le ${formattedDate} à ${time}`;
+          } catch {
+            return `${schedule.date} à ${time}`;
+          }
+        }
+        return `Date unique à ${time}`;
       case "daily":
         if (schedule.daysOfWeek && schedule.daysOfWeek.length < 7) {
-          const days = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
-          const selectedDays = schedule.daysOfWeek.map(d => days[d]).join(", ");
+          const selectedDays = schedule.daysOfWeek
+            .map(d => DAYS_OF_WEEK.find(day => day.value === d)?.label || "")
+            .join(", ");
           return `${selectedDays} à ${time}`;
         }
         return `Tous les jours à ${time}`;
       case "weekly":
-        const weekDays = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
-        return `Chaque ${weekDays[schedule.dayOfWeek || 1]} à ${time}`;
+        const weekDay = DAYS_OF_WEEK.find(d => d.value === schedule.dayOfWeek)?.fullLabel || "Lundi";
+        return `Chaque ${weekDay} à ${time}`;
       case "monthly":
         return `Le ${schedule.dayOfMonth || 1} de chaque mois à ${time}`;
       case "yearly":
-        const months = ["", "janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-        return `Le ${schedule.dayOfMonthYearly || 1} ${months[schedule.month || 1]} à ${time}`;
+        const monthLabel = MONTHS.find(m => m.value === schedule.month)?.label || "janvier";
+        return `Le ${schedule.dayOfMonthYearly || 1} ${monthLabel} à ${time}`;
       default:
         return time;
     }
@@ -96,7 +144,7 @@ export function RoutineTile({ routineId, hideEditButton = false, sortableProps }
         className={cn(
           "group relative overflow-hidden glass-card elevated-subtle elevated-active border-border/50 transition-opacity",
           sortableProps && "cursor-grab active:cursor-grabbing touch-none",
-          !routine.enabled && "opacity-60"
+          (!routine.enabled || isExpired) && "opacity-60"
         )}
       >
         <RoutineBadge />
@@ -121,7 +169,7 @@ export function RoutineTile({ routineId, hideEditButton = false, sortableProps }
                 </div>
 
                 <div className="flex items-center gap-1">
-                  {!hideEditButton && (
+                  {!hideEditButton && !isExpired && (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -161,16 +209,34 @@ export function RoutineTile({ routineId, hideEditButton = false, sortableProps }
             </div>
           </div>
 
-          {/* Toggle enabled */}
+          {/* Footer: Toggle enabled OR Delete button for expired */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
-              {routine.enabled ? "Active" : "Désactivée"}
-            </span>
-            <Switch
-              checked={routine.enabled}
-              onCheckedChange={handleEnabledChange}
-              aria-label={routine.enabled ? "Désactiver la routine" : "Activer la routine"}
-            />
+            {isExpired ? (
+              <>
+                <span className="text-sm text-muted-foreground">Expirée</span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="h-8"
+                  onClick={handleDeleteClick}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <Trash2 className="h-4 w-4 mr-1.5" />
+                  Supprimer
+                </Button>
+              </>
+            ) : (
+              <>
+                <span className="text-sm text-muted-foreground">
+                  {routine.enabled ? "Active" : "Désactivée"}
+                </span>
+                <Switch
+                  checked={routine.enabled}
+                  onCheckedChange={handleEnabledChange}
+                  aria-label={routine.enabled ? "Désactiver la routine" : "Activer la routine"}
+                />
+              </>
+            )}
           </div>
         </div>
       </Card>
@@ -180,6 +246,24 @@ export function RoutineTile({ routineId, hideEditButton = false, sortableProps }
         open={editDialogOpen} 
         onOpenChange={setEditDialogOpen} 
       />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer la routine expirée</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer « {routine.name} » ? 
+              Cette routine a déjà été exécutée et sera supprimée de Home Assistant.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
