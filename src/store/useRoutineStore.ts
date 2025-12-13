@@ -208,15 +208,27 @@ export const useRoutineStore = create<RoutineStore>()(
 
       loadSharedRoutines: () => {
         const entities = useHAStore.getState().entities;
+        const entityRegistry = useHAStore.getState().entityRegistry;
         const favorites = get().sharedRoutineFavorites;
         
-        // Filter automation.* entities
+        // Filter automation.* entities, excluding hidden ones
         const haAutomations = entities
-          .filter((e) => e.entity_id.startsWith("automation."))
+          .filter((e) => {
+            if (!e.entity_id.startsWith("automation.")) return false;
+            
+            // Check entity registry for hidden_by flag
+            const regEntry = entityRegistry.find((r) => r.entity_id === e.entity_id) as any;
+            if (regEntry?.hidden_by) return false;
+            
+            // Check entity attributes for hidden flag
+            if (e.attributes?.hidden === true) return false;
+            
+            return true;
+          })
           .map((e) => haAutomationToNeoliaRoutine(e, favorites));
         
         set({ sharedRoutines: haAutomations });
-        console.log("[RoutineStore] Loaded", haAutomations.length, "HA automations");
+        console.log("[RoutineStore] Loaded", haAutomations.length, "visible HA automations");
       },
 
       addRoutine: async (routineData) => {
