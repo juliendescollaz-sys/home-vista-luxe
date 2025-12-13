@@ -9,7 +9,8 @@ import { useHAStore } from "@/store/useHAStore";
 import { useSceneStore } from "@/store/useSceneStore";
 import { useGroupStore } from "@/store/useGroupStore";
 import { isControllableEntity } from "@/lib/entityUtils";
-import { Search, ChevronDown, ChevronRight, Lightbulb, Sparkles, Package } from "lucide-react";
+import { getDomainConfig } from "@/lib/groupDomains";
+import { Search, ChevronDown, ChevronRight, LayoutGrid, Sparkles, Package, HelpCircle } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 
 interface RoutineActionSelectionStepProps {
@@ -140,7 +141,7 @@ export function RoutineActionSelectionStep({ draft, onUpdate }: RoutineActionSel
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
         <TabsList className="w-full">
           <TabsTrigger value="devices" className="flex-1 gap-1">
-            <Lightbulb className="h-4 w-4" />
+            <LayoutGrid className="h-4 w-4" />
             Appareils
           </TabsTrigger>
           <TabsTrigger value="scenes" className="flex-1 gap-1">
@@ -177,20 +178,27 @@ export function RoutineActionSelectionStep({ draft, onUpdate }: RoutineActionSel
                   <span className="text-xs text-muted-foreground ml-auto">({filteredEntities.length})</span>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="pl-6 space-y-1 mt-1">
-                  {filteredEntities.map((entity) => (
-                    <label
-                      key={entity.entity_id}
-                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer"
-                    >
-                      <Checkbox
-                        checked={isItemSelected("device", entity.entity_id)}
-                        onCheckedChange={() => toggleItem("device", entity.entity_id)}
-                      />
-                      <span className="text-sm">
-                        {entity.attributes.friendly_name || entity.entity_id}
-                      </span>
-                    </label>
-                  ))}
+                  {filteredEntities.map((entity) => {
+                    const domain = entity.entity_id.split(".")[0];
+                    const domainConfig = getDomainConfig(domain);
+                    const DomainIcon = domainConfig?.icon || HelpCircle;
+                    
+                    return (
+                      <label
+                        key={entity.entity_id}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={isItemSelected("device", entity.entity_id)}
+                          onCheckedChange={() => toggleItem("device", entity.entity_id)}
+                        />
+                        <DomainIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm">
+                          {entity.attributes.friendly_name || entity.entity_id}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </CollapsibleContent>
               </Collapsible>
             );
@@ -207,20 +215,27 @@ export function RoutineActionSelectionStep({ draft, onUpdate }: RoutineActionSel
               <CollapsibleContent className="pl-6 space-y-1 mt-1">
                 {groupedEntities.noArea
                   .filter((e) => filterBySearch(e.attributes.friendly_name || e.entity_id))
-                  .map((entity) => (
-                    <label
-                      key={entity.entity_id}
-                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer"
-                    >
-                      <Checkbox
-                        checked={isItemSelected("device", entity.entity_id)}
-                        onCheckedChange={() => toggleItem("device", entity.entity_id)}
-                      />
-                      <span className="text-sm">
-                        {entity.attributes.friendly_name || entity.entity_id}
-                      </span>
-                    </label>
-                  ))}
+                  .map((entity) => {
+                    const domain = entity.entity_id.split(".")[0];
+                    const domainConfig = getDomainConfig(domain);
+                    const DomainIcon = domainConfig?.icon || HelpCircle;
+                    
+                    return (
+                      <label
+                        key={entity.entity_id}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={isItemSelected("device", entity.entity_id)}
+                          onCheckedChange={() => toggleItem("device", entity.entity_id)}
+                        />
+                        <DomainIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm">
+                          {entity.attributes.friendly_name || entity.entity_id}
+                        </span>
+                      </label>
+                    );
+                  })}
               </CollapsibleContent>
             </Collapsible>
           )}
