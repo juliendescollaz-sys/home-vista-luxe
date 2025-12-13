@@ -12,11 +12,38 @@ interface RoutineSummaryStepProps {
 
 export function RoutineSummaryStep({ draft }: RoutineSummaryStepProps) {
   const entities = useHAStore((s) => s.entities);
+  const entityRegistry = useHAStore((s) => s.entityRegistry);
+  const devices = useHAStore((s) => s.devices);
+  const areas = useHAStore((s) => s.areas);
+  const floors = useHAStore((s) => s.floors);
   const localScenes = useSceneStore((s) => s.localScenes);
   const sharedScenes = useSceneStore((s) => s.sharedScenes);
   const groups = useGroupStore((s) => s.groups);
 
   const allScenes = useMemo(() => [...localScenes, ...sharedScenes], [localScenes, sharedScenes]);
+
+  // Helper to get room and floor for an entity
+  const getEntityLocation = (entityId: string): string => {
+    const regEntry = entityRegistry.find((r) => r.entity_id === entityId) as any;
+    let areaId = regEntry?.area_id;
+    
+    if (!areaId && regEntry?.device_id) {
+      const device = devices.find((d: any) => d.id === regEntry.device_id);
+      areaId = device?.area_id;
+    }
+    
+    if (!areaId) return "";
+    
+    const area = areas.find((a) => a.area_id === areaId);
+    if (!area) return "";
+    
+    const floor = floors.find((f) => f.floor_id === area.floor_id);
+    
+    if (floor) {
+      return `${area.name} • ${floor.name}`;
+    }
+    return area.name;
+  };
 
   const IconComponent = (LucideIcons as any)[draft.icon] || LucideIcons.Clock;
 
@@ -93,11 +120,17 @@ export function RoutineSummaryStep({ draft }: RoutineSummaryStepProps) {
               {deviceItems.map((item) => {
                 const entity = entities.find((e) => e.entity_id === item.id);
                 const name = entity?.attributes.friendly_name || item.id;
+                const location = getEntityLocation(item.id);
                 const stateLabel = item.targetState?.state === "off" ? "Éteindre" : "Allumer";
                 return (
                   <div key={item.id} className="flex items-center justify-between text-sm">
-                    <span>{name}</span>
-                    <span className="text-muted-foreground">{stateLabel}</span>
+                    <div className="min-w-0">
+                      <span>{name}</span>
+                      {location && (
+                        <span className="text-xs text-muted-foreground ml-2">({location})</span>
+                      )}
+                    </div>
+                    <span className="text-muted-foreground flex-shrink-0">{stateLabel}</span>
                   </div>
                 );
               })}
