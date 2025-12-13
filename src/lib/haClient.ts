@@ -595,8 +595,8 @@ export class HAClient {
     alias: string;
     description?: string;
     trigger: any[];
+    condition?: any[];
     action: any[];
-    icon?: string;
   }): Promise<void> {
     console.info("[Neolia] createAutomation via Edge Function →", { id: config.id, alias: config.alias });
 
@@ -618,8 +618,8 @@ export class HAClient {
           alias: config.alias,
           description: config.description,
           trigger: config.trigger,
+          condition: config.condition,
           action: config.action,
-          icon: config.icon,
         },
       }),
     });
@@ -638,8 +638,8 @@ export class HAClient {
     alias?: string;
     description?: string;
     trigger?: any[];
+    condition?: any[];
     action?: any[];
-    icon?: string;
   }): Promise<void> {
     console.info("[Neolia] updateAutomation via Edge Function →", { id: config.id });
 
@@ -661,8 +661,8 @@ export class HAClient {
           alias: config.alias,
           description: config.description,
           trigger: config.trigger,
+          condition: config.condition,
           action: config.action,
-          icon: config.icon,
         },
       }),
     });

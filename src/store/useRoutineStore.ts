@@ -108,46 +108,79 @@ function lucideToMdi(lucideIcon: string): string {
 function buildHATrigger(schedule: RoutineSchedule): any[] {
   const triggers: any[] = [];
   
+  // Ensure time is in HH:MM:SS format (HA requires HH:MM or HH:MM:SS)
+  let timeFormatted = schedule.time;
+  if (timeFormatted && !timeFormatted.includes(":")) {
+    timeFormatted = `${timeFormatted}:00:00`;
+  } else if (timeFormatted && timeFormatted.split(":").length === 2) {
+    timeFormatted = `${timeFormatted}:00`;
+  }
+  
+  // All schedules use time trigger with conditions added separately
+  triggers.push({
+    platform: "time",
+    at: timeFormatted,
+  });
+  
+  return triggers;
+}
+
+// Build HA automation conditions from schedule
+function buildHAConditions(schedule: RoutineSchedule): any[] {
+  const conditions: any[] = [];
+  
   switch (schedule.frequency) {
     case "once":
-      triggers.push({
-        platform: "time",
-        at: `${schedule.date}T${schedule.time}:00`,
-      });
+      // Add date condition for one-time execution
+      if (schedule.date) {
+        conditions.push({
+          condition: "template",
+          value_template: `{{ now().strftime('%Y-%m-%d') == '${schedule.date}' }}`,
+        });
+      }
       break;
     case "daily":
-      if (schedule.daysOfWeek && schedule.daysOfWeek.length < 7) {
-        // Specific days
+      // Add weekday condition if specific days selected
+      if (schedule.daysOfWeek && schedule.daysOfWeek.length > 0 && schedule.daysOfWeek.length < 7) {
         const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-        triggers.push({
-          platform: "time",
-          at: schedule.time,
-        });
-        // Add condition for specific days
-      } else {
-        // Every day
-        triggers.push({
-          platform: "time",
-          at: schedule.time,
+        const selectedDays = schedule.daysOfWeek.map(d => dayNames[d]);
+        conditions.push({
+          condition: "time",
+          weekday: selectedDays,
         });
       }
       break;
     case "weekly":
-      triggers.push({
-        platform: "time",
-        at: schedule.time,
-      });
+      // Specific day of week
+      if (schedule.dayOfWeek !== undefined) {
+        const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+        conditions.push({
+          condition: "time",
+          weekday: [dayNames[schedule.dayOfWeek]],
+        });
+      }
       break;
     case "monthly":
+      // Specific day of month
+      if (schedule.dayOfMonth) {
+        conditions.push({
+          condition: "template",
+          value_template: `{{ now().day == ${schedule.dayOfMonth} }}`,
+        });
+      }
+      break;
     case "yearly":
-      triggers.push({
-        platform: "time",
-        at: schedule.time,
-      });
+      // Specific month and day
+      if (schedule.month && schedule.dayOfMonthYearly) {
+        conditions.push({
+          condition: "template",
+          value_template: `{{ now().month == ${schedule.month} and now().day == ${schedule.dayOfMonthYearly} }}`,
+        });
+      }
       break;
   }
   
-  return triggers;
+  return conditions;
 }
 
 // Build HA automation actions from routine actions
@@ -242,14 +275,17 @@ export const useRoutineStore = create<RoutineStore>()(
           .replace(/[^a-z0-9]+/g, "_")
           .replace(/^_|_$/g, "");
         
+        // Build conditions from schedule
+        const conditions = buildHAConditions(routineData.schedule);
+        
         // Create automation via HA API
         await client.createAutomation({
           id: automationId,
           alias: routineData.name,
           description: routineData.description,
           trigger: buildHATrigger(routineData.schedule),
+          condition: conditions.length > 0 ? conditions : undefined,
           action: buildHAActions(routineData.actions),
-          icon: lucideToMdi(routineData.icon),
         });
         
         // Reload shared routines from HA entities
@@ -275,13 +311,16 @@ export const useRoutineStore = create<RoutineStore>()(
         
         const automationId = id.replace("automation.", "");
         
+        // Build conditions if schedule is being updated
+        const conditions = updates.schedule ? buildHAConditions(updates.schedule) : undefined;
+        
         await client.updateAutomation({
           id: automationId,
           alias: updates.name,
           description: updates.description,
           trigger: updates.schedule ? buildHATrigger(updates.schedule) : undefined,
+          condition: conditions && conditions.length > 0 ? conditions : undefined,
           action: updates.actions ? buildHAActions(updates.actions) : undefined,
-          icon: updates.icon ? lucideToMdi(updates.icon) : undefined,
         });
         
         setTimeout(() => get().loadSharedRoutines(), 500);
