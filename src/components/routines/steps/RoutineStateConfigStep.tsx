@@ -2,11 +2,12 @@ import { useMemo } from "react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RoutineWizardDraft, RoutineAction } from "@/types/routines";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
-import { Lightbulb, Power, Blinds, ThermometerSun, Package } from "lucide-react";
+import { Lightbulb, Power, Blinds, ThermometerSun, Package, Wand2 } from "lucide-react";
 
 interface RoutineStateConfigStepProps {
   draft: RoutineWizardDraft;
@@ -15,7 +16,34 @@ interface RoutineStateConfigStepProps {
 
 export function RoutineStateConfigStep({ draft, onUpdate }: RoutineStateConfigStepProps) {
   const entities = useHAStore((s) => s.entities);
+  const entityRegistry = useHAStore((s) => s.entityRegistry);
+  const devices = useHAStore((s) => s.devices);
+  const areas = useHAStore((s) => s.areas);
+  const floors = useHAStore((s) => s.floors);
   const groups = useGroupStore((s) => s.groups);
+
+  // Helper to get room and floor for an entity
+  const getEntityLocation = (entityId: string): string => {
+    const regEntry = entityRegistry.find((r) => r.entity_id === entityId) as any;
+    let areaId = regEntry?.area_id;
+    
+    if (!areaId && regEntry?.device_id) {
+      const device = devices.find((d: any) => d.id === regEntry.device_id);
+      areaId = device?.area_id;
+    }
+    
+    if (!areaId) return "";
+    
+    const area = areas.find((a) => a.area_id === areaId);
+    if (!area) return "";
+    
+    const floor = floors.find((f) => f.floor_id === area.floor_id);
+    
+    if (floor) {
+      return `${area.name} • ${floor.name}`;
+    }
+    return area.name;
+  };
 
   // Filter items that need state config (devices and groups, not scenes)
   const configurableItems = useMemo(() => {
@@ -46,12 +74,40 @@ export function RoutineStateConfigStep({ draft, onUpdate }: RoutineStateConfigSt
     });
   };
 
+  // Apply current state from HA entity
+  const applyCurrentState = (index: number) => {
+    const item = configurableItems[index];
+    const entity = entities.find((e) => e.entity_id === item.id);
+    if (!entity) return;
+
+    const domain = item.id.split(".")[0];
+    const currentState: RoutineAction["targetState"] = {
+      state: entity.state === "on" || entity.state === "open" ? "on" : "off",
+    };
+
+    if (domain === "light" && entity.attributes.brightness !== undefined) {
+      currentState.brightness = entity.attributes.brightness;
+    }
+    if (domain === "cover" && entity.attributes.current_position !== undefined) {
+      currentState.position = entity.attributes.current_position;
+    }
+    if (domain === "climate") {
+      currentState.hvac_mode = entity.state;
+      if (entity.attributes.temperature !== undefined) {
+        currentState.temperature = entity.attributes.temperature;
+      }
+    }
+
+    updateItemState(index, { targetState: currentState });
+  };
+
   const renderDeviceConfig = (item: RoutineAction, index: number) => {
     const entity = entities.find((e) => e.entity_id === item.id);
     if (!entity) return null;
 
     const domain = item.id.split(".")[0];
     const friendlyName = entity.attributes.friendly_name || item.id;
+    const location = getEntityLocation(item.id);
     const targetState = item.targetState || { state: "on" };
     const isOn = targetState.state !== "off";
 
@@ -77,15 +133,28 @@ export function RoutineStateConfigStep({ draft, onUpdate }: RoutineStateConfigSt
             </div>
             <div>
               <p className="font-medium">{friendlyName}</p>
-              <p className="text-xs text-muted-foreground">{domain}</p>
+              <p className="text-xs text-muted-foreground">
+                {location || domain}
+              </p>
             </div>
           </div>
-          <Switch
-            checked={isOn}
-            onCheckedChange={(checked) =>
-              updateDeviceTargetState(index, { state: checked ? "on" : "off" })
-            }
-          />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              onClick={() => applyCurrentState(index)}
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              État actuel
+            </Button>
+            <Switch
+              checked={isOn}
+              onCheckedChange={(checked) =>
+                updateDeviceTargetState(index, { state: checked ? "on" : "off" })
+              }
+            />
+          </div>
         </div>
 
         {isOn && domain === "light" && (
