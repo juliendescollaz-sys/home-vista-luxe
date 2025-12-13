@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RoutineWizardDraft, RoutineAction } from "@/types/routines";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
+import { isDimmableLight } from "@/lib/entityUtils";
 import { Lightbulb, Power, Blinds, ThermometerSun, Package, Wand2 } from "lucide-react";
 
 interface RoutineStateConfigStepProps {
@@ -157,19 +158,15 @@ export function RoutineStateConfigStep({ draft, onUpdate }: RoutineStateConfigSt
           </div>
         </div>
 
-        {isOn && domain === "light" && (
-          <div className="space-y-3 pl-13">
-            {entity.attributes.brightness !== undefined && (
-              <div className="space-y-2">
-                <Label className="text-sm">Luminosité: {Math.round(((targetState.brightness || 255) / 255) * 100)}%</Label>
-                <Slider
-                  value={[targetState.brightness || 255]}
-                  max={255}
-                  step={1}
-                  onValueChange={([v]) => updateDeviceTargetState(index, { brightness: v })}
-                />
-              </div>
-            )}
+        {isOn && domain === "light" && isDimmableLight(entity) && (
+          <div className="space-y-2 pl-13">
+            <Label className="text-sm">Luminosité: {Math.round(((targetState.brightness || 255) / 255) * 100)}%</Label>
+            <Slider
+              value={[targetState.brightness || 255]}
+              max={255}
+              step={1}
+              onValueChange={([v]) => updateDeviceTargetState(index, { brightness: v })}
+            />
           </div>
         )}
 
