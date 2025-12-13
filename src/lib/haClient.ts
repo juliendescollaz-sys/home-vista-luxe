@@ -589,6 +589,130 @@ export class HAClient {
     return this.ws;
   }
 
+  // Automation management methods using Edge Function proxy
+  async createAutomation(config: {
+    id: string;
+    alias: string;
+    description?: string;
+    trigger: any[];
+    action: any[];
+    icon?: string;
+  }): Promise<void> {
+    console.info("[Neolia] createAutomation via Edge Function →", { id: config.id, alias: config.alias });
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/ha-automation-manager`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({
+        haBaseUrl: this.config.baseUrl,
+        haToken: this.config.token,
+        action: "create",
+        automationId: config.id,
+        automationConfig: {
+          alias: config.alias,
+          description: config.description,
+          trigger: config.trigger,
+          action: config.action,
+          icon: config.icon,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("[Neolia] createAutomation error:", response.status, errorData);
+      throw new Error(errorData.details || errorData.error || `Erreur création automation: ${response.status}`);
+    }
+
+    console.info("[Neolia] createAutomation success");
+  }
+
+  async updateAutomation(config: {
+    id: string;
+    alias?: string;
+    description?: string;
+    trigger?: any[];
+    action?: any[];
+    icon?: string;
+  }): Promise<void> {
+    console.info("[Neolia] updateAutomation via Edge Function →", { id: config.id });
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/ha-automation-manager`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({
+        haBaseUrl: this.config.baseUrl,
+        haToken: this.config.token,
+        action: "update",
+        automationId: config.id,
+        automationConfig: {
+          alias: config.alias,
+          description: config.description,
+          trigger: config.trigger,
+          action: config.action,
+          icon: config.icon,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("[Neolia] updateAutomation error:", response.status, errorData);
+      throw new Error(errorData.details || errorData.error || `Erreur mise à jour automation: ${response.status}`);
+    }
+
+    console.info("[Neolia] updateAutomation success");
+  }
+
+  async deleteAutomation(automationId: string): Promise<{ deleted: boolean; cannotDelete?: boolean; reason?: string }> {
+    console.info("[Neolia] deleteAutomation via Edge Function →", { automationId });
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/ha-automation-manager`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({
+        haBaseUrl: this.config.baseUrl,
+        haToken: this.config.token,
+        action: "delete",
+        automationId: automationId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("[Neolia] deleteAutomation error:", response.status, errorData);
+      throw new Error(errorData.details || errorData.error || `Erreur suppression automation: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.cannotDelete) {
+      console.warn("[Neolia] deleteAutomation: automation cannot be deleted (legacy)");
+      return { deleted: false, cannotDelete: true, reason: data.reason };
+    }
+
+    console.info("[Neolia] deleteAutomation success");
+    return { deleted: true };
+  }
+
   // REST API methods (use WebSocket instead for Nabu Casa compatibility)
   async getConfig(): Promise<any> {
     console.log("🔧 Récupération de la configuration via WebSocket...");
