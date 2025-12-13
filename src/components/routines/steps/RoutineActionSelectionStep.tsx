@@ -38,14 +38,17 @@ export function RoutineActionSelectionStep({ draft, onUpdate }: RoutineActionSel
   const eligibleScenes = useMemo(() => sharedScenes.filter(s => s.scope === "shared"), [sharedScenes]);
   const eligibleGroups = useMemo(() => groups.filter(g => g.scope === "shared"), [groups]);
 
-  // Filter controllable entities
+  // Filter controllable entities (avec registry pour exclure les entités cachées)
   const eligibleEntities = useMemo(() => {
-    return entities.filter((e) => isControllableEntity(e));
-  }, [entities]);
+    return entities.filter((e) => {
+      const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
+      return isControllableEntity(e, reg);
+    });
+  }, [entities, entityRegistry]);
 
-  // Group entities by area
-  const groupedEntities = useMemo(() => {
-    const grouped: Record<string, typeof eligibleEntities> = {};
+  // Group entities by floor > area
+  const groupedByFloor = useMemo(() => {
+    const byFloor: Record<string, Record<string, typeof eligibleEntities>> = {};
     const noArea: typeof eligibleEntities = [];
 
     for (const entity of eligibleEntities) {
@@ -58,15 +61,19 @@ export function RoutineActionSelectionStep({ draft, onUpdate }: RoutineActionSel
       }
 
       if (areaId) {
-        if (!grouped[areaId]) grouped[areaId] = [];
-        grouped[areaId].push(entity);
+        const area = areas.find((a) => a.area_id === areaId);
+        const floorId = area?.floor_id || "__no_floor__";
+        
+        if (!byFloor[floorId]) byFloor[floorId] = {};
+        if (!byFloor[floorId][areaId]) byFloor[floorId][areaId] = [];
+        byFloor[floorId][areaId].push(entity);
       } else {
         noArea.push(entity);
       }
     }
 
-    return { grouped, noArea };
-  }, [eligibleEntities, entityRegistry, devices]);
+    return { byFloor, noArea };
+  }, [eligibleEntities, entityRegistry, devices, areas]);
 
   // Check if item is selected
   const isItemSelected = (type: RoutineAction["type"], id: string): boolean => {
@@ -155,48 +162,70 @@ export function RoutineActionSelectionStep({ draft, onUpdate }: RoutineActionSel
         </TabsList>
 
         <TabsContent value="devices" className="mt-4 max-h-[40vh] overflow-y-auto space-y-2">
-          {/* Grouped by area */}
-          {Object.entries(groupedEntities.grouped).map(([areaId, areaEntities]) => {
-            const area = areas.find((a) => a.area_id === areaId);
-            const floor = floors.find((f) => f.floor_id === area?.floor_id);
-            const areaName = area?.name || areaId;
-            const floorName = floor?.name;
-            const isExpanded = expandedAreas.has(areaId);
-
-            const filteredEntities = areaEntities.filter((e) =>
+          {/* Grouped by floor > area */}
+          {Object.entries(groupedByFloor.byFloor).map(([floorId, floorAreas]) => {
+            const floor = floors.find((f) => f.floor_id === floorId);
+            const floorName = floor?.name || "Sans étage";
+            const isFloorExpanded = expandedAreas.has(`floor_${floorId}`);
+            
+            // Count total filtered entities in this floor
+            const totalFloorEntities = Object.values(floorAreas).flat().filter((e) =>
               filterBySearch(e.attributes.friendly_name || e.entity_id)
-            );
-
-            if (filteredEntities.length === 0) return null;
+            ).length;
+            
+            if (totalFloorEntities === 0) return null;
 
             return (
-              <Collapsible key={areaId} open={isExpanded} onOpenChange={() => toggleAreaExpanded(areaId)}>
-                <CollapsibleTrigger className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-muted/50">
-                  {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  <span className="font-medium">{areaName}</span>
-                  {floorName && <span className="text-xs text-muted-foreground">• {floorName}</span>}
-                  <span className="text-xs text-muted-foreground ml-auto">({filteredEntities.length})</span>
+              <Collapsible key={floorId} open={isFloorExpanded} onOpenChange={() => toggleAreaExpanded(`floor_${floorId}`)}>
+                <CollapsibleTrigger className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-muted/50 bg-muted/30">
+                  {isFloorExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <span className="font-semibold">{floorName}</span>
+                  <span className="text-xs text-muted-foreground ml-auto">({totalFloorEntities})</span>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="pl-6 space-y-1 mt-1">
-                  {filteredEntities.map((entity) => {
-                    const domain = entity.entity_id.split(".")[0];
-                    const domainConfig = getDomainConfig(domain);
-                    const DomainIcon = domainConfig?.icon || HelpCircle;
-                    
+                <CollapsibleContent className="pl-4 space-y-1 mt-1">
+                  {/* Areas within this floor */}
+                  {Object.entries(floorAreas).map(([areaId, areaEntities]) => {
+                    const area = areas.find((a) => a.area_id === areaId);
+                    const areaName = area?.name || areaId;
+                    const isAreaExpanded = expandedAreas.has(areaId);
+
+                    const filteredEntities = areaEntities.filter((e) =>
+                      filterBySearch(e.attributes.friendly_name || e.entity_id)
+                    );
+
+                    if (filteredEntities.length === 0) return null;
+
                     return (
-                      <label
-                        key={entity.entity_id}
-                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer"
-                      >
-                        <Checkbox
-                          checked={isItemSelected("device", entity.entity_id)}
-                          onCheckedChange={() => toggleItem("device", entity.entity_id)}
-                        />
-                        <DomainIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <span className="text-sm">
-                          {entity.attributes.friendly_name || entity.entity_id}
-                        </span>
-                      </label>
+                      <Collapsible key={areaId} open={isAreaExpanded} onOpenChange={() => toggleAreaExpanded(areaId)}>
+                        <CollapsibleTrigger className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-muted/50">
+                          {isAreaExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          <span className="font-medium">{areaName}</span>
+                          <span className="text-xs text-muted-foreground ml-auto">({filteredEntities.length})</span>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="pl-6 space-y-1 mt-1">
+                          {filteredEntities.map((entity) => {
+                            const domain = entity.entity_id.split(".")[0];
+                            const domainConfig = getDomainConfig(domain);
+                            const DomainIcon = domainConfig?.icon || HelpCircle;
+                            
+                            return (
+                              <label
+                                key={entity.entity_id}
+                                className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer"
+                              >
+                                <Checkbox
+                                  checked={isItemSelected("device", entity.entity_id)}
+                                  onCheckedChange={() => toggleItem("device", entity.entity_id)}
+                                />
+                                <DomainIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                <span className="text-sm">
+                                  {entity.attributes.friendly_name || entity.entity_id}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </CollapsibleContent>
+                      </Collapsible>
                     );
                   })}
                 </CollapsibleContent>
@@ -205,15 +234,15 @@ export function RoutineActionSelectionStep({ draft, onUpdate }: RoutineActionSel
           })}
 
           {/* No area */}
-          {groupedEntities.noArea.length > 0 && (
+          {groupedByFloor.noArea.length > 0 && (
             <Collapsible>
               <CollapsibleTrigger className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-muted/50">
                 <ChevronRight className="h-4 w-4" />
                 <span className="font-medium text-muted-foreground">Sans pièce assignée</span>
-                <span className="text-xs text-muted-foreground ml-auto">({groupedEntities.noArea.length})</span>
+                <span className="text-xs text-muted-foreground ml-auto">({groupedByFloor.noArea.length})</span>
               </CollapsibleTrigger>
               <CollapsibleContent className="pl-6 space-y-1 mt-1">
-                {groupedEntities.noArea
+                {groupedByFloor.noArea
                   .filter((e) => filterBySearch(e.attributes.friendly_name || e.entity_id))
                   .map((entity) => {
                     const domain = entity.entity_id.split(".")[0];
