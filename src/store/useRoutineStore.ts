@@ -418,8 +418,10 @@ export const useRoutineStore = create<RoutineStore>()(
       name: "neolia-routines",
       version: 2,
       partialize: (state) => ({
-        // Only persist favorites locally - routines are in HA
+        // Persist favorites and routine metadata (schedule, actions, etc.) locally
+        // HA reste la source de vérité pour l'état activé/désactivé via loadSharedRoutines
         sharedRoutineFavorites: state.sharedRoutineFavorites,
+        sharedRoutines: state.sharedRoutines,
       }),
     }
   )
