@@ -91,12 +91,8 @@ serve(async (req) => {
         payload.condition = automationConfig.condition;
       }
       
-      // Add icon - avoid double mdi: prefix
-      if (automationConfig.icon) {
-        payload.icon = automationConfig.icon.startsWith("mdi:") 
-          ? automationConfig.icon 
-          : `mdi:${automationConfig.icon}`;
-      }
+      // Note: HA automation API does not support 'icon' field in the config payload
+      // Icons are managed via entity_registry separately
 
       console.log(`[ha-automation-manager] Payload:`, JSON.stringify(payload));
 
