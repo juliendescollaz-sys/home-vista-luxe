@@ -25,7 +25,7 @@ interface RoutineStore {
 }
 
 // Convert HA automation entity to NeoliaRoutine
-function haAutomationToNeoliaRoutine(entity: any, favorites: string[]): NeoliaRoutine {
+function haAutomationToNeoliaRoutine(entity: any, favorites: string[], existing?: NeoliaRoutine): NeoliaRoutine {
   const entityId = entity.entity_id;
   const friendlyName = entity.attributes?.friendly_name || entityId.replace("automation.", "");
   const rawIcon = entity.attributes?.icon || "";
@@ -37,13 +37,13 @@ function haAutomationToNeoliaRoutine(entity: any, favorites: string[]): NeoliaRo
     icon: mapMdiToLucide(cleanIcon),
     description: entity.attributes?.description,
     scope: "shared",
-    actions: [], // HA automations don't expose their actions via states API
-    schedule: { frequency: "daily", time: "00:00", daysOfWeek: [1, 2, 3, 4, 5, 6, 0] },
+    actions: existing?.actions || [], // HA automations don't expose their actions via states API
+    schedule: existing?.schedule || { frequency: "daily", time: "00:00", daysOfWeek: [1, 2, 3, 4, 5, 6, 0] },
     enabled: entity.state === "on",
-    order: undefined,
+    order: existing?.order,
     isFavorite: favorites.includes(entityId),
-    createdAt: entity.last_changed || new Date().toISOString(),
-    updatedAt: entity.last_updated || new Date().toISOString(),
+    createdAt: existing?.createdAt || entity.last_changed || new Date().toISOString(),
+    updatedAt: entity.last_updated || existing?.updatedAt || new Date().toISOString(),
   };
 }
 
@@ -241,6 +241,7 @@ export const useRoutineStore = create<RoutineStore>()(
         const entities = useHAStore.getState().entities;
         const entityRegistry = useHAStore.getState().entityRegistry;
         const favorites = get().sharedRoutineFavorites;
+        const existingRoutines = get().sharedRoutines;
         
         // Filter automation.* entities, excluding hidden ones
         const haAutomations = entities
@@ -256,7 +257,10 @@ export const useRoutineStore = create<RoutineStore>()(
             
             return true;
           })
-          .map((e) => haAutomationToNeoliaRoutine(e, favorites));
+          .map((e) => {
+            const existing = existingRoutines.find((r) => r.id === e.entity_id);
+            return haAutomationToNeoliaRoutine(e, favorites, existing);
+          });
         
         set({ sharedRoutines: haAutomations });
         console.log("[RoutineStore] Loaded", haAutomations.length, "visible HA automations");
