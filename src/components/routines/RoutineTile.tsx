@@ -106,7 +106,7 @@ export function RoutineTile({ routineId, hideEditButton = false, sortableProps }
         if (schedule.date) {
           try {
             const dateObj = parseISO(schedule.date);
-            const formattedDate = format(dateObj, "d MMMM yyyy", { locale: fr });
+            const formattedDate = format(dateObj, "dd/MM/yy", { locale: fr });
             return `Le ${formattedDate} à ${time}`;
           } catch {
             return `${schedule.date} à ${time}`;
