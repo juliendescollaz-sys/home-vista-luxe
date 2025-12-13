@@ -131,10 +131,8 @@ export function RoutineWizard({ open, onOpenChange, routine }: RoutineWizardProp
         // Actions selection
         return draft.selectedItems.length > 0;
       case 4:
-        // State config - check if devices have states configured
-        return draft.selectedItems
-          .filter(item => item.type === "device")
-          .every(item => item.targetState !== undefined);
+        // Configuration des états : ne pas bloquer l'utilisateur, les états sont optionnels
+        return true;
       case 5:
         // Schedule
         return draft.schedule.time.length > 0 && validateSchedule();
