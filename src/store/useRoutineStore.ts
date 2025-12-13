@@ -292,9 +292,6 @@ export const useRoutineStore = create<RoutineStore>()(
           action: buildHAActions(routineData.actions),
         });
         
-        // Reload shared routines from HA entities
-        setTimeout(() => get().loadSharedRoutines(), 500);
-        
         const newRoutine: NeoliaRoutine = {
           ...routineData,
           id: `automation.${automationId}`,
@@ -302,6 +299,14 @@ export const useRoutineStore = create<RoutineStore>()(
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
+        
+        // Add to store BEFORE reload so loadSharedRoutines can preserve schedule
+        set((state) => ({
+          sharedRoutines: [...state.sharedRoutines, newRoutine],
+        }));
+        
+        // Reload shared routines from HA entities
+        setTimeout(() => get().loadSharedRoutines(), 500);
         
         return newRoutine;
       },
@@ -326,6 +331,13 @@ export const useRoutineStore = create<RoutineStore>()(
           condition: conditions && conditions.length > 0 ? conditions : undefined,
           action: updates.actions ? buildHAActions(updates.actions) : undefined,
         });
+        
+        // Update in store BEFORE reload so loadSharedRoutines can preserve schedule
+        set((state) => ({
+          sharedRoutines: state.sharedRoutines.map((r) =>
+            r.id === id ? { ...r, ...updates, updatedAt: new Date().toISOString() } : r
+          ),
+        }));
         
         setTimeout(() => get().loadSharedRoutines(), 500);
       },
