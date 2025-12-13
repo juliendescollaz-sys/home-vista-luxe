@@ -3,7 +3,7 @@ import { RoutineWizardDraft, DAYS_OF_WEEK, MONTHS } from "@/types/routines";
 import { useHAStore } from "@/store/useHAStore";
 import { useSceneStore } from "@/store/useSceneStore";
 import { useGroupStore } from "@/store/useGroupStore";
-import { Clock, Lightbulb, Sparkles, Package, User, Users, Calendar } from "lucide-react";
+import { Clock, Lightbulb, Sparkles, Package, Users, Calendar } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 
 interface RoutineSummaryStepProps {
@@ -63,17 +63,8 @@ export function RoutineSummaryStep({ draft }: RoutineSummaryStepProps) {
             <p className="text-sm text-muted-foreground">{draft.description}</p>
           )}
           <div className="flex items-center gap-2 mt-1">
-            {draft.scope === "shared" ? (
-              <>
-                <Users className="h-3.5 w-3.5 text-primary" />
-                <span className="text-xs text-muted-foreground">Partagée (automation HA)</span>
-              </>
-            ) : (
-              <>
-                <User className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Locale</span>
-              </>
-            )}
+            <Users className="h-3.5 w-3.5 text-primary" />
+            <span className="text-xs text-muted-foreground">Automation Home Assistant</span>
           </div>
         </div>
       </div>

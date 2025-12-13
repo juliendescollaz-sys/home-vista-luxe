@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
-import { Star, User, Users, Pencil, Clock } from "lucide-react";
+import { Star, Users, Pencil, Clock } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { RoutineWizard } from "./RoutineWizard";
 import { RoutineBadge } from "./RoutineBadge";
@@ -25,14 +25,13 @@ interface RoutineTileProps {
 export function RoutineTile({ routineId, hideEditButton = false, sortableProps }: RoutineTileProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   
-  const localRoutines = useRoutineStore((s) => s.localRoutines);
   const sharedRoutines = useRoutineStore((s) => s.sharedRoutines);
   const toggleRoutineFavorite = useRoutineStore((s) => s.toggleRoutineFavorite);
   const toggleRoutineEnabled = useRoutineStore((s) => s.toggleRoutineEnabled);
 
   const routine = useMemo(
-    () => [...localRoutines, ...sharedRoutines].find((r) => r.id === routineId),
-    [localRoutines, sharedRoutines, routineId]
+    () => sharedRoutines.find((r) => r.id === routineId),
+    [sharedRoutines, routineId]
   );
 
   if (!routine) return null;
@@ -115,17 +114,10 @@ export function RoutineTile({ routineId, hideEditButton = false, sortableProps }
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <h3 className="font-semibold text-base truncate mb-0.5">{routine.name}</h3>
-                  {routine.scope === "shared" ? (
-                    <Users 
-                      className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" 
-                      aria-label="Routine partagée"
-                    />
-                  ) : (
-                    <User 
-                      className="h-3.5 w-3.5 text-muted-foreground/70 flex-shrink-0" 
-                      aria-label="Routine locale"
-                    />
-                  )}
+                  <Users 
+                    className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" 
+                    aria-label="Automation Home Assistant"
+                  />
                 </div>
 
                 <div className="flex items-center gap-1">

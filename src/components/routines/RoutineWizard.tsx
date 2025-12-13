@@ -16,7 +16,6 @@ import { useRoutineStore } from "@/store/useRoutineStore";
 import { RoutineWizardDraft, NeoliaRoutine, RoutineAction } from "@/types/routines";
 import { RoutineNameStep } from "./steps/RoutineNameStep";
 import { RoutineIconStep } from "./steps/RoutineIconStep";
-import { RoutineScopeStep } from "./steps/RoutineScopeStep";
 import { RoutineActionSelectionStep } from "./steps/RoutineActionSelectionStep";
 import { RoutineStateConfigStep } from "./steps/RoutineStateConfigStep";
 import { RoutineScheduleStep } from "./steps/RoutineScheduleStep";
@@ -33,18 +32,18 @@ interface RoutineWizardProps {
 const STEP_TITLES = [
   "Nom de la routine",
   "Icône",
-  "Portée",
   "Sélection des actions",
   "Configuration des états",
   "Planification",
   "Résumé",
 ];
 
+// Les routines sont toujours "shared" (automations HA) pour garantir l'exécution planifiée
 const INITIAL_DRAFT: RoutineWizardDraft = {
   name: "",
   icon: "Clock",
   description: "",
-  scope: "" as any,
+  scope: "shared",
   selectedItems: [],
   schedule: {
     frequency: "daily",
@@ -58,7 +57,7 @@ function routineToDraft(routine: NeoliaRoutine): RoutineWizardDraft {
     name: routine.name,
     icon: routine.icon,
     description: routine.description || "",
-    scope: routine.scope,
+    scope: "shared", // Toujours shared
     selectedItems: routine.actions,
     schedule: routine.schedule,
   };
@@ -77,11 +76,12 @@ export function RoutineWizard({ open, onOpenChange, routine }: RoutineWizardProp
   const updateRoutine = useRoutineStore((s) => s.updateRoutine);
   const deleteRoutine = useRoutineStore((s) => s.deleteRoutine);
 
-  // Check if we need to skip step 5 (state config) - when only scenes are selected
+  // Check if we need to skip step 4 (state config) - when only scenes are selected
   const hasOnlyScenes = draft.selectedItems.length > 0 && 
     draft.selectedItems.every(item => item.type === "scene");
   
-  const TOTAL_STEPS = hasOnlyScenes ? 6 : 7;
+  // 6 steps total (no scope step), minus 1 if only scenes (skip state config)
+  const TOTAL_STEPS = hasOnlyScenes ? 5 : 6;
 
   useEffect(() => {
     if (open) {
@@ -105,15 +105,16 @@ export function RoutineWizard({ open, onOpenChange, routine }: RoutineWizardProp
   };
 
   // Get the actual step number considering skipped steps
+  // Without scope step: 1=Name, 2=Icon, 3=Actions, 4=StateConfig (skip if only scenes), 5=Schedule, 6=Summary
   const getActualStep = (visualStep: number): number => {
-    if (hasOnlyScenes && visualStep >= 5) {
-      return visualStep + 1; // Skip step 5 (state config)
+    if (hasOnlyScenes && visualStep >= 4) {
+      return visualStep + 1; // Skip step 4 (state config)
     }
     return visualStep;
   };
 
   const getVisualStep = (actualStep: number): number => {
-    if (hasOnlyScenes && actualStep >= 6) {
+    if (hasOnlyScenes && actualStep >= 5) {
       return actualStep - 1;
     }
     return actualStep;
@@ -127,15 +128,14 @@ export function RoutineWizard({ open, onOpenChange, routine }: RoutineWizardProp
       case 2:
         return draft.icon.length > 0;
       case 3:
-        return draft.scope === "local" || draft.scope === "shared";
-      case 4:
+        // Actions selection
         return draft.selectedItems.length > 0;
-      case 5:
+      case 4:
         // State config - check if devices have states configured
         return draft.selectedItems
           .filter(item => item.type === "device")
           .every(item => item.targetState !== undefined);
-      case 6:
+      case 5:
         // Schedule
         return draft.schedule.time.length > 0 && validateSchedule();
       default:
@@ -261,14 +261,12 @@ export function RoutineWizard({ open, onOpenChange, routine }: RoutineWizardProp
       case 2:
         return <RoutineIconStep draft={draft} onUpdate={updateDraft} />;
       case 3:
-        return <RoutineScopeStep draft={draft} onUpdate={updateDraft} isEditMode={isEditMode} />;
-      case 4:
         return <RoutineActionSelectionStep draft={draft} onUpdate={updateDraft} />;
-      case 5:
+      case 4:
         return <RoutineStateConfigStep draft={draft} onUpdate={updateDraft} />;
-      case 6:
+      case 5:
         return <RoutineScheduleStep draft={draft} onUpdate={updateDraft} />;
-      case 7:
+      case 6:
         return <RoutineSummaryStep draft={draft} />;
       default:
         return null;

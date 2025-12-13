@@ -4,11 +4,9 @@ import { NeoliaRoutine, RoutineAction, RoutineSchedule } from "@/types/routines"
 import { useHAStore } from "./useHAStore";
 
 interface RoutineStore {
-  // Local routines (persisted in localStorage)
-  localRoutines: NeoliaRoutine[];
-  // Shared routines (from Home Assistant automations)
+  // All routines are now shared (Home Assistant automations) - local routines removed
   sharedRoutines: NeoliaRoutine[];
-  // Local favorites for HA routines
+  // Local favorites for HA routines (favorites are still stored locally)
   sharedRoutineFavorites: string[];
   
   // Loading state
@@ -201,7 +199,7 @@ function buildHAActions(actions: RoutineAction[]): any[] {
 export const useRoutineStore = create<RoutineStore>()(
   persist(
     (set, get) => ({
-      localRoutines: [],
+      // Local routines removed - all routines are now HA automations
       sharedRoutines: [],
       sharedRoutineFavorites: [],
       isLoadingShared: false,
@@ -232,196 +230,130 @@ export const useRoutineStore = create<RoutineStore>()(
       },
 
       addRoutine: async (routineData) => {
-        const isShared = routineData.scope === "shared";
-        
-        if (isShared) {
-          const client = useHAStore.getState().client;
-          if (!client) {
-            throw new Error("Non connecté à Home Assistant");
-          }
-          
-          // Generate a unique automation ID from the name
-          const automationId = routineData.name
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "_")
-            .replace(/^_|_$/g, "");
-          
-          // Create automation via HA API
-          await client.createAutomation({
-            id: automationId,
-            alias: routineData.name,
-            description: routineData.description,
-            trigger: buildHATrigger(routineData.schedule),
-            action: buildHAActions(routineData.actions),
-            icon: lucideToMdi(routineData.icon),
-          });
-          
-          // Reload shared routines from HA entities
-          setTimeout(() => get().loadSharedRoutines(), 500);
-          
-          const newRoutine: NeoliaRoutine = {
-            ...routineData,
-            id: `automation.${automationId}`,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          
-          return newRoutine;
-        } else {
-          // Local routine - only stored in app
-          const newRoutine: NeoliaRoutine = {
-            ...routineData,
-            id: `local_routine_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          
-          set((state) => ({
-            localRoutines: [...state.localRoutines, newRoutine],
-          }));
-          
-          return newRoutine;
+        // All routines are now shared (HA automations)
+        const client = useHAStore.getState().client;
+        if (!client) {
+          throw new Error("Non connecté à Home Assistant");
         }
+        
+        // Generate a unique automation ID from the name
+        const automationId = routineData.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_|_$/g, "");
+        
+        // Create automation via HA API
+        await client.createAutomation({
+          id: automationId,
+          alias: routineData.name,
+          description: routineData.description,
+          trigger: buildHATrigger(routineData.schedule),
+          action: buildHAActions(routineData.actions),
+          icon: lucideToMdi(routineData.icon),
+        });
+        
+        // Reload shared routines from HA entities
+        setTimeout(() => get().loadSharedRoutines(), 500);
+        
+        const newRoutine: NeoliaRoutine = {
+          ...routineData,
+          id: `automation.${automationId}`,
+          scope: "shared",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        
+        return newRoutine;
       },
 
       updateRoutine: async (id, updates) => {
-        const isShared = id.startsWith("automation.");
-        
-        if (isShared) {
-          const client = useHAStore.getState().client;
-          if (!client) {
-            throw new Error("Non connecté à Home Assistant");
-          }
-          
-          const automationId = id.replace("automation.", "");
-          
-          await client.updateAutomation({
-            id: automationId,
-            alias: updates.name,
-            description: updates.description,
-            trigger: updates.schedule ? buildHATrigger(updates.schedule) : undefined,
-            action: updates.actions ? buildHAActions(updates.actions) : undefined,
-            icon: updates.icon ? lucideToMdi(updates.icon) : undefined,
-          });
-          
-          setTimeout(() => get().loadSharedRoutines(), 500);
-        } else {
-          set((state) => ({
-            localRoutines: state.localRoutines.map((routine) =>
-              routine.id === id
-                ? { ...routine, ...updates, updatedAt: new Date().toISOString() }
-                : routine
-            ),
-          }));
+        // All routines are HA automations
+        const client = useHAStore.getState().client;
+        if (!client) {
+          throw new Error("Non connecté à Home Assistant");
         }
+        
+        const automationId = id.replace("automation.", "");
+        
+        await client.updateAutomation({
+          id: automationId,
+          alias: updates.name,
+          description: updates.description,
+          trigger: updates.schedule ? buildHATrigger(updates.schedule) : undefined,
+          action: updates.actions ? buildHAActions(updates.actions) : undefined,
+          icon: updates.icon ? lucideToMdi(updates.icon) : undefined,
+        });
+        
+        setTimeout(() => get().loadSharedRoutines(), 500);
       },
 
       deleteRoutine: async (id) => {
-        const isShared = id.startsWith("automation.");
-        
-        if (isShared) {
-          const client = useHAStore.getState().client;
-          if (!client) {
-            throw new Error("Non connecté à Home Assistant");
-          }
-          
-          const automationId = id.replace("automation.", "");
-          const result = await client.deleteAutomation(automationId);
-          
-          if (result.cannotDelete) {
-            throw new Error("Cette routine a été créée via Home Assistant (YAML ou interface) et ne peut pas être supprimée depuis l'application.");
-          }
-          
-          set((state) => ({
-            sharedRoutines: state.sharedRoutines.filter((r) => r.id !== id),
-            sharedRoutineFavorites: state.sharedRoutineFavorites.filter((f) => f !== id),
-          }));
-        } else {
-          set((state) => ({
-            localRoutines: state.localRoutines.filter((routine) => routine.id !== id),
-          }));
+        // All routines are HA automations
+        const client = useHAStore.getState().client;
+        if (!client) {
+          throw new Error("Non connecté à Home Assistant");
         }
+        
+        const automationId = id.replace("automation.", "");
+        const result = await client.deleteAutomation(automationId);
+        
+        if (result.cannotDelete) {
+          throw new Error("Cette routine a été créée via Home Assistant (YAML ou interface) et ne peut pas être supprimée depuis l'application.");
+        }
+        
+        set((state) => ({
+          sharedRoutines: state.sharedRoutines.filter((r) => r.id !== id),
+          sharedRoutineFavorites: state.sharedRoutineFavorites.filter((f) => f !== id),
+        }));
       },
 
       toggleRoutineFavorite: (id) => {
-        const isShared = id.startsWith("automation.");
-        
-        if (isShared) {
-          set((state) => {
-            const isFav = state.sharedRoutineFavorites.includes(id);
-            const newFavorites = isFav
-              ? state.sharedRoutineFavorites.filter((f) => f !== id)
-              : [...state.sharedRoutineFavorites, id];
-            
-            const updatedRoutines = state.sharedRoutines.map((r) =>
-              r.id === id ? { ...r, isFavorite: !isFav } : r
-            );
-            
-            return {
-              sharedRoutineFavorites: newFavorites,
-              sharedRoutines: updatedRoutines,
-            };
-          });
-        } else {
-          set((state) => ({
-            localRoutines: state.localRoutines.map((r) =>
-              r.id === id
-                ? { ...r, isFavorite: !r.isFavorite, updatedAt: new Date().toISOString() }
-                : r
-            ),
-          }));
-        }
+        // Favorites are still stored locally
+        set((state) => {
+          const isFav = state.sharedRoutineFavorites.includes(id);
+          const newFavorites = isFav
+            ? state.sharedRoutineFavorites.filter((f) => f !== id)
+            : [...state.sharedRoutineFavorites, id];
+          
+          const updatedRoutines = state.sharedRoutines.map((r) =>
+            r.id === id ? { ...r, isFavorite: !isFav } : r
+          );
+          
+          return {
+            sharedRoutineFavorites: newFavorites,
+            sharedRoutines: updatedRoutines,
+          };
+        });
       },
 
       toggleRoutineEnabled: (id) => {
-        const isShared = id.startsWith("automation.");
-        
-        if (isShared) {
-          const client = useHAStore.getState().client;
-          if (client) {
-            const routine = get().sharedRoutines.find((r) => r.id === id);
-            if (routine) {
-              const service = routine.enabled ? "automation.turn_off" : "automation.turn_on";
-              client.callService("automation", routine.enabled ? "turn_off" : "turn_on", {}, { entity_id: id });
-            }
+        const client = useHAStore.getState().client;
+        if (client) {
+          const routine = get().sharedRoutines.find((r) => r.id === id);
+          if (routine) {
+            client.callService("automation", routine.enabled ? "turn_off" : "turn_on", {}, { entity_id: id });
           }
-          
-          set((state) => ({
-            sharedRoutines: state.sharedRoutines.map((r) =>
-              r.id === id ? { ...r, enabled: !r.enabled } : r
-            ),
-          }));
-        } else {
-          set((state) => ({
-            localRoutines: state.localRoutines.map((r) =>
-              r.id === id
-                ? { ...r, enabled: !r.enabled, updatedAt: new Date().toISOString() }
-                : r
-            ),
-          }));
         }
+        
+        set((state) => ({
+          sharedRoutines: state.sharedRoutines.map((r) =>
+            r.id === id ? { ...r, enabled: !r.enabled } : r
+          ),
+        }));
       },
 
       reorderRoutines: (orderedIds) => {
         set((state) => {
-          const allRoutines = [...state.localRoutines, ...state.sharedRoutines];
-          const reorderedLocal: NeoliaRoutine[] = [];
           const reorderedShared: NeoliaRoutine[] = [];
           
           orderedIds.forEach((id, index) => {
-            const routine = allRoutines.find((r) => r.id === id);
+            const routine = state.sharedRoutines.find((r) => r.id === id);
             if (routine) {
-              const updated = { ...routine, order: index };
-              if (routine.scope === "shared") {
-                reorderedShared.push(updated);
-              } else {
-                reorderedLocal.push(updated);
-              }
+              reorderedShared.push({ ...routine, order: index });
             }
           });
           
           return {
-            localRoutines: reorderedLocal,
             sharedRoutines: reorderedShared,
           };
         });
@@ -429,9 +361,9 @@ export const useRoutineStore = create<RoutineStore>()(
     }),
     {
       name: "neolia-routines",
-      version: 1,
+      version: 2,
       partialize: (state) => ({
-        localRoutines: state.localRoutines,
+        // Only persist favorites locally - routines are in HA
         sharedRoutineFavorites: state.sharedRoutineFavorites,
       }),
     }
