@@ -29,15 +29,21 @@ function haAutomationToNeoliaRoutine(entity: any, favorites: string[], existing?
   const entityId = entity.entity_id;
   const friendlyName = entity.attributes?.friendly_name || entityId.replace("automation.", "");
   const rawIcon = entity.attributes?.icon || "";
-  const cleanIcon = rawIcon.replace(/^(mdi:)+/, "") || "Clock";
+  const cleanIcon = rawIcon.replace(/^(mdi:)+/, "") || "";
+  
+  // Prioritize existing local data over HA data for icon, schedule, and actions
+  // HA doesn't expose detailed schedule/actions via states API, so local data is the source of truth
+  const haIcon = cleanIcon ? mapMdiToLucide(cleanIcon) : null;
   
   return {
     id: entityId,
     name: friendlyName,
-    icon: mapMdiToLucide(cleanIcon),
-    description: entity.attributes?.description,
+    // Use existing icon if available, otherwise use HA icon, otherwise default to Clock
+    icon: existing?.icon || haIcon || "Clock",
+    description: entity.attributes?.description || existing?.description,
     scope: "shared",
-    actions: existing?.actions || [], // HA automations don't expose their actions via states API
+    // Always preserve existing actions and schedule - HA states API doesn't expose them
+    actions: existing?.actions || [],
     schedule: existing?.schedule || { frequency: "daily", time: "00:00", daysOfWeek: [1, 2, 3, 4, 5, 6, 0] },
     enabled: entity.state === "on",
     order: existing?.order,
@@ -243,6 +249,9 @@ export const useRoutineStore = create<RoutineStore>()(
         const favorites = get().sharedRoutineFavorites;
         const existingRoutines = get().sharedRoutines;
         
+        console.log("[RoutineStore] loadSharedRoutines - existing routines from store:", existingRoutines.length, 
+          existingRoutines.map(r => ({ id: r.id, icon: r.icon, schedule: r.schedule })));
+        
         // Filter automation.* entities, excluding hidden ones
         const haAutomations = entities
           .filter((e) => {
@@ -423,6 +432,15 @@ export const useRoutineStore = create<RoutineStore>()(
         sharedRoutineFavorites: state.sharedRoutineFavorites,
         sharedRoutines: state.sharedRoutines,
       }),
+      // Explicit merge to correctly hydrate persisted state
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<RoutineStore>;
+        return {
+          ...currentState,
+          sharedRoutineFavorites: persisted.sharedRoutineFavorites ?? currentState.sharedRoutineFavorites,
+          sharedRoutines: persisted.sharedRoutines ?? currentState.sharedRoutines,
+        };
+      },
     }
   )
 );
