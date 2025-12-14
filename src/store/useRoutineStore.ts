@@ -53,61 +53,242 @@ function haAutomationToNeoliaRoutine(entity: any, favorites: string[], existing?
   };
 }
 
-// Map MDI icons to Lucide icons
+// Complete bidirectional mapping for all icons in ROUTINE_ICON_CATEGORIES
+// (Same comprehensive mapping as scenes)
+const ICON_MAPPING: Record<string, string> = {
+  // Temps
+  "clock": "Clock",
+  "clock-outline": "Clock",
+  "timer": "Timer",
+  "timer-outline": "Timer",
+  "timer-sand": "Timer",
+  "calendar": "Calendar",
+  "calendar-month": "Calendar",
+  "calendar-days": "CalendarDays",
+  "calendar-week": "CalendarDays",
+  "calendar-clock": "CalendarClock",
+  "alarm": "Alarm",
+  "alarm-clock": "Alarm",
+  "hourglass": "Hourglass",
+  "hourglass-empty": "Hourglass",
+  "hourglass-half": "Hourglass",
+  "watch": "Watch",
+  "sunrise": "Sunrise",
+  "weather-sunrise": "Sunrise",
+  "sunset": "Sunset",
+  "weather-sunset": "Sunset",
+  "sun": "Sun",
+  "weather-sunny": "Sun",
+  "moon": "Moon",
+  "weather-night": "Moon",
+  
+  // Actions
+  "play": "Play",
+  "play-circle": "Play",
+  "power": "Power",
+  "power-plug": "Power",
+  "zap": "Zap",
+  "flash": "Zap",
+  "lightning-bolt": "Zap",
+  "refresh-cw": "RefreshCw",
+  "refresh": "RefreshCw",
+  "rotate-cw": "RotateCw",
+  "rotate-right": "RotateCw",
+  "arrow-right": "ArrowRight",
+  "chevron-right": "ArrowRight",
+  "check": "Check",
+  "check-circle": "CheckCircle",
+  "check-circle-outline": "CheckCircle",
+  "bell": "Bell",
+  "bell-outline": "Bell",
+  "bell-ring": "BellRing",
+  "bell-ring-outline": "BellRing",
+  "megaphone": "Megaphone",
+  "bullhorn": "Megaphone",
+  "send": "Send",
+  
+  // Ambiances
+  "sparkles": "Sparkles",
+  "star-four-points": "Sparkles",
+  "auto-fix": "Sparkles",
+  "stars": "Stars",
+  "star-shooting": "Stars",
+  "heart": "Heart",
+  "flame": "Flame",
+  "fire": "Flame",
+  "cloud-moon": "CloudMoon",
+  "weather-night-partly-cloudy": "CloudMoon",
+  "lamp": "Lamp",
+  "lightbulb": "Lightbulb",
+  "light-bulb": "Lightbulb",
+  "palette": "Palette",
+  "gem": "Gem",
+  "diamond-stone": "Gem",
+  "crown": "Crown",
+  "party-popper": "PartyPopper",
+  "confetti": "PartyPopper",
+  "music": "Music",
+  "music-note": "Music",
+  
+  // Maison
+  "home": "Home",
+  "home-automation": "Home",
+  "door-open": "DoorOpen",
+  "door": "DoorOpen",
+  "door-closed": "DoorClosed",
+  "lock": "Lock",
+  "lock-closed": "Lock",
+  "unlock": "Unlock",
+  "lock-open": "Unlock",
+  "lock-open-variant": "Unlock",
+  "shield": "Shield",
+  "shield-check": "ShieldCheck",
+  "shield-check-outline": "ShieldCheck",
+  "log-in": "LogIn",
+  "login": "LogIn",
+  "log-out": "LogOut",
+  "logout": "LogOut",
+  "exit-run": "LogOut",
+  "car": "Car",
+  "plane": "Plane",
+  "airplane": "Plane",
+  "bed": "Bed",
+  
+  // Climat
+  "thermometer": "Thermometer",
+  "thermometer-sun": "ThermometerSun",
+  "thermometer-high": "ThermometerSun",
+  "thermometer-snowflake": "ThermometerSnowflake",
+  "thermometer-low": "ThermometerSnowflake",
+  "fan": "Fan",
+  "snowflake": "Snowflake",
+  "wind": "Wind",
+  "weather-windy": "Wind",
+  "droplets": "Droplets",
+  "water": "Droplets",
+  "cloud-rain": "CloudRain",
+  "weather-rainy": "CloudRain",
+  "weather-pouring": "CloudRain",
+  "heater": "Heater",
+  "radiator": "Heater",
+  "heating-coil": "Heater",
+  "waves": "Waves",
+  
+  // Extras from scene icons that could be used
+  "star": "Star",
+  "sofa": "Sofa",
+  "coffee": "Coffee",
+  "tv": "Tv",
+  "television": "Tv",
+  "gamepad": "Gamepad2",
+  "gamepad-variant": "Gamepad2",
+  "briefcase": "Briefcase",
+  "camera": "Camera",
+  "bike": "Bike",
+  "bicycle": "Bike",
+  "settings": "Settings",
+  "cog": "Settings",
+  "wifi": "Wifi",
+  "map-pin": "MapPin",
+  "map-marker": "MapPin",
+};
+
+// Reverse mapping: Lucide -> MDI (primary MDI name)
+const LUCIDE_TO_MDI: Record<string, string> = {
+  // Temps
+  "Clock": "clock-outline",
+  "Timer": "timer-sand",
+  "Calendar": "calendar",
+  "CalendarDays": "calendar-week",
+  "CalendarClock": "calendar-clock",
+  "Alarm": "alarm",
+  "Hourglass": "hourglass-half",
+  "Watch": "watch",
+  "Sunrise": "weather-sunrise",
+  "Sunset": "weather-sunset",
+  "Sun": "weather-sunny",
+  "Moon": "weather-night",
+  
+  // Actions
+  "Play": "play",
+  "Power": "power",
+  "Zap": "flash",
+  "RefreshCw": "refresh",
+  "RotateCw": "rotate-right",
+  "ArrowRight": "arrow-right",
+  "Check": "check",
+  "CheckCircle": "check-circle-outline",
+  "Bell": "bell",
+  "BellRing": "bell-ring",
+  "Megaphone": "bullhorn",
+  "Send": "send",
+  
+  // Ambiances
+  "Sparkles": "star-four-points",
+  "Stars": "star-shooting",
+  "Heart": "heart",
+  "Flame": "fire",
+  "CloudMoon": "weather-night-partly-cloudy",
+  "Lamp": "lamp",
+  "Lightbulb": "lightbulb",
+  "Palette": "palette",
+  "Gem": "diamond-stone",
+  "Crown": "crown",
+  "PartyPopper": "party-popper",
+  "Music": "music",
+  
+  // Maison
+  "Home": "home",
+  "DoorOpen": "door-open",
+  "DoorClosed": "door-closed",
+  "Lock": "lock",
+  "Unlock": "lock-open-variant",
+  "Shield": "shield",
+  "ShieldCheck": "shield-check",
+  "LogIn": "login",
+  "LogOut": "logout",
+  "Car": "car",
+  "Plane": "airplane",
+  "Bed": "bed",
+  
+  // Climat
+  "Thermometer": "thermometer",
+  "ThermometerSun": "thermometer-high",
+  "ThermometerSnowflake": "thermometer-low",
+  "Fan": "fan",
+  "Snowflake": "snowflake",
+  "Wind": "weather-windy",
+  "Droplets": "water",
+  "CloudRain": "weather-rainy",
+  "Heater": "radiator",
+  "Waves": "waves",
+  
+  // Extras
+  "Star": "star",
+  "Sofa": "sofa",
+  "Coffee": "coffee",
+  "Tv": "television",
+  "Gamepad2": "gamepad-variant",
+  "Briefcase": "briefcase",
+  "Camera": "camera",
+  "Bike": "bike",
+  "Settings": "cog",
+  "Wifi": "wifi",
+  "MapPin": "map-marker",
+};
+
 function mapMdiToLucide(mdiIcon: string): string {
-  const mapping: Record<string, string> = {
-    "clock": "Clock",
-    "clock-outline": "Clock",
-    "timer": "Timer",
-    "timer-outline": "Timer",
-    "calendar": "Calendar",
-    "calendar-clock": "CalendarClock",
-    "alarm": "Alarm",
-    "bell": "Bell",
-    "bell-ring": "BellRing",
-    "home": "Home",
-    "home-automation": "Home",
-    "lightbulb": "Lightbulb",
-    "power": "Power",
-    "play": "Play",
-    "flash": "Zap",
-    "weather-sunny": "Sun",
-    "weather-night": "Moon",
-    "weather-sunset": "Sunset",
-    "sunrise": "Sunrise",
-    "thermometer": "Thermometer",
-    "fan": "Fan",
-    "snowflake": "Snowflake",
-  };
-  return mapping[mdiIcon.toLowerCase()] || "Clock";
+  const normalized = mdiIcon.toLowerCase().replace(/^mdi:/, "");
+  return ICON_MAPPING[normalized] || "Clock";
 }
 
-// Map Lucide icons to MDI format for HA API
 function lucideToMdi(lucideIcon: string): string {
-  const mapping: Record<string, string> = {
-    "Clock": "clock",
-    "Timer": "timer",
-    "Calendar": "calendar",
-    "CalendarClock": "calendar-clock",
-    "Alarm": "alarm",
-    "Bell": "bell",
-    "BellRing": "bell-ring",
-    "Home": "home",
-    "Lightbulb": "lightbulb",
-    "Power": "power",
-    "Play": "play",
-    "Zap": "flash",
-    "Sun": "weather-sunny",
-    "Moon": "weather-night",
-    "Sunset": "weather-sunset",
-    "Sunrise": "sunrise",
-    "Thermometer": "thermometer",
-    "Fan": "fan",
-    "Snowflake": "snowflake",
-  };
-  
-  const mdiName = mapping[lucideIcon] || lucideIcon.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
-  return `mdi:${mdiName}`;
+  const mdiName = LUCIDE_TO_MDI[lucideIcon];
+  if (mdiName) {
+    return `mdi:${mdiName}`;
+  }
+  // Fallback: convert PascalCase to kebab-case
+  return `mdi:${lucideIcon.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()}`;
 }
 
 // Build HA automation trigger from schedule
