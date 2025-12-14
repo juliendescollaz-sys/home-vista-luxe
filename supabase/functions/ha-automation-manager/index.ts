@@ -123,9 +123,8 @@ serve(async (req) => {
         payload.condition = automationConfig.condition;
       }
 
-      if (automationConfig.icon) {
-        payload.icon = automationConfig.icon;
-      }
+      // Note: HA automation config API does NOT support 'icon' field
+      // Icons are stored locally only and synced via localStorage
 
       console.log(`[ha-automation-manager] Payload:`, JSON.stringify(payload));
 
