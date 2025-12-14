@@ -21,7 +21,7 @@ interface RoutineStore {
   reorderRoutines: (orderedIds: string[]) => void;
   
   // Sync shared routines from HA
-  loadSharedRoutines: () => void;
+  loadSharedRoutines: () => Promise<void>;
 }
 
 // Convert HA automation entity to NeoliaRoutine
@@ -189,6 +189,98 @@ function buildHAConditions(schedule: RoutineSchedule): any[] {
   return conditions;
 }
 
+// Parse HA automation config to reconstruct schedule
+function parseHAConfigToSchedule(config: any): RoutineSchedule | null {
+  if (!config || !config.trigger) return null;
+  
+  try {
+    // Get time from trigger
+    const timeTrigger = config.trigger?.find((t: any) => t.platform === "time");
+    let time = "00:00";
+    if (timeTrigger?.at) {
+      // at can be "HH:MM:SS" or "HH:MM"
+      const atStr = timeTrigger.at.toString();
+      time = atStr.split(":").slice(0, 2).join(":");
+    }
+    
+    // Parse conditions to determine frequency
+    const conditions = config.condition || [];
+    
+    // Check for date template (once frequency)
+    const dateCondition = conditions.find((c: any) => 
+      c.condition === "template" && c.value_template?.includes("now().strftime('%Y-%m-%d')")
+    );
+    if (dateCondition) {
+      // Extract date from template like {{ now().strftime('%Y-%m-%d') == '2024-12-15' }}
+      const dateMatch = dateCondition.value_template?.match(/'(\d{4}-\d{2}-\d{2})'/);
+      return {
+        frequency: "once",
+        time,
+        date: dateMatch?.[1] || new Date().toISOString().split("T")[0],
+      };
+    }
+    
+    // Check for weekday condition
+    const timeCondition = conditions.find((c: any) => c.condition === "time" && c.weekday);
+    if (timeCondition?.weekday) {
+      const dayNameMap: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+      const daysOfWeek = timeCondition.weekday.map((d: string) => dayNameMap[d.toLowerCase()]).filter((d: number) => d !== undefined);
+      
+      if (daysOfWeek.length === 1) {
+        return {
+          frequency: "weekly",
+          time,
+          dayOfWeek: daysOfWeek[0],
+        };
+      }
+      
+      return {
+        frequency: "daily",
+        time,
+        daysOfWeek,
+      };
+    }
+    
+    // Check for monthly (day of month)
+    const monthlyCondition = conditions.find((c: any) => 
+      c.condition === "template" && c.value_template?.includes("now().day ==") && !c.value_template?.includes("now().month")
+    );
+    if (monthlyCondition) {
+      const dayMatch = monthlyCondition.value_template?.match(/now\(\)\.day == (\d+)/);
+      return {
+        frequency: "monthly",
+        time,
+        dayOfMonth: dayMatch ? parseInt(dayMatch[1], 10) : 1,
+      };
+    }
+    
+    // Check for yearly (month and day)
+    const yearlyCondition = conditions.find((c: any) => 
+      c.condition === "template" && c.value_template?.includes("now().month ==")
+    );
+    if (yearlyCondition) {
+      const monthMatch = yearlyCondition.value_template?.match(/now\(\)\.month == (\d+)/);
+      const dayMatch = yearlyCondition.value_template?.match(/now\(\)\.day == (\d+)/);
+      return {
+        frequency: "yearly",
+        time,
+        month: monthMatch ? parseInt(monthMatch[1], 10) : 1,
+        dayOfMonthYearly: dayMatch ? parseInt(dayMatch[1], 10) : 1,
+      };
+    }
+    
+    // Default: daily with all days
+    return {
+      frequency: "daily",
+      time,
+      daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+    };
+  } catch (error) {
+    console.error("[RoutineStore] Error parsing HA config to schedule:", error);
+    return null;
+  }
+}
+
 // Build HA automation actions from routine actions
 function buildHAActions(actions: RoutineAction[]): any[] {
   const haActions: any[] = [];
@@ -243,9 +335,10 @@ export const useRoutineStore = create<RoutineStore>()(
       sharedRoutineFavorites: [],
       isLoadingShared: false,
 
-      loadSharedRoutines: () => {
+      loadSharedRoutines: async () => {
         const entities = useHAStore.getState().entities;
         const entityRegistry = useHAStore.getState().entityRegistry;
+        const client = useHAStore.getState().client;
         const favorites = get().sharedRoutineFavorites;
         const existingRoutines = get().sharedRoutines;
         
@@ -253,7 +346,7 @@ export const useRoutineStore = create<RoutineStore>()(
           existingRoutines.map(r => ({ id: r.id, icon: r.icon, schedule: r.schedule })));
         
         // Filter automation.* entities, excluding hidden ones
-        const haAutomations = entities
+        const automationEntities = entities
           .filter((e) => {
             if (!e.entity_id.startsWith("automation.")) return false;
             
@@ -265,11 +358,41 @@ export const useRoutineStore = create<RoutineStore>()(
             if (e.attributes?.hidden === true) return false;
             
             return true;
-          })
-          .map((e) => {
-            const existing = existingRoutines.find((r) => r.id === e.entity_id);
-            return haAutomationToNeoliaRoutine(e, favorites, existing);
           });
+        
+        // Process automations with schedule reconstruction for those without local data
+        const haAutomations: NeoliaRoutine[] = [];
+        
+        for (const entity of automationEntities) {
+          const existing = existingRoutines.find((r) => r.id === entity.entity_id);
+          
+          // If no existing schedule data and we have a client, try to fetch config from HA
+          let reconstructedSchedule: RoutineSchedule | null = null;
+          if (!existing?.schedule || (existing.schedule.frequency === "daily" && existing.schedule.time === "00:00")) {
+            // This might be a routine without local data - try to reconstruct from HA
+            if (client) {
+              try {
+                const automationId = entity.entity_id.replace("automation.", "");
+                const result = await client.getAutomationConfig(automationId);
+                if (result.config && !result.notFound) {
+                  reconstructedSchedule = parseHAConfigToSchedule(result.config);
+                  console.log("[RoutineStore] Reconstructed schedule from HA for", entity.entity_id, reconstructedSchedule);
+                }
+              } catch (error) {
+                console.warn("[RoutineStore] Could not fetch automation config:", entity.entity_id, error);
+              }
+            }
+          }
+          
+          const routine = haAutomationToNeoliaRoutine(entity, favorites, existing);
+          
+          // Apply reconstructed schedule if we got one and existing schedule looks like default
+          if (reconstructedSchedule && (!existing?.schedule || (existing.schedule.frequency === "daily" && existing.schedule.time === "00:00"))) {
+            routine.schedule = reconstructedSchedule;
+          }
+          
+          haAutomations.push(routine);
+        }
         
         set({ sharedRoutines: haAutomations });
         console.log("[RoutineStore] Loaded", haAutomations.length, "visible HA automations");

@@ -713,6 +713,43 @@ export class HAClient {
     return { deleted: true };
   }
 
+  async getAutomationConfig(automationId: string): Promise<{ notFound?: boolean; config?: any }> {
+    console.info("[Neolia] getAutomationConfig via Edge Function →", { automationId });
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/ha-automation-manager`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({
+        haBaseUrl: this.config.baseUrl,
+        haToken: this.config.token,
+        action: "get",
+        automationId: automationId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("[Neolia] getAutomationConfig error:", response.status, errorData);
+      return { notFound: true };
+    }
+
+    const data = await response.json();
+    
+    if (data.notFound) {
+      console.info("[Neolia] getAutomationConfig: automation not found (legacy)");
+      return { notFound: true };
+    }
+
+    console.info("[Neolia] getAutomationConfig success:", data);
+    return { config: data };
+  }
+
   // REST API methods (use WebSocket instead for Nabu Casa compatibility)
   async getConfig(): Promise<any> {
     console.log("🔧 Récupération de la configuration via WebSocket...");
