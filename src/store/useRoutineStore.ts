@@ -194,17 +194,19 @@ function parseHAConfigToSchedule(config: any): RoutineSchedule | null {
   if (!config || !config.trigger) return null;
   
   try {
+    // Normaliser trigger et conditions en tableaux (HA peut renvoyer un objet unique)
+    const triggers = Array.isArray(config.trigger) ? config.trigger : [config.trigger];
+    const rawConditions = config.condition ?? [];
+    const conditions = Array.isArray(rawConditions) ? rawConditions : [rawConditions];
+
     // Get time from trigger
-    const timeTrigger = config.trigger?.find((t: any) => t.platform === "time");
+    const timeTrigger = triggers.find((t: any) => t.platform === "time");
     let time = "00:00";
     if (timeTrigger?.at) {
       // at can be "HH:MM:SS" or "HH:MM"
       const atStr = timeTrigger.at.toString();
       time = atStr.split(":").slice(0, 2).join(":");
     }
-    
-    // Parse conditions to determine frequency
-    const conditions = config.condition || [];
     
     // Check for date template (once frequency)
     const dateCondition = conditions.find((c: any) => 
@@ -276,7 +278,7 @@ function parseHAConfigToSchedule(config: any): RoutineSchedule | null {
       daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
     };
   } catch (error) {
-    console.error("[RoutineStore] Error parsing HA config to schedule:", error);
+    console.error("[RoutineStore] Error parsing HA config to schedule:", error, config);
     return null;
   }
 }
