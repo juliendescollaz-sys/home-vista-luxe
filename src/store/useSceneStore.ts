@@ -95,6 +95,8 @@ function mapMdiToLucide(mdiIcon: string): string {
     "school": "GraduationCap",
     "palette": "Palette",
     "camera": "Camera",
+    // Transport / activités
+    "bike": "Bike",
   };
   return mapping[mdiIcon.toLowerCase()] || "Sparkles";
 }
