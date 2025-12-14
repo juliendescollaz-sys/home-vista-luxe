@@ -123,6 +123,10 @@ serve(async (req) => {
         payload.condition = automationConfig.condition;
       }
 
+      if (automationConfig.icon) {
+        payload.icon = automationConfig.icon;
+      }
+
       console.log(`[ha-automation-manager] Payload:`, JSON.stringify(payload));
 
       response = await fetchWithRetry(endpoint, {

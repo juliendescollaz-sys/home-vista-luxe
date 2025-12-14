@@ -597,6 +597,7 @@ export class HAClient {
     trigger: any[];
     condition?: any[];
     action: any[];
+    icon?: string;
   }): Promise<void> {
     console.info("[Neolia] createAutomation via Edge Function →", { id: config.id, alias: config.alias });
 
@@ -607,7 +608,7 @@ export class HAClient {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": supabaseKey,
+        apikey: supabaseKey,
       },
       body: JSON.stringify({
         haBaseUrl: this.config.baseUrl,
@@ -620,6 +621,7 @@ export class HAClient {
           trigger: config.trigger,
           condition: config.condition,
           action: config.action,
+          icon: config.icon,
         },
       }),
     });
@@ -640,6 +642,7 @@ export class HAClient {
     trigger?: any[];
     condition?: any[];
     action?: any[];
+    icon?: string;
   }): Promise<void> {
     console.info("[Neolia] updateAutomation via Edge Function →", { id: config.id });
 
@@ -650,7 +653,7 @@ export class HAClient {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": supabaseKey,
+        apikey: supabaseKey,
       },
       body: JSON.stringify({
         haBaseUrl: this.config.baseUrl,
@@ -663,6 +666,7 @@ export class HAClient {
           trigger: config.trigger,
           condition: config.condition,
           action: config.action,
+          icon: config.icon,
         },
       }),
     });
