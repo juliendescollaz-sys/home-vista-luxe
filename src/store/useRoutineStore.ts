@@ -28,18 +28,16 @@ interface RoutineStore {
 function haAutomationToNeoliaRoutine(entity: any, favorites: string[], existing?: NeoliaRoutine): NeoliaRoutine {
   const entityId = entity.entity_id;
   const friendlyName = entity.attributes?.friendly_name || entityId.replace("automation.", "");
-  const rawIcon = entity.attributes?.icon || "";
-  const cleanIcon = rawIcon.replace(/^(mdi:)+/, "") || "";
   
-  // Prioritize existing local data over HA data for icon, schedule, and actions
-  // HA doesn't expose detailed schedule/actions via states API, so local data is the source of truth
-  const haIcon = cleanIcon ? mapMdiToLucide(cleanIcon) : null;
+  // IMPORTANT: HA automation API does NOT store icons - they're app-local only
+  // Always prioritize existing local icon over anything from HA
+  // HA may return a default icon like "robot" which should be ignored
   
   return {
     id: entityId,
     name: friendlyName,
-    // Use existing icon if available, otherwise use HA icon, otherwise default to Clock
-    icon: existing?.icon || haIcon || "Clock",
+    // Use existing icon from local store, fallback to Clock for new routines
+    icon: existing?.icon || "Clock",
     description: entity.attributes?.description || existing?.description,
     scope: "shared",
     // Always preserve existing actions and schedule - HA states API doesn't expose them
@@ -676,6 +674,8 @@ export const useRoutineStore = create<RoutineStore>()(
         const conditions = buildHAConditions(routineData.schedule);
         
         // Create automation via HA API
+        // Note: icon is NOT sent to HA - it doesn't support it for automations
+        // Icon is stored locally only in the persisted store
         await client.createAutomation({
           id: automationId,
           alias: routineData.name,
@@ -683,7 +683,6 @@ export const useRoutineStore = create<RoutineStore>()(
           trigger: buildHATrigger(routineData.schedule),
           condition: conditions.length > 0 ? conditions : undefined,
           action: buildHAActions(routineData.actions),
-          icon: lucideToMdi(routineData.icon || "Clock"),
         });
         
         const newRoutine: NeoliaRoutine = {
@@ -718,6 +717,9 @@ export const useRoutineStore = create<RoutineStore>()(
         // Build conditions if schedule is being updated
         const conditions = updates.schedule ? buildHAConditions(updates.schedule) : undefined;
         
+        // Update automation via HA API
+        // Note: icon is NOT sent to HA - it doesn't support it for automations
+        // Icon is stored locally only in the persisted store
         await client.updateAutomation({
           id: automationId,
           alias: updates.name,
@@ -725,7 +727,6 @@ export const useRoutineStore = create<RoutineStore>()(
           trigger: updates.schedule ? buildHATrigger(updates.schedule) : undefined,
           condition: conditions && conditions.length > 0 ? conditions : undefined,
           action: updates.actions ? buildHAActions(updates.actions) : undefined,
-          icon: lucideToMdi((updates.icon || current?.icon || "Clock")),
         });
         
         // Update in store BEFORE reload so loadSharedRoutines can preserve schedule
