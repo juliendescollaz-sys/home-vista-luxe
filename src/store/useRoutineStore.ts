@@ -464,6 +464,70 @@ function parseHAConfigToSchedule(config: any): RoutineSchedule | null {
   }
 }
 
+// Parse HA automation actions to reconstruct RoutineAction list
+function parseHAActionsToRoutineActions(config: any): RoutineAction[] {
+  if (!config || !config.action) return [];
+
+  const actions = Array.isArray(config.action) ? config.action : [config.action];
+  const result: RoutineAction[] = [];
+
+  for (const haAction of actions) {
+    const service: string = haAction.service || "";
+    const target = haAction.target || {};
+    const entityId = Array.isArray(target.entity_id)
+      ? target.entity_id[0]
+      : target.entity_id;
+
+    if (!service || !entityId) continue;
+
+    const [domain, svc] = service.split(".");
+
+    if (domain === "scene" && svc === "turn_on") {
+      result.push({ type: "scene", id: entityId });
+      continue;
+    }
+
+    if (domain === "homeassistant" && (svc === "turn_on" || svc === "turn_off")) {
+      result.push({ type: "group", id: entityId, groupState: svc === "turn_on" ? "on" : "off" });
+      continue;
+    }
+
+    // Device actions
+    const deviceDomain = entityId.split(".")[0];
+    const data = haAction.data || {};
+
+    const targetState: RoutineAction["targetState"] = {};
+
+    if (svc === "turn_off") {
+      targetState.state = "off";
+    } else {
+      targetState.state = "on";
+
+      if (data.brightness !== undefined) targetState.brightness = data.brightness;
+      if (data.color_temp !== undefined) targetState.color_temp = data.color_temp;
+      if (data.rgb_color !== undefined) targetState.rgb_color = data.rgb_color;
+      if (data.position !== undefined) targetState.position = data.position;
+      if (data.temperature !== undefined) targetState.temperature = data.temperature;
+      if (data.hvac_mode !== undefined) targetState.hvac_mode = data.hvac_mode;
+      if (data.volume_level !== undefined) targetState.volume_level = data.volume_level;
+    }
+
+    // Covers use a specific service for position
+    const isCoverPosition = deviceDomain === "cover" && svc === "set_cover_position";
+
+    result.push({
+      type: "device",
+      id: entityId,
+      targetState: {
+        ...targetState,
+        ...(isCoverPosition && data.position !== undefined ? { position: data.position } : {}),
+      },
+    });
+  }
+
+  return result;
+}
+
 // Build HA automation actions from routine actions
 function buildHAActions(actions: RoutineAction[]): any[] {
   const haActions: any[] = [];
@@ -543,35 +607,49 @@ export const useRoutineStore = create<RoutineStore>()(
             return true;
           });
         
-        // Process automations with schedule reconstruction for those without local data
+        // Process automations with schedule and actions reconstruction for those without local data
         const haAutomations: NeoliaRoutine[] = [];
         
         for (const entity of automationEntities) {
           const existing = existingRoutines.find((r) => r.id === entity.entity_id);
-          
-          // If no existing schedule data and we have a client, try to fetch config from HA
           let reconstructedSchedule: RoutineSchedule | null = null;
-          if (!existing?.schedule || (existing.schedule.frequency === "daily" && existing.schedule.time === "00:00")) {
-            // This might be a routine without local data - try to reconstruct from HA
-            if (client) {
-              try {
-                const automationId = entity.entity_id.replace("automation.", "");
-                const result = await client.getAutomationConfig(automationId);
-                if (result.config && !result.notFound) {
+          let reconstructedActions: RoutineAction[] = [];
+          
+          // If no existing detailed data, try to reconstruct from HA config via Edge Function
+          const needsScheduleRebuild =
+            !existing?.schedule ||
+            (existing.schedule.frequency === "daily" && existing.schedule.time === "00:00");
+          const needsActionsRebuild = !existing?.actions || existing.actions.length === 0;
+          
+          if ((needsScheduleRebuild || needsActionsRebuild) && client) {
+            try {
+              const automationId = entity.entity_id.replace("automation.", "");
+              const result = await client.getAutomationConfig(automationId);
+              if (result.config && !result.notFound) {
+                if (needsScheduleRebuild) {
                   reconstructedSchedule = parseHAConfigToSchedule(result.config);
                   console.log("[RoutineStore] Reconstructed schedule from HA for", entity.entity_id, reconstructedSchedule);
                 }
-              } catch (error) {
-                console.warn("[RoutineStore] Could not fetch automation config:", entity.entity_id, error);
+                if (needsActionsRebuild) {
+                  reconstructedActions = parseHAActionsToRoutineActions(result.config);
+                  console.log("[RoutineStore] Reconstructed actions from HA for", entity.entity_id, reconstructedActions);
+                }
               }
+            } catch (error) {
+              console.warn("[RoutineStore] Could not fetch automation config:", entity.entity_id, error);
             }
           }
           
           const routine = haAutomationToNeoliaRoutine(entity, favorites, existing);
           
-          // Apply reconstructed schedule if we got one and existing schedule looks like default
-          if (reconstructedSchedule && (!existing?.schedule || (existing.schedule.frequency === "daily" && existing.schedule.time === "00:00"))) {
+          // Apply reconstructed schedule if we got one and existing schedule looked like default
+          if (reconstructedSchedule && needsScheduleRebuild) {
             routine.schedule = reconstructedSchedule;
+          }
+          
+          // Apply reconstructed actions if we got some and existing actions were empty
+          if (reconstructedActions.length > 0 && needsActionsRebuild) {
+            routine.actions = reconstructedActions;
           }
           
           haAutomations.push(routine);
@@ -605,6 +683,7 @@ export const useRoutineStore = create<RoutineStore>()(
           trigger: buildHATrigger(routineData.schedule),
           condition: conditions.length > 0 ? conditions : undefined,
           action: buildHAActions(routineData.actions),
+          icon: lucideToMdi(routineData.icon || "Clock"),
         });
         
         const newRoutine: NeoliaRoutine = {
@@ -634,6 +713,7 @@ export const useRoutineStore = create<RoutineStore>()(
         }
         
         const automationId = id.replace("automation.", "");
+        const current = get().sharedRoutines.find((r) => r.id === id);
         
         // Build conditions if schedule is being updated
         const conditions = updates.schedule ? buildHAConditions(updates.schedule) : undefined;
@@ -645,6 +725,7 @@ export const useRoutineStore = create<RoutineStore>()(
           trigger: updates.schedule ? buildHATrigger(updates.schedule) : undefined,
           condition: conditions && conditions.length > 0 ? conditions : undefined,
           action: updates.actions ? buildHAActions(updates.actions) : undefined,
+          icon: lucideToMdi((updates.icon || current?.icon || "Clock")),
         });
         
         // Update in store BEFORE reload so loadSharedRoutines can preserve schedule
