@@ -22,6 +22,38 @@ interface AutomationRequest {
   };
 }
 
+// Helper function with retry logic for transient network errors
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retries = 3,
+  delay = 500
+): Promise<Response> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      return response;
+    } catch (error) {
+      const isTransientError = error instanceof Error && (
+        error.message.includes("tls handshake") ||
+        error.message.includes("connection") ||
+        error.message.includes("network") ||
+        error.message.includes("ECONNRESET") ||
+        error.message.includes("ETIMEDOUT")
+      );
+      
+      if (isTransientError && attempt < retries) {
+        console.log(`[ha-automation-manager] Attempt ${attempt}/${retries} failed, retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // Exponential backoff
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -48,7 +80,7 @@ serve(async (req) => {
 
     if (action === "get") {
       console.log(`[ha-automation-manager] GET automation config: ${automationId}`);
-      response = await fetch(endpoint, {
+      response = await fetchWithRetry(endpoint, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${haToken}`,
@@ -56,7 +88,7 @@ serve(async (req) => {
       });
     } else if (action === "delete") {
       console.log(`[ha-automation-manager] DELETE automation: ${automationId}`);
-      response = await fetch(endpoint, {
+      response = await fetchWithRetry(endpoint, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${haToken}`,
@@ -90,13 +122,10 @@ serve(async (req) => {
       if (automationConfig.condition && automationConfig.condition.length > 0) {
         payload.condition = automationConfig.condition;
       }
-      
-      // Note: HA automation API does not support 'icon' field in the config payload
-      // Icons are managed via entity_registry separately
 
       console.log(`[ha-automation-manager] Payload:`, JSON.stringify(payload));
 
-      response = await fetch(endpoint, {
+      response = await fetchWithRetry(endpoint, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${haToken}`,
