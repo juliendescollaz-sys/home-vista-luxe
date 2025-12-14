@@ -4,54 +4,65 @@ import { NeoliaRoutine, RoutineAction, RoutineSchedule } from "@/types/routines"
 import { useHAStore } from "./useHAStore";
 
 interface RoutineStore {
-  // All routines are now shared (Home Assistant automations) - local routines removed
+  // All routines are Home Assistant automations (shared)
   sharedRoutines: NeoliaRoutine[];
-  // Local favorites for HA routines (favorites are still stored locally)
+  // Local favorites for HA routines (favorites remain local)
   sharedRoutineFavorites: string[];
-  
-  // Loading state
+
   isLoadingShared: boolean;
-  
-  // Actions
+
   addRoutine: (routine: Omit<NeoliaRoutine, "id" | "createdAt" | "updatedAt">) => Promise<NeoliaRoutine>;
   updateRoutine: (id: string, updates: Partial<NeoliaRoutine>) => Promise<void>;
   deleteRoutine: (id: string) => Promise<void>;
   toggleRoutineFavorite: (id: string) => void;
   toggleRoutineEnabled: (id: string) => void;
   reorderRoutines: (orderedIds: string[]) => void;
-  
-  // Sync shared routines from HA
+
   loadSharedRoutines: () => Promise<void>;
 }
 
-// Convert HA automation entity to NeoliaRoutine
-function haAutomationToNeoliaRoutine(entity: any, favorites: string[], existing?: NeoliaRoutine): NeoliaRoutine {
-  const entityId = entity.entity_id;
-  const friendlyName = entity.attributes?.friendly_name || entityId.replace("automation.", "");
-  
-  // IMPORTANT: HA automation API does NOT store icons - they're app-local only
-  // Always prioritize existing local icon over anything from HA
-  // HA may return a default icon like "robot" which should be ignored
-  
-  return {
-    id: entityId,
-    name: friendlyName,
-    // Use existing icon from local store, fallback to Clock for new routines
-    icon: existing?.icon || "Clock",
-    description: entity.attributes?.description || existing?.description,
-    scope: "shared",
-    // Always preserve existing actions and schedule - HA states API doesn't expose them
-    actions: existing?.actions || [],
-    schedule: existing?.schedule || { frequency: "daily", time: "00:00", daysOfWeek: [1, 2, 3, 4, 5, 6, 0] },
-    enabled: entity.state === "on",
-    order: existing?.order,
-    isFavorite: favorites.includes(entityId),
-    createdAt: existing?.createdAt || entity.last_changed || new Date().toISOString(),
-    updatedAt: entity.last_updated || existing?.updatedAt || new Date().toISOString(),
-  };
+/** =========================
+ *  NEOLIA META (stored in HA)
+ *  ========================= */
+type NeoliaMeta = {
+  v: 1;
+  icon?: string; // Lucide icon name (e.g. "Tv", "Coffee", "Clock")
+};
+
+const META_START = "[NEOLIA_META]";
+const META_END = "[/NEOLIA_META]";
+const META_REGEX = /\[NEOLIA_META\][\s\S]*?\[\/NEOLIA_META\]/g;
+
+function stripNeoliaMeta(description?: string): string | undefined {
+  if (!description) return description;
+  return description.replace(META_REGEX, "").trim() || undefined;
 }
 
-// Complete bidirectional mapping for all icons in ROUTINE_ICON_CATEGORIES
+function extractNeoliaMeta(description?: string): NeoliaMeta | null {
+  if (!description) return null;
+  const match = description.match(/\[NEOLIA_META\]([\s\S]*?)\[\/NEOLIA_META\]/);
+  if (!match || !match[1]) return null;
+
+  try {
+    const parsed = JSON.parse(match[1]);
+    if (parsed && parsed.v === 1) return parsed as NeoliaMeta;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function attachNeoliaMeta(description: string | undefined, meta: NeoliaMeta): string | undefined {
+  const clean = stripNeoliaMeta(description);
+  const metaBlock = `${META_START}${JSON.stringify(meta)}${META_END}`;
+  if (!clean) return metaBlock;
+  return `${clean}\n\n${metaBlock}`;
+}
+
+/** =========================
+ *  ICON MAPPING (MDI <-> Lucide)
+ *  ========================= */
+
 // (Same comprehensive mapping as scenes)
 const ICON_MAPPING: Record<string, string> = {
   // Temps
@@ -79,7 +90,7 @@ const ICON_MAPPING: Record<string, string> = {
   "weather-sunny": "Sun",
   "moon": "Moon",
   "weather-night": "Moon",
-  
+
   // Actions
   "play": "Play",
   "play-circle": "Play",
@@ -104,7 +115,7 @@ const ICON_MAPPING: Record<string, string> = {
   "megaphone": "Megaphone",
   "bullhorn": "Megaphone",
   "send": "Send",
-  
+
   // Ambiances
   "sparkles": "Sparkles",
   "star-four-points": "Sparkles",
@@ -127,7 +138,7 @@ const ICON_MAPPING: Record<string, string> = {
   "confetti": "PartyPopper",
   "music": "Music",
   "music-note": "Music",
-  
+
   // Maison
   "home": "Home",
   "home-automation": "Home",
@@ -151,7 +162,7 @@ const ICON_MAPPING: Record<string, string> = {
   "plane": "Plane",
   "airplane": "Plane",
   "bed": "Bed",
-  
+
   // Climat
   "thermometer": "Thermometer",
   "thermometer-sun": "ThermometerSun",
@@ -171,8 +182,8 @@ const ICON_MAPPING: Record<string, string> = {
   "radiator": "Heater",
   "heating-coil": "Heater",
   "waves": "Waves",
-  
-  // Extras from scene icons that could be used
+
+  // Extras
   "star": "Star",
   "sofa": "Sofa",
   "coffee": "Coffee",
@@ -206,7 +217,7 @@ const LUCIDE_TO_MDI: Record<string, string> = {
   "Sunset": "weather-sunset",
   "Sun": "weather-sunny",
   "Moon": "weather-night",
-  
+
   // Actions
   "Play": "play",
   "Power": "power",
@@ -220,7 +231,7 @@ const LUCIDE_TO_MDI: Record<string, string> = {
   "BellRing": "bell-ring",
   "Megaphone": "bullhorn",
   "Send": "send",
-  
+
   // Ambiances
   "Sparkles": "star-four-points",
   "Stars": "star-shooting",
@@ -234,7 +245,7 @@ const LUCIDE_TO_MDI: Record<string, string> = {
   "Crown": "crown",
   "PartyPopper": "party-popper",
   "Music": "music",
-  
+
   // Maison
   "Home": "home",
   "DoorOpen": "door-open",
@@ -248,7 +259,7 @@ const LUCIDE_TO_MDI: Record<string, string> = {
   "Car": "car",
   "Plane": "airplane",
   "Bed": "bed",
-  
+
   // Climat
   "Thermometer": "thermometer",
   "ThermometerSun": "thermometer-high",
@@ -260,7 +271,7 @@ const LUCIDE_TO_MDI: Record<string, string> = {
   "CloudRain": "weather-rainy",
   "Heater": "radiator",
   "Waves": "waves",
-  
+
   // Extras
   "Star": "star",
   "Sofa": "sofa",
@@ -282,41 +293,67 @@ function mapMdiToLucide(mdiIcon: string): string {
 
 function lucideToMdi(lucideIcon: string): string {
   const mdiName = LUCIDE_TO_MDI[lucideIcon];
-  if (mdiName) {
-    return `mdi:${mdiName}`;
-  }
-  // Fallback: convert PascalCase to kebab-case
-  return `mdi:${lucideIcon.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()}`;
+  if (mdiName) return `mdi:${mdiName}`;
+  return `mdi:${lucideIcon.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase()}`;
 }
 
-// Build HA automation trigger from schedule
+/** =========================
+ *  HA <-> Routine conversion
+ *  ========================= */
+
+function haAutomationToNeoliaRoutine(entity: any, favorites: string[], existing?: NeoliaRoutine): NeoliaRoutine {
+  const entityId = entity.entity_id;
+  const friendlyName = entity.attributes?.friendly_name || entityId.replace("automation.", "");
+
+  // Base: use HA description if present, but strip NEOLIA meta for display.
+  const rawDescription = entity.attributes?.description || existing?.description;
+  const cleanDescription = stripNeoliaMeta(rawDescription);
+
+  return {
+    id: entityId,
+    name: friendlyName,
+    // Icon will be filled from HA config meta if available; fallback here
+    icon: existing?.icon || "Clock",
+    description: cleanDescription,
+    scope: "shared",
+    // schedule/actions rebuilt from HA config when possible; fallback here
+    actions: existing?.actions || [],
+    schedule: existing?.schedule || { frequency: "daily", time: "00:00", daysOfWeek: [1, 2, 3, 4, 5, 6, 0] },
+    enabled: entity.state === "on",
+    order: existing?.order,
+    isFavorite: favorites.includes(entityId),
+    createdAt: existing?.createdAt || entity.last_changed || new Date().toISOString(),
+    updatedAt: entity.last_updated || existing?.updatedAt || new Date().toISOString(),
+  };
+}
+
+/** =========================
+ *  Build HA automation triggers/conditions/actions
+ *  ========================= */
+
 function buildHATrigger(schedule: RoutineSchedule): any[] {
   const triggers: any[] = [];
-  
-  // Ensure time is in HH:MM:SS format (HA requires HH:MM or HH:MM:SS)
+
   let timeFormatted = schedule.time;
   if (timeFormatted && !timeFormatted.includes(":")) {
     timeFormatted = `${timeFormatted}:00:00`;
   } else if (timeFormatted && timeFormatted.split(":").length === 2) {
     timeFormatted = `${timeFormatted}:00`;
   }
-  
-  // All schedules use time trigger with conditions added separately
+
   triggers.push({
     platform: "time",
     at: timeFormatted,
   });
-  
+
   return triggers;
 }
 
-// Build HA automation conditions from schedule
 function buildHAConditions(schedule: RoutineSchedule): any[] {
   const conditions: any[] = [];
-  
+
   switch (schedule.frequency) {
     case "once":
-      // Add date condition for one-time execution
       if (schedule.date) {
         conditions.push({
           condition: "template",
@@ -325,10 +362,9 @@ function buildHAConditions(schedule: RoutineSchedule): any[] {
       }
       break;
     case "daily":
-      // Add weekday condition if specific days selected
       if (schedule.daysOfWeek && schedule.daysOfWeek.length > 0 && schedule.daysOfWeek.length < 7) {
         const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-        const selectedDays = schedule.daysOfWeek.map(d => dayNames[d]);
+        const selectedDays = schedule.daysOfWeek.map((d) => dayNames[d]);
         conditions.push({
           condition: "time",
           weekday: selectedDays,
@@ -336,7 +372,6 @@ function buildHAConditions(schedule: RoutineSchedule): any[] {
       }
       break;
     case "weekly":
-      // Specific day of week
       if (schedule.dayOfWeek !== undefined) {
         const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
         conditions.push({
@@ -346,7 +381,6 @@ function buildHAConditions(schedule: RoutineSchedule): any[] {
       }
       break;
     case "monthly":
-      // Specific day of month
       if (schedule.dayOfMonth) {
         conditions.push({
           condition: "template",
@@ -355,7 +389,6 @@ function buildHAConditions(schedule: RoutineSchedule): any[] {
       }
       break;
     case "yearly":
-      // Specific month and day
       if (schedule.month && schedule.dayOfMonthYearly) {
         conditions.push({
           condition: "template",
@@ -364,35 +397,29 @@ function buildHAConditions(schedule: RoutineSchedule): any[] {
       }
       break;
   }
-  
+
   return conditions;
 }
 
-// Parse HA automation config to reconstruct schedule
 function parseHAConfigToSchedule(config: any): RoutineSchedule | null {
   if (!config || !config.trigger) return null;
-  
+
   try {
-    // Normaliser trigger et conditions en tableaux (HA peut renvoyer un objet unique)
     const triggers = Array.isArray(config.trigger) ? config.trigger : [config.trigger];
     const rawConditions = config.condition ?? [];
     const conditions = Array.isArray(rawConditions) ? rawConditions : [rawConditions];
 
-    // Get time from trigger
     const timeTrigger = triggers.find((t: any) => t.platform === "time");
     let time = "00:00";
     if (timeTrigger?.at) {
-      // at can be "HH:MM:SS" or "HH:MM"
       const atStr = timeTrigger.at.toString();
       time = atStr.split(":").slice(0, 2).join(":");
     }
-    
-    // Check for date template (once frequency)
-    const dateCondition = conditions.find((c: any) => 
-      c.condition === "template" && c.value_template?.includes("now().strftime('%Y-%m-%d')")
+
+    const dateCondition = conditions.find(
+      (c: any) => c.condition === "template" && c.value_template?.includes("now().strftime('%Y-%m-%d')")
     );
     if (dateCondition) {
-      // Extract date from template like {{ now().strftime('%Y-%m-%d') == '2024-12-15' }}
       const dateMatch = dateCondition.value_template?.match(/'(\d{4}-\d{2}-\d{2})'/);
       return {
         frequency: "once",
@@ -400,44 +427,34 @@ function parseHAConfigToSchedule(config: any): RoutineSchedule | null {
         date: dateMatch?.[1] || new Date().toISOString().split("T")[0],
       };
     }
-    
-    // Check for weekday condition
+
     const timeCondition = conditions.find((c: any) => c.condition === "time" && c.weekday);
     if (timeCondition?.weekday) {
       const dayNameMap: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
-      const daysOfWeek = timeCondition.weekday.map((d: string) => dayNameMap[d.toLowerCase()]).filter((d: number) => d !== undefined);
-      
+      const daysOfWeek = timeCondition.weekday
+        .map((d: string) => dayNameMap[d.toLowerCase()])
+        .filter((d: number) => d !== undefined);
+
       if (daysOfWeek.length === 1) {
-        return {
-          frequency: "weekly",
-          time,
-          dayOfWeek: daysOfWeek[0],
-        };
+        return { frequency: "weekly", time, dayOfWeek: daysOfWeek[0] };
       }
-      
-      return {
-        frequency: "daily",
-        time,
-        daysOfWeek,
-      };
+
+      return { frequency: "daily", time, daysOfWeek };
     }
-    
-    // Check for monthly (day of month)
-    const monthlyCondition = conditions.find((c: any) => 
-      c.condition === "template" && c.value_template?.includes("now().day ==") && !c.value_template?.includes("now().month")
+
+    const monthlyCondition = conditions.find(
+      (c: any) =>
+        c.condition === "template" &&
+        c.value_template?.includes("now().day ==") &&
+        !c.value_template?.includes("now().month")
     );
     if (monthlyCondition) {
       const dayMatch = monthlyCondition.value_template?.match(/now\(\)\.day == (\d+)/);
-      return {
-        frequency: "monthly",
-        time,
-        dayOfMonth: dayMatch ? parseInt(dayMatch[1], 10) : 1,
-      };
+      return { frequency: "monthly", time, dayOfMonth: dayMatch ? parseInt(dayMatch[1], 10) : 1 };
     }
-    
-    // Check for yearly (month and day)
-    const yearlyCondition = conditions.find((c: any) => 
-      c.condition === "template" && c.value_template?.includes("now().month ==")
+
+    const yearlyCondition = conditions.find(
+      (c: any) => c.condition === "template" && c.value_template?.includes("now().month ==")
     );
     if (yearlyCondition) {
       const monthMatch = yearlyCondition.value_template?.match(/now\(\)\.month == (\d+)/);
@@ -449,20 +466,14 @@ function parseHAConfigToSchedule(config: any): RoutineSchedule | null {
         dayOfMonthYearly: dayMatch ? parseInt(dayMatch[1], 10) : 1,
       };
     }
-    
-    // Default: daily with all days
-    return {
-      frequency: "daily",
-      time,
-      daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-    };
+
+    return { frequency: "daily", time, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] };
   } catch (error) {
     console.error("[RoutineStore] Error parsing HA config to schedule:", error, config);
     return null;
   }
 }
 
-// Parse HA automation actions to reconstruct RoutineAction list
 function parseHAActionsToRoutineActions(config: any): RoutineAction[] {
   if (!config || !config.action) return [];
 
@@ -472,9 +483,7 @@ function parseHAActionsToRoutineActions(config: any): RoutineAction[] {
   for (const haAction of actions) {
     const service: string = haAction.service || "";
     const target = haAction.target || {};
-    const entityId = Array.isArray(target.entity_id)
-      ? target.entity_id[0]
-      : target.entity_id;
+    const entityId = Array.isArray(target.entity_id) ? target.entity_id[0] : target.entity_id;
 
     if (!service || !entityId) continue;
 
@@ -490,10 +499,8 @@ function parseHAActionsToRoutineActions(config: any): RoutineAction[] {
       continue;
     }
 
-    // Device actions
     const deviceDomain = entityId.split(".")[0];
     const data = haAction.data || {};
-
     const targetState: RoutineAction["targetState"] = {};
 
     if (svc === "turn_off") {
@@ -510,7 +517,6 @@ function parseHAActionsToRoutineActions(config: any): RoutineAction[] {
       if (data.volume_level !== undefined) targetState.volume_level = data.volume_level;
     }
 
-    // Covers use a specific service for position
     const isCoverPosition = deviceDomain === "cover" && svc === "set_cover_position";
 
     result.push({
@@ -526,16 +532,12 @@ function parseHAActionsToRoutineActions(config: any): RoutineAction[] {
   return result;
 }
 
-// Build HA automation actions from routine actions
 function buildHAActions(actions: RoutineAction[]): any[] {
   const haActions: any[] = [];
-  
+
   for (const action of actions) {
     if (action.type === "scene") {
-      haActions.push({
-        service: "scene.turn_on",
-        target: { entity_id: action.id },
-      });
+      haActions.push({ service: "scene.turn_on", target: { entity_id: action.id } });
     } else if (action.type === "group") {
       haActions.push({
         service: action.groupState === "on" ? "homeassistant.turn_on" : "homeassistant.turn_off",
@@ -544,22 +546,19 @@ function buildHAActions(actions: RoutineAction[]): any[] {
     } else if (action.type === "device") {
       const domain = action.id.split(".")[0];
       const targetState = action.targetState;
-      
+
       if (targetState?.state === "off") {
-        haActions.push({
-          service: `${domain}.turn_off`,
-          target: { entity_id: action.id },
-        });
+        haActions.push({ service: `${domain}.turn_off`, target: { entity_id: action.id } });
       } else {
         const serviceData: Record<string, any> = {};
         if (targetState?.brightness !== undefined) serviceData.brightness = targetState.brightness;
-        if (targetState?.color_temp !== undefined) serviceData.color_temp = targetState.color_temp;
+        if (targetState?.color_temp !==undefined) serviceData.color_temp = targetState.color_temp;
         if (targetState?.rgb_color !== undefined) serviceData.rgb_color = targetState.rgb_color;
         if (targetState?.position !== undefined) serviceData.position = targetState.position;
         if (targetState?.temperature !== undefined) serviceData.temperature = targetState.temperature;
         if (targetState?.hvac_mode !== undefined) serviceData.hvac_mode = targetState.hvac_mode;
         if (targetState?.volume_level !== undefined) serviceData.volume_level = targetState.volume_level;
-        
+
         haActions.push({
           service: domain === "cover" ? "cover.set_cover_position" : `${domain}.turn_on`,
           target: { entity_id: action.id },
@@ -568,14 +567,17 @@ function buildHAActions(actions: RoutineAction[]): any[] {
       }
     }
   }
-  
+
   return haActions;
 }
+
+/** =========================
+ *  Store
+ *  ========================= */
 
 export const useRoutineStore = create<RoutineStore>()(
   persist(
     (set, get) => ({
-      // Local routines removed - all routines are now HA automations
       sharedRoutines: [],
       sharedRoutineFavorites: [],
       isLoadingShared: false,
@@ -584,175 +586,181 @@ export const useRoutineStore = create<RoutineStore>()(
         const entities = useHAStore.getState().entities;
         const entityRegistry = useHAStore.getState().entityRegistry;
         const client = useHAStore.getState().client;
+
         const favorites = get().sharedRoutineFavorites;
         const existingRoutines = get().sharedRoutines;
-        
-        console.log("[RoutineStore] loadSharedRoutines - existing routines from store:", existingRoutines.length, 
-          existingRoutines.map(r => ({ id: r.id, icon: r.icon, schedule: r.schedule })));
-        
-        // Filter automation.* entities, excluding hidden ones
-        const automationEntities = entities
-          .filter((e) => {
-            if (!e.entity_id.startsWith("automation.")) return false;
-            
-            // Check entity registry for hidden_by flag
-            const regEntry = entityRegistry.find((r) => r.entity_id === e.entity_id) as any;
-            if (regEntry?.hidden_by) return false;
-            
-            // Check entity attributes for hidden flag
-            if (e.attributes?.hidden === true) return false;
-            
-            return true;
-          });
-        
-        // Process automations with schedule and actions reconstruction for those without local data
+
+        // Filter visible automation.* entities
+        const automationEntities = entities.filter((e) => {
+          if (!e.entity_id.startsWith("automation.")) return false;
+
+          const regEntry = entityRegistry.find((r) => r.entity_id === e.entity_id) as any;
+          if (regEntry?.hidden_by) return false;
+
+          if (e.attributes?.hidden === true) return false;
+
+          return true;
+        });
+
         const haAutomations: NeoliaRoutine[] = [];
-        
+
         for (const entity of automationEntities) {
           const existing = existingRoutines.find((r) => r.id === entity.entity_id);
-          let reconstructedSchedule: RoutineSchedule | null = null;
-          let reconstructedActions: RoutineAction[] = [];
-          
-          // If no existing detailed data, try to reconstruct from HA config via Edge Function
-          const needsScheduleRebuild =
-            !existing?.schedule ||
-            (existing.schedule.frequency === "daily" && existing.schedule.time === "00:00");
-          const needsActionsRebuild = !existing?.actions || existing.actions.length === 0;
-          
-          if ((needsScheduleRebuild || needsActionsRebuild) && client) {
+
+          // Start from HA state entity
+          const routine = haAutomationToNeoliaRoutine(entity, favorites, existing);
+
+          // If we have HA client, enrich from HA automation config (schedule/actions/meta icon/description)
+          if (client) {
             try {
               const automationId = entity.entity_id.replace("automation.", "");
               const result = await client.getAutomationConfig(automationId);
-              if (result.config && !result.notFound) {
-                if (needsScheduleRebuild) {
-                  reconstructedSchedule = parseHAConfigToSchedule(result.config);
-                  console.log("[RoutineStore] Reconstructed schedule from HA for", entity.entity_id, reconstructedSchedule);
+
+              if (result?.config && !result.notFound) {
+                const cfg = result.config;
+
+                // Description + meta icon from config.description (most reliable)
+                const cfgDesc: string | undefined = cfg.description ?? routine.description;
+                const meta = extractNeoliaMeta(cfgDesc);
+                const cleanDesc = stripNeoliaMeta(cfgDesc);
+
+                if (cleanDesc !== undefined) routine.description = cleanDesc;
+
+                // Icon: from HA meta first, else keep existing (legacy local), else fallback
+                if (meta?.icon) {
+                  routine.icon = meta.icon;
+                } else {
+                  routine.icon = existing?.icon || routine.icon || "Clock";
                 }
-                if (needsActionsRebuild) {
-                  reconstructedActions = parseHAActionsToRoutineActions(result.config);
-                  console.log("[RoutineStore] Reconstructed actions from HA for", entity.entity_id, reconstructedActions);
+
+                // Schedule: always parse from HA config when possible
+                const parsedSchedule = parseHAConfigToSchedule(cfg);
+                if (parsedSchedule) {
+                  routine.schedule = parsedSchedule;
+                }
+
+                // Actions: always parse from HA config when possible
+                const parsedActions = parseHAActionsToRoutineActions(cfg);
+                if (parsedActions.length > 0) {
+                  routine.actions = parsedActions;
                 }
               }
             } catch (error) {
+              // If HA config fetch fails (permissions, offline, etc.), keep fallback values.
               console.warn("[RoutineStore] Could not fetch automation config:", entity.entity_id, error);
             }
           }
-          
-          const routine = haAutomationToNeoliaRoutine(entity, favorites, existing);
-          
-          // Apply reconstructed schedule if we got one and existing schedule looked like default
-          if (reconstructedSchedule && needsScheduleRebuild) {
-            routine.schedule = reconstructedSchedule;
-          }
-          
-          // Apply reconstructed actions if we got some and existing actions were empty
-          if (reconstructedActions.length > 0 && needsActionsRebuild) {
-            routine.actions = reconstructedActions;
-          }
-          
+
           haAutomations.push(routine);
         }
-        
+
         set({ sharedRoutines: haAutomations });
         console.log("[RoutineStore] Loaded", haAutomations.length, "visible HA automations");
       },
 
       addRoutine: async (routineData) => {
-        // All routines are now shared (HA automations)
         const client = useHAStore.getState().client;
-        if (!client) {
-          throw new Error("Non connecté à Home Assistant");
-        }
-        
-        // Generate a unique automation ID from the name
+        if (!client) throw new Error("Non connecté à Home Assistant");
+
         const automationId = routineData.name
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "_")
           .replace(/^_|_$/g, "");
-        
-        // Build conditions from schedule
+
         const conditions = buildHAConditions(routineData.schedule);
-        
-        // Create automation via HA API
-        // Note: icon is NOT sent to HA - it doesn't support it for automations
-        // Icon is stored locally only in the persisted store
+
+        // Store icon in HA description meta (shared)
+        const descriptionWithMeta = attachNeoliaMeta(routineData.description, {
+          v: 1,
+          icon: routineData.icon,
+        });
+
         await client.createAutomation({
           id: automationId,
           alias: routineData.name,
-          description: routineData.description,
+          description: descriptionWithMeta,
           trigger: buildHATrigger(routineData.schedule),
           condition: conditions.length > 0 ? conditions : undefined,
           action: buildHAActions(routineData.actions),
         });
-        
+
         const newRoutine: NeoliaRoutine = {
           ...routineData,
+          description: stripNeoliaMeta(routineData.description),
           id: `automation.${automationId}`,
           scope: "shared",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-        
-        // Add to store BEFORE reload so loadSharedRoutines can preserve schedule
+
+        // Optimistic add
         set((state) => ({
           sharedRoutines: [...state.sharedRoutines, newRoutine],
         }));
-        
-        // Reload shared routines from HA entities
+
+        // Reload from HA (will pull schedule/actions/meta)
         setTimeout(() => get().loadSharedRoutines(), 500);
-        
+
         return newRoutine;
       },
 
       updateRoutine: async (id, updates) => {
-        // All routines are HA automations
         const client = useHAStore.getState().client;
-        if (!client) {
-          throw new Error("Non connecté à Home Assistant");
-        }
-        
+        if (!client) throw new Error("Non connecté à Home Assistant");
+
         const automationId = id.replace("automation.", "");
         const current = get().sharedRoutines.find((r) => r.id === id);
-        
-        // Build conditions if schedule is being updated
+
         const conditions = updates.schedule ? buildHAConditions(updates.schedule) : undefined;
-        
-        // Update automation via HA API
-        // Note: icon is NOT sent to HA - it doesn't support it for automations
-        // Icon is stored locally only in the persisted store
+
+        // If user updated icon or description, re-attach meta into HA description
+        let descriptionWithMeta: string | undefined = undefined;
+
+        const newIcon = updates.icon ?? current?.icon;
+        const newDesc = updates.description ?? current?.description;
+
+        if (updates.icon !== undefined || updates.description !== undefined) {
+          descriptionWithMeta = attachNeoliaMeta(newDesc, { v: 1, icon: newIcon });
+        }
+
         await client.updateAutomation({
           id: automationId,
           alias: updates.name,
-          description: updates.description,
+          description: descriptionWithMeta, // only when changed
           trigger: updates.schedule ? buildHATrigger(updates.schedule) : undefined,
           condition: conditions && conditions.length > 0 ? conditions : undefined,
           action: updates.actions ? buildHAActions(updates.actions) : undefined,
         });
-        
-        // Update in store BEFORE reload so loadSharedRoutines can preserve schedule
+
         set((state) => ({
           sharedRoutines: state.sharedRoutines.map((r) =>
-            r.id === id ? { ...r, ...updates, updatedAt: new Date().toISOString() } : r
+            r.id === id
+              ? {
+                  ...r,
+                  ...updates,
+                  description: updates.description ? stripNeoliaMeta(updates.description) : r.description,
+                  updatedAt: new Date().toISOString(),
+                }
+              : r
           ),
         }));
-        
+
         setTimeout(() => get().loadSharedRoutines(), 500);
       },
 
       deleteRoutine: async (id) => {
-        // All routines are HA automations
         const client = useHAStore.getState().client;
-        if (!client) {
-          throw new Error("Non connecté à Home Assistant");
-        }
-        
+        if (!client) throw new Error("Non connecté à Home Assistant");
+
         const automationId = id.replace("automation.", "");
         const result = await client.deleteAutomation(automationId);
-        
+
         if (result.cannotDelete) {
-          throw new Error("Cette routine a été créée via Home Assistant (YAML ou interface) et ne peut pas être supprimée depuis l'application.");
+          throw new Error(
+            "Cette routine a été créée via Home Assistant (YAML ou interface) et ne peut pas être supprimée depuis l'application."
+          );
         }
-        
+
         set((state) => ({
           sharedRoutines: state.sharedRoutines.filter((r) => r.id !== id),
           sharedRoutineFavorites: state.sharedRoutineFavorites.filter((f) => f !== id),
@@ -760,17 +768,16 @@ export const useRoutineStore = create<RoutineStore>()(
       },
 
       toggleRoutineFavorite: (id) => {
-        // Favorites are still stored locally
         set((state) => {
           const isFav = state.sharedRoutineFavorites.includes(id);
           const newFavorites = isFav
             ? state.sharedRoutineFavorites.filter((f) => f !== id)
             : [...state.sharedRoutineFavorites, id];
-          
+
           const updatedRoutines = state.sharedRoutines.map((r) =>
             r.id === id ? { ...r, isFavorite: !isFav } : r
           );
-          
+
           return {
             sharedRoutineFavorites: newFavorites,
             sharedRoutines: updatedRoutines,
@@ -786,47 +793,37 @@ export const useRoutineStore = create<RoutineStore>()(
             client.callService("automation", routine.enabled ? "turn_off" : "turn_on", {}, { entity_id: id });
           }
         }
-        
+
         set((state) => ({
-          sharedRoutines: state.sharedRoutines.map((r) =>
-            r.id === id ? { ...r, enabled: !r.enabled } : r
-          ),
+          sharedRoutines: state.sharedRoutines.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)),
         }));
       },
 
       reorderRoutines: (orderedIds) => {
         set((state) => {
           const reorderedShared: NeoliaRoutine[] = [];
-          
+
           orderedIds.forEach((id, index) => {
             const routine = state.sharedRoutines.find((r) => r.id === id);
-            if (routine) {
-              reorderedShared.push({ ...routine, order: index });
-            }
+            if (routine) reorderedShared.push({ ...routine, order: index });
           });
-          
-          return {
-            sharedRoutines: reorderedShared,
-          };
+
+          return { sharedRoutines: reorderedShared };
         });
       },
     }),
     {
       name: "neolia-routines",
-      version: 2,
+      version: 3,
       partialize: (state) => ({
-        // Persist favorites and routine metadata (schedule, actions, etc.) locally
-        // HA reste la source de vérité pour l'état activé/désactivé via loadSharedRoutines
+        // Persist ONLY favorites locally. Everything else should be HA source-of-truth.
         sharedRoutineFavorites: state.sharedRoutineFavorites,
-        sharedRoutines: state.sharedRoutines,
       }),
-      // Explicit merge to correctly hydrate persisted state
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<RoutineStore>;
         return {
           ...currentState,
           sharedRoutineFavorites: persisted.sharedRoutineFavorites ?? currentState.sharedRoutineFavorites,
-          sharedRoutines: persisted.sharedRoutines ?? currentState.sharedRoutines,
         };
       },
     }
