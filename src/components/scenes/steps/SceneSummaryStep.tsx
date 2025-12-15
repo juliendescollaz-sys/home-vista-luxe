@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import { SceneWizardDraft } from "@/types/scenes";
-import { User, Users, CheckCircle } from "lucide-react";
+import { User, Users, CheckCircle, Lightbulb, ToggleRight, Blinds, Fan, Disc3, Thermometer, Lock, LucideIcon } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { isDimmableLight } from "@/lib/entityUtils";
 import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
@@ -9,6 +9,32 @@ import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
 interface SceneSummaryStepProps {
   draft: SceneWizardDraft;
 }
+
+const getDomainIcon = (domain: string): LucideIcon => {
+  switch (domain) {
+    case "light": return Lightbulb;
+    case "switch": return ToggleRight;
+    case "cover": return Blinds;
+    case "fan": return Fan;
+    case "media_player": return Disc3;
+    case "climate": return Thermometer;
+    case "lock": return Lock;
+    default: return ToggleRight;
+  }
+};
+
+const getDomainLabel = (domain: string): string => {
+  switch (domain) {
+    case "light": return "Éclairages";
+    case "switch": return "Interrupteurs";
+    case "cover": return "Volets";
+    case "fan": return "Ventilateurs";
+    case "media_player": return "Médias";
+    case "climate": return "Climatisation";
+    case "lock": return "Serrures";
+    default: return "Appareils";
+  }
+};
 
 export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
   const entities = useHAStore((s) => s.entities);
@@ -96,6 +122,17 @@ export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
     return parts.join(", ");
   };
 
+  // Group entities by domain
+  const groupByDomain = (entitiesList: HAEntity[]): Record<string, HAEntity[]> => {
+    const byDomain: Record<string, HAEntity[]> = {};
+    for (const entity of entitiesList) {
+      const domain = entity.entity_id.split(".")[0];
+      if (!byDomain[domain]) byDomain[domain] = [];
+      byDomain[domain].push(entity);
+    }
+    return byDomain;
+  };
+
   // Group entities by floor > area (same structure as Step 2)
   const groupedEntities = useMemo(() => {
     // Group by area
@@ -135,6 +172,43 @@ export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
 
     return { byFloor, noFloorAreas, noArea };
   }, [selectedEntities, areas, floors, devices, entityRegistry]);
+
+  // Render entities grouped by domain
+  const renderEntitiesByDomain = (entitiesList: HAEntity[]) => {
+    const byDomain = groupByDomain(entitiesList);
+    return Object.entries(byDomain).map(([domain, domainEntities]) => {
+      const DomainIcon = getDomainIcon(domain);
+      return (
+        <div key={domain} className="space-y-1">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <DomainIcon className="w-3 h-3" />
+            <span>{getDomainLabel(domain)}</span>
+          </div>
+          <div className="space-y-0.5 ml-1">
+            {domainEntities.map((entity) => {
+              const EntityIcon = getDomainIcon(entity.entity_id.split(".")[0]);
+              return (
+                <div
+                  key={entity.entity_id}
+                  className="flex items-center justify-between py-1 px-2 rounded bg-muted/30 text-sm"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <EntityIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">
+                      {entity.attributes.friendly_name || entity.entity_id}
+                    </span>
+                  </div>
+                  <span className="text-muted-foreground shrink-0 ml-2 text-xs">
+                    {formatState(entity)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -190,24 +264,12 @@ export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
                 {floor?.name || "Étage"}
               </h5>
               {floorAreas.map(({ area, entities: areaEntities }) => (
-                <div key={area.area_id} className="space-y-1">
+                <div key={area.area_id} className="space-y-2">
                   <h6 className="text-xs font-medium text-muted-foreground ml-2">
                     {area.name}
                   </h6>
-                  <div className="space-y-1 ml-2">
-                    {areaEntities.map((entity) => (
-                      <div
-                        key={entity.entity_id}
-                        className="flex items-center justify-between py-1.5 px-2 rounded bg-muted/30 text-sm"
-                      >
-                        <span className="truncate">
-                          {entity.attributes.friendly_name || entity.entity_id}
-                        </span>
-                        <span className="text-muted-foreground shrink-0 ml-2">
-                          {formatState(entity)}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="space-y-2 ml-2">
+                    {renderEntitiesByDomain(areaEntities)}
                   </div>
                 </div>
               ))}
@@ -221,24 +283,12 @@ export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
                 Autres pièces
               </h5>
               {groupedEntities.noFloorAreas.map(({ area, entities: areaEntities }) => (
-                <div key={area.area_id} className="space-y-1">
+                <div key={area.area_id} className="space-y-2">
                   <h6 className="text-xs font-medium text-muted-foreground ml-2">
                     {area.name}
                   </h6>
-                  <div className="space-y-1 ml-2">
-                    {areaEntities.map((entity) => (
-                      <div
-                        key={entity.entity_id}
-                        className="flex items-center justify-between py-1.5 px-2 rounded bg-muted/30 text-sm"
-                      >
-                        <span className="truncate">
-                          {entity.attributes.friendly_name || entity.entity_id}
-                        </span>
-                        <span className="text-muted-foreground shrink-0 ml-2">
-                          {formatState(entity)}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="space-y-2 ml-2">
+                    {renderEntitiesByDomain(areaEntities)}
                   </div>
                 </div>
               ))}
@@ -247,24 +297,12 @@ export function SceneSummaryStep({ draft }: SceneSummaryStepProps) {
 
           {/* Entities without area */}
           {groupedEntities.noArea.length > 0 && (
-            <div className="space-y-1">
+            <div className="space-y-2">
               <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Sans pièce
               </h5>
-              <div className="space-y-1">
-                {groupedEntities.noArea.map((entity) => (
-                  <div
-                    key={entity.entity_id}
-                    className="flex items-center justify-between py-1.5 px-2 rounded bg-muted/30 text-sm"
-                  >
-                    <span className="truncate">
-                      {entity.attributes.friendly_name || entity.entity_id}
-                    </span>
-                    <span className="text-muted-foreground shrink-0 ml-2">
-                      {formatState(entity)}
-                    </span>
-                  </div>
-                ))}
+              <div className="space-y-2">
+                {renderEntitiesByDomain(groupedEntities.noArea)}
               </div>
             </div>
           )}
