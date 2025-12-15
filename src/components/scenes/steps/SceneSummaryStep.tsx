@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import { SceneWizardDraft } from "@/types/scenes";
-import { User, Users, CheckCircle, Lightbulb, ToggleRight, Blinds, Fan, Disc3, Thermometer, Lock, LucideIcon } from "lucide-react";
+import { User, Users, CheckCircle, Lightbulb, Power, Blinds, Fan, Disc3, Thermometer, Lock, LucideIcon } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { isDimmableLight } from "@/lib/entityUtils";
 import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
@@ -13,13 +13,13 @@ interface SceneSummaryStepProps {
 const getDomainIcon = (domain: string): LucideIcon => {
   switch (domain) {
     case "light": return Lightbulb;
-    case "switch": return ToggleRight;
+    case "switch": return Power;
     case "cover": return Blinds;
     case "fan": return Fan;
     case "media_player": return Disc3;
     case "climate": return Thermometer;
     case "lock": return Lock;
-    default: return ToggleRight;
+    default: return Power;
   }
 };
 
