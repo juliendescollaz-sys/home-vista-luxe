@@ -19,7 +19,6 @@ const Routines = () => {
   const hasClient = useHAStore((s) => !!s.client);
 
   const sharedRoutines = useRoutineStore((s) => s.sharedRoutines);
-  const isLoadingShared = useRoutineStore((s) => s.isLoadingShared);
   const loadSharedRoutines = useRoutineStore((s) => s.loadSharedRoutines);
 
   const hasLoadedFromEntitiesRef = useRef(false);
@@ -50,34 +49,11 @@ const Routines = () => {
   const routines = sharedRoutines;
   const hasRoutines = routines.length > 0;
 
-  const renderSkeleton = () => (
-    <div className="max-w-screen-xl mx-auto px-4 pt-[24px] pb-4">
-      <div className="flex items-center justify-between mb-6">
-        <p className="text-muted-foreground">Chargement des routines…</p>
-        <Button onClick={() => setWizardOpen(true)} className="gap-2" disabled>
-          <Plus className="h-4 w-4" />
-          Créer une routine
-        </Button>
-      </div>
-
-      <div className={getGridClasses("cards", displayMode)}>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-[110px] rounded-xl bg-muted/40 animate-pulse"
-          />
-        ))}
-      </div>
-    </div>
-  );
-
   return (
     <div className={rootClassName}>
       <TopBar title="Routines" />
 
-      {isLoadingShared ? (
-        renderSkeleton()
-      ) : !hasRoutines ? (
+      {!hasRoutines ? (
         <RoutineEmptyState onCreateRoutine={() => setWizardOpen(true)} />
       ) : (
         <div className="max-w-screen-xl mx-auto px-4 pt-[24px] pb-4">
