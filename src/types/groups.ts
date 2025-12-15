@@ -13,6 +13,7 @@ export type GroupMode = "singleDomain" | "mixedBinary";
 export interface NeoliaGroup {
   id: string;
   name: string;
+  icon?: string; // Icône Lucide (ex: "Lightbulb", "Blinds")
   domain: HaGroupDomain; // Domaine principal (pour compat legacy)
   domains?: string[]; // Liste des domaines si groupe mixte
   mode?: GroupMode; // "singleDomain" ou "mixedBinary" (default: singleDomain pour compat)
