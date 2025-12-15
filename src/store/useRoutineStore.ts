@@ -562,7 +562,11 @@ function parseHAActionsToRoutineActions(config: any): RoutineAction[] {
   for (const haAction of actions) {
     const service: string = haAction.service || "";
     const target = haAction.target || {};
-    const entityId = Array.isArray(target.entity_id) ? target.entity_id[0] : target.entity_id;
+    
+    // HA can have entity_id in target.entity_id (new syntax) or haAction.entity_id (legacy syntax)
+    // Also can be haAction.data.entity_id in some cases
+    let rawEntityId = target.entity_id ?? haAction.entity_id ?? haAction.data?.entity_id;
+    const entityId = Array.isArray(rawEntityId) ? rawEntityId[0] : rawEntityId;
 
     if (!service || !entityId) continue;
 
