@@ -407,7 +407,11 @@ function buildHAConditions(schedule: RoutineSchedule): any[] {
  */
 function parseHAConfigToSchedule(config: any): RoutineSchedule | null {
   if (!config) return null;
-  if (!config.trigger) return null;
+
+  // HA can return either singular (trigger/condition) or plural (triggers/conditions)
+  // depending on API/version/wrapping.
+  const triggerLike = (config as any).trigger ?? (config as any).triggers;
+  if (!triggerLike) return null;
 
   const normalizeAtToTime = (at: any): string => {
     if (!at) return "00:00";
@@ -437,8 +441,8 @@ function parseHAConfigToSchedule(config: any): RoutineSchedule | null {
   };
 
   try {
-    const triggers = Array.isArray(config.trigger) ? config.trigger : [config.trigger];
-    const rawConditions = config.condition ?? [];
+    const triggers = Array.isArray(triggerLike) ? triggerLike : [triggerLike];
+    const rawConditions = (config as any).condition ?? (config as any).conditions ?? [];
     const conditions = Array.isArray(rawConditions) ? rawConditions : [rawConditions];
 
     // Prefer "time" triggers (your model)
@@ -546,9 +550,13 @@ function parseHAConfigToSchedule(config: any): RoutineSchedule | null {
 
 // Parse HA automation actions to reconstruct RoutineAction list
 function parseHAActionsToRoutineActions(config: any): RoutineAction[] {
-  if (!config || !config.action) return [];
+  if (!config) return [];
 
-  const actions = Array.isArray(config.action) ? config.action : [config.action];
+  // HA can return either singular (action) or plural (actions)
+  const actionLike = (config as any).action ?? (config as any).actions;
+  if (!actionLike) return [];
+
+  const actions = Array.isArray(actionLike) ? actionLike : [actionLike];
   const result: RoutineAction[] = [];
 
   for (const haAction of actions) {
