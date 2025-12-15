@@ -6,13 +6,41 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useHAStore } from "@/store/useHAStore";
 import { SceneWizardDraft, SceneEntityState } from "@/types/scenes";
-import { Wand2 } from "lucide-react";
+import { Wand2, Lightbulb, Power, Thermometer, Music, Lock, Fan, Blinds, Droplet, Settings } from "lucide-react";
 import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
 
 interface SceneStateConfigStepProps {
   draft: SceneWizardDraft;
   onUpdate: (updates: Partial<SceneWizardDraft>) => void;
 }
+
+const getDomainIcon = (domain: string) => {
+  const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+    light: Lightbulb,
+    switch: Power,
+    climate: Thermometer,
+    media_player: Music,
+    lock: Lock,
+    fan: Fan,
+    cover: Blinds,
+    valve: Droplet,
+  };
+  return iconMap[domain] || Settings;
+};
+
+const getDomainLabel = (domain: string): string => {
+  const labels: Record<string, string> = {
+    light: "Éclairages",
+    switch: "Interrupteurs",
+    climate: "Climatisation",
+    media_player: "Médias",
+    lock: "Serrures",
+    fan: "Ventilateurs",
+    cover: "Volets",
+    valve: "Vannes",
+  };
+  return labels[domain] || domain;
+};
 
 export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepProps) {
   const entities = useHAStore((s) => s.entities);
@@ -39,7 +67,6 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
     const domain = entity.entity_id.split(".")[0];
     const state: SceneEntityState["targetState"] = {};
 
-    // Basic state
     if (["on", "off"].includes(entity.state)) {
       state.state = entity.state as "on" | "off";
     } else if (["open", "closed", "opening", "closing"].includes(entity.state)) {
@@ -48,7 +75,6 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
       state.state = entity.state as "playing" | "paused" | "idle";
     }
 
-    // Domain-specific attributes
     if (domain === "light") {
       if (entity.attributes.brightness !== undefined) {
         state.brightness = entity.attributes.brightness;
@@ -79,7 +105,6 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
     updateEntityState(entity.entity_id, state);
   };
 
-  // Helper to get area_id for an entity (same logic as Step 2 et 4)
   const getEntityAreaId = (entityId: string): string | undefined => {
     const reg = entityRegistry.find((r) => r.entity_id === entityId);
     if (reg?.area_id) return reg.area_id;
@@ -90,9 +115,8 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
     return undefined;
   };
 
-  // Group entities by floor > area
+  // Group entities by floor > area > domain
   const groupedEntities = useMemo(() => {
-    // Group by area
     const byArea: Record<string, HAEntity[]> = {};
     const noArea: HAEntity[] = [];
 
@@ -106,9 +130,19 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
       }
     }
 
-    // Group areas by floor
-    const byFloor: Record<string, { floor: HAFloor | null; areas: { area: HAArea; entities: HAEntity[] }[] }> = {};
-    const noFloorAreas: { area: HAArea; entities: HAEntity[] }[] = [];
+    // Group by domain within each area
+    const groupByDomain = (ents: HAEntity[]): Record<string, HAEntity[]> => {
+      const byDomain: Record<string, HAEntity[]> = {};
+      for (const e of ents) {
+        const domain = e.entity_id.split(".")[0];
+        if (!byDomain[domain]) byDomain[domain] = [];
+        byDomain[domain].push(e);
+      }
+      return byDomain;
+    };
+
+    const byFloor: Record<string, { floor: HAFloor | null; areas: { area: HAArea; entitiesByDomain: Record<string, HAEntity[]> }[] }> = {};
+    const noFloorAreas: { area: HAArea; entitiesByDomain: Record<string, HAEntity[]> }[] = [];
 
     for (const [areaId, areaEntities] of Object.entries(byArea)) {
       const area = areas.find((a) => a.area_id === areaId);
@@ -116,38 +150,41 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
 
       const floor = floors.find((f) => f.floor_id === area.floor_id);
       const floorKey = floor?.floor_id || "__no_floor__";
+      const entitiesByDomain = groupByDomain(areaEntities);
 
       if (floor) {
         if (!byFloor[floorKey]) {
           byFloor[floorKey] = { floor, areas: [] };
         }
-        byFloor[floorKey].areas.push({ area, entities: areaEntities });
+        byFloor[floorKey].areas.push({ area, entitiesByDomain });
       } else {
-        noFloorAreas.push({ area, entities: areaEntities });
+        noFloorAreas.push({ area, entitiesByDomain });
       }
     }
 
-    return { byFloor, noFloorAreas, noArea };
+    return { byFloor, noFloorAreas, noAreaByDomain: groupByDomain(noArea) };
   }, [selectedEntities, areas, floors, devices, entityRegistry]);
 
   const renderEntityConfig = (entity: HAEntity) => {
     const domain = entity.entity_id.split(".")[0];
     const currentState = draft.entityStates[entity.entity_id] || {};
+    const Icon = getDomainIcon(domain);
 
     return (
-      <div key={entity.entity_id} className="relative z-10 p-4 rounded-lg border bg-card space-y-4">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <h4 className="font-medium">{entity.attributes.friendly_name || entity.entity_id}</h4>
+      <div key={entity.entity_id} className="p-3 rounded-lg border bg-card/50">
+        {/* Header compact */}
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span className="text-sm font-medium truncate">{entity.attributes.friendly_name || entity.entity_id}</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => useCurrentState(entity)} className="shrink-0">
-            <Wand2 className="w-4 h-4 mr-1" />
-            État actuel
+          <Button variant="ghost" size="sm" onClick={() => useCurrentState(entity)} className="h-7 px-2 shrink-0">
+            <Wand2 className="w-3.5 h-3.5" />
           </Button>
         </div>
 
-
-        <div className="space-y-4">
+        {/* Controls */}
+        <div className="space-y-2">
           {/* Light */}
           {domain === "light" &&
             (() => {
@@ -162,35 +199,28 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
               return (
                 <>
                   <div className="flex items-center justify-between">
-                    <Label>Allumé</Label>
+                    <Label className="text-xs">Allumé</Label>
                     <Switch
                       checked={currentState.state !== "off"}
                       onCheckedChange={(checked) =>
-                        updateEntityState(entity.entity_id, {
-                          state: checked ? "on" : "off",
-                        })
+                        updateEntityState(entity.entity_id, { state: checked ? "on" : "off" })
                       }
                     />
                   </div>
                   {isDimmable && currentState.state !== "off" && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm">Luminosité</Label>
-                        <span className="text-sm text-muted-foreground">
-                          {Math.round((((currentState.brightness || 255) as number) / 255) * 100)}%
-                        </span>
-                      </div>
+                    <div className="flex items-center gap-3">
+                      <Label className="text-xs shrink-0 w-16">Luminosité</Label>
                       <Slider
+                        className="flex-1"
                         value={[currentState.brightness || 255]}
                         min={1}
                         max={255}
                         step={1}
-                        onValueChange={([value]) =>
-                          updateEntityState(entity.entity_id, {
-                            brightness: value,
-                          })
-                        }
+                        onValueChange={([value]) => updateEntityState(entity.entity_id, { brightness: value })}
                       />
+                      <span className="text-xs text-muted-foreground w-10 text-right">
+                        {Math.round((((currentState.brightness || 255) as number) / 255) * 100)}%
+                      </span>
                     </div>
                   )}
                 </>
@@ -200,46 +230,42 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
           {/* Switch / Fan / Valve */}
           {(domain === "switch" || domain === "fan" || domain === "valve" || domain === "input_boolean") && (
             <div className="flex items-center justify-between">
-              <Label>Activé</Label>
+              <Label className="text-xs">Activé</Label>
               <Switch
                 checked={currentState.state === "on"}
-                onCheckedChange={(checked) =>
-                  updateEntityState(entity.entity_id, {
-                    state: checked ? "on" : "off",
-                  })
-                }
+                onCheckedChange={(checked) => updateEntityState(entity.entity_id, { state: checked ? "on" : "off" })}
               />
             </div>
           )}
 
           {/* Cover */}
           {domain === "cover" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label>Position</Label>
-                <span className="text-sm text-muted-foreground">{(currentState.position ?? 100) as number}%</span>
-              </div>
+            <div className="flex items-center gap-3">
+              <Label className="text-xs shrink-0 w-16">Position</Label>
               <Slider
+                className="flex-1"
                 value={[currentState.position ?? 100]}
                 min={0}
                 max={100}
                 step={1}
                 onValueChange={([value]) => updateEntityState(entity.entity_id, { position: value })}
               />
-              <p className="text-xs text-muted-foreground">0% = fermé, 100% = ouvert</p>
+              <span className="text-xs text-muted-foreground w-10 text-right">
+                {(currentState.position ?? 100) as number}%
+              </span>
             </div>
           )}
 
           {/* Climate */}
           {domain === "climate" && (
-            <>
-              <div className="space-y-2">
-                <Label>Mode</Label>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <Label className="text-xs shrink-0 w-16">Mode</Label>
                 <Select
                   value={currentState.hvac_mode || "off"}
                   onValueChange={(value) => updateEntityState(entity.entity_id, { hvac_mode: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs flex-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -251,43 +277,34 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
                 </Select>
               </div>
               {currentState.hvac_mode && currentState.hvac_mode !== "off" && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Température cible</Label>
-                    <span className="text-sm text-muted-foreground">
-                      {(currentState.temperature ?? 20) as number}°C
-                    </span>
-                  </div>
+                <div className="flex items-center gap-3">
+                  <Label className="text-xs shrink-0 w-16">Temp.</Label>
                   <Slider
+                    className="flex-1"
                     value={[currentState.temperature ?? 20]}
                     min={10}
                     max={30}
                     step={0.5}
-                    onValueChange={([value]) =>
-                      updateEntityState(entity.entity_id, {
-                        temperature: value,
-                      })
-                    }
+                    onValueChange={([value]) => updateEntityState(entity.entity_id, { temperature: value })}
                   />
+                  <span className="text-xs text-muted-foreground w-10 text-right">
+                    {(currentState.temperature ?? 20) as number}°C
+                  </span>
                 </div>
               )}
-            </>
+            </div>
           )}
 
           {/* Media Player */}
           {domain === "media_player" && (
-            <>
-              <div className="space-y-2">
-                <Label>État</Label>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <Label className="text-xs shrink-0 w-16">État</Label>
                 <Select
                   value={currentState.state || "off"}
-                  onValueChange={(value) =>
-                    updateEntityState(entity.entity_id, {
-                      state: value as any,
-                    })
-                  }
+                  onValueChange={(value) => updateEntityState(entity.entity_id, { state: value as any })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs flex-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -297,39 +314,30 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Volume</Label>
-                  <span className="text-sm text-muted-foreground">
-                    {Math.round(((currentState.volume_level ?? 0.5) as number) * 100)}%
-                  </span>
-                </div>
+              <div className="flex items-center gap-3">
+                <Label className="text-xs shrink-0 w-16">Volume</Label>
                 <Slider
+                  className="flex-1"
                   value={[((currentState.volume_level ?? 0.5) as number) * 100]}
                   min={0}
                   max={100}
                   step={1}
-                  onValueChange={([value]) =>
-                    updateEntityState(entity.entity_id, {
-                      volume_level: value / 100,
-                    })
-                  }
+                  onValueChange={([value]) => updateEntityState(entity.entity_id, { volume_level: value / 100 })}
                 />
+                <span className="text-xs text-muted-foreground w-10 text-right">
+                  {Math.round(((currentState.volume_level ?? 0.5) as number) * 100)}%
+                </span>
               </div>
-            </>
+            </div>
           )}
 
           {/* Lock */}
           {domain === "lock" && (
             <div className="flex items-center justify-between">
-              <Label>Verrouillé</Label>
+              <Label className="text-xs">Verrouillé</Label>
               <Switch
                 checked={currentState.state === "on"}
-                onCheckedChange={(checked) =>
-                  updateEntityState(entity.entity_id, {
-                    state: checked ? "on" : "off",
-                  })
-                }
+                onCheckedChange={(checked) => updateEntityState(entity.entity_id, { state: checked ? "on" : "off" })}
               />
             </div>
           )}
@@ -339,18 +347,44 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
             domain,
           ) && (
             <div className="flex items-center justify-between">
-              <Label>Activé</Label>
+              <Label className="text-xs">Activé</Label>
               <Switch
                 checked={currentState.state === "on"}
-                onCheckedChange={(checked) =>
-                  updateEntityState(entity.entity_id, {
-                    state: checked ? "on" : "off",
-                  })
-                }
+                onCheckedChange={(checked) => updateEntityState(entity.entity_id, { state: checked ? "on" : "off" })}
               />
             </div>
           )}
         </div>
+      </div>
+    );
+  };
+
+  const renderDomainGroup = (domain: string, domainEntities: HAEntity[]) => {
+    const Icon = getDomainIcon(domain);
+    return (
+      <div key={domain} className="space-y-1.5">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+          <Icon className="w-3.5 h-3.5" />
+          <span>{getDomainLabel(domain)}</span>
+        </div>
+        <div className="space-y-1.5">
+          {domainEntities.map(renderEntityConfig)}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAreaContent = (entitiesByDomain: Record<string, HAEntity[]>) => {
+    const domainOrder = ["light", "switch", "cover", "fan", "valve", "climate", "media_player", "lock"];
+    const sortedDomains = Object.keys(entitiesByDomain).sort((a, b) => {
+      const idxA = domainOrder.indexOf(a);
+      const idxB = domainOrder.indexOf(b);
+      return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+    });
+
+    return (
+      <div className="space-y-3">
+        {sortedDomains.map((domain) => renderDomainGroup(domain, entitiesByDomain[domain]))}
       </div>
     );
   };
@@ -366,7 +400,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         </p>
       </div>
 
-      {/* Liste par étages / pièces (pas de scroll ici) */}
+      {/* Liste par étages / pièces / types */}
       <div className="bg-background">
         {/* Étages avec pièces */}
         {Object.entries(groupedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
@@ -375,11 +409,11 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
               {floor?.name || "Étage"}
             </header>
 
-            <div className="space-y-3 px-1 pt-3 pb-1 bg-background">
-              {floorAreas.map(({ area, entities: areaEntities }) => (
+            <div className="space-y-4 px-1 pt-3 pb-1 bg-background">
+              {floorAreas.map(({ area, entitiesByDomain }) => (
                 <div key={area.area_id} className="space-y-2 bg-background">
-                  <h6 className="text-sm font-medium text-muted-foreground ml-1">{area.name}</h6>
-                  <div className="space-y-2 ml-1">{areaEntities.map(renderEntityConfig)}</div>
+                  <h6 className="text-sm font-medium text-foreground ml-1">{area.name}</h6>
+                  <div className="ml-1">{renderAreaContent(entitiesByDomain)}</div>
                 </div>
               ))}
             </div>
@@ -393,11 +427,11 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
               Autres pièces
             </header>
 
-            <div className="space-y-3 px-1 pt-3 pb-1 bg-background">
-              {groupedEntities.noFloorAreas.map(({ area, entities: areaEntities }) => (
+            <div className="space-y-4 px-1 pt-3 pb-1 bg-background">
+              {groupedEntities.noFloorAreas.map(({ area, entitiesByDomain }) => (
                 <div key={area.area_id} className="space-y-2 bg-background">
-                  <h6 className="text-sm font-medium text-muted-foreground ml-1">{area.name}</h6>
-                  <div className="space-y-2 ml-1">{areaEntities.map(renderEntityConfig)}</div>
+                  <h6 className="text-sm font-medium text-foreground ml-1">{area.name}</h6>
+                  <div className="ml-1">{renderAreaContent(entitiesByDomain)}</div>
                 </div>
               ))}
             </div>
@@ -405,14 +439,14 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
         )}
 
         {/* Entités sans pièce */}
-        {groupedEntities.noArea.length > 0 && (
+        {Object.keys(groupedEntities.noAreaByDomain).length > 0 && (
           <section className="mb-4">
             <header className="w-full px-1 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground bg-background border-b border-border/30">
               Sans pièce
             </header>
 
-            <div className="space-y-2 px-1 pt-3 pb-1 bg-background">
-              {groupedEntities.noArea.map(renderEntityConfig)}
+            <div className="px-1 pt-3 pb-1 bg-background">
+              {renderAreaContent(groupedEntities.noAreaByDomain)}
             </div>
           </section>
         )}
