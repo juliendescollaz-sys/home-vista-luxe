@@ -474,16 +474,8 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
               </Button>
             ) : (
               <Button onClick={handleSubmit} disabled={isSubmitting || isLoadingConfig}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {isEditMode ? "Modification..." : "Création..."}
-                  </>
-                ) : isEditMode ? (
-                  "Enregistrer"
-                ) : (
-                  "Créer la scène"
-                )}
+                {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {isEditMode ? "Enregistrer" : "Créer la scène"}
               </Button>
             )}
           </div>
