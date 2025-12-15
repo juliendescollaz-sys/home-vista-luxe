@@ -17,7 +17,6 @@ import { SceneWizardDraft, SceneEntityState, NeoliaScene } from "@/types/scenes"
 import { SceneNameStep } from "./steps/SceneNameStep";
 import { SceneIconStep } from "./steps/SceneIconStep";
 import { SceneScopeStep } from "./steps/SceneScopeStep";
-import { SceneDescriptionStep } from "./steps/SceneDescriptionStep";
 import { SceneDeviceSelectionStep } from "./steps/SceneDeviceSelectionStep";
 import { SceneStateConfigStep } from "./steps/SceneStateConfigStep";
 import { SceneSummaryStep } from "./steps/SceneSummaryStep";
@@ -31,13 +30,12 @@ interface SceneWizardProps {
   scene?: NeoliaScene;
 }
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 6;
 
 const STEP_TITLES = [
   "Nom de la scène",
   "Icône",
   "Portée",
-  "Description",
   "Sélection des appareils",
   "Configuration des états",
   "Résumé",
@@ -211,10 +209,8 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
       case 3:
         return draft.scope === "local" || draft.scope === "shared";
       case 4:
-        return true; // Description is optional
-      case 5:
         return draft.selectedEntityIds.length > 0;
-      case 6:
+      case 5:
         return Object.keys(draft.entityStates).length > 0;
       default:
         return true;
@@ -286,7 +282,7 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
 
   const handleNext = () => {
     if (step < TOTAL_STEPS) {
-      if (step === 5) {
+      if (step === 4) {
         initializeEntityStates();
       }
       setStep(step + 1);
@@ -340,7 +336,6 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
         await updateScene(scene.id, {
           name: draft.name.trim(),
           icon: draft.icon,
-          description: draft.description.trim() || undefined,
           scope: draft.scope,
           entities: sceneEntities,
         });
@@ -353,7 +348,6 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
         await addScene({
           name: draft.name.trim(),
           icon: draft.icon,
-          description: draft.description.trim() || undefined,
           scope: draft.scope,
           entities: sceneEntities,
           isFavorite: false,
@@ -421,12 +415,10 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
       case 3:
         return <SceneScopeStep draft={draft} onUpdate={updateDraft} isEditMode={isEditMode} />;
       case 4:
-        return <SceneDescriptionStep draft={draft} onUpdate={updateDraft} />;
-      case 5:
         return <SceneDeviceSelectionStep draft={draft} onUpdate={updateDraft} />;
-      case 6:
+      case 5:
         return <SceneStateConfigStep draft={draft} onUpdate={updateDraft} />;
-      case 7:
+      case 6:
         return <SceneSummaryStep draft={draft} />;
       default:
         return null;
