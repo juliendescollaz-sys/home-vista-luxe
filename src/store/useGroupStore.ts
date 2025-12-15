@@ -35,6 +35,7 @@ interface GroupStore {
   clearGroupRuntime: (groupId: string) => void;
   createOrUpdateGroup: (params: {
     name: string;
+    icon?: string;
     domain: HaGroupDomain;
     domains?: string[];
     mode?: GroupMode;
@@ -108,14 +109,14 @@ export const useGroupStore = create<GroupStore>()(
       },
 
       createOrUpdateGroup: async (params) => {
-        const { name, domain, domains, mode, entityIds, scope, existingId } = params;
+        const { name, icon, domain, domains, mode, entityIds, scope, existingId } = params;
         const effectiveDomains = domains && domains.length > 0 ? domains : [domain];
         const effectiveMode: GroupMode = mode || (effectiveDomains.length > 1 ? "mixedBinary" : "singleDomain");
         
         // Dédupliquer les entityIds pour éviter les doublons
         const uniqueEntityIds = [...new Set(entityIds)];
 
-        console.log("[GroupStore] createOrUpdateGroup called:", { name, domain, domains, mode, entityIds: uniqueEntityIds, scope, existingId, effectiveMode });
+        console.log("[GroupStore] createOrUpdateGroup called:", { name, icon, domain, domains, mode, entityIds: uniqueEntityIds, scope, existingId, effectiveMode });
 
         // Validation
         if (!name || name.trim().length < 3) {
@@ -176,6 +177,7 @@ export const useGroupStore = create<GroupStore>()(
               newGroup.scope = "shared";
               newGroup.mode = "singleDomain";
               newGroup.domains = effectiveDomains;
+              newGroup.icon = icon;
               console.log("[GroupStore] HA group created:", newGroup);
             } catch (haError: any) {
               console.error("[GroupStore] Failed to create HA group:", haError);
@@ -207,6 +209,7 @@ export const useGroupStore = create<GroupStore>()(
             newGroup = {
               id: localId,
               name: name.trim(),
+              icon,
               domain,
               domains: effectiveDomains,
               mode: effectiveMode,
@@ -227,6 +230,7 @@ export const useGroupStore = create<GroupStore>()(
           newGroup = {
             id: objectId,
             name: name.trim(),
+            icon,
             domain,
             domains: effectiveDomains,
             mode: effectiveMode,

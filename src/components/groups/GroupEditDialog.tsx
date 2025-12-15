@@ -13,12 +13,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Search, ChevronLeft, ChevronRight, ChevronDown, Pencil, Loader2, Trash2, Users, User, Layers, CheckCircle, Package } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
 import type { NeoliaGroup, HaGroupDomain, GroupScope } from "@/types/groups";
@@ -26,6 +26,9 @@ import { getGroupScope, getGroupDomains, getGroupMode } from "@/types/groups";
 import { toast } from "@/hooks/use-toast";
 import { getAvailableDomains, areAllDomainsBinary, getEntitiesForDomains, getDomainConfig, type DeviceDisplayInfo } from "@/lib/groupDomains";
 import type { HAArea, HAFloor } from "@/types/homeassistant";
+import { GroupNameStep } from "./steps/GroupNameStep";
+import { GroupIconStep } from "./steps/GroupIconStep";
+import { GroupTypeStep } from "./steps/GroupTypeStep";
 
 interface GroupEditDialogProps {
   group: NeoliaGroup | null;
@@ -33,18 +36,20 @@ interface GroupEditDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 const STEP_TITLES = [
-  "Type d'appareil",
   "Nom du groupe",
+  "Icône",
+  "Type d'appareil",
   "Sélection des appareils",
-  "Portée",
+  "Résumé",
 ];
 
 export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogProps) {
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
+  const [icon, setIcon] = useState("Package");
   const [selectedEntityIds, setSelectedEntityIds] = useState<string[]>([]);
   const [scope, setScope] = useState<GroupScope>("local");
   const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
@@ -77,7 +82,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
 
   const isMixedGroup = isMixedMode && selectedDomains.length > 1;
 
-  // Group entities by floor > area (same structure as Scenes/Routines)
+  // Group entities by floor > area
   const groupedEntities = useMemo(() => {
     const searchLower = searchTerm.toLowerCase();
     
@@ -86,7 +91,6 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
       return e.friendlyName.toLowerCase().includes(searchLower);
     });
 
-    // Group by area
     const byArea: Record<string, DeviceDisplayInfo[]> = {};
     const noArea: DeviceDisplayInfo[] = [];
 
@@ -99,7 +103,6 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
       }
     }
 
-    // Group areas by floor
     const byFloor: Record<string, { floor: HAFloor | null; areas: { area: HAArea; entities: DeviceDisplayInfo[] }[] }> = {};
     const noFloorAreas: { area: HAArea; entities: DeviceDisplayInfo[] }[] = [];
 
@@ -127,6 +130,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
     if (group && open) {
       setStep(1);
       setName(group.name);
+      setIcon(group.icon || "Package");
       setSelectedEntityIds(group.entityIds);
       setScope(getGroupScope(group));
       const domains = getGroupDomains(group);
@@ -154,7 +158,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
     }
   };
 
-  const handleDomainToggle = (domain: string) => {
+  const handleDomainSelect = (domain: string) => {
     const newDomains = isMixedMode
       ? (selectedDomains.includes(domain) ? selectedDomains.filter((d) => d !== domain) : [...selectedDomains, domain])
       : [domain];
@@ -211,12 +215,14 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
   const canProceed = () => {
     switch (step) {
       case 1:
-        return selectedDomains.length > 0 && !mixedModeError;
-      case 2:
         return name.trim().length >= 3;
+      case 2:
+        return true;
       case 3:
-        return selectedEntityIds.length > 0;
+        return selectedDomains.length > 0 && !mixedModeError;
       case 4:
+        return selectedEntityIds.length > 0;
+      case 5:
         return true;
       default:
         return false;
@@ -233,6 +239,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
       await createOrUpdateGroup({
         existingId: group.id,
         name,
+        icon,
         domain: selectedDomains[0] as HaGroupDomain,
         domains: selectedDomains,
         mode,
@@ -278,7 +285,15 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
   };
 
   const selectedDomainConfigs = availableDomains.filter((d) => selectedDomains.includes(d.value));
-  const FirstIcon = selectedDomainConfigs[0]?.icon;
+
+  // Render icon
+  const renderGroupIcon = () => {
+    const IconComponent = (LucideIcons as any)[icon];
+    if (!IconComponent) {
+      return <Package className="w-6 h-6 text-primary" />;
+    }
+    return <IconComponent className="w-6 h-6 text-primary" />;
+  };
 
   // Group selected entities by floor > area for summary
   const groupedSelectedEntities = useMemo(() => {
@@ -321,7 +336,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
 
   if (!group) return null;
 
-  // Render entity item (same style as Scenes/Routines)
+  // Render entity item
   const renderEntityItem = (device: DeviceDisplayInfo) => {
     const isSelected = selectedEntityIds.includes(device.entityId);
     const domainConfig = getDomainConfig(device.entityId.split(".")[0]);
@@ -346,7 +361,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
     );
   };
 
-  // Render area section (same style as Scenes/Routines)
+  // Render area section
   const renderAreaSection = (area: HAArea, areaEntities: DeviceDisplayInfo[]) => {
     const isExpanded = expandedAreas.has(area.area_id);
     const selectedCount = areaEntities.filter((e) => selectedEntityIds.includes(e.entityId)).length;
@@ -377,80 +392,25 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
   const renderStep = () => {
     switch (step) {
       case 1:
-        return (
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <Layers className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Groupe mixte (binaires)</p>
-                    <p className="text-sm text-muted-foreground">Combiner éclairages, interrupteurs, vannes...</p>
-                  </div>
-                </div>
-                <Switch checked={isMixedMode} onCheckedChange={toggleMixedMode} />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{isMixedMode ? "Types d'appareils (multi-sélection)" : "Type d'appareil"}</Label>
-
-                <div className="space-y-2 max-h-[280px] overflow-y-auto">
-                  {(isMixedMode ? binaryDomains : availableDomains).map((opt) => (
-                    <label
-                      key={opt.value}
-                      className={`flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-accent/50 transition-colors cursor-pointer ${selectedDomains.includes(opt.value) ? "bg-primary/10 border-primary/50" : ""}`}
-                    >
-                      <Checkbox
-                        checked={selectedDomains.includes(opt.value)}
-                        onCheckedChange={() => handleDomainToggle(opt.value)}
-                      />
-                      <opt.icon className="h-5 w-5 text-muted-foreground" />
-                      <span className="font-medium">{opt.label}</span>
-                    </label>
-                  ))}
-                </div>
-
-                {mixedModeError && <p className="text-sm text-destructive">{mixedModeError}</p>}
-              </div>
-            </div>
-
-            <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-sm text-muted-foreground">
-                <span className="font-semibold">Pourquoi choisir un type ?</span> Un groupe contrôle plusieurs appareils 
-                ensemble. Sélectionnez le type d'appareils que vous souhaitez regrouper.
-              </p>
-            </div>
-          </div>
-        );
+        return <GroupNameStep name={name} onNameChange={setName} />;
 
       case 2:
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="edit-group-name">Nom du groupe</Label>
-              <Input
-                id="edit-group-name"
-                placeholder="Ex: Éclairage salon, Volets étage..."
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="focus-visible:ring-0 focus-visible:ring-offset-0 text-lg"
-                autoFocus
-              />
-              {name.trim().length > 0 && name.trim().length < 3 && (
-                <p className="text-sm text-destructive">Minimum 3 caractères</p>
-              )}
-            </div>
-
-            <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-sm text-muted-foreground">
-                <span className="font-semibold">Pourquoi un nom ?</span> Un nom clair comme "Éclairage salon" 
-                vous permet d'identifier rapidement votre groupe dans la liste.
-              </p>
-            </div>
-          </div>
-        );
+        return <GroupIconStep icon={icon} name={name} onIconChange={setIcon} />;
 
       case 3:
+        return (
+          <GroupTypeStep
+            isMixedMode={isMixedMode}
+            selectedDomains={selectedDomains}
+            availableDomains={availableDomains}
+            binaryDomains={binaryDomains}
+            mixedModeError={mixedModeError}
+            onMixedModeChange={toggleMixedMode}
+            onDomainSelect={handleDomainSelect}
+          />
+        );
+
+      case 4:
         return (
           <div className="space-y-4">
             <div className="relative">
@@ -516,7 +476,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
               )}
             </div>
 
-            <div className="p-3 rounded-lg bg-muted/50">
+            <div className="p-4 rounded-lg bg-muted/50">
               <p className="text-sm text-muted-foreground">
                 <span className="font-semibold">Conseil :</span> Sélectionnez les appareils que vous souhaitez 
                 contrôler ensemble dans ce groupe.
@@ -525,10 +485,10 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
           </div>
         );
 
-      case 4:
+      case 5:
         return (
           <div className="space-y-6">
-            <div className="p-3 rounded-lg bg-muted/50">
+            <div className="p-4 rounded-lg bg-muted/50">
               <p className="text-sm text-muted-foreground">
                 Vérifiez les paramètres de votre groupe avant de le sauvegarder.
               </p>
@@ -538,13 +498,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
             <div className="p-4 rounded-lg border bg-card space-y-4">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  {selectedDomainConfigs.length > 1 ? (
-                    <Layers className="w-6 h-6 text-primary" />
-                  ) : FirstIcon ? (
-                    <FirstIcon className="w-6 h-6 text-primary" />
-                  ) : (
-                    <Package className="w-6 h-6 text-primary" />
-                  )}
+                  {renderGroupIcon()}
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-lg">{name || "Sans nom"}</h3>
