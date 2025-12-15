@@ -146,9 +146,6 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
           </Button>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          Choisissez l&apos;état de cet appareil lorsque la scène est activée.
-        </p>
 
         <div className="space-y-4">
           {/* Light */}
