@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { SceneIconPickerDialog } from "@/components/scenes/SceneIconPickerDialog";
+import { GroupIconPickerDialog } from "../GroupIconPickerDialog";
+import { ALL_GROUP_ICONS } from "@/types/groups";
 import { Pencil, Sparkles, Loader2, Package } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +29,10 @@ export function GroupIconStep({ icon, name, onIconChange }: GroupIconStepProps) 
       setIsSuggesting(true);
       try {
         const { data, error } = await supabase.functions.invoke("suggest-scene-icon", {
-          body: { sceneName: name },
+          body: { 
+            sceneName: name,
+            availableIcons: ALL_GROUP_ICONS
+          },
         });
 
         if (!error && data?.icon) {
@@ -124,7 +128,7 @@ export function GroupIconStep({ icon, name, onIconChange }: GroupIconStepProps) 
         </p>
       </div>
 
-      <SceneIconPickerDialog
+      <GroupIconPickerDialog
         open={iconDialogOpen}
         onOpenChange={setIconDialogOpen}
         selectedIcon={icon}
