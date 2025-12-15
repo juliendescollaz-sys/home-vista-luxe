@@ -214,7 +214,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
             variant="ghost"
             size="sm"
             onClick={() => useCurrentState(entity)}
-            className="h-7 px-2 shrink-0 text-xs text-muted-foreground hover:text-foreground"
+            className="h-7 px-2 shrink-0 text-xs text-muted-foreground hover:text-foreground border border-border/50 rounded-md"
           >
             <Wand2 className="w-3.5 h-3.5 mr-1" />
             <span className="hidden sm:inline">État actuel</span>
@@ -377,7 +377,7 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
       <div className="p-3 rounded-lg bg-muted/50">
         <p className="text-sm text-muted-foreground">
           <span className="font-semibold">Conseil :</span> Une scène, c&apos;est une « photo » de votre maison.
-          Définissez comment chaque appareil doit se comporter quand la scène est activée. Utilisez « État actuel » pour
+          Définissez comment chaque appareil doit se comporter quand la scène est activée. Cliquez sur la « baguette magique » pour
           capturer rapidement l&apos;état actuel d&apos;un appareil.
         </p>
       </div>
