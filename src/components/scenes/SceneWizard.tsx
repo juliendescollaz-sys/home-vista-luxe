@@ -473,9 +473,15 @@ export function SceneWizard({ open, onOpenChange, scene }: SceneWizardProps) {
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={isSubmitting || isLoadingConfig}>
-                {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {isEditMode ? "Enregistrer" : "Créer la scène"}
+              <Button onClick={handleSubmit} disabled={isSubmitting || isLoadingConfig} className="relative">
+                {isSubmitting && (
+                  <span className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  </span>
+                )}
+                <span className={isSubmitting ? "opacity-0" : ""}>
+                  {isEditMode ? "Enregistrer" : "Créer la scène"}
+                </span>
               </Button>
             )}
           </div>
