@@ -170,113 +170,120 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
     const currentState = draft.entityStates[entity.entity_id] || {};
     const Icon = getDomainIcon(domain);
 
+    // Check if entity has additional controls beyond simple on/off
+    const hasAdditionalControls = (() => {
+      if (domain === "light") {
+        const supportedColorModes = entity.attributes.supported_color_modes as string[] | undefined;
+        return (
+          (Array.isArray(supportedColorModes) &&
+            supportedColorModes.some((m) =>
+              ["brightness", "hs", "xy", "rgb", "rgbw", "rgbww", "color_temp"].includes(m),
+            )) ||
+          typeof entity.attributes.brightness === "number"
+        );
+      }
+      return domain === "cover" || domain === "climate" || domain === "media_player";
+    })();
+
+    const getToggleState = () => {
+      if (domain === "cover") return (currentState.position ?? 100) > 0;
+      if (domain === "climate") return currentState.hvac_mode !== "off";
+      if (domain === "media_player") return currentState.state !== "off";
+      return currentState.state === "on" || currentState.state !== "off";
+    };
+
+    const handleToggle = (checked: boolean) => {
+      if (domain === "cover") {
+        updateEntityState(entity.entity_id, { position: checked ? 100 : 0 });
+      } else if (domain === "climate") {
+        updateEntityState(entity.entity_id, { hvac_mode: checked ? "heat" : "off" });
+      } else if (domain === "media_player") {
+        updateEntityState(entity.entity_id, { state: checked ? "playing" : "off" });
+      } else {
+        updateEntityState(entity.entity_id, { state: checked ? "on" : "off" });
+      }
+    };
+
     return (
-      <div key={entity.entity_id} className="p-3 rounded-lg border bg-card/50">
-        {/* Header compact */}
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
-            <span className="text-sm font-medium truncate">{entity.attributes.friendly_name || entity.entity_id}</span>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => useCurrentState(entity)} className="h-7 px-2 shrink-0">
-            <Wand2 className="w-3.5 h-3.5" />
+      <div key={entity.entity_id} className="py-2 px-3 rounded-lg border bg-card/50">
+        {/* Single line header */}
+        <div className="flex items-center gap-2">
+          <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium truncate flex-1 min-w-0">{entity.attributes.friendly_name || entity.entity_id}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => useCurrentState(entity)}
+            className="h-7 px-2 shrink-0 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <Wand2 className="w-3.5 h-3.5 mr-1" />
+            <span className="hidden sm:inline">État actuel</span>
           </Button>
+          <Switch
+            checked={getToggleState()}
+            onCheckedChange={handleToggle}
+            className="shrink-0"
+          />
         </div>
 
-        {/* Controls */}
-        <div className="space-y-2">
-          {/* Light */}
-          {domain === "light" &&
-            (() => {
-              const supportedColorModes = entity.attributes.supported_color_modes as string[] | undefined;
-              const isDimmable =
-                (Array.isArray(supportedColorModes) &&
-                  supportedColorModes.some((m) =>
-                    ["brightness", "hs", "xy", "rgb", "rgbw", "rgbww", "color_temp"].includes(m),
-                  )) ||
-                typeof entity.attributes.brightness === "number";
-
-              return (
-                <>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs">Allumé</Label>
-                    <Switch
-                      checked={currentState.state !== "off"}
-                      onCheckedChange={(checked) =>
-                        updateEntityState(entity.entity_id, { state: checked ? "on" : "off" })
-                      }
-                    />
-                  </div>
-                  {isDimmable && currentState.state !== "off" && (
-                    <div className="flex items-center gap-3">
-                      <Label className="text-xs shrink-0 w-16">Luminosité</Label>
-                      <Slider
-                        className="flex-1"
-                        value={[currentState.brightness || 255]}
-                        min={1}
-                        max={255}
-                        step={1}
-                        onValueChange={([value]) => updateEntityState(entity.entity_id, { brightness: value })}
-                      />
-                      <span className="text-xs text-muted-foreground w-10 text-right">
-                        {Math.round((((currentState.brightness || 255) as number) / 255) * 100)}%
-                      </span>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-
-          {/* Switch / Fan / Valve */}
-          {(domain === "switch" || domain === "fan" || domain === "valve" || domain === "input_boolean") && (
-            <div className="flex items-center justify-between">
-              <Label className="text-xs">Activé</Label>
-              <Switch
-                checked={currentState.state === "on"}
-                onCheckedChange={(checked) => updateEntityState(entity.entity_id, { state: checked ? "on" : "off" })}
-              />
-            </div>
-          )}
-
-          {/* Cover */}
-          {domain === "cover" && (
-            <div className="flex items-center gap-3">
-              <Label className="text-xs shrink-0 w-16">Position</Label>
-              <Slider
-                className="flex-1"
-                value={[currentState.position ?? 100]}
-                min={0}
-                max={100}
-                step={1}
-                onValueChange={([value]) => updateEntityState(entity.entity_id, { position: value })}
-              />
-              <span className="text-xs text-muted-foreground w-10 text-right">
-                {(currentState.position ?? 100) as number}%
-              </span>
-            </div>
-          )}
-
-          {/* Climate */}
-          {domain === "climate" && (
-            <div className="space-y-2">
+        {/* Additional controls for complex entities */}
+        {hasAdditionalControls && getToggleState() && (
+          <div className="mt-2 pt-2 border-t border-border/50 space-y-2">
+            {/* Light brightness */}
+            {domain === "light" && (
               <div className="flex items-center gap-3">
-                <Label className="text-xs shrink-0 w-16">Mode</Label>
-                <Select
-                  value={currentState.hvac_mode || "off"}
-                  onValueChange={(value) => updateEntityState(entity.entity_id, { hvac_mode: value })}
-                >
-                  <SelectTrigger className="h-8 text-xs flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="off">Éteint</SelectItem>
-                    <SelectItem value="heat">Chauffage</SelectItem>
-                    <SelectItem value="cool">Climatisation</SelectItem>
-                    <SelectItem value="auto">Auto</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs shrink-0 w-16">Luminosité</Label>
+                <Slider
+                  className="flex-1"
+                  value={[currentState.brightness || 255]}
+                  min={1}
+                  max={255}
+                  step={1}
+                  onValueChange={([value]) => updateEntityState(entity.entity_id, { brightness: value })}
+                />
+                <span className="text-xs text-muted-foreground w-10 text-right">
+                  {Math.round((((currentState.brightness || 255) as number) / 255) * 100)}%
+                </span>
               </div>
-              {currentState.hvac_mode && currentState.hvac_mode !== "off" && (
+            )}
+
+            {/* Cover position */}
+            {domain === "cover" && (
+              <div className="flex items-center gap-3">
+                <Label className="text-xs shrink-0 w-16">Position</Label>
+                <Slider
+                  className="flex-1"
+                  value={[currentState.position ?? 100]}
+                  min={0}
+                  max={100}
+                  step={1}
+                  onValueChange={([value]) => updateEntityState(entity.entity_id, { position: value })}
+                />
+                <span className="text-xs text-muted-foreground w-10 text-right">
+                  {(currentState.position ?? 100) as number}%
+                </span>
+              </div>
+            )}
+
+            {/* Climate */}
+            {domain === "climate" && (
+              <>
+                <div className="flex items-center gap-3">
+                  <Label className="text-xs shrink-0 w-16">Mode</Label>
+                  <Select
+                    value={currentState.hvac_mode || "heat"}
+                    onValueChange={(value) => updateEntityState(entity.entity_id, { hvac_mode: value })}
+                  >
+                    <SelectTrigger className="h-7 text-xs flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="heat">Chauffage</SelectItem>
+                      <SelectItem value="cool">Climatisation</SelectItem>
+                      <SelectItem value="auto">Auto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex items-center gap-3">
                   <Label className="text-xs shrink-0 w-16">Temp.</Label>
                   <Slider
@@ -291,70 +298,45 @@ export function SceneStateConfigStep({ draft, onUpdate }: SceneStateConfigStepPr
                     {(currentState.temperature ?? 20) as number}°C
                   </span>
                 </div>
-              )}
-            </div>
-          )}
+              </>
+            )}
 
-          {/* Media Player */}
-          {domain === "media_player" && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <Label className="text-xs shrink-0 w-16">État</Label>
-                <Select
-                  value={currentState.state || "off"}
-                  onValueChange={(value) => updateEntityState(entity.entity_id, { state: value as any })}
-                >
-                  <SelectTrigger className="h-8 text-xs flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="off">Éteint</SelectItem>
-                    <SelectItem value="playing">Lecture</SelectItem>
-                    <SelectItem value="paused">Pause</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-3">
-                <Label className="text-xs shrink-0 w-16">Volume</Label>
-                <Slider
-                  className="flex-1"
-                  value={[((currentState.volume_level ?? 0.5) as number) * 100]}
-                  min={0}
-                  max={100}
-                  step={1}
-                  onValueChange={([value]) => updateEntityState(entity.entity_id, { volume_level: value / 100 })}
-                />
-                <span className="text-xs text-muted-foreground w-10 text-right">
-                  {Math.round(((currentState.volume_level ?? 0.5) as number) * 100)}%
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Lock */}
-          {domain === "lock" && (
-            <div className="flex items-center justify-between">
-              <Label className="text-xs">Verrouillé</Label>
-              <Switch
-                checked={currentState.state === "on"}
-                onCheckedChange={(checked) => updateEntityState(entity.entity_id, { state: checked ? "on" : "off" })}
-              />
-            </div>
-          )}
-
-          {/* Generic fallback */}
-          {!["light", "switch", "fan", "valve", "input_boolean", "cover", "climate", "media_player", "lock"].includes(
-            domain,
-          ) && (
-            <div className="flex items-center justify-between">
-              <Label className="text-xs">Activé</Label>
-              <Switch
-                checked={currentState.state === "on"}
-                onCheckedChange={(checked) => updateEntityState(entity.entity_id, { state: checked ? "on" : "off" })}
-              />
-            </div>
-          )}
-        </div>
+            {/* Media Player */}
+            {domain === "media_player" && (
+              <>
+                <div className="flex items-center gap-3">
+                  <Label className="text-xs shrink-0 w-16">État</Label>
+                  <Select
+                    value={currentState.state || "playing"}
+                    onValueChange={(value) => updateEntityState(entity.entity_id, { state: value as any })}
+                  >
+                    <SelectTrigger className="h-7 text-xs flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="playing">Lecture</SelectItem>
+                      <SelectItem value="paused">Pause</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Label className="text-xs shrink-0 w-16">Volume</Label>
+                  <Slider
+                    className="flex-1"
+                    value={[((currentState.volume_level ?? 0.5) as number) * 100]}
+                    min={0}
+                    max={100}
+                    step={1}
+                    onValueChange={([value]) => updateEntityState(entity.entity_id, { volume_level: value / 100 })}
+                  />
+                  <span className="text-xs text-muted-foreground w-10 text-right">
+                    {Math.round(((currentState.volume_level ?? 0.5) as number) * 100)}%
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     );
   };
