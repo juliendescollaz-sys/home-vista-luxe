@@ -70,16 +70,13 @@ serve(async (req) => {
       console.log(`[ha-scene-manager] ${action.toUpperCase()} scene: ${sceneId}`);
       
       // Build payload - icon is already prefixed with mdi: from the client
+      // HA Scene Config API only accepts: id, name, entities, icon
+      // Note: description is NOT supported by HA scene config API
       const payload: Record<string, any> = {
         id: sceneId,
         name: sceneConfig.name,
         entities: sceneConfig.entities,
       };
-      
-      // Add description if provided
-      if (sceneConfig.description) {
-        payload.description = sceneConfig.description;
-      }
       
       // Add icon - avoid double mdi: prefix
       if (sceneConfig.icon) {
