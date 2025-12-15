@@ -556,65 +556,122 @@ function parseHAActionsToRoutineActions(config: any): RoutineAction[] {
   const actionLike = (config as any).action ?? (config as any).actions;
   if (!actionLike) return [];
 
-  const actions = Array.isArray(actionLike) ? actionLike : [actionLike];
   const result: RoutineAction[] = [];
+  const seen = new Set<string>();
 
-  for (const haAction of actions) {
-    const service: string = haAction.service || "";
-    const target = haAction.target || {};
-    
-    // HA can have entity_id in target.entity_id (new syntax) or haAction.entity_id (legacy syntax)
-    // Also can be haAction.data.entity_id in some cases
-    let rawEntityId = target.entity_id ?? haAction.entity_id ?? haAction.data?.entity_id;
-    const entityId = Array.isArray(rawEntityId) ? rawEntityId[0] : rawEntityId;
+  const add = (action: RoutineAction) => {
+    // De-dupe by type + id (we keep first occurrence)
+    const key = `${action.type}:${action.id}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push(action);
+  };
 
-    if (!service || !entityId) continue;
+  const toArray = <T,>(value: T | T[] | undefined | null): T[] => {
+    if (!value) return [];
+    return Array.isArray(value) ? value : [value];
+  };
 
-    const [domain, svc] = service.split(".");
+  const extractEntityIds = (haAction: any): string[] => {
+    const raw = haAction?.target?.entity_id ?? haAction?.entity_id ?? haAction?.data?.entity_id;
+    return toArray<string>(raw).filter(Boolean);
+  };
 
-    if (domain === "scene" && svc === "turn_on") {
-      result.push({ type: "scene", id: entityId });
-      continue;
-    }
-
-    if (domain === "homeassistant" && (svc === "turn_on" || svc === "turn_off")) {
-      result.push({ type: "group", id: entityId, groupState: svc === "turn_on" ? "on" : "off" });
-      continue;
-    }
-
-    // Device actions
-    const deviceDomain = entityId.split(".")[0];
-    const data = haAction.data || {};
-
+  const buildTargetState = (svc: string, data: any): RoutineAction["targetState"] => {
     const targetState: RoutineAction["targetState"] = {};
 
     if (svc === "turn_off") {
       targetState.state = "off";
-    } else {
-      targetState.state = "on";
-
-      if (data.brightness !== undefined) targetState.brightness = data.brightness;
-      if (data.color_temp !== undefined) targetState.color_temp = data.color_temp;
-      if (data.rgb_color !== undefined) targetState.rgb_color = data.rgb_color;
-      if (data.position !== undefined) targetState.position = data.position;
-      if (data.temperature !== undefined) targetState.temperature = data.temperature;
-      if (data.hvac_mode !== undefined) targetState.hvac_mode = data.hvac_mode;
-      if (data.volume_level !== undefined) targetState.volume_level = data.volume_level;
+      return targetState;
     }
 
-    // Covers use a specific service for position
-    const isCoverPosition = deviceDomain === "cover" && svc === "set_cover_position";
+    // Default: ON-ish action
+    targetState.state = "on";
 
-    result.push({
-      type: "device",
-      id: entityId,
-      targetState: {
-        ...targetState,
-        ...(isCoverPosition && data.position !== undefined ? { position: data.position } : {}),
-      },
-    });
-  }
+    if (data?.brightness !== undefined) targetState.brightness = data.brightness;
+    if (data?.color_temp !== undefined) targetState.color_temp = data.color_temp;
+    if (data?.rgb_color !== undefined) targetState.rgb_color = data.rgb_color;
+    if (data?.position !== undefined) targetState.position = data.position;
+    if (data?.temperature !== undefined) targetState.temperature = data.temperature;
+    if (data?.hvac_mode !== undefined) targetState.hvac_mode = data.hvac_mode;
+    if (data?.volume_level !== undefined) targetState.volume_level = data.volume_level;
 
+    return targetState;
+  };
+
+  const visit = (node: any) => {
+    if (!node) return;
+
+    // Arrays of actions
+    if (Array.isArray(node)) {
+      for (const n of node) visit(n);
+      return;
+    }
+
+    // Nested/structured actions (HA can wrap in choose/sequence/repeat/parallel/if)
+    if (node.sequence) visit(node.sequence);
+    if (node.choose) {
+      for (const choice of toArray<any>(node.choose)) {
+        if (choice?.sequence) visit(choice.sequence);
+        if (choice?.default) visit(choice.default);
+      }
+    }
+    if (node.if) {
+      // Newer HA syntax
+      if (node.then) visit(node.then);
+      if (node.else) visit(node.else);
+    }
+    if (node.repeat) {
+      if (node.repeat?.sequence) visit(node.repeat.sequence);
+    }
+    if (node.parallel) visit(node.parallel);
+
+    // Leaf service call
+    const service: string = node.service || "";
+    if (!service) return;
+
+    const [domain, svc] = service.split(".");
+    const data = node.data || {};
+    const entityIds = extractEntityIds(node);
+    if (entityIds.length === 0) return;
+
+    // scene.turn_on
+    if (domain === "scene" && svc === "turn_on") {
+      for (const entityId of entityIds) add({ type: "scene", id: entityId });
+      return;
+    }
+
+    // homeassistant.turn_on/off can target group.* OR a list of devices
+    if (domain === "homeassistant" && (svc === "turn_on" || svc === "turn_off")) {
+      for (const entityId of entityIds) {
+        if (entityId.startsWith("group.")) {
+          add({ type: "group", id: entityId, groupState: svc === "turn_on" ? "on" : "off" });
+        } else {
+          add({ type: "device", id: entityId, targetState: buildTargetState(svc, data) });
+        }
+      }
+      return;
+    }
+
+    // Device actions
+    for (const entityId of entityIds) {
+      const deviceDomain = entityId.split(".")[0];
+      const isCoverPosition = deviceDomain === "cover" && svc === "set_cover_position";
+
+      const targetState = buildTargetState(svc, data);
+
+      add({
+        type: "device",
+        id: entityId,
+        targetState: {
+          ...targetState,
+          ...(isCoverPosition && data.position !== undefined ? { position: data.position } : {}),
+        },
+      });
+    }
+  };
+
+  visit(toArray<any>(actionLike));
   return result;
 }
 
