@@ -17,13 +17,15 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { ChevronLeft, ChevronRight, Pencil, Loader2, Trash2, Users, User, Layers, CheckCircle } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Search, ChevronLeft, ChevronRight, ChevronDown, Pencil, Loader2, Trash2, Users, User, Layers, CheckCircle, Package } from "lucide-react";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
 import type { NeoliaGroup, HaGroupDomain, GroupScope } from "@/types/groups";
 import { getGroupScope, getGroupDomains, getGroupMode } from "@/types/groups";
 import { toast } from "@/hooks/use-toast";
-import { getAvailableDomains, areAllDomainsBinary, getEntitiesForDomains, type DeviceDisplayInfo } from "@/lib/groupDomains";
+import { getAvailableDomains, areAllDomainsBinary, getEntitiesForDomains, getDomainConfig, type DeviceDisplayInfo } from "@/lib/groupDomains";
+import type { HAArea, HAFloor } from "@/types/homeassistant";
 
 interface GroupEditDialogProps {
   group: NeoliaGroup | null;
@@ -49,6 +51,8 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
   const [isMixedMode, setIsMixedMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [expandedAreas, setExpandedAreas] = useState<Set<string>>(new Set());
 
   const entities = useHAStore((state) => state.entities);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
@@ -73,6 +77,52 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
 
   const isMixedGroup = isMixedMode && selectedDomains.length > 1;
 
+  // Group entities by floor > area (same structure as Scenes/Routines)
+  const groupedEntities = useMemo(() => {
+    const searchLower = searchTerm.toLowerCase();
+    
+    const filteredEntities = availableEntities.filter((e) => {
+      if (!searchTerm.trim()) return true;
+      return e.friendlyName.toLowerCase().includes(searchLower);
+    });
+
+    // Group by area
+    const byArea: Record<string, DeviceDisplayInfo[]> = {};
+    const noArea: DeviceDisplayInfo[] = [];
+
+    for (const entity of filteredEntities) {
+      if (entity.areaId) {
+        if (!byArea[entity.areaId]) byArea[entity.areaId] = [];
+        byArea[entity.areaId].push(entity);
+      } else {
+        noArea.push(entity);
+      }
+    }
+
+    // Group areas by floor
+    const byFloor: Record<string, { floor: HAFloor | null; areas: { area: HAArea; entities: DeviceDisplayInfo[] }[] }> = {};
+    const noFloorAreas: { area: HAArea; entities: DeviceDisplayInfo[] }[] = [];
+
+    for (const [areaId, areaEntities] of Object.entries(byArea)) {
+      const area = areas.find((a) => a.area_id === areaId);
+      if (!area) continue;
+
+      const floor = floors.find((f) => f.floor_id === area.floor_id);
+      const floorKey = floor?.floor_id || "__no_floor__";
+
+      if (floor) {
+        if (!byFloor[floorKey]) {
+          byFloor[floorKey] = { floor, areas: [] };
+        }
+        byFloor[floorKey].areas.push({ area, entities: areaEntities });
+      } else {
+        noFloorAreas.push({ area, entities: areaEntities });
+      }
+    }
+
+    return { byFloor, noFloorAreas, noArea };
+  }, [availableEntities, areas, floors, searchTerm]);
+
   useEffect(() => {
     if (group && open) {
       setStep(1);
@@ -82,6 +132,8 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
       const domains = getGroupDomains(group);
       setSelectedDomains(domains);
       setIsMixedMode(getGroupMode(group) === "mixedBinary");
+      setSearchTerm("");
+      setExpandedAreas(new Set());
     }
   }, [group, open]);
 
@@ -133,6 +185,27 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
       }
       return [...new Set([...prev, entityId])];
     });
+  };
+
+  const toggleArea = (areaEntities: DeviceDisplayInfo[]) => {
+    const entityIds = areaEntities.map((e) => e.entityId);
+    const allSelected = entityIds.every((id) => selectedEntityIds.includes(id));
+    
+    if (allSelected) {
+      setSelectedEntityIds((prev) => prev.filter((id) => !entityIds.includes(id)));
+    } else {
+      setSelectedEntityIds((prev) => [...new Set([...prev, ...entityIds])]);
+    }
+  };
+
+  const toggleAreaExpanded = (areaId: string) => {
+    const newExpanded = new Set(expandedAreas);
+    if (newExpanded.has(areaId)) {
+      newExpanded.delete(areaId);
+    } else {
+      newExpanded.add(areaId);
+    }
+    setExpandedAreas(newExpanded);
   };
 
   const canProceed = () => {
@@ -207,7 +280,99 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
   const selectedDomainConfigs = availableDomains.filter((d) => selectedDomains.includes(d.value));
   const FirstIcon = selectedDomainConfigs[0]?.icon;
 
+  // Group selected entities by floor > area for summary
+  const groupedSelectedEntities = useMemo(() => {
+    const selected = availableEntities.filter((e) => selectedEntityIds.includes(e.entityId));
+    
+    const byArea: Record<string, DeviceDisplayInfo[]> = {};
+    const noArea: DeviceDisplayInfo[] = [];
+
+    for (const entity of selected) {
+      if (entity.areaId) {
+        if (!byArea[entity.areaId]) byArea[entity.areaId] = [];
+        byArea[entity.areaId].push(entity);
+      } else {
+        noArea.push(entity);
+      }
+    }
+
+    const byFloor: Record<string, { floor: HAFloor | null; areas: { area: HAArea; entities: DeviceDisplayInfo[] }[] }> = {};
+    const noFloorAreas: { area: HAArea; entities: DeviceDisplayInfo[] }[] = [];
+
+    for (const [areaId, areaEntities] of Object.entries(byArea)) {
+      const area = areas.find((a) => a.area_id === areaId);
+      if (!area) continue;
+
+      const floor = floors.find((f) => f.floor_id === area.floor_id);
+      const floorKey = floor?.floor_id || "__no_floor__";
+
+      if (floor) {
+        if (!byFloor[floorKey]) {
+          byFloor[floorKey] = { floor, areas: [] };
+        }
+        byFloor[floorKey].areas.push({ area, entities: areaEntities });
+      } else {
+        noFloorAreas.push({ area, entities: areaEntities });
+      }
+    }
+
+    return { byFloor, noFloorAreas, noArea };
+  }, [availableEntities, selectedEntityIds, areas, floors]);
+
   if (!group) return null;
+
+  // Render entity item (same style as Scenes/Routines)
+  const renderEntityItem = (device: DeviceDisplayInfo) => {
+    const isSelected = selectedEntityIds.includes(device.entityId);
+    const domainConfig = getDomainConfig(device.entityId.split(".")[0]);
+    const DomainIcon = domainConfig?.icon;
+
+    return (
+      <label
+        key={device.entityId}
+        className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors hover:bg-accent/50 ${isSelected ? "bg-primary/10" : ""}`}
+      >
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={() => toggleEntity(device.entityId)}
+        />
+        <div className="flex flex-col flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            {DomainIcon && <DomainIcon className="w-4 h-4 text-muted-foreground shrink-0" />}
+            <span className="text-sm truncate">{device.friendlyName}</span>
+          </div>
+        </div>
+      </label>
+    );
+  };
+
+  // Render area section (same style as Scenes/Routines)
+  const renderAreaSection = (area: HAArea, areaEntities: DeviceDisplayInfo[]) => {
+    const isExpanded = expandedAreas.has(area.area_id);
+    const selectedCount = areaEntities.filter((e) => selectedEntityIds.includes(e.entityId)).length;
+    const allSelected = selectedCount === areaEntities.length && areaEntities.length > 0;
+
+    return (
+      <Collapsible key={area.area_id} open={isExpanded} onOpenChange={() => toggleAreaExpanded(area.area_id)}>
+        <div className="flex items-center gap-2 py-2">
+          <Checkbox
+            checked={allSelected}
+            onCheckedChange={() => toggleArea(areaEntities)}
+          />
+          <CollapsibleTrigger className="flex items-center gap-2 flex-1 hover:text-primary transition-colors">
+            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            <span className="font-medium text-sm">{area.name}</span>
+            <span className="text-xs text-muted-foreground">
+              ({selectedCount}/{areaEntities.length})
+            </span>
+          </CollapsibleTrigger>
+        </div>
+        <CollapsibleContent className="pl-6 space-y-1">
+          {areaEntities.map((entity) => renderEntityItem(entity))}
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
 
   const renderStep = () => {
     switch (step) {
@@ -233,7 +398,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
                   {(isMixedMode ? binaryDomains : availableDomains).map((opt) => (
                     <label
                       key={opt.value}
-                      className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-accent/50 transition-colors cursor-pointer"
+                      className={`flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-accent/50 transition-colors cursor-pointer ${selectedDomains.includes(opt.value) ? "bg-primary/10 border-primary/50" : ""}`}
                     >
                       <Checkbox
                         checked={selectedDomains.includes(opt.value)}
@@ -249,7 +414,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
               </div>
             </div>
 
-            <div className="p-4 rounded-lg bg-muted/50">
+            <div className="p-3 rounded-lg bg-muted/50">
               <p className="text-sm text-muted-foreground">
                 <span className="font-semibold">Pourquoi choisir un type ?</span> Un groupe contrôle plusieurs appareils 
                 ensemble. Sélectionnez le type d'appareils que vous souhaitez regrouper.
@@ -276,7 +441,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
               )}
             </div>
 
-            <div className="p-4 rounded-lg bg-muted/50">
+            <div className="p-3 rounded-lg bg-muted/50">
               <p className="text-sm text-muted-foreground">
                 <span className="font-semibold">Pourquoi un nom ?</span> Un nom clair comme "Éclairage salon" 
                 vous permet d'identifier rapidement votre groupe dans la liste.
@@ -288,34 +453,66 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
       case 3:
         return (
           <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher un appareil..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
             <div className="text-sm text-muted-foreground">
               Sélectionnés : <strong>{selectedEntityIds.length}</strong> appareil(s)
             </div>
 
-            <div className="max-h-[350px] overflow-y-auto space-y-2 pr-2">
-              {availableEntities.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Aucun appareil disponible.</p>
-              ) : (
-                availableEntities.map((device) => (
-                  <label
-                    key={device.entityId}
-                    className="flex items-start gap-3 p-3 rounded-lg border border-border/50 hover:bg-accent/50 transition-colors cursor-pointer"
-                  >
-                    <Checkbox
-                      checked={selectedEntityIds.includes(device.entityId)}
-                      onCheckedChange={() => toggleEntity(device.entityId)}
-                      className="mt-0.5"
-                    />
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-medium truncate">{device.friendlyName}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {device.floorName && device.areaName
-                          ? `${device.areaName} • ${device.floorName}`
-                          : device.areaName || device.floorName || "Emplacement inconnu"}
-                      </span>
-                    </div>
-                  </label>
-                ))
+            <div className="max-h-[400px] overflow-y-auto space-y-4 pr-2">
+              {/* Par étage */}
+              {Object.entries(groupedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
+                <div key={floorId} className="space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    {floor?.name || "Étage"}
+                  </h4>
+                  <div className="space-y-1 border-l-2 border-muted pl-3">
+                    {floorAreas.map(({ area, entities: areaEntities }) => renderAreaSection(area, areaEntities))}
+                  </div>
+                </div>
+              ))}
+
+              {/* Pièces sans étage */}
+              {groupedEntities.noFloorAreas.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Autres pièces
+                  </h4>
+                  <div className="space-y-1 border-l-2 border-muted pl-3">
+                    {groupedEntities.noFloorAreas.map(({ area, entities: areaEntities }) => 
+                      renderAreaSection(area, areaEntities)
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Entités sans pièce */}
+              {groupedEntities.noArea.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Sans pièce assignée
+                  </h4>
+                  <div className="space-y-1 pl-3">
+                    {groupedEntities.noArea.map((entity) => renderEntityItem(entity))}
+                  </div>
+                </div>
+              )}
+
+              {/* Message si aucun résultat */}
+              {Object.keys(groupedEntities.byFloor).length === 0 && 
+               groupedEntities.noFloorAreas.length === 0 && 
+               groupedEntities.noArea.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  Aucun appareil trouvé
+                </div>
               )}
             </div>
 
@@ -331,21 +528,53 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
       case 4:
         return (
           <div className="space-y-6">
-            {isMixedGroup ? (
-              <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
-                <div className="flex items-center gap-2 mb-2">
-                  <User className="h-5 w-5 text-muted-foreground" />
-                  <span className="font-medium">Local uniquement</span>
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-sm text-muted-foreground">
+                Vérifiez les paramètres de votre groupe avant de le sauvegarder.
+              </p>
+            </div>
+
+            {/* Group info card */}
+            <div className="p-4 rounded-lg border bg-card space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  {selectedDomainConfigs.length > 1 ? (
+                    <Layers className="w-6 h-6 text-primary" />
+                  ) : FirstIcon ? (
+                    <FirstIcon className="w-6 h-6 text-primary" />
+                  ) : (
+                    <Package className="w-6 h-6 text-primary" />
+                  )}
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Les groupes mixtes sont toujours locaux car Home Assistant ne supporte pas 
-                  les groupes multi-domaines.
-                </p>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg">{name || "Sans nom"}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedDomainConfigs.length > 1 
+                      ? "Groupe mixte" 
+                      : selectedDomainConfigs[0]?.label || "Groupe"}
+                  </p>
+                </div>
               </div>
-            ) : (
+
+              <div className="flex items-center gap-2 text-sm">
+                {isMixedGroup || scope === "local" ? (
+                  <>
+                    <User className="w-4 h-4 text-muted-foreground" />
+                    <span>Local uniquement</span>
+                  </>
+                ) : (
+                  <>
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <span>Partagé</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Scope selection (hidden for mixed groups) */}
+            {!isMixedGroup && (
               <div className="space-y-3">
                 <Label>Portée du groupe</Label>
-
                 <RadioGroup
                   value={scope}
                   onValueChange={(value: GroupScope) => setScope(value)}
@@ -362,7 +591,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
                         Local uniquement
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Visible seulement dans cette application Neolia.
+                        Visible seulement dans cette application.
                       </p>
                     </div>
                   </label>
@@ -378,7 +607,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
                         Partagé
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Créé dans Home Assistant, accessible à tous les utilisateurs.
+                        Créé dans Home Assistant, accessible à tous.
                       </p>
                     </div>
                   </label>
@@ -386,47 +615,105 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
               </div>
             )}
 
-            {/* Summary */}
-            <div className="p-4 rounded-lg border border-border/50 bg-muted/30 space-y-3">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="h-5 w-5 text-primary" />
-                <span className="font-medium">Résumé</span>
-              </div>
+            {/* Summary of selected entities */}
+            <div className="space-y-3">
+              <h4 className="font-medium flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                {selectedEntityIds.length} appareil{selectedEntityIds.length > 1 ? "s" : ""} sélectionné{selectedEntityIds.length > 1 ? "s" : ""}
+              </h4>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Nom</span>
-                  <span className="font-medium">{name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Type</span>
-                  <div className="flex items-center gap-2">
-                    {selectedDomainConfigs.length > 1 ? (
-                      <>
-                        <Layers className="h-4 w-4" />
-                        <span className="font-medium">Groupe mixte</span>
-                      </>
-                    ) : (
-                      <>
-                        {FirstIcon && <FirstIcon className="h-4 w-4" />}
-                        <span className="font-medium">{selectedDomainConfigs[0]?.label}</span>
-                      </>
-                    )}
+              <div className="space-y-4 max-h-[200px] overflow-y-auto pr-2">
+                {/* By floor */}
+                {Object.entries(groupedSelectedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
+                  <div key={floorId} className="space-y-2">
+                    <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {floor?.name || "Étage"}
+                    </h5>
+                    {floorAreas.map(({ area, entities: areaEntities }) => (
+                      <div key={area.area_id} className="space-y-1">
+                        <h6 className="text-xs font-medium text-muted-foreground ml-2">
+                          {area.name}
+                        </h6>
+                        <div className="space-y-0.5 ml-2">
+                          {areaEntities.map((entity) => {
+                            const domainConfig = getDomainConfig(entity.entityId.split(".")[0]);
+                            const DomainIcon = domainConfig?.icon;
+                            return (
+                              <div
+                                key={entity.entityId}
+                                className="flex items-center py-1 px-2 rounded bg-muted/30 text-sm"
+                              >
+                                {DomainIcon && <DomainIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0 mr-2" />}
+                                <span className="truncate">{entity.friendlyName}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Appareils</span>
-                  <span className="font-medium">{selectedEntityIds.length}</span>
-                </div>
+                ))}
+
+                {/* Areas without floor */}
+                {groupedSelectedEntities.noFloorAreas.length > 0 && (
+                  <div className="space-y-2">
+                    <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Autres pièces
+                    </h5>
+                    {groupedSelectedEntities.noFloorAreas.map(({ area, entities: areaEntities }) => (
+                      <div key={area.area_id} className="space-y-1">
+                        <h6 className="text-xs font-medium text-muted-foreground ml-2">
+                          {area.name}
+                        </h6>
+                        <div className="space-y-0.5 ml-2">
+                          {areaEntities.map((entity) => {
+                            const domainConfig = getDomainConfig(entity.entityId.split(".")[0]);
+                            const DomainIcon = domainConfig?.icon;
+                            return (
+                              <div
+                                key={entity.entityId}
+                                className="flex items-center py-1 px-2 rounded bg-muted/30 text-sm"
+                              >
+                                {DomainIcon && <DomainIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0 mr-2" />}
+                                <span className="truncate">{entity.friendlyName}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Entities without area */}
+                {groupedSelectedEntities.noArea.length > 0 && (
+                  <div className="space-y-2">
+                    <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Sans pièce
+                    </h5>
+                    <div className="space-y-0.5">
+                      {groupedSelectedEntities.noArea.map((entity) => {
+                        const domainConfig = getDomainConfig(entity.entityId.split(".")[0]);
+                        const DomainIcon = domainConfig?.icon;
+                        return (
+                          <div
+                            key={entity.entityId}
+                            className="flex items-center py-1 px-2 rounded bg-muted/30 text-sm"
+                          >
+                            {DomainIcon && <DomainIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0 mr-2" />}
+                            <span className="truncate">{entity.friendlyName}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="p-4 rounded-lg bg-muted/50">
-              <p className="text-sm text-muted-foreground">
-                <span className="font-semibold">Quelle différence ?</span> Les groupes locaux sont privés et 
-                stockés sur cet appareil. Les groupes partagés sont visibles par tous via Home Assistant.
-              </p>
-            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Tout pourra être modifié plus tard depuis les paramètres du groupe.
+            </p>
           </div>
         );
 
@@ -439,7 +726,7 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
     <>
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
+          <DialogHeader className="space-y-1">
             <DialogTitle className="flex items-center gap-2">
               <Pencil className="w-5 h-5 text-primary" />
               Modifier le groupe
@@ -457,40 +744,44 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
 
           <div className="flex items-center justify-between pt-4 border-t">
             <div className="flex gap-2">
+              {step === 1 && (
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => setIsDeleteConfirmOpen(true)}
+                  disabled={isSubmitting}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Supprimer
+                </Button>
+              )}
               {step > 1 && (
                 <Button variant="ghost" onClick={handlePrevious} disabled={isSubmitting}>
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   Précédent
                 </Button>
               )}
+            </div>
 
-              {step === 1 && (
-                <Button
-                  variant="ghost"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => setIsDeleteConfirmOpen(true)}
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Supprimer
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
+                Annuler
+              </Button>
+
+              {step < TOTAL_STEPS ? (
+                <Button onClick={handleNext} disabled={!canProceed()}>
+                  Suivant
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              ) : (
+                <Button onClick={handleSubmit} disabled={isSubmitting || !canProceed()} className="relative">
+                  <span className={isSubmitting ? "opacity-0" : ""}>Enregistrer</span>
+                  {isSubmitting && (
+                    <Loader2 className="w-4 h-4 animate-spin absolute inset-0 m-auto" />
+                  )}
                 </Button>
               )}
             </div>
-
-            {step < TOTAL_STEPS ? (
-              <Button onClick={handleNext} disabled={!canProceed()}>
-                Suivant
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            ) : (
-              <Button onClick={handleSubmit} disabled={isSubmitting} className="relative">
-                {isSubmitting && (
-                  <span className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  </span>
-                )}
-                <span className={isSubmitting ? "opacity-0" : ""}>Enregistrer</span>
-              </Button>
-            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -498,17 +789,14 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer le groupe</AlertDialogTitle>
+            <AlertDialogTitle>Supprimer le groupe ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer le groupe "{group?.name}" ? Cette action est irréversible.
+              Êtes-vous sûr de vouloir supprimer « {group?.name} » ? Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>

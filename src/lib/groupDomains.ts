@@ -70,7 +70,9 @@ export function getBinaryDomains(): GroupDomainConfig[] {
 export interface DeviceDisplayInfo {
   entityId: string;
   friendlyName: string;
+  floorId: string | null;
   floorName: string | null;
+  areaId: string | null;
   areaName: string | null;
   domain: string;
 }
@@ -364,7 +366,9 @@ export function getDeviceDisplayInfo(
   return {
     entityId: entity.entity_id,
     friendlyName,
+    floorId: floor?.floor_id || null,
     floorName: floor?.name || null,
+    areaId: areaId || null,
     areaName: area?.name || null,
     domain,
   };
