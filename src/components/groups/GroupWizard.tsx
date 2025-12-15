@@ -1,17 +1,28 @@
 import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { ChevronLeft, ChevronRight, Check, Loader2, Users, User, Layers } from "lucide-react";
+import { ChevronLeft, ChevronRight, Package, Loader2, Users, User, Layers, CheckCircle } from "lucide-react";
 import { useHAStore } from "@/store/useHAStore";
 import { useGroupStore } from "@/store/useGroupStore";
-import type { HaGroupDomain } from "@/types/groups";
-import { toast } from "sonner";
+import type { HaGroupDomain, GroupScope } from "@/types/groups";
+import { toast } from "@/hooks/use-toast";
 import { getAvailableDomains, areAllDomainsBinary, getEntitiesForDomains, type DeviceDisplayInfo } from "@/lib/groupDomains";
 
 interface GroupWizardProps {
@@ -19,20 +30,30 @@ interface GroupWizardProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const TOTAL_STEPS = 4;
+
+const STEP_TITLES = [
+  "Type d'appareil",
+  "Nom du groupe",
+  "Sélection des appareils",
+  "Portée",
+];
+
 export function GroupWizard({ open, onOpenChange }: GroupWizardProps) {
   const [step, setStep] = useState(1);
   const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
   const [isMixedMode, setIsMixedMode] = useState(false);
   const [name, setName] = useState("");
   const [selectedEntityIds, setSelectedEntityIds] = useState<string[]>([]);
-  const [isShared, setIsShared] = useState(true);
+  const [scope, setScope] = useState<GroupScope>("shared");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const entities = useHAStore((state) => state.entities);
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const devices = useHAStore((state) => state.devices);
   const areas = useHAStore((state) => state.areas);
   const floors = useHAStore((state) => state.floors);
-  const { createOrUpdateGroup, isSaving, error, clearError } = useGroupStore();
+  const { createOrUpdateGroup } = useGroupStore();
 
   const availableDomains = useMemo(() => getAvailableDomains(entities), [entities]);
   const binaryDomains = useMemo(() => availableDomains.filter((d) => d.isBinary), [availableDomains]);
@@ -48,53 +69,397 @@ export function GroupWizard({ open, onOpenChange }: GroupWizardProps) {
     return null;
   }, [isMixedMode, selectedDomains]);
 
-  const handleClose = () => { setStep(1); setSelectedDomains([]); setIsMixedMode(false); setName(""); setSelectedEntityIds([]); setIsShared(true); clearError(); onOpenChange(false); };
-  const handleNext = () => { if (step < 4) setStep(step + 1); };
-  const handlePrevious = () => { if (step > 1) { setStep(step - 1); clearError(); } };
-  const handleDomainSelect = (domain: string) => { if (isMixedMode) { setSelectedDomains((prev) => prev.includes(domain) ? prev.filter((d) => d !== domain) : [...prev, domain]); } else { setSelectedDomains([domain]); } setSelectedEntityIds([]); };
-  const toggleMixedMode = (enabled: boolean) => { 
-    setIsMixedMode(enabled); 
-    if (enabled) {
-      // Groupes mixtes sont toujours locaux
-      setIsShared(false);
-    }
-    if (!enabled && selectedDomains.length > 1) setSelectedDomains([selectedDomains[0]]); 
-    setSelectedEntityIds([]); 
-  };
-  const toggleEntity = (entityId: string) => { setSelectedEntityIds((prev) => prev.includes(entityId) ? prev.filter((id) => id !== entityId) : [...prev, entityId]); };
-
-  const handleCreate = async () => {
-    if (selectedDomains.length === 0) return;
-    const mode = isMixedMode && selectedDomains.length > 1 ? "mixedBinary" : "singleDomain";
-    try {
-      await createOrUpdateGroup({ name, domain: selectedDomains[0] as HaGroupDomain, domains: selectedDomains, mode, entityIds: selectedEntityIds, scope: isShared ? "shared" : "local" });
-      toast.success("Groupe créé avec succès");
-      handleClose();
-    } catch { toast.error("Erreur lors de la création du groupe"); }
-  };
-
-  const canGoNext = () => { if (step === 1) return selectedDomains.length > 0 && !mixedModeError; if (step === 2) return name.trim().length >= 3; if (step === 3) return selectedEntityIds.length > 0; return false; };
-  // Déterminer si le groupe peut être partagé (seulement les groupes single domain)
-  const canBeShared = !isMixedMode || selectedDomains.length <= 1;
   const isMixedGroup = isMixedMode && selectedDomains.length > 1;
+
+  const handleClose = () => {
+    setStep(1);
+    setSelectedDomains([]);
+    setIsMixedMode(false);
+    setName("");
+    setSelectedEntityIds([]);
+    setScope("shared");
+    onOpenChange(false);
+  };
+
+  const handleNext = () => {
+    if (step < TOTAL_STEPS) {
+      setStep(step + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    }
+  };
+
+  const handleDomainSelect = (domain: string) => {
+    if (isMixedMode) {
+      setSelectedDomains((prev) => prev.includes(domain) ? prev.filter((d) => d !== domain) : [...prev, domain]);
+    } else {
+      setSelectedDomains([domain]);
+    }
+    setSelectedEntityIds([]);
+  };
+
+  const toggleMixedMode = (enabled: boolean) => {
+    setIsMixedMode(enabled);
+    if (enabled) {
+      setScope("local");
+    }
+    if (!enabled && selectedDomains.length > 1) {
+      setSelectedDomains([selectedDomains[0]]);
+    }
+    setSelectedEntityIds([]);
+  };
+
+  const toggleEntity = (entityId: string) => {
+    setSelectedEntityIds((prev) =>
+      prev.includes(entityId) ? prev.filter((id) => id !== entityId) : [...prev, entityId]
+    );
+  };
+
+  const canProceed = () => {
+    switch (step) {
+      case 1:
+        return selectedDomains.length > 0 && !mixedModeError;
+      case 2:
+        return name.trim().length >= 3;
+      case 3:
+        return selectedEntityIds.length > 0;
+      case 4:
+        return true;
+      default:
+        return false;
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (selectedDomains.length === 0) return;
+    setIsSubmitting(true);
+
+    const mode = isMixedMode && selectedDomains.length > 1 ? "mixedBinary" : "singleDomain";
+
+    try {
+      await createOrUpdateGroup({
+        name,
+        domain: selectedDomains[0] as HaGroupDomain,
+        domains: selectedDomains,
+        mode,
+        entityIds: selectedEntityIds,
+        scope,
+      });
+
+      toast({
+        title: "Groupe créé",
+        description: `Le groupe "${name}" a été créé avec succès.`,
+      });
+
+      handleClose();
+    } catch (error) {
+      console.error("[GroupWizard] Error:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer le groupe. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const selectedDomainConfigs = availableDomains.filter((d) => selectedDomains.includes(d.value));
   const FirstIcon = selectedDomainConfigs[0]?.icon;
 
+  const renderStep = () => {
+    switch (step) {
+      case 1:
+        return (
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <Layers className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Groupe mixte (binaires)</p>
+                    <p className="text-sm text-muted-foreground">Combiner éclairages, interrupteurs, vannes...</p>
+                  </div>
+                </div>
+                <Switch checked={isMixedMode} onCheckedChange={toggleMixedMode} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>{isMixedMode ? "Types d'appareils (multi-sélection)" : "Type d'appareil"}</Label>
+                
+                {isMixedMode ? (
+                  <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                    {binaryDomains.map((opt) => (
+                      <label
+                        key={opt.value}
+                        className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-accent/50 transition-colors cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={selectedDomains.includes(opt.value)}
+                          onCheckedChange={() => handleDomainSelect(opt.value)}
+                        />
+                        <opt.icon className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-medium">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <Select value={selectedDomains[0] || ""} onValueChange={(v) => setSelectedDomains([v])}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionnez un type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableDomains.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          <div className="flex items-center gap-2">
+                            <opt.icon className="h-4 w-4" />
+                            {opt.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {mixedModeError && <p className="text-sm text-destructive">{mixedModeError}</p>}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-lg bg-muted/50">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold">Pourquoi choisir un type ?</span> Un groupe contrôle plusieurs appareils 
+                ensemble. Sélectionnez le type d'appareils que vous souhaitez regrouper, ou activez le mode mixte 
+                pour combiner différents types binaires.
+              </p>
+            </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="group-name">Nom du groupe</Label>
+              <Input
+                id="group-name"
+                placeholder="Ex: Éclairage salon, Volets étage..."
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="focus-visible:ring-0 focus-visible:ring-offset-0 text-lg"
+                autoFocus
+              />
+              {name.trim().length > 0 && name.trim().length < 3 && (
+                <p className="text-sm text-destructive">Minimum 3 caractères</p>
+              )}
+            </div>
+
+            <div className="p-4 rounded-lg bg-muted/50">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold">Pourquoi un nom ?</span> Un nom clair comme "Éclairage salon" 
+                vous permet d'identifier rapidement votre groupe dans la liste.
+              </p>
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              Sélectionnés : <strong>{selectedEntityIds.length}</strong> appareil(s)
+            </div>
+
+            <div className="max-h-[350px] overflow-y-auto space-y-2 pr-2">
+              {availableEntities.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Aucun appareil disponible.</p>
+              ) : (
+                availableEntities.map((device) => (
+                  <label
+                    key={device.entityId}
+                    className="flex items-start gap-3 p-3 rounded-lg border border-border/50 hover:bg-accent/50 transition-colors cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={selectedEntityIds.includes(device.entityId)}
+                      onCheckedChange={() => toggleEntity(device.entityId)}
+                      className="mt-0.5"
+                    />
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-medium truncate">{device.friendlyName}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {device.floorName && device.areaName
+                          ? `${device.areaName} • ${device.floorName}`
+                          : device.areaName || device.floorName || "Emplacement inconnu"}
+                      </span>
+                    </div>
+                  </label>
+                ))
+              )}
+            </div>
+
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold">Conseil :</span> Sélectionnez les appareils que vous souhaitez 
+                contrôler ensemble dans ce groupe.
+              </p>
+            </div>
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="space-y-6">
+            {isMixedGroup ? (
+              <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="h-5 w-5 text-muted-foreground" />
+                  <span className="font-medium">Local uniquement</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Les groupes mixtes sont toujours locaux car Home Assistant ne supporte pas 
+                  les groupes multi-domaines.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Label>Portée du groupe</Label>
+
+                <RadioGroup
+                  value={scope}
+                  onValueChange={(value: GroupScope) => setScope(value)}
+                  className="grid grid-cols-1 gap-3"
+                >
+                  <label
+                    htmlFor="group-scope-local"
+                    className="flex items-start gap-3 p-4 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
+                  >
+                    <RadioGroupItem value="local" id="group-scope-local" className="mt-0.5" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 font-medium">
+                        <User className="w-5 h-5" />
+                        Local uniquement
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Visible seulement dans cette application Neolia.
+                      </p>
+                    </div>
+                  </label>
+
+                  <label
+                    htmlFor="group-scope-shared"
+                    className="flex items-start gap-3 p-4 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
+                  >
+                    <RadioGroupItem value="shared" id="group-scope-shared" className="mt-0.5" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 font-medium">
+                        <Users className="w-5 h-5" />
+                        Partagé
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Créé dans Home Assistant, accessible à tous les utilisateurs.
+                      </p>
+                    </div>
+                  </label>
+                </RadioGroup>
+              </div>
+            )}
+
+            {/* Summary */}
+            <div className="p-4 rounded-lg border border-border/50 bg-muted/30 space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="h-5 w-5 text-primary" />
+                <span className="font-medium">Résumé</span>
+              </div>
+
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Nom</span>
+                  <span className="font-medium">{name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Type</span>
+                  <div className="flex items-center gap-2">
+                    {selectedDomainConfigs.length > 1 ? (
+                      <>
+                        <Layers className="h-4 w-4" />
+                        <span className="font-medium">Groupe mixte</span>
+                      </>
+                    ) : (
+                      <>
+                        {FirstIcon && <FirstIcon className="h-4 w-4" />}
+                        <span className="font-medium">{selectedDomainConfigs[0]?.label}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Appareils</span>
+                  <span className="font-medium">{selectedEntityIds.length}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-lg bg-muted/50">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold">Quelle différence ?</span> Les groupes locaux sont privés et 
+                stockés sur cet appareil. Les groupes partagés sont visibles par tous via Home Assistant.
+              </p>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col glass-card border-border/50">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="text-xl">Créer un groupe d'appareils<span className="block text-sm text-muted-foreground font-normal mt-1">Étape {step} sur 4</span></DialogTitle>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Package className="w-5 h-5 text-primary" />
+            Créer un groupe
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            Étape {step}/{TOTAL_STEPS} – {STEP_TITLES[step - 1]}
+          </p>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto pr-1 space-y-6 py-4">
-          {step === 1 && (<div className="space-y-4"><p className="text-sm text-muted-foreground">Un groupe contrôle plusieurs appareils ensemble.</p><div className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-background/20"><div className="flex items-center gap-2"><Layers className="h-4 w-4 text-muted-foreground" /><div><p className="text-sm font-medium">Groupe mixte (binaires)</p><p className="text-xs text-muted-foreground">Combiner éclairages, interrupteurs, vannes...</p></div></div><Switch checked={isMixedMode} onCheckedChange={toggleMixedMode} /></div><div className="space-y-2"><Label>{isMixedMode ? "Types d'appareils (multi-sélection)" : "Type d'appareil"}</Label>{isMixedMode ? (<div className="space-y-2">{binaryDomains.map((opt) => (<div key={opt.value} className="flex items-center gap-3 p-3 rounded-md bg-background/30 border border-border/50 hover:bg-accent/30 transition-colors"><Checkbox id={`domain-${opt.value}`} checked={selectedDomains.includes(opt.value)} onCheckedChange={() => handleDomainSelect(opt.value)} /><label htmlFor={`domain-${opt.value}`} className="flex items-center gap-2 flex-1 cursor-pointer"><opt.icon className="h-4 w-4" />{opt.label}</label></div>))}</div>) : (<Select value={selectedDomains[0] || ""} onValueChange={(v) => setSelectedDomains([v])}><SelectTrigger><SelectValue placeholder="Sélectionnez un type" /></SelectTrigger><SelectContent>{availableDomains.map((opt) => (<SelectItem key={opt.value} value={opt.value}><div className="flex items-center gap-2"><opt.icon className="h-4 w-4" />{opt.label}</div></SelectItem>))}</SelectContent></Select>)}{mixedModeError && <p className="text-xs text-destructive">{mixedModeError}</p>}</div></div>)}
-          {step === 2 && (<div className="space-y-4"><p className="text-sm text-muted-foreground">Donnez un nom clair, par exemple <strong>"Éclairage salon"</strong>.</p><div className="space-y-2"><Label htmlFor="groupName">Nom du groupe</Label><Input id="groupName" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Éclairage salon" className="bg-background/50 focus-visible:ring-0 focus-visible:ring-offset-0" />{name.trim().length > 0 && name.trim().length < 3 && <p className="text-xs text-destructive">Minimum 3 caractères</p>}</div></div>)}
-          {step === 3 && (<div className="space-y-4"><p className="text-sm text-muted-foreground">Sélectionnez les appareils qui seront contrôlés ensemble.</p><ScrollArea className="h-[280px] rounded-md border border-border/50 p-4 bg-background/30">{availableEntities.length === 0 ? (<p className="text-sm text-muted-foreground text-center py-8">Aucun appareil disponible.</p>) : (<div className="space-y-2">{availableEntities.map((device) => (<label key={device.entityId} className="flex items-start gap-3 p-2 rounded-md hover:bg-accent/50 transition-colors cursor-pointer"><Checkbox checked={selectedEntityIds.includes(device.entityId)} onCheckedChange={() => toggleEntity(device.entityId)} className="mt-0.5" /><div className="flex flex-col min-w-0"><span className="text-sm font-medium truncate">{device.friendlyName}</span><span className="text-xs text-muted-foreground">{device.floorName && device.areaName ? `${device.floorName} • ${device.areaName}` : device.areaName || device.floorName || "Emplacement inconnu"}</span></div></label>))}</div>)}</ScrollArea>{selectedEntityIds.length > 0 && <p className="text-xs text-muted-foreground">{selectedEntityIds.length} appareil{selectedEntityIds.length > 1 ? "s" : ""} sélectionné{selectedEntityIds.length > 1 ? "s" : ""}</p>}</div>)}
-          {step === 4 && (<div className="space-y-4">{isMixedMode && selectedDomains.length > 1 ? (<div className="rounded-md bg-muted/50 border border-border/50 p-3"><p className="text-sm text-muted-foreground"><strong>Note :</strong> Les groupes mixtes sont toujours locaux (non partagés avec Home Assistant).</p></div>) : (<div className="space-y-2"><Label className="text-base">Mettre ce groupe à disposition des autres utilisateurs ?</Label><div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-background/20"><div className="flex items-center gap-3">{isShared ? <Users className="h-5 w-5 text-primary" /> : <User className="h-5 w-5 text-muted-foreground" />}<div><p className="font-medium text-sm">{isShared ? "Groupe partagé" : "Groupe local"}</p><p className="text-xs text-muted-foreground">{isShared ? "Visible sur tous les appareils" : "Uniquement sur cet appareil"}</p></div></div><Switch checked={isShared} onCheckedChange={setIsShared} /></div></div>)}<div className="rounded-lg border border-border/50 bg-background/30 p-4 space-y-3"><div><p className="text-xs text-muted-foreground uppercase tracking-wide">Nom</p><p className="font-semibold">{name}</p></div><div><p className="text-xs text-muted-foreground uppercase tracking-wide">Type</p><div className="flex items-center gap-2 flex-wrap">{selectedDomainConfigs.length > 1 ? (<><Layers className="h-4 w-4" /><span className="font-medium">Groupe mixte</span><span className="text-sm text-muted-foreground">({selectedDomainConfigs.map((d) => d.label).join(", ")})</span></>) : (<>{FirstIcon && <FirstIcon className="h-4 w-4" />}<span className="font-medium">{selectedDomainConfigs[0]?.label}</span></>)}</div></div><div><p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Appareils ({selectedEntityIds.length})</p><ul className="space-y-1 text-sm max-h-[120px] overflow-y-auto">{selectedEntityIds.map((id) => { const device = availableEntities.find((d) => d.entityId === id); return <li key={id} className="text-muted-foreground">• {device?.friendlyName || id}</li>; })}</ul></div></div>{error && <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3"><p className="text-sm text-destructive">{error}</p></div>}</div>)}
+
+        <div className="px-1 py-2">
+          <Progress value={(step / TOTAL_STEPS) * 100} className="h-1.5" />
         </div>
-        <div className="flex-shrink-0 flex items-center justify-between gap-3 pt-4 border-t border-border/50">
-          <Button variant="outline" onClick={handlePrevious} disabled={step === 1 || isSaving} className="gap-2"><ChevronLeft className="h-4 w-4" />Précédent</Button>
-          {step < 4 ? (<Button onClick={handleNext} disabled={!canGoNext()} className="gap-2">Suivant<ChevronRight className="h-4 w-4" /></Button>) : (<Button onClick={handleCreate} disabled={isSaving} className="gap-2">{isSaving ? (<><Loader2 className="h-4 w-4 animate-spin" />Création...</>) : (<><Check className="h-4 w-4" />Créer le groupe</>)}</Button>)}
+
+        <div className="flex-1 overflow-y-auto px-1 py-2 bg-background">{renderStep()}</div>
+
+        <div className="flex items-center justify-between pt-4 border-t">
+          <div className="flex gap-2">
+            {step > 1 && (
+              <Button variant="ghost" onClick={handlePrevious} disabled={isSubmitting}>
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Précédent
+              </Button>
+            )}
+          </div>
+
+          {step < TOTAL_STEPS ? (
+            <Button onClick={handleNext} disabled={!canProceed()}>
+              Suivant
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          ) : (
+            <Button onClick={handleSubmit} disabled={isSubmitting} className="relative">
+              {isSubmitting && (
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                </span>
+              )}
+              <span className={isSubmitting ? "opacity-0" : ""}>Créer le groupe</span>
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
