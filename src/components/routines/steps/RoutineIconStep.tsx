@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { RoutineWizardDraft, ROUTINE_ICON_CATEGORIES, ROUTINE_ICON_FRENCH_LABELS } from "@/types/routines";
+import { Label } from "@/components/ui/label";
+import { RoutineWizardDraft, ROUTINE_ICON_FRENCH_LABELS } from "@/types/routines";
 import * as LucideIcons from "lucide-react";
-import { Loader2, Wand2 } from "lucide-react";
+import { Pencil, Sparkles, Loader2 } from "lucide-react";
 import { RoutineIconPickerDialog } from "../RoutineIconPickerDialog";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -18,7 +19,7 @@ export function RoutineIconStep({ draft, onUpdate }: RoutineIconStepProps) {
 
   // AI icon suggestion based on routine name
   useEffect(() => {
-    if (!draft.name.trim()) {
+    if (!draft.name.trim() || draft.name.trim().length < 3) {
       setSuggestedIcon(null);
       return;
     }
@@ -46,76 +47,84 @@ export function RoutineIconStep({ draft, onUpdate }: RoutineIconStepProps) {
     return () => clearTimeout(timer);
   }, [draft.name]);
 
-  const handleAcceptSuggestion = () => {
+  const handleAcceptSuggestion = useCallback(() => {
     if (suggestedIcon) {
       onUpdate({ icon: suggestedIcon });
+      setSuggestedIcon(null);
     }
-  };
+  }, [suggestedIcon, onUpdate]);
 
-  const handleManualIconSelect = (icon: string) => {
-    onUpdate({ icon });
-    setIconDialogOpen(false);
-  };
+  const handleManualIconSelect = useCallback(
+    (icon: string) => {
+      onUpdate({ icon });
+      setSuggestedIcon(null);
+    },
+    [onUpdate]
+  );
 
   const renderSelectedIcon = () => {
-    const IconComponent = (LucideIcons as any)[draft.icon] || LucideIcons.Clock;
-    return <IconComponent className="h-12 w-12" />;
+    const IconComponent = (LucideIcons as any)[draft.icon];
+    if (!IconComponent) {
+      const FallbackIcon = (LucideIcons as any).Clock;
+      return <FallbackIcon className="w-12 h-12" />;
+    }
+    return <IconComponent className="w-12 h-12" />;
   };
 
   const renderSuggestedIcon = () => {
     if (!suggestedIcon) return null;
     const IconComponent = (LucideIcons as any)[suggestedIcon];
     if (!IconComponent) return null;
-    return <IconComponent className="h-6 w-6" />;
+    return <IconComponent className="w-8 h-8" />;
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-24 h-24 rounded-xl bg-primary/20 text-primary flex items-center justify-center">
-          {renderSelectedIcon()}
-        </div>
+      <div className="space-y-4">
+        <Label>Icône de la routine</Label>
 
-        <Button variant="outline" onClick={() => setIconDialogOpen(true)}>
-          Choisir une icône
-        </Button>
-      </div>
-
-      {/* AI Suggestion */}
-      <div className="p-4 rounded-lg bg-muted/50 space-y-3">
-        <div className="flex items-center gap-2">
-          <Wand2 className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Suggestion automatique</span>
-        </div>
-
-        {isSuggesting ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Analyse du nom...
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-24 h-24 rounded-2xl bg-primary/10 text-primary flex items-center justify-center border-2 border-primary/20">
+            {renderSelectedIcon()}
           </div>
-        ) : suggestedIcon && suggestedIcon !== draft.icon ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+
+          <Button type="button" variant="outline" onClick={() => setIconDialogOpen(true)} className="gap-2">
+            <Pencil className="w-4 h-4" />
+            Choisir une icône
+          </Button>
+        </div>
+
+        {/* AI Suggestion */}
+        {isSuggesting && (
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Suggestion IA en cours...
+          </div>
+        )}
+
+        {suggestedIcon && !isSuggesting && (
+          <div className="flex items-center justify-center">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAcceptSuggestion}
+              className="gap-2 text-primary hover:text-primary border-primary/30"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Utiliser la suggestion :</span>
+              <span className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 {renderSuggestedIcon()}
-              </div>
-              <span className="text-sm">{suggestedIcon}</span>
-            </div>
-            <Button size="sm" variant="secondary" onClick={handleAcceptSuggestion}>
-              Utiliser
+              </span>
             </Button>
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {draft.name.trim() ? "Aucune suggestion disponible" : "Entrez un nom pour obtenir une suggestion"}
-          </p>
         )}
       </div>
 
       <div className="p-4 rounded-lg bg-muted/50">
         <p className="text-sm text-muted-foreground">
-          <span className="font-semibold">Pourquoi une icône ?</span> L'icône vous aide à identifier 
-          rapidement votre routine dans la liste. Choisissez quelque chose de visuel et mémorable.
+          <span className="font-semibold">Pourquoi une icône ?</span> L'icône permet d'identifier visuellement 
+          votre routine d'un coup d'œil. L'IA peut vous suggérer une icône adaptée au nom de votre routine.
         </p>
       </div>
 

@@ -3,12 +3,41 @@ import { RoutineWizardDraft, DAYS_OF_WEEK, MONTHS } from "@/types/routines";
 import { useHAStore } from "@/store/useHAStore";
 import { useSceneStore } from "@/store/useSceneStore";
 import { useGroupStore } from "@/store/useGroupStore";
-import { Clock, Lightbulb, Sparkles, Package, Users, Calendar } from "lucide-react";
+import { 
+  Clock, Lightbulb, Power, Blinds, Fan, Disc3, Thermometer, Lock, 
+  Sparkles, Package, Users, Calendar, CheckCircle, LucideIcon 
+} from "lucide-react";
 import * as LucideIcons from "lucide-react";
 
 interface RoutineSummaryStepProps {
   draft: RoutineWizardDraft;
 }
+
+const getDomainIcon = (domain: string): LucideIcon => {
+  switch (domain) {
+    case "light": return Lightbulb;
+    case "switch": return Power;
+    case "cover": return Blinds;
+    case "fan": return Fan;
+    case "media_player": return Disc3;
+    case "climate": return Thermometer;
+    case "lock": return Lock;
+    default: return Power;
+  }
+};
+
+const getDomainLabel = (domain: string): string => {
+  switch (domain) {
+    case "light": return "Éclairages";
+    case "switch": return "Interrupteurs";
+    case "cover": return "Volets";
+    case "fan": return "Ventilateurs";
+    case "media_player": return "Médias";
+    case "climate": return "Climatisation";
+    case "lock": return "Serrures";
+    default: return "Appareils";
+  }
+};
 
 export function RoutineSummaryStep({ draft }: RoutineSummaryStepProps) {
   const entities = useHAStore((s) => s.entities);
@@ -77,22 +106,43 @@ export function RoutineSummaryStep({ draft }: RoutineSummaryStepProps) {
   const sceneItems = draft.selectedItems.filter((i) => i.type === "scene");
   const groupItems = draft.selectedItems.filter((i) => i.type === "group");
 
+  // Group devices by domain
+  const devicesByDomain = useMemo(() => {
+    const byDomain: Record<string, typeof deviceItems> = {};
+    for (const item of deviceItems) {
+      const domain = item.id.split(".")[0];
+      if (!byDomain[domain]) byDomain[domain] = [];
+      byDomain[domain].push(item);
+    }
+    return byDomain;
+  }, [deviceItems]);
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-xl bg-primary/20 text-primary flex items-center justify-center">
-          <IconComponent className="h-8 w-8" />
-        </div>
-        <div>
-          <h3 className="text-lg font-semibold">{draft.name}</h3>
-          {draft.description && (
-            <p className="text-sm text-muted-foreground">{draft.description}</p>
-          )}
-          <div className="flex items-center gap-2 mt-1">
-            <Users className="h-3.5 w-3.5 text-primary" />
-            <span className="text-xs text-muted-foreground">Automation Home Assistant</span>
+      <div className="p-3 rounded-lg bg-muted/50">
+        <p className="text-sm text-muted-foreground">
+          Vérifiez les paramètres de votre routine avant de la sauvegarder. 
+          Une fois créée, la routine sera automatiquement planifiée dans Home Assistant.
+        </p>
+      </div>
+
+      {/* Routine info card */}
+      <div className="p-4 rounded-lg border bg-card space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+            <IconComponent className="w-6 h-6 text-primary" />
           </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-lg">{draft.name || "Sans nom"}</h3>
+            {draft.description && (
+              <p className="text-sm text-muted-foreground">{draft.description}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 text-sm">
+          <Users className="w-4 h-4 text-muted-foreground" />
+          <span>Automation Home Assistant</span>
         </div>
       </div>
 
@@ -106,87 +156,117 @@ export function RoutineSummaryStep({ draft }: RoutineSummaryStepProps) {
       </div>
 
       {/* Actions summary */}
-      <div className="space-y-4">
-        <h4 className="font-medium">Actions ({draft.selectedItems.length})</h4>
+      <div className="space-y-3">
+        <h4 className="font-medium flex items-center gap-2">
+          <CheckCircle className="w-4 h-4 text-green-500" />
+          {draft.selectedItems.length} action{draft.selectedItems.length > 1 ? "s" : ""} configurée{draft.selectedItems.length > 1 ? "s" : ""}
+        </h4>
 
-        {/* Devices */}
-        {deviceItems.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Lightbulb className="h-4 w-4" />
-              <span>Appareils ({deviceItems.length})</span>
-            </div>
-            <div className="pl-6 space-y-1">
-              {deviceItems.map((item) => {
-                const entity = entities.find((e) => e.entity_id === item.id);
-                const name = entity?.attributes.friendly_name || item.id;
-                const location = getEntityLocation(item.id);
-                const stateLabel = item.targetState?.state === "off" ? "Éteindre" : "Allumer";
-                return (
-                  <div key={item.id} className="flex items-center justify-between text-sm">
-                    <div className="min-w-0">
-                      <span>{name}</span>
-                      {location && (
-                        <span className="text-xs text-muted-foreground ml-2">({location})</span>
-                      )}
+        <div className="space-y-4 max-h-[200px] overflow-y-auto pr-2">
+          {/* Devices grouped by domain */}
+          {Object.entries(devicesByDomain).map(([domain, items]) => {
+            const DomainIcon = getDomainIcon(domain);
+            return (
+              <div key={domain} className="space-y-1">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <DomainIcon className="w-3 h-3" />
+                  <span>{getDomainLabel(domain)} ({items.length})</span>
+                </div>
+                <div className="space-y-0.5 ml-1">
+                  {items.map((item) => {
+                    const entity = entities.find((e) => e.entity_id === item.id);
+                    const name = entity?.attributes.friendly_name || item.id;
+                    const location = getEntityLocation(item.id);
+                    const stateLabel = item.targetState?.state === "off" ? "Éteindre" : "Allumer";
+                    const EntityIcon = getDomainIcon(domain);
+                    
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between py-1 px-2 rounded bg-muted/30 text-sm"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <EntityIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <span className="truncate block">{name}</span>
+                            {location && (
+                              <span className="text-xs text-muted-foreground">{location}</span>
+                            )}
+                          </div>
+                        </div>
+                        <span className="text-muted-foreground shrink-0 ml-2 text-xs">
+                          {stateLabel}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Scenes */}
+          {sceneItems.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Sparkles className="w-3 h-3" />
+                <span>Scènes ({sceneItems.length})</span>
+              </div>
+              <div className="space-y-0.5 ml-1">
+                {sceneItems.map((item) => {
+                  const scene = allScenes.find((s) => s.id === item.id);
+                  const SceneIcon = scene?.icon ? (LucideIcons as any)[scene.icon] || Sparkles : Sparkles;
+                  
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center py-1 px-2 rounded bg-muted/30 text-sm"
+                    >
+                      <SceneIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0 mr-2" />
+                      <span>{scene?.name || item.id}</span>
                     </div>
-                    <span className="text-muted-foreground flex-shrink-0">{stateLabel}</span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Scenes */}
-        {sceneItems.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Sparkles className="h-4 w-4" />
-              <span>Scènes ({sceneItems.length})</span>
+          {/* Groups */}
+          {groupItems.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Package className="w-3 h-3" />
+                <span>Groupes ({groupItems.length})</span>
+              </div>
+              <div className="space-y-0.5 ml-1">
+                {groupItems.map((item) => {
+                  const group = groups.find((g) => g.id === item.id);
+                  const stateLabel = item.groupState === "off" ? "Éteindre" : "Allumer";
+                  
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between py-1 px-2 rounded bg-muted/30 text-sm"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Package className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate">{group?.name || item.id}</span>
+                      </div>
+                      <span className="text-muted-foreground shrink-0 ml-2 text-xs">
+                        {stateLabel}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="pl-6 space-y-1">
-              {sceneItems.map((item) => {
-                const scene = allScenes.find((s) => s.id === item.id);
-                return (
-                  <div key={item.id} className="text-sm">
-                    {scene?.name || item.id}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Groups */}
-        {groupItems.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Package className="h-4 w-4" />
-              <span>Groupes ({groupItems.length})</span>
-            </div>
-            <div className="pl-6 space-y-1">
-              {groupItems.map((item) => {
-                const group = groups.find((g) => g.id === item.id);
-                const stateLabel = item.groupState === "off" ? "Éteindre" : "Allumer";
-                return (
-                  <div key={item.id} className="flex items-center justify-between text-sm">
-                    <span>{group?.name || item.id}</span>
-                    <span className="text-muted-foreground">{stateLabel}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      <div className="p-4 rounded-lg bg-muted/50">
-        <p className="text-sm text-muted-foreground">
-          <span className="font-semibold">Note :</span> Tous les paramètres pourront être modifiés 
-          ultérieurement en éditant la routine.
-        </p>
-      </div>
+      <p className="text-xs text-muted-foreground text-center">
+        Tout pourra être modifié plus tard depuis les paramètres de la routine.
+      </p>
     </div>
   );
 }

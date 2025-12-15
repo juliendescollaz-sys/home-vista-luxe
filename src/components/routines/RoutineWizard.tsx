@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useRoutineStore } from "@/store/useRoutineStore";
-import { RoutineWizardDraft, NeoliaRoutine, RoutineAction } from "@/types/routines";
+import { RoutineWizardDraft, NeoliaRoutine } from "@/types/routines";
 import { RoutineNameStep } from "./steps/RoutineNameStep";
 import { RoutineIconStep } from "./steps/RoutineIconStep";
 import { RoutineActionSelectionStep } from "./steps/RoutineActionSelectionStep";
@@ -65,7 +65,6 @@ function routineToDraft(routine: NeoliaRoutine): RoutineWizardDraft {
 
 export function RoutineWizard({ open, onOpenChange, routine }: RoutineWizardProps) {
   const isEditMode = !!routine;
-  const isSharedRoutine = routine?.scope === "shared" || (routine?.id?.startsWith("automation.") ?? false);
 
   const [step, setStep] = useState(1);
   const [draft, setDraft] = useState<RoutineWizardDraft>(INITIAL_DRAFT);
@@ -80,7 +79,7 @@ export function RoutineWizard({ open, onOpenChange, routine }: RoutineWizardProp
   const hasOnlyScenes = draft.selectedItems.length > 0 && 
     draft.selectedItems.every(item => item.type === "scene");
   
-  // 6 steps total (no scope step), minus 1 if only scenes (skip state config)
+  // 6 steps total, minus 1 if only scenes (skip state config)
   const TOTAL_STEPS = hasOnlyScenes ? 5 : 6;
 
   useEffect(() => {
@@ -105,19 +104,11 @@ export function RoutineWizard({ open, onOpenChange, routine }: RoutineWizardProp
   };
 
   // Get the actual step number considering skipped steps
-  // Without scope step: 1=Name, 2=Icon, 3=Actions, 4=StateConfig (skip if only scenes), 5=Schedule, 6=Summary
   const getActualStep = (visualStep: number): number => {
     if (hasOnlyScenes && visualStep >= 4) {
       return visualStep + 1; // Skip step 4 (state config)
     }
     return visualStep;
-  };
-
-  const getVisualStep = (actualStep: number): number => {
-    if (hasOnlyScenes && actualStep >= 5) {
-      return actualStep - 1;
-    }
-    return actualStep;
   };
 
   const canProceed = () => {
@@ -128,13 +119,10 @@ export function RoutineWizard({ open, onOpenChange, routine }: RoutineWizardProp
       case 2:
         return draft.icon.length > 0;
       case 3:
-        // Actions selection
         return draft.selectedItems.length > 0;
       case 4:
-        // Configuration des états : ne pas bloquer l'utilisateur, les états sont optionnels
         return true;
       case 5:
-        // Schedule
         return draft.schedule.time.length > 0 && validateSchedule();
       default:
         return true;
@@ -318,17 +306,15 @@ export function RoutineWizard({ open, onOpenChange, routine }: RoutineWizardProp
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {isEditMode ? "Modification..." : "Création..."}
-                  </>
-                ) : isEditMode ? (
-                  "Enregistrer"
-                ) : (
-                  "Créer la routine"
+              <Button onClick={handleSubmit} disabled={isSubmitting} className="relative">
+                {isSubmitting && (
+                  <span className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  </span>
                 )}
+                <span className={isSubmitting ? "opacity-0" : ""}>
+                  {isEditMode ? "Enregistrer" : "Créer la routine"}
+                </span>
               </Button>
             )}
           </div>
@@ -338,10 +324,9 @@ export function RoutineWizard({ open, onOpenChange, routine }: RoutineWizardProp
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer cette routine ?</AlertDialogTitle>
+            <AlertDialogTitle>Supprimer la routine</AlertDialogTitle>
             <AlertDialogDescription>
-              La routine "{routine?.name}" sera définitivement supprimée.
-              Cette action est irréversible.
+              Êtes-vous sûr de vouloir supprimer la routine "{routine?.name}" ? Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
