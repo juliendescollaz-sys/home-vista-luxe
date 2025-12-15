@@ -899,15 +899,17 @@ export const useRoutineStore = create<RoutineStore>()(
     }),
     {
       name: "neolia-routines",
-      version: 3,
+      version: 4,
       partialize: (state) => ({
-        // Persist ONLY favorites locally. Everything else should be HA source-of-truth.
+        // Persist routines and favorites locally to avoid flash of empty state on reload
+        sharedRoutines: state.sharedRoutines,
         sharedRoutineFavorites: state.sharedRoutineFavorites,
       }),
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<RoutineStore>;
         return {
           ...currentState,
+          sharedRoutines: persisted.sharedRoutines ?? currentState.sharedRoutines,
           sharedRoutineFavorites: persisted.sharedRoutineFavorites ?? currentState.sharedRoutineFavorites,
         };
       },
