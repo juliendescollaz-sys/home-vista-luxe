@@ -109,7 +109,7 @@ export function SmartTriggerStep({ draft, onUpdate }: SmartTriggerStepProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-y-auto max-h-[60vh] pr-1">
       {/* Info box */}
       <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
         <div className="flex items-start gap-3">
