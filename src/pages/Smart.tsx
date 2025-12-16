@@ -1,19 +1,55 @@
+import { useState } from "react";
 import { TopBar } from "@/components/TopBar";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
+import { useSmartStore } from "@/store/useSmartStore";
+import { SmartEmptyState } from "@/components/smart/SmartEmptyState";
+import { SmartTile } from "@/components/smart/SmartTile";
+import { SmartWizard } from "@/components/smart/SmartWizard";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 const Smart = () => {
   const { displayMode } = useDisplayMode();
+  const { automations } = useSmartStore();
+  const [showWizard, setShowWizard] = useState(false);
+
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[26px]";
   const rootClassName = displayMode === "mobile" 
     ? `min-h-screen bg-background pb-24 ${ptClass}`
-    : "w-full h-full flex items-center justify-center";
-  
+    : "w-full h-full overflow-y-auto";
+
+  const hasAutomations = automations.length > 0;
+
   return (
     <div className={rootClassName}>
       <TopBar title="Smarthome" />
-      <div className="max-w-screen-xl mx-auto px-6 py-6 text-center">
-        <p className="text-muted-foreground">Fonctionnalités intelligentes à venir...</p>
+      
+      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6">
+        {hasAutomations ? (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold">Mes automatisations</h2>
+              <Button onClick={() => setShowWizard(true)} size="sm">
+                <Plus className="w-4 h-4 mr-2" />
+                Nouvelle
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {automations.map((automation) => (
+                <SmartTile key={automation.id} automationId={automation.id} />
+              ))}
+            </div>
+          </>
+        ) : (
+          <SmartEmptyState onCreateAutomation={() => setShowWizard(true)} />
+        )}
       </div>
+
+      <SmartWizard 
+        open={showWizard} 
+        onOpenChange={setShowWizard}
+      />
     </div>
   );
 };
