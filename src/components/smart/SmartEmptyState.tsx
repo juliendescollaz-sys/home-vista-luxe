@@ -9,7 +9,7 @@ interface SmartEmptyStateProps {
 export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
   return (
     <div className="flex items-center justify-center min-h-[60vh] p-4">
-      <Card className="max-w-2xl w-full">
+      <Card className="max-w-lg w-full">
         <CardContent className="pt-8 pb-6 px-6 text-center space-y-6">
           <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
             <Wand2 className="w-8 h-8 text-primary" />
