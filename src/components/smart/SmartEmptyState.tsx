@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Bot, Sunrise, Thermometer, Users, Lightbulb, Shield } from "lucide-react";
+import { Wand2, Sunrise, Thermometer, Users, Lightbulb, Shield } from "lucide-react";
 
 interface SmartEmptyStateProps {
   onCreateAutomation: () => void;
@@ -12,7 +12,7 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
       <Card className="max-w-2xl w-full">
         <CardContent className="pt-8 pb-6 px-6 text-center space-y-6">
           <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-            <Bot className="w-8 h-8 text-primary" />
+            <Wand2 className="w-8 h-8 text-primary" />
           </div>
 
           <div className="space-y-2">
@@ -95,7 +95,7 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
           </div>
 
           <Button size="lg" onClick={onCreateAutomation} className="w-full sm:w-auto">
-            <Bot className="w-4 h-4 mr-2" />
+            <Wand2 className="w-4 h-4 mr-2" />
             Créer votre première automatisation
           </Button>
         </CardContent>
