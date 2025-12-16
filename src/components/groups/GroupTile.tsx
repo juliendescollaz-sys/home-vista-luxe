@@ -24,6 +24,7 @@ import {
   Layers,
   Loader2,
 } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import type { NeoliaGroup, HaGroupDomain } from "@/types/groups";
 import { getGroupScope, getGroupDomains, getGroupMode } from "@/types/groups";
 import { useHAStore } from "@/store/useHAStore";
@@ -82,7 +83,10 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
   const domains = getGroupDomains(group);
   const mode = getGroupMode(group);
   const isMixedGroup = mode === "mixedBinary" || domains.length > 1;
-  const Icon = isMixedGroup ? Layers : DOMAIN_ICONS[group.domain];
+
+  const CustomIcon = group.icon ? (LucideIcons as any)[group.icon] : null;
+  const Icon = CustomIcon ?? (isMixedGroup ? Layers : DOMAIN_ICONS[group.domain]);
+
   const scope = getGroupScope(group);
   
   // Calcul fiable de l'état actif selon le type de groupe
