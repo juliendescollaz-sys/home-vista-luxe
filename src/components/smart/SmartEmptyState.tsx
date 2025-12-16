@@ -94,9 +94,9 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
             </p>
           </div>
 
-          <Button size="lg" onClick={onCreateAutomation} className="w-full sm:w-auto">
-            <Wand2 className="w-4 h-4 mr-2" />
-            Créer votre première automatisation
+          <Button size="lg" onClick={onCreateAutomation} className="w-full sm:w-auto px-6 h-auto py-3 whitespace-normal text-center">
+            <Wand2 className="w-4 h-4 mr-2 shrink-0" />
+            <span>Créer votre première automatisation</span>
           </Button>
         </CardContent>
       </Card>
