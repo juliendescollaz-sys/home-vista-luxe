@@ -82,19 +82,17 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
           </div>
 
           <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-            <div className="flex items-start gap-3">
-              <Shield className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">Comment ça fonctionne ?</p>
-                <p className="text-xs text-muted-foreground mt-1 text-justify">
-                  Chaque automatisation suit le principe <strong>SI... ALORS...</strong> (IFTTT) :
-                  définissez un <strong>déclencheur</strong> (quand ça commence), 
-                  des <strong>conditions</strong> optionnelles (seulement si...), 
-                  et les <strong>actions</strong> à exécuter. Vous pouvez combiner plusieurs 
-                  conditions avec ET ou OU pour des scénarios complexes.
-                </p>
-              </div>
+            <div className="flex items-center gap-3 mb-2">
+              <Shield className="w-5 h-5 text-primary shrink-0" />
+              <p className="text-sm font-medium">Comment ça fonctionne ?</p>
             </div>
+            <p className="text-xs text-muted-foreground text-justify">
+              Chaque automatisation suit le principe <strong>SI... ALORS...</strong> (IFTTT) :
+              définissez un <strong>déclencheur</strong> (quand ça commence), 
+              des <strong>conditions</strong> optionnelles (seulement si...), 
+              et les <strong>actions</strong> à exécuter. Vous pouvez combiner plusieurs 
+              conditions avec ET ou OU pour des scénarios complexes.
+            </p>
           </div>
 
           <Button size="lg" onClick={onCreateAutomation} className="w-full sm:w-auto">
