@@ -32,48 +32,48 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
               <div className="flex gap-3 p-3 rounded-lg bg-muted/50">
-                <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                   <Sunrise className="w-4 h-4 text-primary" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium leading-tight">Éclairage extérieur</p>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                <div>
+                  <p className="text-sm font-medium">Éclairage extérieur</p>
+                  <p className="text-xs text-muted-foreground">
                     À la tombée de la nuit, les lumières du jardin s'allument automatiquement
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-3 p-3 rounded-lg bg-muted/50">
-                <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                   <Thermometer className="w-4 h-4 text-primary" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium leading-tight">Confort climatique</p>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                <div>
+                  <p className="text-sm font-medium">Confort climatique</p>
+                  <p className="text-xs text-muted-foreground">
                     Si la température dépasse 26°C, la climatisation s'active
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-3 p-3 rounded-lg bg-muted/50">
-                <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                   <Users className="w-4 h-4 text-primary" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium leading-tight">Gestion de présence</p>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                <div>
+                  <p className="text-sm font-medium">Gestion de présence</p>
+                  <p className="text-xs text-muted-foreground">
                     Quand tout le monde quitte la maison, tout s'éteint et l'alarme s'active
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-3 p-3 rounded-lg bg-muted/50">
-                <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                   <Lightbulb className="w-4 h-4 text-primary" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium leading-tight">Éclairage intelligent</p>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                <div>
+                  <p className="text-sm font-medium">Éclairage intelligent</p>
+                  <p className="text-xs text-muted-foreground">
                     Les lumières s'adaptent à la luminosité ambiante et à votre présence
                   </p>
                 </div>
