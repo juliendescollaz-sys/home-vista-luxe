@@ -22,9 +22,14 @@ interface GroupStore {
   groups: NeoliaGroup[];
   groupFavorites: string[];
   groupOrder: Record<string, string[]>;
+  /**
+   * Mapping local (persisté) des icônes de groupes.
+   * Utile notamment pour les groupes "shared" car Home Assistant ne stocke pas l'icône.
+   */
+  groupIcons: Record<string, string>;
   isSaving: boolean;
   error: string | null;
-  
+
   // Runtime state (non persisté)
   runtime: Record<string, GroupRuntimeState>;
 
@@ -60,6 +65,7 @@ export const useGroupStore = create<GroupStore>()(
       groups: [],
       groupFavorites: [],
       groupOrder: {},
+      groupIcons: {},
       isSaving: false,
       error: null,
       runtime: {},
@@ -100,9 +106,18 @@ export const useGroupStore = create<GroupStore>()(
         try {
           const { fetchSharedGroupsFromHA } = await import("@/services/haGroups");
           const sharedFromHA = await fetchSharedGroupsFromHA();
-          const current = get().groups;
-          const privateGroups = current.filter((g) => getGroupScope(g) === "local");
-          set({ groups: [...privateGroups, ...sharedFromHA] });
+
+          const { groups: currentGroups, groupIcons } = get();
+          const privateGroups = currentGroups.filter((g) => getGroupScope(g) === "local");
+
+          // Home Assistant ne stocke pas d'icône pour les groupes => on réapplique nos métadonnées locales.
+          const mergedShared = sharedFromHA.map((g) => {
+            const previous = currentGroups.find((cg) => cg.id === g.id);
+            const icon = groupIcons[g.id] ?? previous?.icon ?? g.icon;
+            return { ...g, icon };
+          });
+
+          set({ groups: [...privateGroups, ...mergedShared] });
         } catch (error: any) {
           console.error("Erreur sync groupes partagés:", error);
         }
@@ -191,7 +206,11 @@ export const useGroupStore = create<GroupStore>()(
                 ? state.groups.map((g) => g.id === existingId ? newGroup : g)
                 : [...state.groups, newGroup];
               console.log("[GroupStore] Updated groups (shared):", updatedGroups);
-              return { groups: updatedGroups, isSaving: false };
+
+              const nextIcons = { ...state.groupIcons };
+              if (icon) nextIcons[newGroup.id] = icon;
+
+              return { groups: updatedGroups, groupIcons: nextIcons, isSaving: false };
             });
             return;
           }
@@ -218,10 +237,15 @@ export const useGroupStore = create<GroupStore>()(
               haEntityId: undefined,
             };
             
-            set((state) => ({
-              groups: state.groups.map((g) => g.id === existingId ? newGroup : g),
-              isSaving: false,
-            }));
+            set((state) => {
+              const nextIcons = { ...state.groupIcons };
+              if (icon) nextIcons[newGroup.id] = icon;
+              return {
+                groups: state.groups.map((g) => g.id === existingId ? newGroup : g),
+                groupIcons: nextIcons,
+                isSaving: false,
+              };
+            });
             return;
           }
           
@@ -240,12 +264,16 @@ export const useGroupStore = create<GroupStore>()(
           };
           console.log("[GroupStore] Creating/updating local group:", newGroup);
 
-          set((state) => {
-            const updatedGroups = existingId
-              ? state.groups.map((g) => g.id === existingId ? newGroup : g)
-              : [...state.groups, newGroup];
-            return { groups: updatedGroups, isSaving: false };
-          });
+           set((state) => {
+             const updatedGroups = existingId
+               ? state.groups.map((g) => g.id === existingId ? newGroup : g)
+               : [...state.groups, newGroup];
+
+             const nextIcons = { ...state.groupIcons };
+             if (icon) nextIcons[newGroup.id] = icon;
+
+             return { groups: updatedGroups, groupIcons: nextIcons, isSaving: false };
+           });
         } catch (error: any) {
           const errorMessage = error.message || "Erreur lors de la création du groupe";
           console.error("[GroupStore] Error:", errorMessage, error);
@@ -269,10 +297,14 @@ export const useGroupStore = create<GroupStore>()(
             await deleteHaGroup(groupId);
           }
           // Dans tous les cas, retirer du store
-          set((state) => ({
-            groups: state.groups.filter((g) => g.id !== groupId),
-            isSaving: false,
-          }));
+          set((state) => {
+            const { [groupId]: _removed, ...restIcons } = state.groupIcons;
+            return {
+              groups: state.groups.filter((g) => g.id !== groupId),
+              groupIcons: restIcons,
+              isSaving: false,
+            };
+          });
         } catch (error: any) {
           set({ error: error.message || "Erreur lors de la suppression", isSaving: false });
           throw error;
@@ -457,6 +489,7 @@ export const useGroupStore = create<GroupStore>()(
         groups: state.groups,
         groupFavorites: state.groupFavorites,
         groupOrder: state.groupOrder,
+        groupIcons: state.groupIcons,
       }),
     }
   )
