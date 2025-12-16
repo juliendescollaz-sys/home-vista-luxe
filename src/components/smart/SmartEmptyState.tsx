@@ -79,19 +79,15 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
             </div>
           </div>
 
-          {/* Correction ciblée uniquement ici */}
-          <div className="p-3 sm:p-4 rounded-lg bg-muted/30 border border-border/50 text-left w-full">
+          {/* Correction ciblée ici uniquement */}
+          <div className="p-3 rounded-lg bg-muted/30 border border-border/50 w-full text-left">
             <div className="flex items-center gap-3 mb-1.5">
               <Shield className="w-5 h-5 text-primary shrink-0" />
               <p className="text-sm font-medium">Comment ça fonctionne ?</p>
             </div>
 
-            {/* IMPORTANT: lang="fr" pour activer la césure + meilleure répartition */}
-            <p
-              lang="fr"
-              className="w-full text-xs text-muted-foreground leading-tight hyphens-auto break-words text-pretty"
-              style={{ hyphens: "auto" }}
-            >
+            {/* Pas de justify / pas de pretty / pas de césure : on remplit la largeur utile */}
+            <p className="w-full max-w-none text-left text-xs text-muted-foreground leading-snug whitespace-normal break-normal">
               Chaque automatisation suit le principe <strong>SI... ALORS...</strong> (IFTTT) : définissez un{" "}
               <strong>déclencheur</strong> (quand ça commence), des <strong>conditions</strong> optionnelles (seulement
               si...), et les <strong>actions</strong> à exécuter. Vous pouvez combiner plusieurs conditions avec ET ou
