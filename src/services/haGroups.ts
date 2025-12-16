@@ -5,6 +5,116 @@
 import { useHAStore } from "@/store/useHAStore";
 import type { HaGroupDomain, NeoliaGroup } from "@/types/groups";
 
+/** =========================
+ *  ICON MAPPING (MDI <-> Lucide)
+ *  ========================= */
+
+const MDI_TO_LUCIDE: Record<string, string> = {
+  // Appareils
+  "lightbulb": "Lightbulb", "lightbulb-outline": "Lightbulb", "lightbulb-group": "Lightbulb",
+  "lamp": "Lamp", "floor-lamp": "Lamp", "desk-lamp": "Lamp",
+  "ceiling-light": "Lightbulb", "track-light": "Lightbulb", "led-strip": "Lightbulb",
+  "television": "Tv", "tv": "Tv", "monitor": "Monitor",
+  "speaker": "Speaker", "speaker-wireless": "Speaker", "cast-audio": "Speaker",
+  "fan": "Fan", "fan-off": "Fan",
+  "air-conditioner": "AirVent", "hvac": "AirVent",
+  "thermometer": "Thermometer", "temperature-celsius": "Thermometer",
+  "power-plug": "Plug", "power-socket": "Plug", "power": "Power",
+  "blinds": "Blinds", "blinds-horizontal": "Blinds", "blinds-vertical": "Blinds",
+  "window-shutter": "Blinds", "roller-shade": "Blinds",
+  "garage": "Warehouse", "garage-open": "Warehouse",
+  "door": "DoorOpen", "door-open": "DoorOpen", "door-closed": "DoorClosed",
+  "lock": "Lock", "lock-open": "Unlock",
+  
+  // Maison
+  "home": "Home", "home-outline": "Home", "home-automation": "Home",
+  "sofa": "Sofa", "bed": "Bed", "shower": "ShowerHead", "bathtub": "Bath",
+  "fridge": "Refrigerator", "washing-machine": "WashingMachine", "dishwasher": "UtensilsCrossed",
+  "stove": "CookingPot", "microwave": "Microwave", "coffee": "Coffee",
+  "pool": "Waves", "hot-tub": "Waves",
+  
+  // Actions/États
+  "play": "Play", "pause": "Pause", "stop": "Square",
+  "volume-high": "Volume2", "volume-medium": "Volume1", "volume-low": "Volume",
+  "bell": "Bell", "bell-ring": "BellRing",
+  "timer": "Timer", "clock": "Clock", "alarm": "Alarm",
+  "calendar": "Calendar", "calendar-clock": "CalendarClock",
+  "sun": "Sun", "weather-sunny": "Sun", "moon": "Moon", "weather-night": "Moon",
+  "sunrise": "Sunrise", "sunset": "Sunset",
+  
+  // Général
+  "star": "Star", "heart": "Heart", "bookmark": "Bookmark",
+  "cog": "Settings", "settings": "Settings", "wrench": "Wrench",
+  "information": "Info", "alert": "AlertTriangle", "check": "Check",
+  "layers": "Layers", "group": "Layers", "folder": "Folder",
+  "package": "Package", "box": "Box",
+  "zap": "Zap", "flash": "Zap", "lightning-bolt": "Zap",
+  "fire": "Flame", "flame": "Flame",
+  "water": "Droplet", "water-outline": "Droplet",
+  "leaf": "Leaf", "tree": "TreeDeciduous", "flower": "Flower2",
+  "car": "Car", "bike": "Bike", "walk": "PersonStanding",
+  "wifi": "Wifi", "bluetooth": "Bluetooth", "cast": "Cast",
+  "camera": "Camera", "video": "Video", "music": "Music",
+  "palette": "Palette", "brush": "Paintbrush",
+  "sparkles": "Sparkles", "auto-fix": "Sparkles",
+  "party-popper": "PartyPopper", "confetti": "PartyPopper",
+  "crown": "Crown", "gem": "Gem", "diamond": "Gem",
+};
+
+const LUCIDE_TO_MDI: Record<string, string> = {
+  // Appareils
+  "Lightbulb": "mdi:lightbulb", "Lamp": "mdi:lamp", "LampDesk": "mdi:desk-lamp",
+  "Tv": "mdi:television", "Monitor": "mdi:monitor", "Speaker": "mdi:speaker",
+  "Fan": "mdi:fan", "AirVent": "mdi:air-conditioner", "Thermometer": "mdi:thermometer",
+  "Plug": "mdi:power-plug", "Power": "mdi:power",
+  "Blinds": "mdi:blinds", "Warehouse": "mdi:garage",
+  "DoorOpen": "mdi:door-open", "DoorClosed": "mdi:door-closed",
+  "Lock": "mdi:lock", "Unlock": "mdi:lock-open",
+  
+  // Maison
+  "Home": "mdi:home", "Sofa": "mdi:sofa", "Bed": "mdi:bed",
+  "ShowerHead": "mdi:shower", "Bath": "mdi:bathtub",
+  "Refrigerator": "mdi:fridge", "WashingMachine": "mdi:washing-machine",
+  "CookingPot": "mdi:stove", "Coffee": "mdi:coffee",
+  "Waves": "mdi:pool",
+  
+  // Actions/États
+  "Play": "mdi:play", "Pause": "mdi:pause", "Square": "mdi:stop",
+  "Volume2": "mdi:volume-high", "Volume1": "mdi:volume-medium", "Volume": "mdi:volume-low",
+  "Bell": "mdi:bell", "BellRing": "mdi:bell-ring",
+  "Timer": "mdi:timer", "Clock": "mdi:clock", "Alarm": "mdi:alarm",
+  "Calendar": "mdi:calendar", "CalendarClock": "mdi:calendar-clock",
+  "Sun": "mdi:sun", "Moon": "mdi:moon", "Sunrise": "mdi:sunrise", "Sunset": "mdi:sunset",
+  
+  // Général
+  "Star": "mdi:star", "Heart": "mdi:heart", "Bookmark": "mdi:bookmark",
+  "Settings": "mdi:cog", "Wrench": "mdi:wrench",
+  "Info": "mdi:information", "AlertTriangle": "mdi:alert", "Check": "mdi:check",
+  "Layers": "mdi:layers", "Folder": "mdi:folder",
+  "Package": "mdi:package", "Box": "mdi:box",
+  "Zap": "mdi:flash", "Flame": "mdi:fire",
+  "Droplet": "mdi:water", "Leaf": "mdi:leaf", "TreeDeciduous": "mdi:tree", "Flower2": "mdi:flower",
+  "Car": "mdi:car", "Bike": "mdi:bike", "PersonStanding": "mdi:walk",
+  "Wifi": "mdi:wifi", "Bluetooth": "mdi:bluetooth", "Cast": "mdi:cast",
+  "Camera": "mdi:camera", "Video": "mdi:video", "Music": "mdi:music",
+  "Palette": "mdi:palette", "Paintbrush": "mdi:brush",
+  "Sparkles": "mdi:sparkles", "PartyPopper": "mdi:party-popper",
+  "Crown": "mdi:crown", "Gem": "mdi:gem",
+};
+
+/** Convert MDI icon to Lucide icon name */
+function mdiToLucide(mdiIcon?: string): string | undefined {
+  if (!mdiIcon) return undefined;
+  const iconName = mdiIcon.replace("mdi:", "");
+  return MDI_TO_LUCIDE[iconName];
+}
+
+/** Convert Lucide icon name to MDI format */
+function lucideToMdi(lucideIcon?: string): string | undefined {
+  if (!lucideIcon) return undefined;
+  return LUCIDE_TO_MDI[lucideIcon];
+}
+
 /**
  * Helper pour obtenir le client HA
  */
@@ -54,8 +164,9 @@ export async function createOrUpdateHaGroup(params: {
   name: string;
   domain: HaGroupDomain;
   entityIds: string[];
+  icon?: string; // Lucide icon name
 }): Promise<NeoliaGroup> {
-  const { name, domain, entityIds } = params;
+  const { name, domain, entityIds, icon } = params;
 
   // Validation
   if (!name || name.trim().length < 3) {
@@ -78,13 +189,22 @@ export async function createOrUpdateHaGroup(params: {
   const objectId = `neolia_${slug}`;
   const haEntityId = `group.${objectId}`;
 
+  // Build service data with optional icon
+  const serviceData: Record<string, any> = {
+    object_id: objectId,
+    name: name.trim(),
+    entities: entityIds,
+  };
+
+  // Convert Lucide icon to MDI and add to service data
+  const mdiIcon = lucideToMdi(icon);
+  if (mdiIcon) {
+    serviceData.icon = mdiIcon;
+  }
+
   // Appel à l'API Home Assistant via WebSocket
   try {
-    await callHAService("group", "set", {
-      object_id: objectId,
-      name: name.trim(),
-      entities: entityIds,
-    });
+    await callHAService("group", "set", serviceData);
   } catch (error: any) {
     console.error("Erreur lors de la création du groupe:", error);
     throw new Error(
@@ -100,6 +220,7 @@ export async function createOrUpdateHaGroup(params: {
     entityIds,
     haEntityId,
     scope: "shared",
+    icon, // Store Lucide icon name
   };
 
   return group;
@@ -244,6 +365,9 @@ export async function fetchSharedGroupsFromHA(): Promise<NeoliaGroup[]> {
           ? (first.split(".")[0] as HaGroupDomain) 
           : "light";
         
+        // Convert MDI icon to Lucide
+        const lucideIcon = mdiToLucide(attrs.icon);
+        
         return {
           id: entityId.replace("group.", ""),
           name: attrs.friendly_name || entityId,
@@ -251,6 +375,7 @@ export async function fetchSharedGroupsFromHA(): Promise<NeoliaGroup[]> {
           entityIds: members,
           haEntityId: entityId,
           scope: "shared",
+          icon: lucideIcon, // Lucide icon from HA
         } as NeoliaGroup;
       });
   } catch (error: any) {
