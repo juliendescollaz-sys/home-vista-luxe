@@ -3,18 +3,19 @@ import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useGroupStore } from "@/store/useGroupStore";
 import { GroupWizard } from "@/components/groups/GroupWizard";
 import { GroupTile } from "@/components/groups/GroupTile";
+import { GroupEmptyState } from "@/components/groups/GroupEmptyState";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Plus, X, AlertTriangle } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { getGridClasses } from "@/lib/gridLayout";
+
 const Groupes = () => {
-  const {
-    displayMode
-  } = useDisplayMode();
+  const { displayMode } = useDisplayMode();
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[24px]";
   const [wizardOpen, setWizardOpen] = useState(false);
+  
   // Sélecteurs stables pour éviter les re-renders avec hooks inconsistants
   const groups = useGroupStore((state) => state.groups);
   const syncSharedGroupsFromHA = useGroupStore((state) => state.syncSharedGroupsFromHA);
@@ -32,8 +33,24 @@ const Groupes = () => {
   useEffect(() => {
     syncSharedGroupsFromHA().catch(console.error);
   }, [syncSharedGroupsFromHA]);
-  const rootClassName = displayMode === "mobile" ? `min-h-screen bg-background pb-24 ${ptClass}` : "min-h-screen bg-background";
-  return <div className={rootClassName}>
+
+  const rootClassName = displayMode === "mobile" 
+    ? `min-h-screen bg-background pb-24 ${ptClass}` 
+    : "min-h-screen bg-background";
+
+  // Si aucun groupe, afficher l'empty state
+  if (groups.length === 0) {
+    return (
+      <div className={rootClassName}>
+        <TopBar title="Groupes" />
+        <GroupEmptyState onCreateGroup={() => setWizardOpen(true)} />
+        <GroupWizard open={wizardOpen} onOpenChange={setWizardOpen} />
+      </div>
+    );
+  }
+
+  return (
+    <div className={rootClassName}>
       <TopBar title="Groupes" />
       
       <div className="max-w-screen-xl mx-auto px-4 pt-[24px] pb-4">
@@ -66,15 +83,14 @@ const Groupes = () => {
           </Button>
         </div>
 
-        {groups.length === 0 ? <div className="text-center py-12">
-            
-            
-          </div> : <div className={getGridClasses("cards", displayMode)}>
-            {groups.map(group => <GroupTile key={group.id} group={group} />)}
-          </div>}
+        <div className={getGridClasses("cards", displayMode)}>
+          {groups.map(group => <GroupTile key={group.id} group={group} />)}
+        </div>
       </div>
 
       <GroupWizard open={wizardOpen} onOpenChange={setWizardOpen} />
-    </div>;
+    </div>
+  );
 };
+
 export default Groupes;
