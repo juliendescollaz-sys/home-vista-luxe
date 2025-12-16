@@ -167,27 +167,27 @@ export interface SmartWizardDraft {
 export const SMART_ICON_CATEGORIES = {
   declencheurs: {
     label: "Déclencheurs",
-    icons: ["Sunrise", "Sunset", "Sun", "Moon", "Clock", "Timer", "Calendar", "Zap", "Activity", "Waypoints", "Radio", "Waves"]
+    icons: ["Sunrise", "Sunset", "Sun", "Moon", "Clock", "Timer", "Calendar", "Zap", "Activity", "Waypoints", "Radio", "Waves", "AlarmClock", "CalendarClock", "Hourglass", "PlayCircle"]
   },
   presence: {
     label: "Présence",
-    icons: ["Home", "LogIn", "LogOut", "User", "Users", "UserCheck", "MapPin", "Navigation", "Locate", "Target", "Scan", "Eye"]
+    icons: ["Home", "LogIn", "LogOut", "User", "Users", "UserCheck", "MapPin", "Navigation", "Locate", "Target", "Scan", "Eye", "Footprints", "PersonStanding", "UserX", "DoorClosed"]
   },
   capteurs: {
     label: "Capteurs",
-    icons: ["Thermometer", "Droplets", "Wind", "CloudRain", "Gauge", "Activity", "BarChart3", "TrendingUp", "TrendingDown", "Ruler"]
+    icons: ["Thermometer", "Droplets", "Wind", "CloudRain", "Gauge", "Activity", "BarChart3", "TrendingUp", "TrendingDown", "Ruler", "Cloudy", "ThermometerSun", "ThermometerSnowflake", "Waves", "Vibrate", "Signal"]
   },
   appareils: {
     label: "Appareils",
-    icons: ["Lightbulb", "Lamp", "Fan", "Heater", "Snowflake", "Tv", "Speaker", "Lock", "DoorOpen", "Camera", "Blinds", "Power"]
+    icons: ["Lightbulb", "Lamp", "Fan", "Heater", "Snowflake", "Tv", "Speaker", "Lock", "DoorOpen", "Camera", "Blinds", "Power", "Plug", "PlugZap", "MonitorSpeaker", "AirVent"]
   },
   securite: {
     label: "Sécurité",
-    icons: ["Shield", "ShieldCheck", "ShieldAlert", "AlertTriangle", "Bell", "BellRing", "Siren", "Lock", "Unlock", "Eye", "EyeOff", "Key"]
+    icons: ["Shield", "ShieldCheck", "ShieldAlert", "AlertTriangle", "Bell", "BellRing", "Siren", "Lock", "Unlock", "Eye", "EyeOff", "Key", "ShieldOff", "AlertOctagon", "BellOff", "KeyRound"]
   },
   autre: {
     label: "Autre",
-    icons: ["Sparkles", "Bot", "Cpu", "Settings", "Cog", "Workflow", "GitBranch", "Share2", "Layers", "Box", "Package", "Star"]
+    icons: ["Sparkles", "Bot", "Cpu", "Settings", "Cog", "Workflow", "GitBranch", "Share2", "Layers", "Box", "Package", "Star", "Wand2", "CircuitBoard", "Binary", "Puzzle"]
   }
 } as const;
 
@@ -195,6 +195,7 @@ export const ALL_SMART_ICONS = Object.values(SMART_ICON_CATEGORIES).flatMap(cat 
 
 // French labels for icon search
 export const SMART_ICON_FRENCH_LABELS: Record<string, string[]> = {
+  // Déclencheurs
   Sunrise: ["lever de soleil", "aube", "matin"],
   Sunset: ["coucher de soleil", "crépuscule", "soir"],
   Sun: ["soleil", "jour", "luminosité"],
@@ -207,6 +208,11 @@ export const SMART_ICON_FRENCH_LABELS: Record<string, string[]> = {
   Waypoints: ["trajet", "parcours", "chemin"],
   Radio: ["radio", "signal", "fréquence"],
   Waves: ["ondes", "signal", "vibration"],
+  AlarmClock: ["réveil", "alarme", "heure"],
+  CalendarClock: ["calendrier heure", "planification", "rendez-vous"],
+  Hourglass: ["sablier", "attente", "temps"],
+  PlayCircle: ["lecture", "démarrer", "play"],
+  // Présence
   Home: ["maison", "domicile", "arrivée"],
   LogIn: ["entrée", "arrivée", "connexion"],
   LogOut: ["sortie", "départ", "quitter"],
@@ -219,6 +225,11 @@ export const SMART_ICON_FRENCH_LABELS: Record<string, string[]> = {
   Target: ["cible", "objectif", "zone"],
   Scan: ["scanner", "détecter", "analyser"],
   Eye: ["œil", "voir", "surveiller"],
+  Footprints: ["pas", "marche", "mouvement"],
+  PersonStanding: ["personne", "debout", "présent"],
+  UserX: ["absent", "parti", "déconnecté"],
+  DoorClosed: ["porte fermée", "fermé", "verrouillé"],
+  // Capteurs
   Thermometer: ["température", "thermomètre", "chaleur"],
   Droplets: ["humidité", "eau", "gouttes"],
   Wind: ["vent", "air", "ventilation"],
@@ -228,6 +239,12 @@ export const SMART_ICON_FRENCH_LABELS: Record<string, string[]> = {
   TrendingUp: ["hausse", "augmentation", "monte"],
   TrendingDown: ["baisse", "diminution", "descend"],
   Ruler: ["règle", "mesure", "dimension"],
+  Cloudy: ["nuageux", "couvert", "météo"],
+  ThermometerSun: ["chaleur", "canicule", "chaud"],
+  ThermometerSnowflake: ["froid", "gel", "glacial"],
+  Vibrate: ["vibration", "mouvement", "secousse"],
+  Signal: ["signal", "réseau", "intensité"],
+  // Appareils
   Lightbulb: ["ampoule", "lumière", "éclairage"],
   Lamp: ["lampe", "éclairage", "luminaire"],
   Fan: ["ventilateur", "ventilation", "air"],
@@ -240,6 +257,11 @@ export const SMART_ICON_FRENCH_LABELS: Record<string, string[]> = {
   Camera: ["caméra", "vidéo", "surveillance"],
   Blinds: ["volets", "stores", "occultation"],
   Power: ["alimentation", "marche", "arrêt"],
+  Plug: ["prise", "branchement", "électrique"],
+  PlugZap: ["prise électrique", "énergie", "courant"],
+  MonitorSpeaker: ["écran son", "multimédia", "home cinema"],
+  AirVent: ["ventilation", "aération", "air"],
+  // Sécurité
   Shield: ["sécurité", "protection", "alarme"],
   ShieldCheck: ["sécurisé", "vérifié", "protégé"],
   ShieldAlert: ["alerte", "danger", "attention"],
@@ -250,6 +272,11 @@ export const SMART_ICON_FRENCH_LABELS: Record<string, string[]> = {
   Unlock: ["déverrouillé", "ouvert", "accès"],
   EyeOff: ["invisible", "caché", "discret"],
   Key: ["clé", "accès", "autorisation"],
+  ShieldOff: ["désactivé", "non protégé", "vulnérable"],
+  AlertOctagon: ["stop", "danger", "arrêt"],
+  BellOff: ["silencieux", "muet", "désactivé"],
+  KeyRound: ["clé ronde", "accès", "badge"],
+  // Autre
   Sparkles: ["magie", "automatique", "intelligent"],
   Bot: ["robot", "automatisation", "ia"],
   Cpu: ["processeur", "intelligence", "calcul"],
@@ -262,6 +289,10 @@ export const SMART_ICON_FRENCH_LABELS: Record<string, string[]> = {
   Box: ["boîte", "conteneur", "module"],
   Package: ["paquet", "ensemble", "groupe"],
   Star: ["favori", "important", "préféré"],
+  Wand2: ["baguette", "magie", "automatique"],
+  CircuitBoard: ["circuit", "électronique", "logique"],
+  Binary: ["binaire", "code", "programmation"],
+  Puzzle: ["puzzle", "intégration", "module"],
 };
 
 // ========================
