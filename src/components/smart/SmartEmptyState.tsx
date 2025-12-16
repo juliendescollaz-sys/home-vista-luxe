@@ -81,13 +81,17 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
             </div>
           </div>
 
-          <div className="p-5 rounded-xl bg-muted/50 border border-border/50">
-            <div className="flex gap-4">
-              <Shield className="w-6 h-6 text-primary shrink-0 mt-1" />
-              <div className="flex-1 space-y-2">
-                <p className="text-base font-semibold">Comment ça fonctionne ?</p>
-                <p className="text-sm text-muted-foreground text-justify leading-relaxed">
-                  Chaque automatisation suit le principe <strong className="text-foreground">SI... ALORS...</strong> (IFTTT) : définissez un <strong className="text-foreground">déclencheur</strong> (quand ça commence), des <strong className="text-foreground">conditions</strong> optionnelles (seulement si...), et les <strong className="text-foreground">actions</strong> à exécuter. Vous pouvez combiner plusieurs conditions avec ET ou OU pour des scénarios complexes.
+          <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
+            <div className="flex items-start gap-3">
+              <Shield className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">Comment ça fonctionne ?</p>
+                <p className="text-xs text-muted-foreground mt-1 text-justify">
+                  Chaque automatisation suit le principe <strong>SI... ALORS...</strong> (IFTTT) :
+                  définissez un <strong>déclencheur</strong> (quand ça commence), 
+                  des <strong>conditions</strong> optionnelles (seulement si...), 
+                  et les <strong>actions</strong> à exécuter. Vous pouvez combiner plusieurs 
+                  conditions avec ET ou OU pour des scénarios complexes.
                 </p>
               </div>
             </div>
