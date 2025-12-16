@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
-import { SmartWizardDraft, SMART_ICON_CATEGORIES, SMART_ICON_FRENCH_LABELS } from "@/types/smart";
-import { Input } from "@/components/ui/input";
+import { useState, useEffect, useCallback } from "react";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
-import { Search } from "lucide-react";
+import { SmartWizardDraft, SMART_ICON_FRENCH_LABELS } from "@/types/smart";
 import * as LucideIcons from "lucide-react";
+import { Pencil, Sparkles, Loader2 } from "lucide-react";
+import { SmartIconPickerDialog } from "../SmartIconPickerDialog";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SmartIconStepProps {
   draft: SmartWizardDraft;
@@ -12,103 +13,127 @@ interface SmartIconStepProps {
 }
 
 export function SmartIconStep({ draft, onUpdate }: SmartIconStepProps) {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [iconDialogOpen, setIconDialogOpen] = useState(false);
+  const [suggestedIcon, setSuggestedIcon] = useState<string | null>(null);
+  const [isSuggesting, setIsSuggesting] = useState(false);
 
-  const filteredCategories = useMemo(() => {
-    if (!searchTerm.trim()) return SMART_ICON_CATEGORIES;
+  // AI icon suggestion based on automation name
+  useEffect(() => {
+    if (!draft.name.trim() || draft.name.trim().length < 3) {
+      setSuggestedIcon(null);
+      return;
+    }
 
-    const term = searchTerm.toLowerCase().trim();
-    const result: Record<string, { label: string; icons: string[] }> = {};
+    const timer = setTimeout(async () => {
+      setIsSuggesting(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("suggest-scene-icon", {
+          body: { 
+            sceneName: draft.name,
+            availableIcons: Object.keys(SMART_ICON_FRENCH_LABELS)
+          },
+        });
 
-    Object.entries(SMART_ICON_CATEGORIES).forEach(([key, category]) => {
-      const filteredIcons = category.icons.filter((iconName) => {
-        // Match icon name
-        if (iconName.toLowerCase().includes(term)) return true;
-        // Match French labels
-        const frenchLabels = SMART_ICON_FRENCH_LABELS[iconName] || [];
-        return frenchLabels.some((label) => label.toLowerCase().includes(term));
-      });
-
-      if (filteredIcons.length > 0) {
-        result[key] = { label: category.label, icons: filteredIcons };
+        if (!error && data?.icon) {
+          setSuggestedIcon(data.icon);
+        }
+      } catch (e) {
+        console.error("[SmartIconStep] AI suggestion error:", e);
+      } finally {
+        setIsSuggesting(false);
       }
-    });
+    }, 500);
 
-    return result;
-  }, [searchTerm]);
+    return () => clearTimeout(timer);
+  }, [draft.name]);
 
-  const handleIconSelect = (iconName: string) => {
-    onUpdate({ icon: iconName });
+  const handleAcceptSuggestion = useCallback(() => {
+    if (suggestedIcon) {
+      onUpdate({ icon: suggestedIcon });
+      setSuggestedIcon(null);
+    }
+  }, [suggestedIcon, onUpdate]);
+
+  const handleManualIconSelect = useCallback(
+    (icon: string) => {
+      onUpdate({ icon });
+      setSuggestedIcon(null);
+    },
+    [onUpdate]
+  );
+
+  const renderSelectedIcon = () => {
+    const IconComponent = (LucideIcons as any)[draft.icon];
+    if (!IconComponent) {
+      const FallbackIcon = (LucideIcons as any).Bot;
+      return <FallbackIcon className="w-12 h-12" />;
+    }
+    return <IconComponent className="w-12 h-12" />;
   };
 
-  const SelectedIcon = (LucideIcons as any)[draft.icon] || LucideIcons.Bot;
+  const renderSuggestedIcon = () => {
+    if (!suggestedIcon) return null;
+    const IconComponent = (LucideIcons as any)[suggestedIcon];
+    if (!IconComponent) return null;
+    return <IconComponent className="w-8 h-8" />;
+  };
 
   return (
     <div className="space-y-6">
-      {/* Preview */}
-      <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border border-border/50">
-        <div className="w-16 h-16 rounded-lg bg-primary/20 flex items-center justify-center">
-          <SelectedIcon className="w-8 h-8 text-primary" />
-        </div>
-        <div>
-          <p className="font-medium">{draft.name || "Nouvelle automatisation"}</p>
-          <p className="text-sm text-muted-foreground">Icône sélectionnée : {draft.icon}</p>
-        </div>
-      </div>
+      <div className="space-y-4">
+        <Label>Icône de l'automatisation</Label>
 
-      {/* Search */}
-      <div className="space-y-2">
-        <Label htmlFor="icon-search">Rechercher une icône</Label>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="icon-search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Ex: soleil, température, présence..."
-            className="pl-10"
-          />
-        </div>
-      </div>
-
-      {/* Icon grid by category */}
-      <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
-        {Object.entries(filteredCategories).map(([key, category]) => (
-          <div key={key} className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">{category.label}</p>
-            <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
-              {category.icons.map((iconName) => {
-                const IconComp = (LucideIcons as any)[iconName];
-                if (!IconComp) return null;
-                
-                const isSelected = draft.icon === iconName;
-                return (
-                  <button
-                    key={iconName}
-                    type="button"
-                    onClick={() => handleIconSelect(iconName)}
-                    className={cn(
-                      "p-3 rounded-lg border transition-all flex items-center justify-center",
-                      isSelected
-                        ? "bg-primary/20 border-primary text-primary"
-                        : "bg-background border-border/50 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                    title={iconName}
-                  >
-                    <IconComp className="w-5 h-5" />
-                  </button>
-                );
-              })}
-            </div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-24 h-24 rounded-2xl bg-primary/10 text-primary flex items-center justify-center border-2 border-primary/20">
+            {renderSelectedIcon()}
           </div>
-        ))}
 
-        {Object.keys(filteredCategories).length === 0 && (
-          <p className="text-center text-muted-foreground py-8">
-            Aucune icône trouvée pour "{searchTerm}"
-          </p>
+          <Button type="button" variant="outline" onClick={() => setIconDialogOpen(true)} className="gap-2">
+            <Pencil className="w-4 h-4" />
+            Choisir une icône
+          </Button>
+        </div>
+
+        {/* AI Suggestion */}
+        {isSuggesting && (
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Suggestion IA en cours...
+          </div>
+        )}
+
+        {suggestedIcon && !isSuggesting && (
+          <div className="flex items-center justify-center">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAcceptSuggestion}
+              className="gap-2 text-primary hover:text-primary border-primary/30"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Utiliser la suggestion :</span>
+              <span className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                {renderSuggestedIcon()}
+              </span>
+            </Button>
+          </div>
         )}
       </div>
+
+      <div className="p-4 rounded-lg bg-muted/50">
+        <p className="text-sm text-muted-foreground">
+          <span className="font-semibold">Pourquoi une icône ?</span> L'icône permet d'identifier visuellement 
+          votre automatisation d'un coup d'œil. L'IA peut vous suggérer une icône adaptée au nom de votre automatisation.
+        </p>
+      </div>
+
+      <SmartIconPickerDialog
+        open={iconDialogOpen}
+        onOpenChange={setIconDialogOpen}
+        selectedIcon={draft.icon}
+        onSelectIcon={handleManualIconSelect}
+      />
     </div>
   );
 }
