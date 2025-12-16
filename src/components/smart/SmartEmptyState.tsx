@@ -15,7 +15,7 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
             <Bot className="w-8 h-8 text-primary" />
           </div>
 
-          <div className="space-y-2 text-center">
+          <div className="space-y-2">
             <h2 className="text-xl font-semibold">Bienvenue dans l&apos;automatisation intelligente</h2>
             <p className="text-muted-foreground text-sm leading-relaxed max-w-md mx-auto">
               C&apos;est ici que la magie opère ! Créez des automatisations qui réagissent intelligemment à votre
@@ -23,10 +23,12 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
             </p>
           </div>
 
+          {/* SECTION EXEMPLES — STRUCTURE CORRIGÉE */}
           <div className="space-y-4">
-            <p className="text-sm font-medium text-foreground text-center">
-              Quelques exemples de ce que vous pouvez faire :
-            </p>
+            {/* Le titre est maintenant dans un conteneur à hauteur contrôlée */}
+            <div className="flex items-center justify-center min-h-[48px]">
+              <p className="text-sm font-medium text-foreground">Quelques exemples de ce que vous pouvez faire :</p>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
               <div className="flex gap-3 p-3 rounded-lg bg-muted/50">
@@ -79,15 +81,12 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
             </div>
           </div>
 
-          {/* Correction ciblée ici uniquement */}
-          <div className="p-3 rounded-lg bg-muted/30 border border-border/50 w-full text-left">
+          <div className="p-3 rounded-lg bg-muted/30 border border-border/50 text-left">
             <div className="flex items-center gap-3 mb-1.5">
               <Shield className="w-5 h-5 text-primary shrink-0" />
               <p className="text-sm font-medium">Comment ça fonctionne ?</p>
             </div>
-
-            {/* Pas de justify / pas de pretty / pas de césure : on remplit la largeur utile */}
-            <p className="w-full max-w-none text-left text-xs text-muted-foreground leading-snug whitespace-normal break-normal">
+            <p className="text-xs text-muted-foreground leading-snug">
               Chaque automatisation suit le principe <strong>SI... ALORS...</strong> (IFTTT) : définissez un{" "}
               <strong>déclencheur</strong> (quand ça commence), des <strong>conditions</strong> optionnelles (seulement
               si...), et les <strong>actions</strong> à exécuter. Vous pouvez combiner plusieurs conditions avec ET ou
