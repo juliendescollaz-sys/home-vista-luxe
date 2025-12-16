@@ -185,6 +185,10 @@ export const SMART_ICON_CATEGORIES = {
     label: "Sécurité",
     icons: ["Shield", "ShieldCheck", "ShieldAlert", "AlertTriangle", "Bell", "BellRing", "Siren", "Lock", "Unlock", "Eye", "EyeOff", "Key", "ShieldOff", "AlertOctagon", "BellOff", "KeyRound"]
   },
+  evenements: {
+    label: "Évènements",
+    icons: ["PartyPopper", "Gift", "Cake", "Heart", "Star", "Sparkles", "TreePine", "Snowflake", "Bell", "Wine", "Glasses", "Music", "Flower2", "Leaf", "Crown", "Gem"]
+  },
   autre: {
     label: "Autre",
     icons: ["Sparkles", "Bot", "Cpu", "Settings", "Cog", "Workflow", "GitBranch", "Share2", "Layers", "Box", "Package", "Star", "Wand2", "CircuitBoard", "Binary", "Puzzle"]
@@ -293,6 +297,19 @@ export const SMART_ICON_FRENCH_LABELS: Record<string, string[]> = {
   CircuitBoard: ["circuit", "électronique", "logique"],
   Binary: ["binaire", "code", "programmation"],
   Puzzle: ["puzzle", "intégration", "module"],
+  // Évènements
+  PartyPopper: ["fête", "party", "célébration", "anniversaire"],
+  Gift: ["cadeau", "présent", "noël", "anniversaire"],
+  Cake: ["gâteau", "anniversaire", "fête", "dessert"],
+  Heart: ["coeur", "amour", "valentin", "romantique"],
+  TreePine: ["sapin", "noël", "hiver", "fête"],
+  Wine: ["vin", "apéro", "célébration", "fête"],
+  Glasses: ["lunettes", "fête", "nouvel an"],
+  Music: ["musique", "fête", "ambiance"],
+  Flower2: ["fleur", "printemps", "pâques", "nature"],
+  Leaf: ["feuille", "automne", "thanksgiving", "nature"],
+  Crown: ["couronne", "roi", "royal", "spécial"],
+  Gem: ["gemme", "bijou", "précieux", "spécial"],
 };
 
 // ========================

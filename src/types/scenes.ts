@@ -58,6 +58,10 @@ export const SCENE_ICON_CATEGORIES = {
     label: "Climat",
     icons: ["Thermometer", "Fan", "Snowflake", "CloudRain", "Wind", "Droplets", "CloudSun", "Cloudy", "Rainbow", "Umbrella", "ThermometerSun", "ThermometerSnowflake", "Waves", "Sun", "CloudFog", "Heater"]
   },
+  evenements: {
+    label: "Évènements",
+    icons: ["PartyPopper", "Gift", "Cake", "Heart", "Star", "Sparkles", "TreePine", "Snowflake", "Bell", "Wine", "Glasses", "Music", "Flower2", "Leaf", "Crown", "Gem"]
+  },
   misc: {
     label: "Divers",
     icons: ["Star", "Bell", "Clock", "Calendar", "MapPin", "Plane", "LogOut", "LogIn", "Shield", "Lightbulb", "Settings", "Power", "Timer", "Wifi", "Lock", "Unlock"]
@@ -102,6 +106,13 @@ export const ICON_FRENCH_LABELS: Record<string, string[]> = {
   Fence: ["clôture", "barrière", "jardin", "extérieur"],
   LayoutGrid: ["grille", "plan", "disposition", "pièces"],
   FlameKindling: ["cheminée", "feu", "foyer", "chauffage"],
+  // Évènements
+  PartyPopper: ["fête", "party", "célébration", "anniversaire"],
+  Gift: ["cadeau", "présent", "noël", "anniversaire"],
+  Cake: ["gâteau", "anniversaire", "fête", "dessert"],
+  TreePine: ["sapin", "noël", "hiver", "fête"],
+  Flower2: ["fleur", "printemps", "pâques", "nature"],
+  Leaf: ["feuille", "automne", "thanksgiving", "nature"],
   // Activités
   Tv: ["télé", "télévision", "film", "regarder"],
   Clapperboard: ["cinéma", "film", "vidéo"],
@@ -112,7 +123,6 @@ export const ICON_FRENCH_LABELS: Record<string, string[]> = {
   Dumbbell: ["sport", "musculation", "exercice", "gym"],
   Coffee: ["café", "pause", "matin"],
   Wine: ["vin", "apéro", "soirée", "détente"],
-  PartyPopper: ["fête", "party", "célébration", "anniversaire"],
   Headphones: ["casque", "écouteurs", "audio", "musique"],
   Camera: ["appareil photo", "photo", "caméra"],
   Mic: ["micro", "microphone", "voix", "podcast"],

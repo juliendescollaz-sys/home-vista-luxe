@@ -65,31 +65,35 @@ export function getGroupMode(group: NeoliaGroup): GroupMode {
 export const GROUP_ICON_CATEGORIES = {
   eclairage: {
     label: "Éclairage",
-    icons: ["Lightbulb", "Lamp", "LampDesk", "LampCeiling", "Sun", "Moon", "Sparkles", "Zap", "Flashlight", "SunDim", "CircleDot", "Flame"]
+    icons: ["Lightbulb", "Lamp", "LampDesk", "LampCeiling", "Sun", "Moon", "Sparkles", "Zap", "Flashlight", "SunDim", "CircleDot", "Flame", "LampFloor", "Sunrise", "Sunset", "Stars"]
   },
   volets: {
     label: "Volets & Stores",
-    icons: ["Blinds", "PanelTop", "PanelBottom", "ArrowUpFromLine", "ArrowDownToLine", "Maximize2", "Minimize2", "Square", "RectangleHorizontal", "RectangleVertical", "LayoutPanelTop", "Rows3"]
+    icons: ["Blinds", "PanelTop", "PanelBottom", "ArrowUpFromLine", "ArrowDownToLine", "Maximize2", "Minimize2", "Square", "RectangleHorizontal", "RectangleVertical", "LayoutPanelTop", "Rows3", "SlidersHorizontal", "GalleryVertical", "Columns3", "PanelLeftClose"]
   },
   climat: {
     label: "Climat",
-    icons: ["Thermometer", "ThermometerSun", "ThermometerSnowflake", "Fan", "Snowflake", "Wind", "Droplets", "CloudRain", "Heater", "Waves", "AirVent", "Gauge"]
+    icons: ["Thermometer", "ThermometerSun", "ThermometerSnowflake", "Fan", "Snowflake", "Wind", "Droplets", "CloudRain", "Heater", "Waves", "AirVent", "Gauge", "Cloudy", "CloudSun", "Umbrella", "CloudFog"]
   },
   securite: {
     label: "Sécurité",
-    icons: ["Lock", "Unlock", "Shield", "ShieldCheck", "ShieldAlert", "Key", "KeyRound", "DoorClosed", "DoorOpen", "Eye", "EyeOff", "Bell"]
+    icons: ["Lock", "Unlock", "Shield", "ShieldCheck", "ShieldAlert", "Key", "KeyRound", "DoorClosed", "DoorOpen", "Eye", "EyeOff", "Bell", "BellRing", "AlertTriangle", "Siren", "ShieldOff"]
   },
   multimedia: {
     label: "Multimédia",
-    icons: ["Tv", "Speaker", "Music", "Radio", "Headphones", "Volume2", "Play", "Pause", "SkipForward", "SkipBack", "Mic", "Camera"]
+    icons: ["Tv", "Speaker", "Music", "Radio", "Headphones", "Volume2", "Play", "Pause", "SkipForward", "SkipBack", "Mic", "Camera", "MonitorSpeaker", "Gamepad2", "Film", "Youtube"]
   },
   maison: {
     label: "Maison",
-    icons: ["Home", "Building", "Warehouse", "Sofa", "Bed", "Bath", "UtensilsCrossed", "Armchair", "Trees", "Fence", "Car", "Plug"]
+    icons: ["Home", "Building", "Warehouse", "Sofa", "Bed", "Bath", "UtensilsCrossed", "Armchair", "Trees", "Fence", "Car", "Plug", "DoorOpen", "Store", "ParkingSquare", "Garage"]
+  },
+  evenements: {
+    label: "Évènements",
+    icons: ["PartyPopper", "Gift", "Cake", "Heart", "Star", "Sparkles", "TreePine", "Snowflake", "Bell", "Wine", "Glasses", "Music", "Flower2", "Leaf", "Crown", "Gem"]
   },
   divers: {
     label: "Divers",
-    icons: ["Package", "Layers", "Grid3X3", "LayoutGrid", "Boxes", "Component", "Puzzle", "Cog", "Settings", "Power", "ToggleLeft", "ToggleRight"]
+    icons: ["Package", "Layers", "Grid3X3", "LayoutGrid", "Boxes", "Component", "Puzzle", "Cog", "Settings", "Power", "ToggleLeft", "ToggleRight", "Workflow", "CircuitBoard", "Binary", "Bot"]
   }
 } as const;
 
@@ -187,5 +191,51 @@ export const GROUP_ICON_FRENCH_LABELS: Record<string, string[]> = {
   Settings: ["paramètres", "réglages", "config"],
   Power: ["alimentation", "marche", "arrêt"],
   ToggleLeft: ["interrupteur", "gauche", "off"],
-  ToggleRight: ["interrupteur", "droite", "on"]
+  ToggleRight: ["interrupteur", "droite", "on"],
+  Workflow: ["flux", "processus", "automatisation"],
+  CircuitBoard: ["circuit", "électronique", "logique"],
+  Binary: ["binaire", "code", "programmation"],
+  Bot: ["robot", "automatisation", "ia"],
+  // Évènements
+  PartyPopper: ["fête", "party", "célébration", "anniversaire"],
+  Gift: ["cadeau", "présent", "noël", "anniversaire"],
+  Cake: ["gâteau", "anniversaire", "fête", "dessert"],
+  Heart: ["coeur", "amour", "valentin", "romantique"],
+  Star: ["étoile", "favori", "important"],
+  TreePine: ["sapin", "noël", "hiver", "fête"],
+  Wine: ["vin", "apéro", "célébration", "fête"],
+  Glasses: ["lunettes", "fête", "nouvel an"],
+  Flower2: ["fleur", "printemps", "pâques", "nature"],
+  Leaf: ["feuille", "automne", "thanksgiving", "nature"],
+  Crown: ["couronne", "roi", "royal", "spécial"],
+  Gem: ["gemme", "bijou", "précieux", "spécial"],
+  // Éclairage supplémentaires
+  LampFloor: ["lampadaire", "lampe", "sol"],
+  Sunrise: ["lever de soleil", "aube", "matin"],
+  Sunset: ["coucher de soleil", "crépuscule", "soir"],
+  Stars: ["étoiles", "nuit", "ciel"],
+  // Volets supplémentaires
+  SlidersHorizontal: ["curseurs", "réglages", "ajustement"],
+  GalleryVertical: ["galerie", "vertical", "images"],
+  Columns3: ["colonnes", "grille", "disposition"],
+  PanelLeftClose: ["panneau", "fermer", "gauche"],
+  // Climat supplémentaires
+  Cloudy: ["nuageux", "couvert", "gris"],
+  CloudSun: ["nuage soleil", "météo", "variable"],
+  Umbrella: ["parapluie", "pluie"],
+  CloudFog: ["brouillard", "brume", "nuage"],
+  // Sécurité supplémentaires
+  BellRing: ["sonnerie", "alerte", "notification"],
+  AlertTriangle: ["avertissement", "attention", "danger"],
+  Siren: ["sirène", "alarme", "urgence"],
+  ShieldOff: ["désactivé", "non protégé", "vulnérable"],
+  // Multimédia supplémentaires
+  MonitorSpeaker: ["écran son", "multimédia", "home cinema"],
+  Gamepad2: ["jeu", "gaming", "manette"],
+  Film: ["film", "vidéo", "cinéma"],
+  Youtube: ["youtube", "vidéo", "streaming"],
+  // Maison supplémentaires
+  Store: ["magasin", "boutique", "commerce"],
+  ParkingSquare: ["parking", "stationnement", "garage"],
+  Garage: ["garage", "voiture", "stationnement"],
 };

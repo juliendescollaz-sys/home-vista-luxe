@@ -71,23 +71,27 @@ export interface RoutineWizardDraft {
 export const ROUTINE_ICON_CATEGORIES = {
   temps: {
     label: "Temps",
-    icons: ["Clock", "Timer", "Calendar", "CalendarDays", "CalendarClock", "Alarm", "Hourglass", "Watch", "Sunrise", "Sunset", "Sun", "Moon"]
+    icons: ["Clock", "Timer", "Calendar", "CalendarDays", "CalendarClock", "Alarm", "Hourglass", "Watch", "Sunrise", "Sunset", "Sun", "Moon", "AlarmClock", "History", "TimerReset", "Clock12"]
   },
   actions: {
     label: "Actions",
-    icons: ["Play", "Power", "Zap", "RefreshCw", "RotateCw", "ArrowRight", "Check", "CheckCircle", "Bell", "BellRing", "Megaphone", "Send"]
+    icons: ["Play", "Power", "Zap", "RefreshCw", "RotateCw", "ArrowRight", "Check", "CheckCircle", "Bell", "BellRing", "Megaphone", "Send", "PlayCircle", "Repeat", "Workflow", "CirclePlay"]
   },
   ambiances: {
     label: "Ambiances",
-    icons: ["Sparkles", "Stars", "Heart", "Flame", "CloudMoon", "Lamp", "Lightbulb", "Palette", "Gem", "Crown", "PartyPopper", "Music"]
+    icons: ["Sparkles", "Stars", "Heart", "Flame", "CloudMoon", "Lamp", "Lightbulb", "Palette", "Gem", "Crown", "PartyPopper", "Music", "Rainbow", "Glasses", "Wine", "Coffee"]
   },
   maison: {
     label: "Maison",
-    icons: ["Home", "DoorOpen", "DoorClosed", "Lock", "Unlock", "Shield", "ShieldCheck", "LogIn", "LogOut", "Car", "Plane", "Bed"]
+    icons: ["Home", "DoorOpen", "DoorClosed", "Lock", "Unlock", "Shield", "ShieldCheck", "LogIn", "LogOut", "Car", "Plane", "Bed", "Sofa", "Bath", "Building", "Warehouse"]
   },
   climat: {
     label: "Climat",
-    icons: ["Thermometer", "ThermometerSun", "ThermometerSnowflake", "Fan", "Snowflake", "Wind", "Droplets", "CloudRain", "Heater", "Waves"]
+    icons: ["Thermometer", "ThermometerSun", "ThermometerSnowflake", "Fan", "Snowflake", "Wind", "Droplets", "CloudRain", "Heater", "Waves", "AirVent", "Cloudy", "CloudSun", "Umbrella", "CloudFog", "Gauge"]
+  },
+  evenements: {
+    label: "Évènements",
+    icons: ["PartyPopper", "Gift", "Cake", "Heart", "Star", "Sparkles", "TreePine", "Snowflake", "Bell", "Wine", "Glasses", "Music", "Flower2", "Leaf", "Crown", "Gem"]
   }
 } as const;
 
@@ -158,6 +162,38 @@ export const ROUTINE_ICON_FRENCH_LABELS: Record<string, string[]> = {
   CloudRain: ["pluie", "nuage", "météo"],
   Heater: ["chauffage", "radiateur", "chaud"],
   Waves: ["vagues", "eau", "piscine"],
+  AirVent: ["ventilation", "aération", "air"],
+  Cloudy: ["nuageux", "couvert", "gris"],
+  CloudSun: ["nuage soleil", "météo", "variable"],
+  Umbrella: ["parapluie", "pluie"],
+  CloudFog: ["brouillard", "brume", "nuage"],
+  Gauge: ["jauge", "mesure", "niveau"],
+  // Évènements
+  Gift: ["cadeau", "présent", "noël", "anniversaire"],
+  Cake: ["gâteau", "anniversaire", "fête", "dessert"],
+  TreePine: ["sapin", "noël", "hiver", "fête"],
+  Flower2: ["fleur", "printemps", "pâques", "nature"],
+  Leaf: ["feuille", "automne", "thanksgiving", "nature"],
+  // Temps supplémentaires
+  AlarmClock: ["réveil", "alarme", "matin"],
+  History: ["historique", "passé", "récent"],
+  TimerReset: ["réinitialiser", "timer", "chrono"],
+  Clock12: ["midi", "minuit", "horloge"],
+  // Actions supplémentaires
+  PlayCircle: ["lecture", "play", "démarrer"],
+  Repeat: ["répéter", "boucle", "cycle"],
+  Workflow: ["flux", "processus", "automatisation"],
+  CirclePlay: ["jouer", "lecture", "démarrer"],
+  // Ambiances supplémentaires
+  Rainbow: ["arc-en-ciel", "couleurs", "fête"],
+  Glasses: ["lunettes", "fête", "nouvel an"],
+  Wine: ["vin", "apéro", "célébration"],
+  Coffee: ["café", "pause", "matin"],
+  // Maison supplémentaires
+  Sofa: ["canapé", "salon", "détente"],
+  Bath: ["bain", "salle de bain", "douche"],
+  Building: ["bâtiment", "immeuble", "bureau"],
+  Warehouse: ["entrepôt", "garage", "stockage"],
 };
 
 export const DAYS_OF_WEEK = [
