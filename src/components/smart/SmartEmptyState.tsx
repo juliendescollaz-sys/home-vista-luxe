@@ -86,7 +86,7 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
               <Shield className="w-5 h-5 text-primary shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm font-medium">Comment ça fonctionne ?</p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1 text-justify">
                   Chaque automatisation suit le principe <strong>SI... ALORS...</strong> (IFTTT) :
                   définissez un <strong>déclencheur</strong> (quand ça commence), 
                   des <strong>conditions</strong> optionnelles (seulement si...), 
