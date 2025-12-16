@@ -511,19 +511,19 @@ function TimeConditionForm({ onAdd, onCancel }: ConditionFormProps) {
 }
 
 function SunConditionForm({ onAdd, onCancel }: ConditionFormProps) {
-  const [after, setAfter] = useState<"sunrise" | "sunset" | "">("");
-  const [before, setBefore] = useState<"sunrise" | "sunset" | "">("");
+  const [after, setAfter] = useState<"sunrise" | "sunset" | "none">("none");
+  const [before, setBefore] = useState<"sunrise" | "sunset" | "none">("none");
 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>Après</Label>
-        <Select value={after} onValueChange={(v) => setAfter(v as any)}>
+        <Select value={after} onValueChange={(v) => setAfter(v as "sunrise" | "sunset" | "none")}>
           <SelectTrigger>
             <SelectValue placeholder="Aucun" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Aucun</SelectItem>
+            <SelectItem value="none">Aucun</SelectItem>
             <SelectItem value="sunrise">Lever du soleil</SelectItem>
             <SelectItem value="sunset">Coucher du soleil</SelectItem>
           </SelectContent>
@@ -531,12 +531,12 @@ function SunConditionForm({ onAdd, onCancel }: ConditionFormProps) {
       </div>
       <div className="space-y-2">
         <Label>Avant</Label>
-        <Select value={before} onValueChange={(v) => setBefore(v as any)}>
+        <Select value={before} onValueChange={(v) => setBefore(v as "sunrise" | "sunset" | "none")}>
           <SelectTrigger>
             <SelectValue placeholder="Aucun" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Aucun</SelectItem>
+            <SelectItem value="none">Aucun</SelectItem>
             <SelectItem value="sunrise">Lever du soleil</SelectItem>
             <SelectItem value="sunset">Coucher du soleil</SelectItem>
           </SelectContent>
@@ -548,11 +548,11 @@ function SunConditionForm({ onAdd, onCancel }: ConditionFormProps) {
           onClick={() =>
             onAdd({
               type: "sun",
-              after: after || undefined,
-              before: before || undefined,
+              after: after !== "none" ? after : undefined,
+              before: before !== "none" ? before : undefined,
             })
           }
-          disabled={!after && !before}
+          disabled={after === "none" && before === "none"}
         >
           Ajouter
         </Button>
