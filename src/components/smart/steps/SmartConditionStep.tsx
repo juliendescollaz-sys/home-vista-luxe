@@ -18,6 +18,47 @@ import { cn } from "@/lib/utils";
 import { Plus, Trash2, Info, GitBranch } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 
+// Traduction des noms de capteurs anglais vers français
+const SENSOR_TRANSLATIONS: Record<string, string> = {
+  "temperature": "Température",
+  "humidity": "Humidité",
+  "pressure": "Pression",
+  "wind speed": "Vitesse du vent",
+  "wind direction": "Direction du vent",
+  "battery": "Batterie",
+  "power": "Puissance",
+  "energy": "Énergie",
+  "voltage": "Tension",
+  "current": "Courant",
+  "illuminance": "Luminosité",
+  "brightness": "Luminosité",
+  "motion": "Mouvement",
+  "occupancy": "Occupation",
+  "door": "Porte",
+  "window": "Fenêtre",
+  "weather": "Météo",
+  "city weather": "Météo ville",
+  "backup": "Sauvegarde",
+  "latitude": "Latitude",
+  "longitude": "Longitude",
+  "next": "Prochain",
+  "last": "Dernier",
+  "scheduled": "Programmé",
+  "automatic": "Automatique",
+  "successful": "Réussi",
+  "attempt": "Tentative",
+};
+
+function translateSensorName(name: string): string {
+  let translated = name;
+  // Remplacer les mots-clés anglais par leur traduction française
+  for (const [en, fr] of Object.entries(SENSOR_TRANSLATIONS)) {
+    const regex = new RegExp(en, "gi");
+    translated = translated.replace(regex, fr);
+  }
+  return translated;
+}
+
 interface SmartConditionStepProps {
   draft: SmartWizardDraft;
   onUpdate: (updates: Partial<SmartWizardDraft>) => void;
@@ -147,7 +188,7 @@ export function SmartConditionStep({ draft, onUpdate }: SmartConditionStepProps)
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-y-auto max-h-[60vh] pr-1">
       {/* Info box */}
       <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
         <div className="flex items-start gap-3">
@@ -189,12 +230,12 @@ export function SmartConditionStep({ draft, onUpdate }: SmartConditionStepProps)
             <div className="flex items-center gap-2">
               <Badge variant="secondary">Groupe {groupIndex + 1}</Badge>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() =>
                   updateGroup(group.id, { operator: group.operator === "and" ? "or" : "and" })
                 }
-                className="h-7 text-xs"
+                className="h-7 text-xs border border-border"
               >
                 <GitBranch className="w-3 h-3 mr-1" />
                 {group.operator === "and" ? "ET" : "OU"}
@@ -536,7 +577,7 @@ function NumericConditionForm({ entities, onAdd, onCancel }: ConditionFormProps 
           <SelectContent>
             {entities.map((e) => (
               <SelectItem key={e.entity_id} value={e.entity_id}>
-                {e.attributes?.friendly_name || e.entity_id}
+                {translateSensorName(e.attributes?.friendly_name || e.entity_id)}
               </SelectItem>
             ))}
           </SelectContent>

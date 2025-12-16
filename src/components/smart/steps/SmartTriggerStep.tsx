@@ -10,6 +10,46 @@ import { cn } from "@/lib/utils";
 import { Plus, Trash2, Clock, Sunrise, Gauge, MapPin, Power, Info } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 
+// Traduction des noms de capteurs anglais vers français
+const SENSOR_TRANSLATIONS: Record<string, string> = {
+  "temperature": "Température",
+  "humidity": "Humidité",
+  "pressure": "Pression",
+  "wind speed": "Vitesse du vent",
+  "wind direction": "Direction du vent",
+  "battery": "Batterie",
+  "power": "Puissance",
+  "energy": "Énergie",
+  "voltage": "Tension",
+  "current": "Courant",
+  "illuminance": "Luminosité",
+  "brightness": "Luminosité",
+  "motion": "Mouvement",
+  "occupancy": "Occupation",
+  "door": "Porte",
+  "window": "Fenêtre",
+  "weather": "Météo",
+  "city weather": "Météo ville",
+  "backup": "Sauvegarde",
+  "latitude": "Latitude",
+  "longitude": "Longitude",
+  "next": "Prochain",
+  "last": "Dernier",
+  "scheduled": "Programmé",
+  "automatic": "Automatique",
+  "successful": "Réussi",
+  "attempt": "Tentative",
+};
+
+function translateSensorName(name: string): string {
+  let translated = name;
+  for (const [en, fr] of Object.entries(SENSOR_TRANSLATIONS)) {
+    const regex = new RegExp(en, "gi");
+    translated = translated.replace(regex, fr);
+  }
+  return translated;
+}
+
 interface SmartTriggerStepProps {
   draft: SmartWizardDraft;
   onUpdate: (updates: Partial<SmartWizardDraft>) => void;
@@ -377,7 +417,7 @@ function NumericTriggerForm({ entities, onAdd, onCancel }: TriggerFormProps<any>
           <SelectContent>
             {entities.map((e) => (
               <SelectItem key={e.entity_id} value={e.entity_id}>
-                {e.attributes?.friendly_name || e.entity_id}
+                {translateSensorName(e.attributes?.friendly_name || e.entity_id)}
                 {e.attributes?.unit_of_measurement && ` (${e.attributes.unit_of_measurement})`}
               </SelectItem>
             ))}
