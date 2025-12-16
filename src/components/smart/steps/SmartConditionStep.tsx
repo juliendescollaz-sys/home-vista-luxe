@@ -571,22 +571,9 @@ function StateConditionForm({ entities, onAdd, onCancel }: ConditionFormProps & 
             </div>
           )}
 
-          {/* Entités sans pièce */}
-          {groupedEntities.noArea.length > 0 && (
-            <div className="space-y-1">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Sans pièce assignée
-              </h4>
-              <div className="space-y-1 pl-3">
-                {groupedEntities.noArea.map((entity) => renderEntityItem(entity))}
-              </div>
-            </div>
-          )}
-
           {/* Message si aucun résultat */}
           {Object.keys(groupedEntities.byFloor).length === 0 && 
-           groupedEntities.noFloorAreas.length === 0 && 
-           groupedEntities.noArea.length === 0 && (
+           groupedEntities.noFloorAreas.length === 0 && (
             <div className="text-center py-4 text-muted-foreground text-sm">
               Aucun appareil trouvé
             </div>
