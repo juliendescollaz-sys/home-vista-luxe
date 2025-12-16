@@ -1,7 +1,6 @@
 import { SmartWizardDraft } from "@/types/smart";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Info } from "lucide-react";
 
 interface SmartNameStepProps {
@@ -26,30 +25,12 @@ export function SmartNameStep({ draft, onUpdate }: SmartNameStepProps) {
         </p>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="description">Description (optionnelle)</Label>
-        <Textarea
-          id="description"
-          value={draft.description}
-          onChange={(e) => onUpdate({ description: e.target.value })}
-          placeholder="Ex: Allume les lumières du jardin 30 minutes après le coucher du soleil, uniquement si quelqu'un est à la maison."
-          rows={3}
-        />
-      </div>
-
-      <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-        <div className="flex items-start gap-3">
-          <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium">Comment fonctionne une automatisation ?</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Une automatisation suit le principe <strong>QUAND... SI... ALORS...</strong> :<br />
-              • <strong>QUAND</strong> : le déclencheur (événement qui démarre l'automatisation)<br />
-              • <strong>SI</strong> : les conditions optionnelles (vérifient si l'automatisation doit s'exécuter)<br />
-              • <strong>ALORS</strong> : les actions à exécuter
-            </p>
-          </div>
-        </div>
+      <div className="p-4 rounded-lg bg-muted/50">
+        <p className="text-sm text-muted-foreground">
+          <span className="font-semibold">Comment fonctionne une automatisation ?</span> Une automatisation suit le principe{" "}
+          <strong>QUAND... SI... ALORS...</strong> : définissez un <strong>déclencheur</strong> (quand ça commence), 
+          des <strong>conditions</strong> optionnelles (seulement si...), et les <strong>actions</strong> à exécuter.
+        </p>
       </div>
     </div>
   );
