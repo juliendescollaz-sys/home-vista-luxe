@@ -757,6 +757,9 @@ export const useRoutineStore = create<RoutineStore>()(
             // Start from HA state entity
             const routine = haAutomationToNeoliaRoutine(entity, favorites, existing);
 
+            // Track if this automation has the Neolia Routine marker
+            let hasRoutineMarker = false;
+
             // If we have HA client, enrich from HA automation config (schedule/actions/meta icon/description)
             if (client) {
               try {
@@ -773,6 +776,11 @@ export const useRoutineStore = create<RoutineStore>()(
                 if (cfg && !(result as any)?.notFound) {
                   // Description + meta icon from config.description (most reliable)
                   const cfgDesc: string | undefined = cfg.description ?? routine.description;
+                  
+                  // Check if this automation was created by Neolia Routines page
+                  // Only include automations with [NEOLIA_META] marker
+                  hasRoutineMarker = cfgDesc?.includes(META_START) ?? false;
+                  
                   const meta = extractNeoliaMeta(cfgDesc);
                   const cleanDesc = stripNeoliaMeta(cfgDesc);
 
@@ -802,7 +810,10 @@ export const useRoutineStore = create<RoutineStore>()(
               }
             }
 
-            haAutomations.push(routine);
+            // Only add automations that have the Neolia Routine marker (category = "routine")
+            if (hasRoutineMarker) {
+              haAutomations.push(routine);
+            }
           }
 
           set({ sharedRoutines: haAutomations });

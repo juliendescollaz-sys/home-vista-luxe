@@ -595,18 +595,27 @@ export const useSmartStore = create<SmartStore>()(
           
           // Try to fetch HA config for detailed triggers/conditions/actions
           let haConfig: any = null;
+          let hasSmartMarker = false;
+          
           if (client) {
             try {
               const response = await callAutomationManager("get", automationId);
               if (response.config) {
                 haConfig = response.config;
+                // Check if this automation was created by Neolia Smart page
+                // Only include automations with [NEOLIA_SMART] marker
+                const description = haConfig.description || "";
+                hasSmartMarker = description.includes(META_START);
               }
             } catch {
               // Silently fail - use entity data only
             }
           }
           
-          results.push(haAutomationToSmartAutomation(entity, favorites, haConfig, existingAutomation));
+          // Only add automations that have the Neolia Smart marker (category = "smart")
+          if (hasSmartMarker) {
+            results.push(haAutomationToSmartAutomation(entity, favorites, haConfig, existingAutomation));
+          }
         }
 
         set({ automations: results, isLoading: false });
