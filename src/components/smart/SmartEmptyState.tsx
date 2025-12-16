@@ -17,7 +17,6 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
 
           <div className="space-y-2 text-center">
             <h2 className="text-xl font-semibold">Bienvenue dans l&apos;automatisation intelligente</h2>
-            {/* On remet comme avant (centré, max-width) */}
             <p className="text-muted-foreground text-sm leading-relaxed max-w-md mx-auto">
               C&apos;est ici que la magie opère ! Créez des automatisations qui réagissent intelligemment à votre
               environnement : lumière, température, présence, heure de la journée…
@@ -25,7 +24,6 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
           </div>
 
           <div className="space-y-4">
-            {/* On ne touche pas : il était bien centré */}
             <p className="text-sm font-medium text-foreground text-center">
               Quelques exemples de ce que vous pouvez faire :
             </p>
@@ -81,18 +79,19 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
             </div>
           </div>
 
-          {/* ICI : correction ciblée */}
-          <div className="p-4 rounded-lg bg-muted/30 border border-border/50 text-left w-full">
-            <div className="flex items-center gap-3 mb-2">
+          {/* Correction ciblée uniquement ici */}
+          <div className="p-3 sm:p-4 rounded-lg bg-muted/30 border border-border/50 text-left w-full">
+            <div className="flex items-center gap-3 mb-1.5">
               <Shield className="w-5 h-5 text-primary shrink-0" />
               <p className="text-sm font-medium">Comment ça fonctionne ?</p>
             </div>
 
-            {/* - pas de justify (ça “casse” la répartition)
-               - hyphens pour une césure propre en FR
-               - leading plus serré pour gagner en hauteur
-               - w-full pour être sûr que rien ne contraint */}
-            <p className="w-full text-xs text-muted-foreground leading-snug hyphens-auto">
+            {/* IMPORTANT: lang="fr" pour activer la césure + meilleure répartition */}
+            <p
+              lang="fr"
+              className="w-full text-xs text-muted-foreground leading-tight hyphens-auto break-words text-pretty"
+              style={{ hyphens: "auto" }}
+            >
               Chaque automatisation suit le principe <strong>SI... ALORS...</strong> (IFTTT) : définissez un{" "}
               <strong>déclencheur</strong> (quand ça commence), des <strong>conditions</strong> optionnelles (seulement
               si...), et les <strong>actions</strong> à exécuter. Vous pouvez combiner plusieurs conditions avec ET ou
