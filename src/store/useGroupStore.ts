@@ -107,17 +107,11 @@ export const useGroupStore = create<GroupStore>()(
           const { fetchSharedGroupsFromHA } = await import("@/services/haGroups");
           const sharedFromHA = await fetchSharedGroupsFromHA();
 
-          const { groups: currentGroups, groupIcons } = get();
+          const { groups: currentGroups } = get();
           const privateGroups = currentGroups.filter((g) => getGroupScope(g) === "local");
 
-          // Home Assistant ne stocke pas d'icône pour les groupes => on réapplique nos métadonnées locales.
-          const mergedShared = sharedFromHA.map((g) => {
-            const previous = currentGroups.find((cg) => cg.id === g.id);
-            const icon = groupIcons[g.id] ?? previous?.icon ?? g.icon;
-            return { ...g, icon };
-          });
-
-          set({ groups: [...privateGroups, ...mergedShared] });
+          // Icons are now stored in HA and returned by fetchSharedGroupsFromHA
+          set({ groups: [...privateGroups, ...sharedFromHA] });
         } catch (error: any) {
           console.error("Erreur sync groupes partagés:", error);
         }
@@ -188,11 +182,11 @@ export const useGroupStore = create<GroupStore>()(
             console.log("[GroupStore] Creating/updating shared group in HA...");
             
             try {
-              newGroup = await createOrUpdateHaGroup({ name, domain, entityIds: uniqueEntityIds });
+              newGroup = await createOrUpdateHaGroup({ name, domain, entityIds: uniqueEntityIds, icon });
               newGroup.scope = "shared";
               newGroup.mode = "singleDomain";
               newGroup.domains = effectiveDomains;
-              newGroup.icon = icon;
+              // Icon is already set by createOrUpdateHaGroup from HA
               console.log("[GroupStore] HA group created:", newGroup);
             } catch (haError: any) {
               console.error("[GroupStore] Failed to create HA group:", haError);
@@ -206,11 +200,8 @@ export const useGroupStore = create<GroupStore>()(
                 ? state.groups.map((g) => g.id === existingId ? newGroup : g)
                 : [...state.groups, newGroup];
               console.log("[GroupStore] Updated groups (shared):", updatedGroups);
-
-              const nextIcons = { ...state.groupIcons };
-              if (icon) nextIcons[newGroup.id] = icon;
-
-              return { groups: updatedGroups, groupIcons: nextIcons, isSaving: false };
+              // Icon is stored in HA, no need for local groupIcons
+              return { groups: updatedGroups, isSaving: false };
             });
             return;
           }
