@@ -15,18 +15,18 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
             <Bot className="w-8 h-8 text-primary" />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 text-center">
             <h2 className="text-xl font-semibold">
               Bienvenue dans l'automatisation intelligente
             </h2>
-            <p className="text-muted-foreground text-sm leading-relaxed">
+            <p className="text-muted-foreground text-sm leading-relaxed max-w-md mx-auto">
               C'est ici que la magie opère ! Créez des automatisations qui réagissent 
               intelligemment à votre environnement : lumière, température, présence, heure de la journée…
             </p>
           </div>
 
           <div className="space-y-4">
-            <p className="text-sm font-medium text-foreground">
+            <p className="text-sm font-medium text-foreground text-center">
               Quelques exemples de ce que vous pouvez faire :
             </p>
 
@@ -82,9 +82,9 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
           </div>
 
           <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-            <div className="flex items-start gap-3 text-left">
+            <div className="flex items-start gap-3">
               <Shield className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-medium">Comment ça fonctionne ?</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Chaque automatisation suit le principe <strong>SI... ALORS...</strong> (IFTTT) :
