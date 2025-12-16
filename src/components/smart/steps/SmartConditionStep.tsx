@@ -14,9 +14,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Info, GitBranch } from "lucide-react";
+import { Plus, Trash2, Info, GitBranch, Search, ChevronDown, ChevronRight } from "lucide-react";
 import * as LucideIcons from "lucide-react";
+import type { HAEntity, HAArea, HAFloor } from "@/types/homeassistant";
 
 // Traduction des noms de capteurs anglais vers français
 const SENSOR_TRANSLATIONS: Record<string, string> = {
@@ -398,27 +401,191 @@ interface ConditionFormProps {
   onCancel: () => void;
 }
 
-function StateConditionForm({ entities, onAdd, onCancel }: ConditionFormProps & { entities: any[] }) {
+function StateConditionForm({ entities, onAdd, onCancel }: ConditionFormProps & { entities: HAEntity[] }) {
   const [entityId, setEntityId] = useState("");
   const [state, setState] = useState("");
+  const [search, setSearch] = useState("");
+  const [expandedAreas, setExpandedAreas] = useState<Set<string>>(new Set());
+
+  const areas = useHAStore((s) => s.areas);
+  const floors = useHAStore((s) => s.floors);
+  const devices = useHAStore((s) => s.devices);
+  const entityRegistry = useHAStore((s) => s.entityRegistry);
+
+  // Helper pour obtenir l'area_id d'une entité
+  const getEntityAreaId = (eId: string): string | undefined => {
+    const reg = entityRegistry.find(r => r.entity_id === eId);
+    if (reg?.area_id) return reg.area_id;
+    if (reg?.device_id) {
+      const device = devices.find(d => d.id === reg.device_id);
+      if (device?.area_id) return device.area_id;
+    }
+    return undefined;
+  };
+
+  // Grouper les entités par étage > pièce
+  const groupedEntities = useMemo(() => {
+    const searchLower = search.toLowerCase();
+    
+    const filteredEntities = entities.filter((e) => {
+      if (!search.trim()) return true;
+      const name = e.attributes.friendly_name || e.entity_id;
+      return name.toLowerCase().includes(searchLower);
+    });
+
+    const byArea: Record<string, HAEntity[]> = {};
+    const noArea: HAEntity[] = [];
+
+    for (const entity of filteredEntities) {
+      const areaId = getEntityAreaId(entity.entity_id);
+      if (areaId) {
+        if (!byArea[areaId]) byArea[areaId] = [];
+        byArea[areaId].push(entity);
+      } else {
+        noArea.push(entity);
+      }
+    }
+
+    const byFloor: Record<string, { floor: HAFloor | null; areas: { area: HAArea; entities: HAEntity[] }[] }> = {};
+    const noFloorAreas: { area: HAArea; entities: HAEntity[] }[] = [];
+
+    for (const [areaId, areaEntities] of Object.entries(byArea)) {
+      const area = areas.find((a) => a.area_id === areaId);
+      if (!area) continue;
+
+      const floor = floors.find((f) => f.floor_id === area.floor_id);
+      const floorKey = floor?.floor_id || "__no_floor__";
+
+      if (floor) {
+        if (!byFloor[floorKey]) {
+          byFloor[floorKey] = { floor, areas: [] };
+        }
+        byFloor[floorKey].areas.push({ area, entities: areaEntities });
+      } else {
+        noFloorAreas.push({ area, entities: areaEntities });
+      }
+    }
+
+    return { byFloor, noFloorAreas, noArea };
+  }, [entities, areas, floors, devices, search, entityRegistry]);
+
+  const toggleAreaExpanded = (areaId: string) => {
+    const newExpanded = new Set(expandedAreas);
+    if (newExpanded.has(areaId)) {
+      newExpanded.delete(areaId);
+    } else {
+      newExpanded.add(areaId);
+    }
+    setExpandedAreas(newExpanded);
+  };
+
+  const selectedEntity = entities.find(e => e.entity_id === entityId);
+
+  const renderEntityItem = (entity: HAEntity) => {
+    const isSelected = entityId === entity.entity_id;
+    const friendlyName = entity.attributes.friendly_name || entity.entity_id;
+
+    return (
+      <label
+        key={entity.entity_id}
+        className={cn(
+          "flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors",
+          isSelected ? "bg-primary/10 border border-primary" : "hover:bg-muted/50"
+        )}
+      >
+        <RadioGroupItem value={entity.entity_id} id={entity.entity_id} />
+        <span className="text-sm">{friendlyName}</span>
+      </label>
+    );
+  };
+
+  const renderAreaSection = (area: HAArea, areaEntities: HAEntity[]) => {
+    const isExpanded = expandedAreas.has(area.area_id);
+
+    return (
+      <Collapsible key={area.area_id} open={isExpanded} onOpenChange={() => toggleAreaExpanded(area.area_id)}>
+        <CollapsibleTrigger className="flex items-center gap-2 py-2 w-full hover:text-primary transition-colors">
+          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          <span className="font-medium text-sm">{area.name}</span>
+          <span className="text-xs text-muted-foreground">({areaEntities.length})</span>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pl-6 space-y-1">
+          {areaEntities.map((entity) => renderEntityItem(entity))}
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>Appareil</Label>
-        <Select value={entityId} onValueChange={setEntityId}>
-          <SelectTrigger>
-            <SelectValue placeholder="Sélectionner" />
-          </SelectTrigger>
-          <SelectContent>
-            {entities.map((e) => (
-              <SelectItem key={e.entity_id} value={e.entity_id}>
-                {e.attributes?.friendly_name || e.entity_id}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="relative mb-2">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher un appareil..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {selectedEntity && (
+          <div className="text-sm text-muted-foreground mb-2">
+            Sélectionné : <strong>{selectedEntity.attributes.friendly_name || selectedEntity.entity_id}</strong>
+          </div>
+        )}
+
+        <RadioGroup value={entityId} onValueChange={setEntityId} className="max-h-[250px] overflow-y-auto space-y-3 pr-2">
+          {/* Par étage */}
+          {Object.entries(groupedEntities.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
+            <div key={floorId} className="space-y-1">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {floor?.name || "Étage"}
+              </h4>
+              <div className="space-y-1 border-l-2 border-muted pl-3">
+                {floorAreas.map(({ area, entities: areaEntities }) => renderAreaSection(area, areaEntities))}
+              </div>
+            </div>
+          ))}
+
+          {/* Pièces sans étage */}
+          {groupedEntities.noFloorAreas.length > 0 && (
+            <div className="space-y-1">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Autres pièces
+              </h4>
+              <div className="space-y-1 border-l-2 border-muted pl-3">
+                {groupedEntities.noFloorAreas.map(({ area, entities: areaEntities }) => 
+                  renderAreaSection(area, areaEntities)
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Entités sans pièce */}
+          {groupedEntities.noArea.length > 0 && (
+            <div className="space-y-1">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Sans pièce assignée
+              </h4>
+              <div className="space-y-1 pl-3">
+                {groupedEntities.noArea.map((entity) => renderEntityItem(entity))}
+              </div>
+            </div>
+          )}
+
+          {/* Message si aucun résultat */}
+          {Object.keys(groupedEntities.byFloor).length === 0 && 
+           groupedEntities.noFloorAreas.length === 0 && 
+           groupedEntities.noArea.length === 0 && (
+            <div className="text-center py-4 text-muted-foreground text-sm">
+              Aucun appareil trouvé
+            </div>
+          )}
+        </RadioGroup>
       </div>
+
       <div className="space-y-2">
         <Label>État requis</Label>
         <Select value={state} onValueChange={setState}>
@@ -435,6 +602,7 @@ function StateConditionForm({ entities, onAdd, onCancel }: ConditionFormProps & 
           </SelectContent>
         </Select>
       </div>
+
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onCancel}>Annuler</Button>
         <Button onClick={() => onAdd({ type: "state", entityId, state })} disabled={!entityId || !state}>
