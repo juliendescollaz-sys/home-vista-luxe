@@ -9,21 +9,23 @@ interface SmartEmptyStateProps {
 export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
   return (
     <div className="flex items-center justify-center min-h-[60vh] p-4">
-      <Card className="w-full max-w-3xl">
-        <CardContent className="pt-7 pb-6 px-6 sm:px-8 text-center space-y-6">
+      <Card className="max-w-2xl w-full">
+        <CardContent className="pt-8 pb-6 px-6 text-center space-y-6">
           <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
             <Bot className="w-8 h-8 text-primary" />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 text-center">
             <h2 className="text-xl font-semibold">Bienvenue dans l&apos;automatisation intelligente</h2>
-            <p className="text-muted-foreground text-sm leading-relaxed w-full">
+            {/* On remet comme avant (centré, max-width) */}
+            <p className="text-muted-foreground text-sm leading-relaxed max-w-md mx-auto">
               C&apos;est ici que la magie opère ! Créez des automatisations qui réagissent intelligemment à votre
               environnement : lumière, température, présence, heure de la journée…
             </p>
           </div>
 
           <div className="space-y-4">
+            {/* On ne touche pas : il était bien centré */}
             <p className="text-sm font-medium text-foreground text-center">
               Quelques exemples de ce que vous pouvez faire :
             </p>
@@ -79,14 +81,18 @@ export function SmartEmptyState({ onCreateAutomation }: SmartEmptyStateProps) {
             </div>
           </div>
 
-          <div className="w-full p-4 rounded-lg bg-muted/30 border border-border/50 text-left">
+          {/* ICI : correction ciblée */}
+          <div className="p-4 rounded-lg bg-muted/30 border border-border/50 text-left w-full">
             <div className="flex items-center gap-3 mb-2">
               <Shield className="w-5 h-5 text-primary shrink-0" />
               <p className="text-sm font-medium">Comment ça fonctionne ?</p>
             </div>
 
-            {/* Objectif: exploiter 100% de la largeur + moins de hauteur (moins de retours à la ligne) */}
-            <p className="text-sm text-muted-foreground leading-snug">
+            {/* - pas de justify (ça “casse” la répartition)
+               - hyphens pour une césure propre en FR
+               - leading plus serré pour gagner en hauteur
+               - w-full pour être sûr que rien ne contraint */}
+            <p className="w-full text-xs text-muted-foreground leading-snug hyphens-auto">
               Chaque automatisation suit le principe <strong>SI... ALORS...</strong> (IFTTT) : définissez un{" "}
               <strong>déclencheur</strong> (quand ça commence), des <strong>conditions</strong> optionnelles (seulement
               si...), et les <strong>actions</strong> à exécuter. Vous pouvez combiner plusieurs conditions avec ET ou
