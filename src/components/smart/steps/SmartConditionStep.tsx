@@ -448,10 +448,15 @@ function StateConditionForm({ entities, onAdd, onCancel }: ConditionFormProps & 
 
     const byFloor: Record<string, { floor: HAFloor | null; areas: { area: HAArea; entities: HAEntity[] }[] }> = {};
     const noFloorAreas: { area: HAArea; entities: HAEntity[] }[] = [];
+    const orphanedEntities: HAEntity[] = []; // Entités avec area_id invalide
 
     for (const [areaId, areaEntities] of Object.entries(byArea)) {
       const area = areas.find((a) => a.area_id === areaId);
-      if (!area) continue;
+      if (!area) {
+        // L'area n'existe pas, ajouter les entités aux orphelines
+        orphanedEntities.push(...areaEntities);
+        continue;
+      }
 
       const floor = floors.find((f) => f.floor_id === area.floor_id);
       const floorKey = floor?.floor_id || "__no_floor__";
@@ -466,7 +471,10 @@ function StateConditionForm({ entities, onAdd, onCancel }: ConditionFormProps & 
       }
     }
 
-    return { byFloor, noFloorAreas, noArea };
+    // Combiner noArea et orphanedEntities
+    const allNoArea = [...noArea, ...orphanedEntities];
+
+    return { byFloor, noFloorAreas, noArea: allNoArea };
   }, [entities, areas, floors, devices, search, entityRegistry]);
 
   const toggleAreaExpanded = (areaId: string) => {

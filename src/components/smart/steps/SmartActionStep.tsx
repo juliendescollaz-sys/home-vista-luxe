@@ -341,10 +341,14 @@ function DeviceActionForm({ entities, areas, floors, devices, entityRegistry, on
 
     const byFloor: Record<string, { floor: HAFloor | null; areas: { area: HAArea; entities: HAEntity[] }[] }> = {};
     const noFloorAreas: { area: HAArea; entities: HAEntity[] }[] = [];
+    const orphanedEntities: HAEntity[] = [];
 
     for (const [areaId, areaEntities] of Object.entries(byArea)) {
       const area = areas.find((a) => a.area_id === areaId);
-      if (!area) continue;
+      if (!area) {
+        orphanedEntities.push(...areaEntities);
+        continue;
+      }
 
       const floor = floors.find((f) => f.floor_id === area.floor_id);
       const floorKey = floor?.floor_id || "__no_floor__";
@@ -359,7 +363,8 @@ function DeviceActionForm({ entities, areas, floors, devices, entityRegistry, on
       }
     }
 
-    return { byFloor, noFloorAreas, noArea };
+    const allNoArea = [...noArea, ...orphanedEntities];
+    return { byFloor, noFloorAreas, noArea: allNoArea };
   }, [entities, areas, floors, devices, search, entityRegistry]);
 
   const toggleEntity = (entityId: string) => {
