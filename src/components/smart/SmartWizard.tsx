@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, Pencil, Bot } from "lucide-react";
 import { toast } from "sonner";
 
 import { SmartAutomation, SmartWizardDraft } from "@/types/smart";
@@ -224,17 +224,18 @@ export function SmartWizard({ open, onOpenChange, automation }: SmartWizardProps
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>{isEditMode ? "Modifier l'automatisation" : "Nouvelle automatisation"}</span>
-              <span className="text-sm font-normal text-muted-foreground">
-                Étape {step}/{TOTAL_STEPS}
-              </span>
+            <DialogTitle className="flex items-center gap-2">
+              {isEditMode ? <Pencil className="w-5 h-5 text-primary" /> : <Bot className="w-5 h-5 text-primary" />}
+              {isEditMode ? "Modifier l'automatisation" : "Nouvelle automatisation"}
             </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Étape {step}/{TOTAL_STEPS} – {STEP_TITLES[step - 1]}
+            </p>
           </DialogHeader>
 
-          <Progress value={(step / TOTAL_STEPS) * 100} className="h-1 mb-2" />
-
-          <p className="text-sm text-muted-foreground mb-4">{STEP_TITLES[step - 1]}</p>
+          <div className="px-1 py-2">
+            <Progress value={(step / TOTAL_STEPS) * 100} className="h-1.5" />
+          </div>
 
           <div className="flex-1 overflow-y-auto min-h-0 pr-1">{renderStep()}</div>
 
