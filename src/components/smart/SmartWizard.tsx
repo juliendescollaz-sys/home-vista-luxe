@@ -236,9 +236,9 @@ export function SmartWizard({ open, onOpenChange, automation }: SmartWizardProps
 
           <p className="text-sm text-muted-foreground mb-4">{STEP_TITLES[step - 1]}</p>
 
-          <div className="min-h-[300px]">{renderStep()}</div>
+          <div className="flex-1 overflow-y-auto min-h-0 pr-1">{renderStep()}</div>
 
-          <div className="flex items-center justify-between mt-6 pt-4 border-t">
+          <div className="flex items-center justify-between mt-4 pt-4 border-t shrink-0">
             <div className="flex gap-2">
               {step > 1 && (
                 <Button variant="outline" onClick={handlePrevious} disabled={isSubmitting}>
