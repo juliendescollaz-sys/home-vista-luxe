@@ -16,6 +16,10 @@ interface SmartSummaryStepProps {
 
 export function SmartSummaryStep({ draft, onUpdate }: SmartSummaryStepProps) {
   const entities = useHAStore((s) => s.entities);
+  const entityRegistry = useHAStore((s) => s.entityRegistry);
+  const devices = useHAStore((s) => s.devices);
+  const areas = useHAStore((s) => s.areas);
+  const floors = useHAStore((s) => s.floors);
   const sharedScenes = useSceneStore((s) => s.sharedScenes);
   const localScenes = useSceneStore((s) => s.localScenes);
   const allScenes = useMemo(() => [...localScenes, ...sharedScenes], [localScenes, sharedScenes]);
@@ -25,6 +29,29 @@ export function SmartSummaryStep({ draft, onUpdate }: SmartSummaryStepProps) {
   const getEntityName = (entityId: string) => {
     const entity = entities.find((e) => e.entity_id === entityId);
     return entity?.attributes?.friendly_name || entityId;
+  };
+
+  const getEntityLocation = (entityId: string): string | null => {
+    // Find entity in registry
+    const regEntry = entityRegistry.find((e) => e.entity_id === entityId);
+    if (!regEntry) return null;
+
+    // Find device to get area_id
+    const device = devices.find((d) => d.id === regEntry.device_id);
+    const areaId = regEntry.area_id || device?.area_id;
+    if (!areaId) return null;
+
+    // Find area
+    const area = areas.find((a) => a.area_id === areaId);
+    if (!area) return null;
+
+    // Find floor
+    const floor = floors.find((f) => f.floor_id === area.floor_id);
+    
+    if (floor) {
+      return `${area.name} • ${floor.name}`;
+    }
+    return area.name;
   };
 
   const getSceneName = (sceneId: string) => {
@@ -131,6 +158,7 @@ export function SmartSummaryStep({ draft, onUpdate }: SmartSummaryStepProps) {
   const renderActionSummary = () => {
     return draft.actions.map((action, index) => {
       let description = "";
+      let location: string | null = null;
       let icon = Play;
 
       switch (action.type) {
@@ -139,6 +167,7 @@ export function SmartSummaryStep({ draft, onUpdate }: SmartSummaryStepProps) {
           const service = action.service || "";
           const isOn = service.includes("turn_on") || service.includes("open");
           description = `${getEntityName(action.entityId || "")} → ${isOn ? "Allumer/Ouvrir" : "Éteindre/Fermer"}`;
+          location = getEntityLocation(action.entityId || "");
           icon = LucideIcons.Power;
           break;
         case "scene":
@@ -154,10 +183,15 @@ export function SmartSummaryStep({ draft, onUpdate }: SmartSummaryStepProps) {
       const IconComp = icon;
 
       return (
-        <div key={index} className="flex items-center gap-2 text-sm">
-          <Badge variant="secondary" className="shrink-0">{index + 1}</Badge>
-          <IconComp className="w-4 h-4 text-primary" />
-          <span className="text-muted-foreground">{description}</span>
+        <div key={index} className="flex items-start gap-2 text-sm">
+          <Badge variant="secondary" className="shrink-0 mt-0.5">{index + 1}</Badge>
+          <IconComp className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+          <div className="flex flex-col min-w-0">
+            <span className="text-muted-foreground">{description}</span>
+            {location && (
+              <span className="text-xs text-muted-foreground/70">{location}</span>
+            )}
+          </div>
         </div>
       );
     });
