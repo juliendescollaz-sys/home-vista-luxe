@@ -428,6 +428,8 @@ function StateConditionForm({ entities, onAdd, onCancel }: ConditionFormProps & 
     const searchLower = search.toLowerCase();
     
     const filteredEntities = entities.filter((e) => {
+      // Exclure les entités sans entity_id valide (requis pour SelectItem/RadioGroupItem)
+      if (!e.entity_id || e.entity_id.trim() === "") return false;
       if (!search.trim()) return true;
       const name = e.attributes.friendly_name || e.entity_id;
       return name.toLowerCase().includes(searchLower);
@@ -738,7 +740,7 @@ function NumericConditionForm({ entities, onAdd, onCancel }: ConditionFormProps 
             <SelectValue placeholder="Sélectionner" />
           </SelectTrigger>
           <SelectContent>
-            {entities.map((e) => (
+            {entities.filter(e => e.entity_id && e.entity_id.trim() !== "").map((e) => (
               <SelectItem key={e.entity_id} value={e.entity_id}>
                 {translateSensorName(e.attributes?.friendly_name || e.entity_id)}
               </SelectItem>
@@ -789,7 +791,7 @@ function ZoneConditionForm({ persons, zones, onAdd, onCancel }: ConditionFormPro
             <SelectValue placeholder="Sélectionner" />
           </SelectTrigger>
           <SelectContent>
-            {persons.map((e) => (
+            {persons.filter(e => e.entity_id && e.entity_id.trim() !== "").map((e) => (
               <SelectItem key={e.entity_id} value={e.entity_id}>
                 {e.attributes?.friendly_name || e.entity_id}
               </SelectItem>
@@ -804,7 +806,7 @@ function ZoneConditionForm({ persons, zones, onAdd, onCancel }: ConditionFormPro
             <SelectValue placeholder="Sélectionner" />
           </SelectTrigger>
           <SelectContent>
-            {zones.map((z) => (
+            {zones.filter(z => z.entity_id && z.entity_id.trim() !== "").map((z) => (
               <SelectItem key={z.entity_id} value={z.entity_id}>
                 {z.attributes?.friendly_name || z.entity_id}
               </SelectItem>

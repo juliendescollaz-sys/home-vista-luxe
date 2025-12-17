@@ -321,6 +321,8 @@ function DeviceActionForm({ entities, areas, floors, devices, entityRegistry, on
     const searchLower = search.toLowerCase();
     
     const filteredEntities = entities.filter((e) => {
+      // Exclure les entités sans entity_id valide
+      if (!e.entity_id || e.entity_id.trim() === "") return false;
       if (!search.trim()) return true;
       const name = e.attributes.friendly_name || e.entity_id;
       return name.toLowerCase().includes(searchLower);
@@ -590,7 +592,7 @@ function SceneActionForm({ scenes, onAdd, onCancel }: SceneActionFormProps) {
             <SelectValue placeholder="Sélectionner une scène" />
           </SelectTrigger>
           <SelectContent>
-            {scenes.map((s) => (
+            {scenes.filter(s => s.id && s.id.trim() !== "").map((s) => (
               <SelectItem key={s.id} value={s.id}>
                 {s.name}
               </SelectItem>
