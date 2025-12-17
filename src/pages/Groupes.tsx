@@ -75,7 +75,7 @@ const Groupes = () => {
 
         <div className="flex items-center justify-between mb-6">
           <p className="text-muted-foreground">
-            Créez des groupes pour contrôler plusieurs appareils simultanément
+            {groups.length} groupe{groups.length > 1 ? "s" : ""} créé{groups.length > 1 ? "s" : ""}
           </p>
           <Button onClick={() => setWizardOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
