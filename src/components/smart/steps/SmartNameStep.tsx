@@ -19,6 +19,7 @@ export function SmartNameStep({ draft, onUpdate }: SmartNameStepProps) {
           onChange={(e) => onUpdate({ name: e.target.value })}
           placeholder="Ex: Éclairage extérieur au coucher du soleil"
           autoFocus
+          className="focus-visible:ring-0 focus-visible:ring-offset-0"
         />
         <p className="text-xs text-muted-foreground">
           Choisissez un nom descriptif qui résume ce que fait cette automatisation.
