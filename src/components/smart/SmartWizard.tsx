@@ -247,11 +247,12 @@ export function SmartWizard({ open, onOpenChange, automation }: SmartWizardProps
               )}
               {isEditMode && step === 1 && (
                 <Button
-                  variant="destructive"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
                   onClick={() => setIsDeleteConfirmOpen(true)}
                   disabled={isSubmitting}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <Trash2 className="h-4 w-4 mr-1" />
                   Supprimer
                 </Button>
               )}

@@ -700,12 +700,12 @@ export function GroupEditDialog({ group, open, onOpenChange }: GroupEditDialogPr
             <div className="flex gap-2">
               {step === 1 && (
                 <Button 
-                  variant="destructive" 
-                  size="sm"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
                   onClick={() => setIsDeleteConfirmOpen(true)}
                   disabled={isSubmitting}
                 >
-                  <Trash2 className="w-4 h-4 mr-1" />
+                  <Trash2 className="h-4 w-4 mr-1" />
                   Supprimer
                 </Button>
               )}
