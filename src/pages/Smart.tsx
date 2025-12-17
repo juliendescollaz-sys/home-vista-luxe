@@ -42,10 +42,12 @@ const Smart = () => {
       ) : (
         <div className="max-w-screen-xl mx-auto px-4 pt-[24px] pb-4">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold">Mes automatisations</h2>
-            <Button onClick={() => setShowWizard(true)} size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Nouvelle
+            <p className="text-muted-foreground">
+              {automations.length} automatisation{automations.length > 1 ? "s" : ""} configurée{automations.length > 1 ? "s" : ""}
+            </p>
+            <Button onClick={() => setShowWizard(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Créer une automatisation
             </Button>
           </div>
           
