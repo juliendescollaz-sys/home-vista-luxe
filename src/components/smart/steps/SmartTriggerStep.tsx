@@ -299,7 +299,10 @@ interface TriggerFormProps<T extends SmartTrigger> {
 
 function StateTrigggerForm({ entities, onAdd, onCancel }: TriggerFormProps<any> & { entities: any[] }) {
   const [entityId, setEntityId] = useState("");
-  const [to, setTo] = useState("");
+  const [to, setTo] = useState("__any__");
+
+  // Filtrer les entités avec entity_id valide
+  const validEntities = entities.filter(e => e.entity_id && e.entity_id.trim() !== "");
 
   return (
     <div className="space-y-4">
@@ -310,7 +313,7 @@ function StateTrigggerForm({ entities, onAdd, onCancel }: TriggerFormProps<any> 
             <SelectValue placeholder="Sélectionner un appareil" />
           </SelectTrigger>
           <SelectContent>
-            {entities.map((e) => (
+            {validEntities.map((e) => (
               <SelectItem key={e.entity_id} value={e.entity_id}>
                 {e.attributes?.friendly_name || e.entity_id}
               </SelectItem>
@@ -325,7 +328,7 @@ function StateTrigggerForm({ entities, onAdd, onCancel }: TriggerFormProps<any> 
             <SelectValue placeholder="Tout changement" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Tout changement</SelectItem>
+            <SelectItem value="__any__">Tout changement</SelectItem>
             <SelectItem value="on">Allumé (on)</SelectItem>
             <SelectItem value="off">Éteint (off)</SelectItem>
             <SelectItem value="open">Ouvert</SelectItem>
@@ -335,7 +338,7 @@ function StateTrigggerForm({ entities, onAdd, onCancel }: TriggerFormProps<any> 
       </div>
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onCancel}>Annuler</Button>
-        <Button onClick={() => onAdd({ type: "state", entityId, to: to || undefined })} disabled={!entityId}>
+        <Button onClick={() => onAdd({ type: "state", entityId, to: to === "__any__" ? undefined : to })} disabled={!entityId}>
           Ajouter
         </Button>
       </div>
@@ -403,7 +406,10 @@ function NumericTriggerForm({ entities, onAdd, onCancel }: TriggerFormProps<any>
   const [above, setAbove] = useState<string>("");
   const [below, setBelow] = useState<string>("");
 
-  const selectedEntity = entities.find(e => e.entity_id === entityId);
+  // Filtrer les entités avec entity_id valide
+  const validEntities = entities.filter(e => e.entity_id && e.entity_id.trim() !== "");
+
+  const selectedEntity = validEntities.find(e => e.entity_id === entityId);
   const unit = selectedEntity?.attributes?.unit_of_measurement || "";
 
   return (
@@ -415,7 +421,7 @@ function NumericTriggerForm({ entities, onAdd, onCancel }: TriggerFormProps<any>
             <SelectValue placeholder="Sélectionner un capteur" />
           </SelectTrigger>
           <SelectContent>
-            {entities.map((e) => (
+            {validEntities.map((e) => (
               <SelectItem key={e.entity_id} value={e.entity_id}>
                 {translateSensorName(e.attributes?.friendly_name || e.entity_id)}
                 {e.attributes?.unit_of_measurement && ` (${e.attributes.unit_of_measurement})`}
@@ -467,6 +473,10 @@ function ZoneTriggerForm({ persons, zones, onAdd, onCancel }: TriggerFormProps<a
   const [zone, setZone] = useState("");
   const [event, setEvent] = useState<"enter" | "leave">("enter");
 
+  // Filtrer les entités avec entity_id valide
+  const validPersons = persons.filter(e => e.entity_id && e.entity_id.trim() !== "");
+  const validZones = zones.filter(z => z.entity_id && z.entity_id.trim() !== "");
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -476,7 +486,7 @@ function ZoneTriggerForm({ persons, zones, onAdd, onCancel }: TriggerFormProps<a
             <SelectValue placeholder="Sélectionner une personne" />
           </SelectTrigger>
           <SelectContent>
-            {persons.map((e) => (
+            {validPersons.map((e) => (
               <SelectItem key={e.entity_id} value={e.entity_id}>
                 {e.attributes?.friendly_name || e.entity_id}
               </SelectItem>
@@ -491,7 +501,7 @@ function ZoneTriggerForm({ persons, zones, onAdd, onCancel }: TriggerFormProps<a
             <SelectValue placeholder="Sélectionner une zone" />
           </SelectTrigger>
           <SelectContent>
-            {zones.map((z) => (
+            {validZones.map((z) => (
               <SelectItem key={z.entity_id} value={z.entity_id}>
                 {z.attributes?.friendly_name || z.entity_id}
               </SelectItem>
