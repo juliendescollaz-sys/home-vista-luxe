@@ -1,18 +1,45 @@
 import { useMemo } from "react";
-import { SmartWizardDraft, TRIGGER_TYPE_LABELS, CONDITION_TYPE_LABELS, AUTOMATION_MODES } from "@/types/smart";
+import { SmartWizardDraft, SmartAction, TRIGGER_TYPE_LABELS, CONDITION_TYPE_LABELS, AUTOMATION_MODES } from "@/types/smart";
 import { useHAStore } from "@/store/useHAStore";
 import { useSceneStore } from "@/store/useSceneStore";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Zap, GitBranch, Play, Info } from "lucide-react";
+import { Zap, GitBranch, Play, Info, Lightbulb, Power, Blinds, Fan, Disc3, Thermometer, Lock, Clock, Sparkles, LucideIcon } from "lucide-react";
 import * as LucideIcons from "lucide-react";
+import type { HAArea, HAFloor } from "@/types/homeassistant";
 
 interface SmartSummaryStepProps {
   draft: SmartWizardDraft;
   onUpdate?: (updates: Partial<SmartWizardDraft>) => void;
 }
+
+const getDomainIcon = (domain: string): LucideIcon => {
+  switch (domain) {
+    case "light": return Lightbulb;
+    case "switch": return Power;
+    case "cover": return Blinds;
+    case "fan": return Fan;
+    case "media_player": return Disc3;
+    case "climate": return Thermometer;
+    case "lock": return Lock;
+    default: return Power;
+  }
+};
+
+const getDomainLabel = (domain: string): string => {
+  switch (domain) {
+    case "light": return "Éclairages";
+    case "switch": return "Interrupteurs";
+    case "cover": return "Volets";
+    case "fan": return "Ventilateurs";
+    case "media_player": return "Médias";
+    case "climate": return "Climatisation";
+    case "lock": return "Serrures";
+    default: return "Appareils";
+  }
+};
 
 export function SmartSummaryStep({ draft, onUpdate }: SmartSummaryStepProps) {
   const entities = useHAStore((s) => s.entities);
@@ -31,32 +58,25 @@ export function SmartSummaryStep({ draft, onUpdate }: SmartSummaryStepProps) {
     return entity?.attributes?.friendly_name || entityId;
   };
 
-  const getEntityLocation = (entityId: string): string | null => {
-    // Find entity in registry
-    const regEntry = entityRegistry.find((e) => e.entity_id === entityId);
-    if (!regEntry) return null;
-
-    // Find device to get area_id
-    const device = devices.find((d) => d.id === regEntry.device_id);
-    const areaId = regEntry.area_id || device?.area_id;
-    if (!areaId) return null;
-
-    // Find area
-    const area = areas.find((a) => a.area_id === areaId);
-    if (!area) return null;
-
-    // Find floor
-    const floor = floors.find((f) => f.floor_id === area.floor_id);
-    
-    if (floor) {
-      return `${area.name} • ${floor.name}`;
+  const getEntityAreaId = (entityId: string): string | undefined => {
+    const reg = entityRegistry.find(r => r.entity_id === entityId);
+    if (reg?.area_id) return reg.area_id;
+    if (reg?.device_id) {
+      const device = devices.find(d => d.id === reg.device_id);
+      if (device?.area_id) return device.area_id;
     }
-    return area.name;
+    return undefined;
   };
 
   const getSceneName = (sceneId: string) => {
     const scene = allScenes.find((s) => s.id === sceneId || s.id === `scene.${sceneId}`);
     return scene?.name || sceneId;
+  };
+
+  const getActionLabel = (action: SmartAction): string => {
+    const service = action.service || "";
+    const isOn = service.includes("turn_on") || service.includes("open");
+    return isOn ? "Allumer" : "Éteindre";
   };
 
   const renderTriggerSummary = () => {
@@ -155,46 +175,183 @@ export function SmartSummaryStep({ draft, onUpdate }: SmartSummaryStepProps) {
     ));
   };
 
-  const renderActionSummary = () => {
-    return draft.actions.map((action, index) => {
-      let description = "";
-      let location: string | null = null;
-      let icon = Play;
+  // Group device actions by floor > area > domain
+  const groupedDeviceActions = useMemo(() => {
+    const deviceActions = draft.actions.filter(a => (a.type === "device" || a.type === "service") && a.entityId);
+    
+    const byArea: Record<string, { action: SmartAction; entityId: string }[]> = {};
+    const noArea: { action: SmartAction; entityId: string }[] = [];
 
-      switch (action.type) {
-        case "device":
-        case "service":
-          const service = action.service || "";
-          const isOn = service.includes("turn_on") || service.includes("open");
-          description = `${getEntityName(action.entityId || "")} → ${isOn ? "Allumer/Ouvrir" : "Éteindre/Fermer"}`;
-          location = getEntityLocation(action.entityId || "");
-          icon = LucideIcons.Power;
-          break;
-        case "scene":
-          description = `Activer "${getSceneName(action.entityId || "")}"`;
-          icon = LucideIcons.Sparkles;
-          break;
-        case "delay":
-          description = `Attendre ${action.delaySeconds} secondes`;
-          icon = LucideIcons.Clock;
-          break;
+    for (const action of deviceActions) {
+      const entityId = action.entityId!;
+      const areaId = getEntityAreaId(entityId);
+      if (areaId) {
+        if (!byArea[areaId]) byArea[areaId] = [];
+        byArea[areaId].push({ action, entityId });
+      } else {
+        noArea.push({ action, entityId });
       }
+    }
 
-      const IconComp = icon;
+    const byFloor: Record<string, { floor: HAFloor | null; areas: { area: HAArea; items: { action: SmartAction; entityId: string }[] }[] }> = {};
+    const noFloorAreas: { area: HAArea; items: { action: SmartAction; entityId: string }[] }[] = [];
 
+    for (const [areaId, areaItems] of Object.entries(byArea)) {
+      const area = areas.find(a => a.area_id === areaId);
+      if (!area) continue;
+
+      const floor = floors.find(f => f.floor_id === area.floor_id);
+      const floorKey = floor?.floor_id || "__no_floor__";
+
+      if (floor) {
+        if (!byFloor[floorKey]) {
+          byFloor[floorKey] = { floor, areas: [] };
+        }
+        byFloor[floorKey].areas.push({ area, items: areaItems });
+      } else {
+        noFloorAreas.push({ area, items: areaItems });
+      }
+    }
+
+    return { byFloor, noFloorAreas, noArea };
+  }, [draft.actions, areas, floors, entityRegistry, devices]);
+
+  // Non-device actions (scenes, delays)
+  const otherActions = useMemo(() => {
+    return draft.actions.filter(a => a.type === "scene" || a.type === "delay");
+  }, [draft.actions]);
+
+  // Group items by domain
+  const groupByDomain = (items: { action: SmartAction; entityId: string }[]): Record<string, { action: SmartAction; entityId: string }[]> => {
+    const byDomain: Record<string, { action: SmartAction; entityId: string }[]> = {};
+    for (const item of items) {
+      const domain = item.entityId.split(".")[0];
+      if (!byDomain[domain]) byDomain[domain] = [];
+      byDomain[domain].push(item);
+    }
+    return byDomain;
+  };
+
+  const renderItemsByDomain = (items: { action: SmartAction; entityId: string }[]) => {
+    const byDomain = groupByDomain(items);
+    return Object.entries(byDomain).map(([domain, domainItems]) => {
+      const DomainIcon = getDomainIcon(domain);
       return (
-        <div key={index} className="flex items-start gap-2 text-sm">
-          <Badge variant="secondary" className="shrink-0 mt-0.5">{index + 1}</Badge>
-          <IconComp className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-          <div className="flex flex-col min-w-0">
-            <span className="text-muted-foreground">{description}</span>
-            {location && (
-              <span className="text-xs text-muted-foreground/70">{location}</span>
-            )}
+        <div key={domain} className="space-y-1">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <DomainIcon className="w-3 h-3" />
+            <span>{getDomainLabel(domain)}</span>
+          </div>
+          <div className="space-y-0.5 ml-1">
+            {domainItems.map((item, idx) => {
+              const EntityIcon = getDomainIcon(domain);
+              return (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between py-1 px-2 rounded bg-muted/30 text-sm"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <EntityIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">{getEntityName(item.entityId)}</span>
+                  </div>
+                  <span className="text-muted-foreground shrink-0 ml-2 text-xs">
+                    {getActionLabel(item.action)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       );
     });
+  };
+
+  const deviceActionCount = draft.actions.filter(a => (a.type === "device" || a.type === "service") && a.entityId).length;
+
+  const renderActionSummary = () => {
+    return (
+      <div className="space-y-4">
+        {/* Device actions grouped by floor > area > domain */}
+        {deviceActionCount > 0 && (
+          <div className="space-y-3">
+            {/* By floor */}
+            {Object.entries(groupedDeviceActions.byFloor).map(([floorId, { floor, areas: floorAreas }]) => (
+              <div key={floorId} className="space-y-2">
+                <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {floor?.name || "Étage"}
+                </h5>
+                {floorAreas.map(({ area, items }) => (
+                  <div key={area.area_id} className="space-y-2">
+                    <h6 className="text-xs font-medium text-muted-foreground ml-2">
+                      {area.name}
+                    </h6>
+                    <div className="space-y-2 ml-2">
+                      {renderItemsByDomain(items)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+
+            {/* Areas without floor */}
+            {groupedDeviceActions.noFloorAreas.length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Autres pièces
+                </h5>
+                {groupedDeviceActions.noFloorAreas.map(({ area, items }) => (
+                  <div key={area.area_id} className="space-y-2">
+                    <h6 className="text-xs font-medium text-muted-foreground ml-2">
+                      {area.name}
+                    </h6>
+                    <div className="space-y-2 ml-2">
+                      {renderItemsByDomain(items)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Devices without area */}
+            {groupedDeviceActions.noArea.length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Sans pièce
+                </h5>
+                <div className="space-y-2">
+                  {renderItemsByDomain(groupedDeviceActions.noArea)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Other actions (scenes, delays) */}
+        {otherActions.length > 0 && (
+          <div className="space-y-1">
+            {otherActions.map((action, index) => {
+              if (action.type === "scene") {
+                return (
+                  <div key={index} className="flex items-center gap-2 py-1 px-2 rounded bg-muted/30 text-sm">
+                    <Sparkles className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <span>Activer "{getSceneName(action.entityId || "")}"</span>
+                  </div>
+                );
+              }
+              if (action.type === "delay") {
+                return (
+                  <div key={index} className="flex items-center gap-2 py-1 px-2 rounded bg-muted/30 text-sm">
+                    <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <span>Attendre {action.delaySeconds} secondes</span>
+                  </div>
+                );
+              }
+              return null;
+            })}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -240,9 +397,9 @@ export function SmartSummaryStep({ draft, onUpdate }: SmartSummaryStepProps) {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Play className="w-4 h-4 text-primary" />
-          <Label>Actions (ALORS)</Label>
+          <Label>Actions (ALORS) – {draft.actions.length} action{draft.actions.length > 1 ? "s" : ""}</Label>
         </div>
-        <Card className="p-3 space-y-2">
+        <Card className="p-3 max-h-[200px] overflow-y-auto">
           {renderActionSummary()}
         </Card>
       </div>
