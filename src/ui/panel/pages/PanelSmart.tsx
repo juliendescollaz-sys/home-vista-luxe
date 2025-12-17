@@ -4,19 +4,36 @@
  * SANS TopBar ni BottomNav (gérés par PanelRootLayout)
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSmartStore } from "@/store/useSmartStore";
+import { useHAStore } from "@/store/useHAStore";
 import { SmartEmptyState } from "@/components/smart/SmartEmptyState";
 import { SmartTile } from "@/components/smart/SmartTile";
 import { SmartWizard } from "@/components/smart/SmartWizard";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 
 export function PanelSmart() {
-  const { automations } = useSmartStore();
+  const { automations, loadAutomations, isLoading } = useSmartStore();
+  const { client, entities } = useHAStore();
   const [showWizard, setShowWizard] = useState(false);
 
+  // Load automations from HA when page mounts or entities change
+  useEffect(() => {
+    if (client && entities.length > 0) {
+      loadAutomations();
+    }
+  }, [client, entities.length, loadAutomations]);
+
   const hasAutomations = automations.length > 0;
+
+  if (isLoading && automations.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full overflow-y-auto">

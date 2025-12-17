@@ -1,17 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TopBar } from "@/components/TopBar";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useSmartStore } from "@/store/useSmartStore";
+import { useHAStore } from "@/store/useHAStore";
 import { SmartEmptyState } from "@/components/smart/SmartEmptyState";
 import { SmartTile } from "@/components/smart/SmartTile";
 import { SmartWizard } from "@/components/smart/SmartWizard";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 
 const Smart = () => {
   const { displayMode } = useDisplayMode();
-  const { automations } = useSmartStore();
+  const { automations, loadAutomations, isLoading } = useSmartStore();
+  const { client, entities } = useHAStore();
   const [showWizard, setShowWizard] = useState(false);
+
+  // Load automations from HA when page mounts or entities change
+  useEffect(() => {
+    if (client && entities.length > 0) {
+      loadAutomations();
+    }
+  }, [client, entities.length, loadAutomations]);
 
   const ptClass = displayMode === "mobile" ? "pt-28" : "pt-[24px]";
   const rootClassName = displayMode === "mobile" 
@@ -24,7 +33,11 @@ const Smart = () => {
     <div className={rootClassName}>
       <TopBar title="Smarthome" />
       
-      {!hasAutomations ? (
+      {isLoading && automations.length === 0 ? (
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : !hasAutomations ? (
         <SmartEmptyState onCreateAutomation={() => setShowWizard(true)} />
       ) : (
         <div className="max-w-screen-xl mx-auto px-4 pt-[24px] pb-4">
