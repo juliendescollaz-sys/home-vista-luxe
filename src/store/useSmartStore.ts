@@ -574,51 +574,73 @@ export const useSmartStore = create<SmartStore>()(
       isLoading: false,
 
       loadAutomations: async () => {
-        const haStore = useHAStore.getState();
-        const entities = haStore.entities;
-        const client = haStore.client;
-        const favorites = get().automationFavorites;
-        const existing = get().automations;
+        set({ isLoading: true });
 
-        // Filter for automation entities only
-        const automationEntities = entities.filter(e => e.entity_id.startsWith("automation."));
-        
-        // Build map of existing automations for faster lookup
-        const existingMap = new Map(existing.map(a => [a.id, a]));
-        
-        const results: SmartAutomation[] = [];
-        
-        for (const entity of automationEntities) {
-          const entityId = entity.entity_id;
-          const automationId = entityId.replace("automation.", "");
-          const existingAutomation = existingMap.get(entityId);
-          
-          // Try to fetch HA config for detailed triggers/conditions/actions
-          let haConfig: any = null;
-          let hasSmartMarker = false;
-          
-          if (client) {
-            try {
-              const response = await callAutomationManager("get", automationId);
-              if (response.config) {
-                haConfig = response.config;
-                // Check if this automation was created by Neolia Smart page
-                // Only include automations with [NEOLIA_SMART] marker
-                const description = haConfig.description || "";
-                hasSmartMarker = description.includes(META_START);
+        try {
+          const haStore = useHAStore.getState();
+          const entities = haStore.entities;
+          const client = haStore.client;
+          const favorites = get().automationFavorites;
+          const existing = get().automations;
+
+          // Filter for automation entities only
+          const automationEntities = entities.filter((e) =>
+            e.entity_id.startsWith("automation.")
+          );
+
+          // Build map of existing automations for faster lookup
+          const existingMap = new Map(existing.map((a) => [a.id, a]));
+
+          const results: SmartAutomation[] = [];
+
+          for (const entity of automationEntities) {
+            const entityId = entity.entity_id;
+            const automationId = entityId.replace("automation.", "");
+            const existingAutomation = existingMap.get(entityId);
+
+            // Determine whether this automation belongs to the Smart page
+            // Prefer checking the stored HA config (source of truth), fall back to entity attributes.
+            let haConfig: any = null;
+            let hasSmartMarker = false;
+
+            if (client) {
+              try {
+                const response: any = await callAutomationManager("get", automationId);
+
+                // Edge function may return either { config: {...} } or the config object directly.
+                haConfig = response?.config ?? response;
+
+                if (!response?.notFound && haConfig) {
+                  const description = haConfig.description || "";
+                  hasSmartMarker = description.includes(META_START);
+                }
+              } catch {
+                // Ignore and fall back to entity attributes
               }
-            } catch {
-              // Silently fail - use entity data only
+            }
+
+            if (!hasSmartMarker) {
+              const entityDescription = entity.attributes?.description || "";
+              hasSmartMarker = entityDescription.includes(META_START);
+            }
+
+            // Only add automations that have the Neolia Smart marker (category = "smart")
+            if (hasSmartMarker) {
+              results.push(
+                haAutomationToSmartAutomation(
+                  entity,
+                  favorites,
+                  haConfig,
+                  existingAutomation
+                )
+              );
             }
           }
-          
-          // Only add automations that have the Neolia Smart marker (category = "smart")
-          if (hasSmartMarker) {
-            results.push(haAutomationToSmartAutomation(entity, favorites, haConfig, existingAutomation));
-          }
-        }
 
-        set({ automations: results, isLoading: false });
+          set({ automations: results });
+        } finally {
+          set({ isLoading: false });
+        }
       },
 
       addAutomation: async (automation) => {
