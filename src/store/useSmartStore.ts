@@ -442,12 +442,21 @@ function buildHAConditions(conditionBlock: ConditionBlock): any[] {
             ...(c.before && { before: c.before }),
             ...(c.weekday && { weekday: c.weekday.map(d => ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][d]) }),
           };
-        case "sun":
+        case "sun": {
+          // HA requires at least one of before or after for sun condition
+          if (!c.after && !c.before) {
+            // Default to "after sunset" if neither is specified
+            return {
+              condition: "sun",
+              after: "sunset",
+            };
+          }
           return {
             condition: "sun",
             ...(c.after && { after: c.after, after_offset: c.afterOffset ? formatOffset(c.afterOffset) : undefined }),
             ...(c.before && { before: c.before, before_offset: c.beforeOffset ? formatOffset(c.beforeOffset) : undefined }),
           };
+        }
         case "numeric":
           return {
             condition: "numeric_state",
