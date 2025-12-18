@@ -20,7 +20,7 @@ interface RoomPhotosStore {
   isLoading: boolean;
   error: string | null;
   currentUserId: string;
-  unlockedRooms: Set<string>; // Rooms unlocked via parental code this session
+  unlockedRooms: string[]; // Rooms unlocked via parental code this session (array for serialization)
   
   // HA connection info (needed for API calls)
   haBaseUrl: string | null;
@@ -48,7 +48,7 @@ export const useRoomPhotosStore = create<RoomPhotosStore>()(
       isLoading: false,
       error: null,
       currentUserId: "",
-      unlockedRooms: new Set(),
+      unlockedRooms: [],
       haBaseUrl: null,
       haToken: null,
       
@@ -126,7 +126,7 @@ export const useRoomPhotosStore = create<RoomPhotosStore>()(
         const access = checkPhotoAccess(roomMetadata, currentUserId);
         
         // If room was unlocked this session, allow editing
-        if (unlockedRooms.has(roomId) && access.requiresUnlock) {
+        if (unlockedRooms.includes(roomId) && access.requiresUnlock) {
           return {
             ...access,
             canEdit: true,
@@ -145,9 +145,10 @@ export const useRoomPhotosStore = create<RoomPhotosStore>()(
         
         const isValid = await verifyParentalCode(roomMetadata, code);
         if (isValid) {
-          const newUnlockedRooms = new Set(unlockedRooms);
-          newUnlockedRooms.add(roomId);
-          set({ unlockedRooms: newUnlockedRooms });
+          // Add to unlocked rooms if not already there
+          if (!unlockedRooms.includes(roomId)) {
+            set({ unlockedRooms: [...unlockedRooms, roomId] });
+          }
         }
         return isValid;
       },
@@ -179,7 +180,7 @@ export const useRoomPhotosStore = create<RoomPhotosStore>()(
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...(persistedState as Partial<RoomPhotosStore>),
-        unlockedRooms: new Set(), // Always start with empty unlocked rooms
+        unlockedRooms: [], // Always start with empty unlocked rooms
       }),
     }
   )
