@@ -456,22 +456,20 @@ const MaisonMobileView = () => {
 
   // Load room photos metadata on mount
   useEffect(() => {
-    if (connection?.url && connection?.token) {
-      loadMetadata(connection.url, connection.token);
-      
-      // Set a basic user ID if not set (in production, use actual user auth)
-      if (!currentUserId) {
-        const storedUserId = localStorage.getItem("neolia_user_id");
-        if (storedUserId) {
-          setCurrentUserId(storedUserId);
-        } else {
-          const newUserId = `user_${Date.now()}`;
-          localStorage.setItem("neolia_user_id", newUserId);
-          setCurrentUserId(newUserId);
-        }
+    loadMetadata();
+    
+    // Set a basic user ID if not set (in production, use actual user auth)
+    if (!currentUserId) {
+      const storedUserId = localStorage.getItem("neolia_user_id");
+      if (storedUserId) {
+        setCurrentUserId(storedUserId);
+      } else {
+        const newUserId = `user_${Date.now()}`;
+        localStorage.setItem("neolia_user_id", newUserId);
+        setCurrentUserId(newUserId);
       }
     }
-  }, [connection?.url, connection?.token, loadMetadata, currentUserId, setCurrentUserId]);
+  }, [loadMetadata, currentUserId, setCurrentUserId]);
 
   // Handle photo selection from file input
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -517,14 +515,12 @@ const MaisonMobileView = () => {
 
   // Handle photo options confirmation
   const handlePhotoConfirm = async (options: PhotoUploadOptions) => {
-    if (!pendingPhotoFile || !photoDialogArea || !connection?.url || !connection?.token) {
+    if (!pendingPhotoFile || !photoDialogArea) {
       return;
     }
 
     try {
       await uploadPhoto(
-        connection.url,
-        connection.token,
         photoDialogArea.area_id,
         pendingPhotoFile,
         options
@@ -562,8 +558,7 @@ const MaisonMobileView = () => {
 
   // Get photo URL for a room (with access control)
   const getRoomPhotoUrl = (areaId: string): string | undefined => {
-    if (!connection?.url) return undefined;
-    return getPhotoUrlForRoom(connection.url, areaId) ?? undefined;
+    return getPhotoUrlForRoom(areaId) ?? undefined;
   };
 
   const handleDragStart = (event: DragStartEvent) => {

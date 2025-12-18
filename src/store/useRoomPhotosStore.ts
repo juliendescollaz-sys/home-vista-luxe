@@ -1,12 +1,13 @@
 /**
- * Store for room photos metadata
+ * Zustand store for room photos management
+ * Uses localStorage for device-local photo storage
  */
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { RoomPhotosJson, RoomPhotoMetadata, PhotoUploadOptions, RoomPhotoAccess } from "@/types/roomPhotos";
+import type { RoomPhotosJson, RoomPhotoMetadata, RoomPhotoAccess, PhotoUploadOptions } from "@/types/roomPhotos";
 import {
-  fetchRoomPhotosMetadata,
+  getRoomPhotosMetadata,
   uploadRoomPhoto,
   deleteRoomPhoto,
   checkPhotoAccess,
@@ -16,164 +17,126 @@ import {
 
 interface RoomPhotosStore {
   // State
-  metadata: RoomPhotosJson | null;
+  metadata: RoomPhotosJson;
   isLoading: boolean;
   error: string | null;
   currentUserId: string;
-  unlockedRooms: Set<string>; // Rooms unlocked via parental code in current session
+  unlockedRooms: Set<string>; // Rooms unlocked via parental code this session
   
   // Actions
   setCurrentUserId: (userId: string) => void;
-  loadMetadata: (haBaseUrl: string, haToken: string) => Promise<void>;
+  loadMetadata: () => void;
   uploadPhoto: (
-    haBaseUrl: string,
-    haToken: string,
     roomId: string,
     imageFile: File,
     options: PhotoUploadOptions
   ) => Promise<string>;
-  deletePhoto: (haBaseUrl: string, haToken: string, roomId: string) => Promise<void>;
+  deletePhoto: (roomId: string) => void;
   getAccess: (roomId: string) => RoomPhotoAccess;
   unlockRoom: (roomId: string, code: string) => Promise<boolean>;
-  getPhotoUrlForRoom: (haBaseUrl: string, roomId: string) => string | null;
+  getPhotoUrlForRoom: (roomId: string) => string | null;
   getRoomMetadata: (roomId: string) => RoomPhotoMetadata | undefined;
 }
 
 export const useRoomPhotosStore = create<RoomPhotosStore>()(
   persist(
     (set, get) => ({
-      metadata: null,
+      metadata: { version: 1, rooms: {} },
       isLoading: false,
       error: null,
       currentUserId: "",
       unlockedRooms: new Set(),
-
-      setCurrentUserId: (userId) => set({ currentUserId: userId }),
-
-      loadMetadata: async (haBaseUrl, haToken) => {
-        set({ isLoading: true, error: null });
-        try {
-          const metadata = await fetchRoomPhotosMetadata(haBaseUrl, haToken);
-          set({ metadata, isLoading: false });
-        } catch (error) {
-          console.error("[RoomPhotos] Failed to load metadata:", error);
-          set({
-            error: error instanceof Error ? error.message : "Failed to load",
-            isLoading: false,
-          });
-        }
+      
+      setCurrentUserId: (userId: string) => {
+        set({ currentUserId: userId });
       },
-
-      uploadPhoto: async (haBaseUrl, haToken, roomId, imageFile, options) => {
+      
+      loadMetadata: () => {
+        const metadata = getRoomPhotosMetadata();
+        set({ metadata, isLoading: false, error: null });
+      },
+      
+      uploadPhoto: async (
+        roomId: string,
+        imageFile: File,
+        options: PhotoUploadOptions
+      ) => {
         const { currentUserId } = get();
-        if (!currentUserId) {
-          throw new Error("User ID not set");
-        }
-
         set({ isLoading: true, error: null });
+        
         try {
-          const photoUrl = await uploadRoomPhoto(
-            haBaseUrl,
-            haToken,
-            roomId,
-            currentUserId,
-            imageFile,
-            options
-          );
-
-          // Refresh metadata after upload
-          const metadata = await fetchRoomPhotosMetadata(haBaseUrl, haToken);
+          const photoUrl = await uploadRoomPhoto(roomId, currentUserId, imageFile, options);
+          // Reload metadata after upload
+          const metadata = getRoomPhotosMetadata();
           set({ metadata, isLoading: false });
-
           return photoUrl;
         } catch (error) {
-          console.error("[RoomPhotos] Failed to upload:", error);
-          set({
-            error: error instanceof Error ? error.message : "Upload failed",
-            isLoading: false,
-          });
+          const message = error instanceof Error ? error.message : "Upload failed";
+          set({ isLoading: false, error: message });
           throw error;
         }
       },
-
-      deletePhoto: async (haBaseUrl, haToken, roomId) => {
-        set({ isLoading: true, error: null });
-        try {
-          await deleteRoomPhoto(haBaseUrl, haToken, roomId);
-
-          // Refresh metadata after delete
-          const metadata = await fetchRoomPhotosMetadata(haBaseUrl, haToken);
-          set({ metadata, isLoading: false });
-        } catch (error) {
-          console.error("[RoomPhotos] Failed to delete:", error);
-          set({
-            error: error instanceof Error ? error.message : "Delete failed",
-            isLoading: false,
-          });
-          throw error;
-        }
+      
+      deletePhoto: (roomId: string) => {
+        deleteRoomPhoto(roomId);
+        const metadata = getRoomPhotosMetadata();
+        set({ metadata });
       },
-
-      getAccess: (roomId) => {
+      
+      getAccess: (roomId: string) => {
         const { metadata, currentUserId, unlockedRooms } = get();
-        const roomMeta = metadata?.rooms[roomId];
-
-        const baseAccess = checkPhotoAccess(roomMeta, currentUserId);
-
-        // Check if room was unlocked in this session
-        if (baseAccess.requiresUnlock && unlockedRooms.has(roomId)) {
+        const roomMetadata = metadata.rooms[roomId];
+        const access = checkPhotoAccess(roomMetadata, currentUserId);
+        
+        // If room was unlocked this session, allow editing
+        if (unlockedRooms.has(roomId) && access.requiresUnlock) {
           return {
-            ...baseAccess,
+            ...access,
             canEdit: true,
             requiresUnlock: false,
           };
         }
-
-        return baseAccess;
+        
+        return access;
       },
-
-      unlockRoom: async (roomId, code) => {
+      
+      unlockRoom: async (roomId: string, code: string) => {
         const { metadata, unlockedRooms } = get();
-        const roomMeta = metadata?.rooms[roomId];
-
-        if (!roomMeta) return false;
-
-        const isValid = await verifyParentalCode(roomMeta, code);
-
+        const roomMetadata = metadata.rooms[roomId];
+        
+        if (!roomMetadata) return false;
+        
+        const isValid = await verifyParentalCode(roomMetadata, code);
         if (isValid) {
           const newUnlockedRooms = new Set(unlockedRooms);
           newUnlockedRooms.add(roomId);
           set({ unlockedRooms: newUnlockedRooms });
         }
-
         return isValid;
       },
-
-      getPhotoUrlForRoom: (haBaseUrl, roomId) => {
-        const { metadata, currentUserId, unlockedRooms } = get();
-        const roomMeta = metadata?.rooms[roomId];
-
-        if (!roomMeta) return null;
-
-        // Check access
-        const isOwner = roomMeta.ownerUserId === currentUserId;
-        const canView = isOwner || roomMeta.shared || unlockedRooms.has(roomId);
-
-        if (!canView) return null;
-
-        return getPhotoUrl(haBaseUrl, roomMeta.photoUrl, roomMeta.updatedAt);
+      
+      getPhotoUrlForRoom: (roomId: string) => {
+        const { metadata, currentUserId } = get();
+        const roomMetadata = metadata.rooms[roomId];
+        
+        if (!roomMetadata) return null;
+        
+        const access = checkPhotoAccess(roomMetadata, currentUserId);
+        if (!access.canView) return null;
+        
+        return getPhotoUrl(roomMetadata.photoUrl);
       },
-
-      getRoomMetadata: (roomId) => {
+      
+      getRoomMetadata: (roomId: string) => {
         const { metadata } = get();
-        return metadata?.rooms[roomId];
+        return metadata.rooms[roomId];
       },
     }),
     {
       name: "neolia-room-photos-store",
       partialize: (state) => ({
         currentUserId: state.currentUserId,
-        // Don't persist unlockedRooms - they reset on app restart
+        // Don't persist unlockedRooms - it's session-only
       }),
       merge: (persistedState, currentState) => ({
         ...currentState,
