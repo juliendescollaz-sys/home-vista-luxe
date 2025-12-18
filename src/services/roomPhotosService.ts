@@ -1,15 +1,13 @@
 /**
- * Service for managing room photos stored in localStorage
- * Photos are stored as base64 data URLs locally on each device
- * This is a device-local storage solution - photos do not sync across devices
+ * Service for managing room photos stored in Home Assistant
+ * Photos are uploaded via POST /api/neolia/room_photo
+ * Metadata is loaded from /local/neolia/pieces/room_photos.json
  */
 
 import type { RoomPhotosJson, RoomPhotoMetadata, PhotoUploadOptions, RoomPhotoAccess } from "@/types/roomPhotos";
 
-const STORAGE_KEY = "neolia_room_photos";
-
 // Helper to hash parental code with SHA-256
-async function hashCode(code: string): Promise<string> {
+export async function hashCode(code: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(code);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -18,72 +16,89 @@ async function hashCode(code: string): Promise<string> {
   return `sha256:${hashHex}`;
 }
 
-// Get room photos metadata from localStorage
-export function getRoomPhotosMetadata(): RoomPhotosJson {
+// Load room photos metadata from Home Assistant
+export async function loadRoomPhotosMetadata(
+  haBaseUrl: string,
+  haToken: string
+): Promise<RoomPhotosJson> {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
+    const metadataUrl = `${haBaseUrl}/local/neolia/pieces/room_photos.json`;
+    const response = await fetch(metadataUrl, {
+      headers: {
+        Authorization: `Bearer ${haToken}`,
+      },
+    });
+
+    if (response.status === 404) {
+      // No metadata file yet - return empty
+      console.log("[RoomPhotos] No metadata file found (404), returning empty");
+      return { version: 1, rooms: {} };
     }
+
+    if (!response.ok) {
+      console.warn("[RoomPhotos] Failed to load metadata:", response.status);
+      return { version: 1, rooms: {} };
+    }
+
+    const metadata = await response.json();
+    console.log("[RoomPhotos] Loaded metadata:", Object.keys(metadata.rooms || {}).length, "rooms");
+    return metadata;
   } catch (error) {
-    console.warn("[RoomPhotos] Could not read from localStorage:", error);
+    console.warn("[RoomPhotos] Could not load metadata from HA:", error);
+    return { version: 1, rooms: {} };
   }
-  return { version: 1, rooms: {} };
 }
 
-// Save room photos metadata to localStorage
-function saveRoomPhotosMetadata(metadata: RoomPhotosJson): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(metadata));
-  } catch (error) {
-    console.error("[RoomPhotos] Could not save to localStorage:", error);
-    throw new Error("Impossible de sauvegarder la photo (stockage local plein)");
-  }
-}
-
-// Upload photo (store as base64 in localStorage)
+// Upload photo to Home Assistant via custom endpoint
 export async function uploadRoomPhoto(
+  haBaseUrl: string,
+  haToken: string,
   roomId: string,
   userId: string,
   imageFile: File,
   options: PhotoUploadOptions
-): Promise<string> {
-  // Convert file to base64
-  const base64 = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      resolve(reader.result as string);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(imageFile);
-  });
-  
+): Promise<{ photoUrl: string; metadata: RoomPhotosJson }> {
   // Hash parental code if provided
-  let parentalCodeHash: string | undefined;
+  let parentalCodeHash = "";
   if (options.locked && options.parentalCode) {
     parentalCodeHash = await hashCode(options.parentalCode);
   }
-  
-  // Get current metadata and update
-  const metadata = getRoomPhotosMetadata();
-  metadata.rooms[roomId] = {
-    photoUrl: base64, // Store base64 directly as the URL
-    ownerUserId: userId,
-    shared: options.shared,
-    locked: options.locked,
-    parentalCodeHash,
-    updatedAt: new Date().toISOString(),
-  };
-  
-  saveRoomPhotosMetadata(metadata);
-  return base64;
-}
 
-// Delete room photo
-export function deleteRoomPhoto(roomId: string): void {
-  const metadata = getRoomPhotosMetadata();
-  delete metadata.rooms[roomId];
-  saveRoomPhotosMetadata(metadata);
+  // Create FormData for upload
+  const formData = new FormData();
+  formData.append("file", imageFile);
+  formData.append("roomId", roomId);
+  formData.append("userId", userId);
+  formData.append("shared", options.shared ? "true" : "false");
+  formData.append("locked", options.locked ? "true" : "false");
+  if (parentalCodeHash) {
+    formData.append("parentalCodeHash", parentalCodeHash);
+  }
+
+  const uploadUrl = `${haBaseUrl}/api/neolia/room_photo`;
+  console.log("[RoomPhotos] Uploading to:", uploadUrl);
+
+  const response = await fetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${haToken}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("[RoomPhotos] Upload failed:", response.status, errorText);
+    throw new Error(`Upload failed: ${response.status}`);
+  }
+
+  const result = await response.json();
+  console.log("[RoomPhotos] Upload successful:", result);
+
+  return {
+    photoUrl: result.photoUrl,
+    metadata: result.metadata || { version: 1, rooms: {} },
+  };
 }
 
 // Check access permissions for a room photo
@@ -99,9 +114,9 @@ export function checkPhotoAccess(
       isOwner: false,
     };
   }
-  
+
   const isOwner = metadata.ownerUserId === currentUserId;
-  
+
   if (isOwner) {
     return {
       canView: true,
@@ -110,7 +125,7 @@ export function checkPhotoAccess(
       isOwner: true,
     };
   }
-  
+
   // Not owner
   if (!metadata.shared) {
     return {
@@ -120,7 +135,7 @@ export function checkPhotoAccess(
       isOwner: false,
     };
   }
-  
+
   // Shared photo
   if (metadata.locked) {
     return {
@@ -130,7 +145,7 @@ export function checkPhotoAccess(
       isOwner: false,
     };
   }
-  
+
   return {
     canView: true,
     canEdit: true,
@@ -149,7 +164,19 @@ export async function verifyParentalCode(
   return hash === metadata.parentalCodeHash;
 }
 
-// Get photo URL (for localStorage, just return the base64 directly)
-export function getPhotoUrl(photoUrl: string): string {
-  return photoUrl;
+// Get photo URL with cache-busting
+export function getPhotoUrl(
+  haBaseUrl: string,
+  photoUrl: string,
+  updatedAt?: string
+): string {
+  // photoUrl is relative like /local/neolia/pieces/room_xxx.jpg
+  const fullUrl = `${haBaseUrl}${photoUrl}`;
+  
+  // Add cache-busting param
+  if (updatedAt) {
+    return `${fullUrl}?v=${encodeURIComponent(updatedAt)}`;
+  }
+  
+  return fullUrl;
 }
