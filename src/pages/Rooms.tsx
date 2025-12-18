@@ -803,8 +803,8 @@ const MaisonMobileView = () => {
             </button>
             <h2 className="text-lg font-semibold">{selectedTypeName}</h2>
             
-            {/* Arborescence par étage/pièce */}
-            <div className="space-y-3">
+            {/* Arborescence par étage/pièce - UI améliorée */}
+            <div className="space-y-2">
               {floors.map((floor) => {
                 const areasForFloor = areas.filter((a) => a.floor_id === floor.floor_id);
                 const devicesInFloor = devicesForType.filter((entity) => {
@@ -820,72 +820,86 @@ const MaisonMobileView = () => {
                 if (devicesInFloor.length === 0) return null;
                 
                 return (
-                  <Collapsible key={floor.floor_id} defaultOpen>
-                    <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
-                      <span className="font-medium">{floor.name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">{devicesInFloor.length}</span>
-                        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+                  <Collapsible key={floor.floor_id} defaultOpen={false}>
+                    <CollapsibleTrigger className="group flex items-center justify-between w-full px-4 py-3 bg-card border border-border/60 rounded-xl hover:border-primary/40 hover:bg-accent/20 transition-all">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <span className="text-xs font-semibold text-primary">{floor.name.charAt(0).toUpperCase()}</span>
+                        </div>
+                        <span className="font-medium text-foreground">{floor.name}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="px-2.5 py-1 text-xs font-medium bg-muted rounded-full text-muted-foreground">
+                          {devicesInFloor.length}
+                        </span>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
                       </div>
                     </CollapsibleTrigger>
-                    <CollapsibleContent className="pt-2 space-y-2">
-                      {areasForFloor.map((area) => {
-                        const devicesInArea = devicesForType.filter((entity) => {
-                          const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
-                          let areaId = reg?.area_id;
-                          if (!areaId && reg?.device_id) {
-                            const dev = devices.find((d) => d.id === reg.device_id);
-                            if (dev?.area_id) areaId = dev.area_id;
-                          }
-                          return areaId === area.area_id;
-                        });
-                        
-                        if (devicesInArea.length === 0) return null;
-                        
-                        return (
-                          <Collapsible key={area.area_id} defaultOpen className="ml-3">
-                            <CollapsibleTrigger className="flex items-center justify-between w-full p-2 bg-accent/30 rounded-md hover:bg-accent/50 transition-colors">
-                              <span className="text-sm font-medium">{area.name}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">{devicesInArea.length}</span>
-                                <ChevronDown className="h-3 w-3 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
-                              </div>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent className="pt-2 pl-2">
-                              <div className={getGridClasses("devices", "mobile")}>
-                                {devicesInArea.map((entity) => {
-                                  const domain = getEntityDomain(entity.entity_id);
-                                  if (domain === "cover") {
-                                    return (
-                                      <SortableCoverEntityTile
-                                        key={entity.entity_id}
-                                        entity={entity}
-                                      />
-                                    );
-                                  }
-                                  if (domain === "media_player") {
-                                    return (
-                                      <SortableMediaPlayerCard
-                                        key={entity.entity_id}
-                                        entity={entity}
-                                      />
-                                    );
-                                  }
-                                  return (
-                                    <SortableDeviceCard
-                                      key={entity.entity_id}
-                                      entity={entity}
-                                      onToggle={() => handleDeviceToggle(entity.entity_id)}
-                                      onOpenDetails={() => {}}
-                                      onEditName={() => setEntityToRename(entity)}
-                                    />
-                                  );
-                                })}
-                              </div>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        );
-                      })}
+                    <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
+                      <div className="pt-2 pl-4 space-y-1.5">
+                        {areasForFloor.map((area) => {
+                          const devicesInArea = devicesForType.filter((entity) => {
+                            const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+                            let areaId = reg?.area_id;
+                            if (!areaId && reg?.device_id) {
+                              const dev = devices.find((d) => d.id === reg.device_id);
+                              if (dev?.area_id) areaId = dev.area_id;
+                            }
+                            return areaId === area.area_id;
+                          });
+                          
+                          if (devicesInArea.length === 0) return null;
+                          
+                          return (
+                            <Collapsible key={area.area_id} defaultOpen={false}>
+                              <CollapsibleTrigger className="group flex items-center justify-between w-full px-3 py-2.5 bg-muted/40 border border-transparent rounded-lg hover:bg-muted/70 hover:border-border/40 transition-all">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+                                  <span className="text-sm font-medium text-foreground/90">{area.name}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-muted-foreground">{devicesInArea.length}</span>
+                                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                </div>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
+                                <div className="pt-2 pb-1 pl-3">
+                                  <div className={getGridClasses("devices", "mobile")}>
+                                    {devicesInArea.map((entity) => {
+                                      const domain = getEntityDomain(entity.entity_id);
+                                      if (domain === "cover") {
+                                        return (
+                                          <SortableCoverEntityTile
+                                            key={entity.entity_id}
+                                            entity={entity}
+                                          />
+                                        );
+                                      }
+                                      if (domain === "media_player") {
+                                        return (
+                                          <SortableMediaPlayerCard
+                                            key={entity.entity_id}
+                                            entity={entity}
+                                          />
+                                        );
+                                      }
+                                      return (
+                                        <SortableDeviceCard
+                                          key={entity.entity_id}
+                                          entity={entity}
+                                          onToggle={() => handleDeviceToggle(entity.entity_id)}
+                                          onOpenDetails={() => {}}
+                                          onEditName={() => setEntityToRename(entity)}
+                                        />
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          );
+                        })}
+                      </div>
                     </CollapsibleContent>
                   </Collapsible>
                 );
@@ -908,44 +922,53 @@ const MaisonMobileView = () => {
                 if (devicesWithoutFloor.length === 0) return null;
                 
                 return (
-                  <Collapsible defaultOpen>
-                    <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
-                      <span className="font-medium text-muted-foreground">Sans étage</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">{devicesWithoutFloor.length}</span>
-                        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+                  <Collapsible defaultOpen={false}>
+                    <CollapsibleTrigger className="group flex items-center justify-between w-full px-4 py-3 bg-card border border-border/60 rounded-xl hover:border-muted-foreground/40 hover:bg-accent/20 transition-all">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                          <span className="text-xs font-semibold text-muted-foreground">?</span>
+                        </div>
+                        <span className="font-medium text-muted-foreground">Sans étage</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="px-2.5 py-1 text-xs font-medium bg-muted rounded-full text-muted-foreground">
+                          {devicesWithoutFloor.length}
+                        </span>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
                       </div>
                     </CollapsibleTrigger>
-                    <CollapsibleContent className="pt-2">
-                      <div className={getGridClasses("devices", "mobile")}>
-                        {devicesWithoutFloor.map((entity) => {
-                          const domain = getEntityDomain(entity.entity_id);
-                          if (domain === "cover") {
+                    <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
+                      <div className="pt-2 pl-4">
+                        <div className={getGridClasses("devices", "mobile")}>
+                          {devicesWithoutFloor.map((entity) => {
+                            const domain = getEntityDomain(entity.entity_id);
+                            if (domain === "cover") {
+                              return (
+                                <SortableCoverEntityTile
+                                  key={entity.entity_id}
+                                  entity={entity}
+                                />
+                              );
+                            }
+                            if (domain === "media_player") {
+                              return (
+                                <SortableMediaPlayerCard
+                                  key={entity.entity_id}
+                                  entity={entity}
+                                />
+                              );
+                            }
                             return (
-                              <SortableCoverEntityTile
+                              <SortableDeviceCard
                                 key={entity.entity_id}
                                 entity={entity}
+                                onToggle={() => handleDeviceToggle(entity.entity_id)}
+                                onOpenDetails={() => {}}
+                                onEditName={() => setEntityToRename(entity)}
                               />
                             );
-                          }
-                          if (domain === "media_player") {
-                            return (
-                              <SortableMediaPlayerCard
-                                key={entity.entity_id}
-                                entity={entity}
-                              />
-                            );
-                          }
-                          return (
-                            <SortableDeviceCard
-                              key={entity.entity_id}
-                              entity={entity}
-                              onToggle={() => handleDeviceToggle(entity.entity_id)}
-                              onOpenDetails={() => {}}
-                              onEditName={() => setEntityToRename(entity)}
-                            />
-                          );
-                        })}
+                          })}
+                        </div>
                       </div>
                     </CollapsibleContent>
                   </Collapsible>
