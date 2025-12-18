@@ -890,6 +890,7 @@ const MaisonMobileView = () => {
                                           onToggle={() => handleDeviceToggle(entity.entity_id)}
                                           onOpenDetails={() => {}}
                                           onEditName={() => setEntityToRename(entity)}
+                                          size="compact"
                                         />
                                       );
                                     })}
@@ -965,6 +966,7 @@ const MaisonMobileView = () => {
                                 onToggle={() => handleDeviceToggle(entity.entity_id)}
                                 onOpenDetails={() => {}}
                                 onEditName={() => setEntityToRename(entity)}
+                                size="compact"
                               />
                             );
                           })}
