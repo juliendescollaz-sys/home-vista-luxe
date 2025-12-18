@@ -331,7 +331,10 @@ const MaisonMobileView = () => {
   const renameEntity = useHAStore((state) => state.renameEntity);
 
   // Room photos store - LOCAL ONLY
-  const { loadPhotos, setPhoto, getPhoto, isLoading: isPhotoLoading } = useRoomPhotosStore();
+  const loadMetadata = useRoomPhotosStore((s) => s.loadMetadata);
+  const uploadPhoto = useRoomPhotosStore((s) => s.uploadPhoto);
+  const getPhotoUrlForRoom = useRoomPhotosStore((s) => s.getPhotoUrlForRoom);
+  const isPhotoLoading = useRoomPhotosStore((s) => s.isLoading);
 
   const [viewMode, setViewMode] = useState<"room" | "type">("room");
 
@@ -422,13 +425,13 @@ const MaisonMobileView = () => {
 
   // Load local room photos on mount
   useEffect(() => {
-    loadPhotos();
-  }, [loadPhotos]);
+    loadMetadata();
+  }, [loadMetadata]);
 
   // Handle photo change - save locally
   const handleRoomPhotoChange = async (areaId: string, file: File) => {
     try {
-      await setPhoto(areaId, file);
+      await uploadPhoto(areaId, file, {});
       toast.success("Photo enregistrée");
     } catch (error) {
       console.error("[RoomPhotos] Save failed:", error);
@@ -438,7 +441,7 @@ const MaisonMobileView = () => {
 
   // Get photo URL for a room (local storage)
   const getRoomPhotoUrl = (areaId: string): string | undefined => {
-    return getPhoto(areaId) ?? undefined;
+    return getPhotoUrlForRoom(areaId) ?? undefined;
   };
 
   const handleDragStart = (event: DragStartEvent) => {
