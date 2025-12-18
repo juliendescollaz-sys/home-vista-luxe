@@ -1,10 +1,33 @@
 /**
- * Service for managing room photos stored in Home Assistant
- * Photos are uploaded via POST /api/neolia/room_photo
- * Metadata is loaded from /local/neolia/pieces/room_photos.json
+ * Service for managing room photos stored in Home Assistant.
+ *
+ * IMPORTANT (PWA/iOS): direct browser calls to Home Assistant custom endpoints can fail
+ * with CORS/network errors ("Failed to fetch").
+ *
+ * To make it reliable, this service calls a backend proxy function (ha-room-photos)
+ * which then calls Home Assistant server-to-server.
  */
 
-import type { RoomPhotosJson, RoomPhotoMetadata, PhotoUploadOptions, RoomPhotoAccess } from "@/types/roomPhotos";
+import type {
+  RoomPhotosJson,
+  RoomPhotoMetadata,
+  PhotoUploadOptions,
+  RoomPhotoAccess,
+} from "@/types/roomPhotos";
+
+function getBackendConfig(): { functionsUrl: string; apikey: string } {
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+
+  if (!baseUrl || !apikey) {
+    throw new Error("Backend non configuré");
+  }
+
+  return {
+    functionsUrl: `${baseUrl}/functions/v1/ha-room-photos`,
+    apikey,
+  };
+}
 
 // Helper to hash parental code with SHA-256
 export async function hashCode(code: string): Promise<string> {
@@ -22,34 +45,39 @@ export async function loadRoomPhotosMetadata(
   haToken: string
 ): Promise<RoomPhotosJson> {
   try {
-    const metadataUrl = `${haBaseUrl}/local/neolia/pieces/room_photos.json`;
-    const response = await fetch(metadataUrl, {
+    const { functionsUrl, apikey } = getBackendConfig();
+
+    const response = await fetch(functionsUrl, {
+      method: "POST",
       headers: {
-        Authorization: `Bearer ${haToken}`,
+        "Content-Type": "application/json",
+        apikey,
       },
+      body: JSON.stringify({
+        action: "metadata",
+        haBaseUrl,
+        haToken,
+      }),
     });
 
-    if (response.status === 404) {
-      // No metadata file yet - return empty
-      console.log("[RoomPhotos] No metadata file found (404), returning empty");
-      return { version: 1, rooms: {} };
-    }
-
     if (!response.ok) {
-      console.warn("[RoomPhotos] Failed to load metadata:", response.status);
+      const errorText = await response.text().catch(() => "");
+      console.warn("[RoomPhotos] Failed to load metadata via backend:", response.status, errorText);
       return { version: 1, rooms: {} };
     }
 
-    const metadata = await response.json();
-    console.log("[RoomPhotos] Loaded metadata:", Object.keys(metadata.rooms || {}).length, "rooms");
-    return metadata;
+    const metadata = (await response.json()) as RoomPhotosJson;
+    return {
+      version: metadata?.version ?? 1,
+      rooms: metadata?.rooms ?? {},
+    };
   } catch (error) {
-    console.warn("[RoomPhotos] Could not load metadata from HA:", error);
+    console.warn("[RoomPhotos] Could not load metadata:", error);
     return { version: 1, rooms: {} };
   }
 }
 
-// Upload photo to Home Assistant via custom endpoint
+// Upload photo to Home Assistant via custom endpoint (proxied)
 export async function uploadRoomPhoto(
   haBaseUrl: string,
   haToken: string,
@@ -64,8 +92,12 @@ export async function uploadRoomPhoto(
     parentalCodeHash = await hashCode(options.parentalCode);
   }
 
-  // Create FormData for upload
+  const { functionsUrl, apikey } = getBackendConfig();
+
+  // Create FormData for upload (sent to backend proxy)
   const formData = new FormData();
+  formData.append("haBaseUrl", haBaseUrl);
+  formData.append("haToken", haToken);
   formData.append("file", imageFile);
   formData.append("roomId", roomId);
   formData.append("userId", userId);
@@ -75,25 +107,21 @@ export async function uploadRoomPhoto(
     formData.append("parentalCodeHash", parentalCodeHash);
   }
 
-  const uploadUrl = `${haBaseUrl}/api/neolia/room_photo`;
-  console.log("[RoomPhotos] Uploading to:", uploadUrl);
-
-  const response = await fetch(uploadUrl, {
+  const response = await fetch(functionsUrl, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${haToken}`,
+      apikey,
     },
     body: formData,
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error("[RoomPhotos] Upload failed:", response.status, errorText);
+    const errorText = await response.text().catch(() => "");
+    console.error("[RoomPhotos] Upload failed via backend:", response.status, errorText);
     throw new Error(`Upload failed: ${response.status}`);
   }
 
   const result = await response.json();
-  console.log("[RoomPhotos] Upload successful:", result);
 
   return {
     photoUrl: result.photoUrl,
@@ -172,11 +200,11 @@ export function getPhotoUrl(
 ): string {
   // photoUrl is relative like /local/neolia/pieces/room_xxx.jpg
   const fullUrl = `${haBaseUrl}${photoUrl}`;
-  
+
   // Add cache-busting param
   if (updatedAt) {
     return `${fullUrl}?v=${encodeURIComponent(updatedAt)}`;
   }
-  
+
   return fullUrl;
 }
