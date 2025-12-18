@@ -1,6 +1,7 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { PageTransition } from "@/components/PageTransition";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PanelSidebar } from "@/components/PanelSidebar";
 import { PanelHome } from "./pages/PanelHome";
@@ -98,10 +99,10 @@ export function PanelRootLayout() {
     };
   }, []);
 
-  // Écran de chargement
+  // Écran de chargement avec transition douce
   if (hasConfig === null) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background">
+      <div className="flex h-screen w-screen items-center justify-center bg-background animate-fade-in">
         <div className="text-center space-y-4">
           <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto" />
           <p className="text-lg text-muted-foreground">Chargement...</p>
@@ -124,28 +125,29 @@ export function PanelRootLayout() {
           {/* Zone de contenu scrollable */}
           <main className="flex-1 min-h-0 overflow-y-auto">
             <ScrollToTop />
+            <PageTransition>
+              <Routes>
+                {/* Pages principales */}
+                <Route path="/" element={<PanelHome />} />
+                <Route path="/rooms" element={<PanelRooms />} />
+                <Route path="/rooms/:areaId" element={<PanelRoomDetails />} />
+                <Route path="/favorites" element={<PanelFavorites />} />
+                <Route path="/scenes" element={<PanelScenes />} />
+                <Route path="/routines" element={<PanelRoutines />} />
+                <Route path="/groupes" element={<PanelGroupes />} />
+                <Route path="/smart" element={<PanelSmart />} />
+                <Route path="/settings" element={<PanelSettings />} />
 
-            <Routes>
-              {/* Pages principales */}
-              <Route path="/" element={<PanelHome />} />
-              <Route path="/rooms" element={<PanelRooms />} />
-              <Route path="/rooms/:areaId" element={<PanelRoomDetails />} />
-              <Route path="/favorites" element={<PanelFavorites />} />
-              <Route path="/scenes" element={<PanelScenes />} />
-              <Route path="/routines" element={<PanelRoutines />} />
-              <Route path="/groupes" element={<PanelGroupes />} />
-              <Route path="/smart" element={<PanelSmart />} />
-              <Route path="/settings" element={<PanelSettings />} />
+                {/* Pages secondaires */}
+                <Route path="/media-player/:entityId" element={<PanelMediaPlayerDetails />} />
+                <Route path="/sonos-zones" element={<PanelSonosZones />} />
+                <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
+                <Route path="/dev" element={<PanelDev />} />
 
-              {/* Pages secondaires */}
-              <Route path="/media-player/:entityId" element={<PanelMediaPlayerDetails />} />
-              <Route path="/sonos-zones" element={<PanelSonosZones />} />
-              <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
-              <Route path="/dev" element={<PanelDev />} />
-
-              {/* 404 */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                {/* 404 */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </PageTransition>
           </main>
         </div>
       </div>

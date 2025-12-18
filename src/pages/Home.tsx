@@ -142,7 +142,7 @@ const Home = () => {
               <p className="text-muted-foreground">Aucun appareil actif</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 stagger-fade-in">
               {enrichedActiveDevices.map(({ entity, area, floor }) => {
                 const isMediaPlayer = entity.entity_id.startsWith("media_player.");
                 const isCover = entity.entity_id.startsWith("cover.");
