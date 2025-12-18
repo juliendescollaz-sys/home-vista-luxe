@@ -1,9 +1,10 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card } from "@/components/ui/card";
-import { Home, Camera, ChevronRight, Pencil } from "lucide-react";
+import { Home, Camera, ChevronRight, Pencil, Lock } from "lucide-react";
 import { useRef } from "react";
 import type { HAArea, HAFloor } from "@/types/homeassistant";
+import type { RoomPhotoAccess } from "@/types/roomPhotos";
 
 interface SortableRoomCardWithPhotoProps {
   area: HAArea;
@@ -13,6 +14,7 @@ interface SortableRoomCardWithPhotoProps {
   onPhotoChange: (areaId: string, file: File) => void;
   onClick: () => void;
   onEditName?: (area: HAArea) => void;
+  photoAccess?: RoomPhotoAccess;
 }
 
 export const SortableRoomCardWithPhoto = ({
@@ -23,6 +25,7 @@ export const SortableRoomCardWithPhoto = ({
   onPhotoChange,
   onClick,
   onEditName,
+  photoAccess,
 }: SortableRoomCardWithPhotoProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -94,15 +97,21 @@ export const SortableRoomCardWithPhoto = ({
             </div>
           )}
 
-          {/* Bouton caméra - toujours visible */}
-          <button
-            type="button"
-            onClick={handlePhotoClick}
-            className="absolute top-2 right-2 p-2.5 rounded-full bg-background/80 backdrop-blur-sm border border-border/50 active:scale-95 transition-transform z-20"
-            aria-label="Ajouter une photo"
-          >
-            <Camera className="h-4 w-4 text-foreground/80" />
-          </button>
+          {/* Bouton caméra - visible si on peut éditer */}
+          {(!photoAccess || photoAccess.canEdit || photoAccess.requiresUnlock) && (
+            <button
+              type="button"
+              onClick={handlePhotoClick}
+              className="absolute top-2 right-2 p-2.5 rounded-full bg-background/80 backdrop-blur-sm border border-border/50 active:scale-95 transition-transform z-20"
+              aria-label={photoAccess?.requiresUnlock ? "Déverrouiller pour modifier" : "Ajouter une photo"}
+            >
+              {photoAccess?.requiresUnlock ? (
+                <Lock className="h-4 w-4 text-foreground/80" />
+              ) : (
+                <Camera className="h-4 w-4 text-foreground/80" />
+              )}
+            </button>
+          )}
 
           <input
             ref={fileInputRef}
