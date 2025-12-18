@@ -2,8 +2,9 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useHAStore } from "@/store/useHAStore";
-import { useEffect, useMemo, useState } from "react";
-import { MapPin, Grid3x3, Loader2, ChevronLeft } from "lucide-react";
+import { useRoomPhotosStore } from "@/store/useRoomPhotosStore";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { MapPin, Grid3x3, Loader2, ChevronLeft, Camera, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { HomeOverviewByTypeAndArea } from "@/components/HomeOverviewByTypeAndArea";
 import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, closestCenter, DragOverlay } from "@dnd-kit/core";
@@ -15,6 +16,8 @@ import { SortableTypeCard } from "@/components/SortableTypeCard";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { SortableCoverEntityTile } from "@/components/entities/SortableCoverEntityTile";
+import { RoomPhotoOptionsDialog } from "@/components/room-photos/RoomPhotoOptionsDialog";
+import { ParentalCodeDialog } from "@/components/room-photos/ParentalCodeDialog";
 
 import { RenameDialog } from "@/components/RenameDialog";
 import { getGridClasses } from "@/lib/gridLayout";
@@ -23,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { DraggableRoomLabel } from "@/components/DraggableRoomLabel";
 import { RoomDevicesGrid } from "@/components/RoomDevicesGrid";
 import type { HAEntity, HAArea } from "@/types/homeassistant";
+import type { PhotoUploadOptions } from "@/types/roomPhotos";
 import { getEntityDomain, filterPrimaryControlEntities } from "@/lib/entityUtils";
 
 // ============== MaisonTabletPanelView ==============
@@ -338,8 +342,22 @@ const MaisonMobileView = () => {
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const devices = useHAStore((state) => state.devices);
   const client = useHAStore((state) => state.client);
+  const connection = useHAStore((state) => state.connection);
   const renameArea = useHAStore((state) => state.renameArea);
   const renameEntity = useHAStore((state) => state.renameEntity);
+
+  // Room photos store
+  const {
+    loadMetadata,
+    uploadPhoto,
+    getAccess,
+    unlockRoom,
+    getPhotoUrlForRoom,
+    getRoomMetadata,
+    isLoading: isPhotoLoading,
+    currentUserId,
+    setCurrentUserId,
+  } = useRoomPhotosStore();
 
   const [viewMode, setViewMode] = useState<"room" | "type">("room");
 
@@ -349,11 +367,18 @@ const MaisonMobileView = () => {
   const [areaToRename, setAreaToRename] = useState<HAArea | null>(null);
   const [entityToRename, setEntityToRename] = useState<HAEntity | null>(null);
 
+  // Photo dialogs state
+  const [photoDialogArea, setPhotoDialogArea] = useState<HAArea | null>(null);
+  const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null);
+  const [pendingPhotoPreview, setPendingPhotoPreview] = useState<string | null>(null);
+  const [unlockDialogArea, setUnlockDialogArea] = useState<HAArea | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const targetAreaRef = useRef<string | null>(null);
+
   const LS_AREA_ORDER = "neolia_mobile_area_order";
   const LS_TYPE_ORDER = "neolia_mobile_type_order";
   const LS_DEVICE_AREA_ORDER = "neolia_mobile_device_order_by_area";
   const LS_DEVICE_TYPE_ORDER = "neolia_mobile_device_order_by_type";
-  const LS_ROOM_PHOTOS = "neolia_mobile_room_photos";
 
   const [areaOrder, setAreaOrder] = useState<string[]>(() => {
     try {
@@ -383,14 +408,6 @@ const MaisonMobileView = () => {
     try {
       const dt = window.localStorage.getItem(LS_DEVICE_TYPE_ORDER);
       return dt ? JSON.parse(dt) : {};
-    } catch {
-      return {};
-    }
-  });
-  const [roomPhotos, setRoomPhotos] = useState<Record<string, string>>(() => {
-    try {
-      const rp = window.localStorage.getItem(LS_ROOM_PHOTOS);
-      return rp ? JSON.parse(rp) : {};
     } catch {
       return {};
     }
@@ -437,67 +454,116 @@ const MaisonMobileView = () => {
     } catch {}
   }, [deviceOrderByType]);
 
+  // Load room photos metadata on mount
   useEffect(() => {
-    try {
-      window.localStorage.setItem(LS_ROOM_PHOTOS, JSON.stringify(roomPhotos));
-    } catch {}
-  }, [roomPhotos]);
-
-  const handleRoomPhotoChange = (areaId: string, file: File) => {
-    // Compress image before storing
-    const img = new Image();
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    img.onload = () => {
-      // Limit size to 400px max dimension for localStorage quota
-      const maxSize = 400;
-      let width = img.width;
-      let height = img.height;
-
-      if (width > height) {
-        if (width > maxSize) {
-          height = (height * maxSize) / width;
-          width = maxSize;
-        }
-      } else {
-        if (height > maxSize) {
-          width = (width * maxSize) / height;
-          height = maxSize;
+    if (connection?.url && connection?.token) {
+      loadMetadata(connection.url, connection.token);
+      
+      // Set a basic user ID if not set (in production, use actual user auth)
+      if (!currentUserId) {
+        const storedUserId = localStorage.getItem("neolia_user_id");
+        if (storedUserId) {
+          setCurrentUserId(storedUserId);
+        } else {
+          const newUserId = `user_${Date.now()}`;
+          localStorage.setItem("neolia_user_id", newUserId);
+          setCurrentUserId(newUserId);
         }
       }
+    }
+  }, [connection?.url, connection?.token, loadMetadata, currentUserId, setCurrentUserId]);
 
-      canvas.width = width;
-      canvas.height = height;
-      ctx?.drawImage(img, 0, 0, width, height);
+  // Handle photo selection from file input
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !targetAreaRef.current) return;
+    
+    const areaId = targetAreaRef.current;
+    const area = areas.find((a) => a.area_id === areaId);
+    if (!area) return;
 
-      const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.7);
-      setRoomPhotos((prev) => {
-        const updated = { ...prev, [areaId]: compressedDataUrl };
-        // Persist immediately to avoid race conditions
-        try {
-          window.localStorage.setItem(LS_ROOM_PHOTOS, JSON.stringify(updated));
-        } catch (err) {
-          console.error("Failed to save room photo to localStorage:", err);
-          toast.error("Espace de stockage insuffisant");
-        }
-        return updated;
-      });
-      toast.success("Photo ajoutée");
-    };
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setPendingPhotoFile(file);
+    setPendingPhotoPreview(previewUrl);
+    setPhotoDialogArea(area);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
-    img.onerror = () => {
-      toast.error("Erreur lors de la lecture de l'image");
-    };
+  // Handle photo change request (called from SortableRoomCardWithPhoto)
+  const handleRoomPhotoChange = (areaId: string, file: File) => {
+    const area = areas.find((a) => a.area_id === areaId);
+    if (!area) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      img.src = e.target?.result as string;
-    };
-    reader.onerror = () => {
-      toast.error("Erreur lors de la lecture du fichier");
-    };
-    reader.readAsDataURL(file);
+    const access = getAccess(areaId);
+    
+    // If locked and not owner, show unlock dialog
+    if (access.requiresUnlock) {
+      targetAreaRef.current = areaId;
+      setUnlockDialogArea(area);
+      return;
+    }
+
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setPendingPhotoFile(file);
+    setPendingPhotoPreview(previewUrl);
+    setPhotoDialogArea(area);
+  };
+
+  // Handle photo options confirmation
+  const handlePhotoConfirm = async (options: PhotoUploadOptions) => {
+    if (!pendingPhotoFile || !photoDialogArea || !connection?.url || !connection?.token) {
+      return;
+    }
+
+    try {
+      await uploadPhoto(
+        connection.url,
+        connection.token,
+        photoDialogArea.area_id,
+        pendingPhotoFile,
+        options
+      );
+      toast.success("Photo enregistrée");
+    } catch (error) {
+      console.error("[RoomPhotos] Upload failed:", error);
+      toast.error("Erreur lors de l'enregistrement de la photo");
+    } finally {
+      // Clean up
+      if (pendingPhotoPreview) {
+        URL.revokeObjectURL(pendingPhotoPreview);
+      }
+      setPendingPhotoFile(null);
+      setPendingPhotoPreview(null);
+      setPhotoDialogArea(null);
+    }
+  };
+
+  // Handle unlock attempt
+  const handleUnlockAttempt = async (code: string): Promise<boolean> => {
+    if (!unlockDialogArea) return false;
+    
+    const success = await unlockRoom(unlockDialogArea.area_id, code);
+    if (success) {
+      toast.success("Photo déverrouillée");
+      setUnlockDialogArea(null);
+      
+      // Trigger file input for the unlocked area
+      targetAreaRef.current = unlockDialogArea.area_id;
+      setTimeout(() => fileInputRef.current?.click(), 100);
+    }
+    return success;
+  };
+
+  // Get photo URL for a room (with access control)
+  const getRoomPhotoUrl = (areaId: string): string | undefined => {
+    if (!connection?.url) return undefined;
+    return getPhotoUrlForRoom(connection.url, areaId) ?? undefined;
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -763,10 +829,11 @@ const MaisonMobileView = () => {
                     area={area}
                     floor={floor}
                     deviceCount={deviceCountByArea[area.area_id] || 0}
-                    customPhoto={roomPhotos[area.area_id]}
+                    customPhoto={getRoomPhotoUrl(area.area_id)}
                     onPhotoChange={handleRoomPhotoChange}
                     onClick={() => setSelectedAreaId(area.area_id)}
                     onEditName={setAreaToRename}
+                    photoAccess={getAccess(area.area_id)}
                   />
                 );
               })}
@@ -919,6 +986,38 @@ const MaisonMobileView = () => {
           }
         }}
         onClose={() => setEntityToRename(null)}
+      />
+
+      {/* Hidden file input for photo selection */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileInputChange}
+        className="hidden"
+      />
+
+      {/* Photo options dialog */}
+      <RoomPhotoOptionsDialog
+        open={!!photoDialogArea}
+        onClose={() => {
+          if (pendingPhotoPreview) URL.revokeObjectURL(pendingPhotoPreview);
+          setPendingPhotoFile(null);
+          setPendingPhotoPreview(null);
+          setPhotoDialogArea(null);
+        }}
+        onConfirm={handlePhotoConfirm}
+        isLoading={isPhotoLoading}
+        previewUrl={pendingPhotoPreview ?? undefined}
+      />
+
+      {/* Parental code dialog */}
+      <ParentalCodeDialog
+        open={!!unlockDialogArea}
+        onClose={() => setUnlockDialogArea(null)}
+        onConfirm={handleUnlockAttempt}
+        roomName={unlockDialogArea?.name}
       />
     </div>
   );
