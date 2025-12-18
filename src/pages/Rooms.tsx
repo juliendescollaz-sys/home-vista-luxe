@@ -559,11 +559,18 @@ const MaisonMobileView = () => {
     return counts;
   }, [primaryEntities, entityRegistry, devices]);
 
+  // Domaines des appareils physiques uniquement (pas de scènes, scripts, automations)
+  const PHYSICAL_DEVICE_DOMAINS = ["light", "switch", "cover", "climate", "fan", "lock", "media_player"];
+
   const entitiesByType = useMemo(() => {
     if (!primaryEntities || primaryEntities.length === 0) return {};
     const groups: Record<string, typeof primaryEntities> = {};
     primaryEntities.forEach((entity) => {
       const domain = getEntityDomain(entity.entity_id);
+      
+      // Filtrer uniquement les appareils physiques
+      if (!PHYSICAL_DEVICE_DOMAINS.includes(domain)) return;
+      
       const typeLabels: Record<string, string> = {
         light: "Éclairages",
         switch: "Interrupteurs",
@@ -572,8 +579,6 @@ const MaisonMobileView = () => {
         fan: "Ventilateurs",
         lock: "Serrures",
         media_player: "Lecteurs média",
-        scene: "Scènes",
-        script: "Scripts",
       };
       const label = typeLabels[domain] || "Autres";
       if (!groups[label]) groups[label] = [];
