@@ -4,8 +4,9 @@ import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useHAStore } from "@/store/useHAStore";
 import { useRoomPhotosStore } from "@/store/useRoomPhotosStore";
 import { useEffect, useMemo, useState } from "react";
-import { MapPin, Grid3x3, Loader2, ChevronLeft } from "lucide-react";
+import { MapPin, Grid3x3, Loader2, ChevronLeft, ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { HomeOverviewByTypeAndArea } from "@/components/HomeOverviewByTypeAndArea";
 import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
@@ -801,41 +802,156 @@ const MaisonMobileView = () => {
               Retour aux types
             </button>
             <h2 className="text-lg font-semibold">{selectedTypeName}</h2>
-            <SortableContext
-              items={devicesForType.map((e) => e.entity_id)}
-              strategy={rectSortingStrategy}
-            >
-              <div className={getGridClasses("devices", "mobile")}>
-                {devicesForType.map((entity) => {
-                  const domain = getEntityDomain(entity.entity_id);
-                  if (domain === "cover") {
-                    return (
-                      <SortableCoverEntityTile
-                        key={entity.entity_id}
-                        entity={entity}
-                      />
-                    );
+            
+            {/* Arborescence par étage/pièce */}
+            <div className="space-y-3">
+              {floors.map((floor) => {
+                const areasForFloor = areas.filter((a) => a.floor_id === floor.floor_id);
+                const devicesInFloor = devicesForType.filter((entity) => {
+                  const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+                  let areaId = reg?.area_id;
+                  if (!areaId && reg?.device_id) {
+                    const dev = devices.find((d) => d.id === reg.device_id);
+                    if (dev?.area_id) areaId = dev.area_id;
                   }
-                  if (domain === "media_player") {
-                    return (
-                      <SortableMediaPlayerCard
-                        key={entity.entity_id}
-                        entity={entity}
-                      />
-                    );
+                  return areasForFloor.some((a) => a.area_id === areaId);
+                });
+                
+                if (devicesInFloor.length === 0) return null;
+                
+                return (
+                  <Collapsible key={floor.floor_id} defaultOpen>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+                      <span className="font-medium">{floor.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{devicesInFloor.length}</span>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pt-2 space-y-2">
+                      {areasForFloor.map((area) => {
+                        const devicesInArea = devicesForType.filter((entity) => {
+                          const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+                          let areaId = reg?.area_id;
+                          if (!areaId && reg?.device_id) {
+                            const dev = devices.find((d) => d.id === reg.device_id);
+                            if (dev?.area_id) areaId = dev.area_id;
+                          }
+                          return areaId === area.area_id;
+                        });
+                        
+                        if (devicesInArea.length === 0) return null;
+                        
+                        return (
+                          <Collapsible key={area.area_id} defaultOpen className="ml-3">
+                            <CollapsibleTrigger className="flex items-center justify-between w-full p-2 bg-accent/30 rounded-md hover:bg-accent/50 transition-colors">
+                              <span className="text-sm font-medium">{area.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">{devicesInArea.length}</span>
+                                <ChevronDown className="h-3 w-3 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+                              </div>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="pt-2 pl-2">
+                              <div className={getGridClasses("devices", "mobile")}>
+                                {devicesInArea.map((entity) => {
+                                  const domain = getEntityDomain(entity.entity_id);
+                                  if (domain === "cover") {
+                                    return (
+                                      <SortableCoverEntityTile
+                                        key={entity.entity_id}
+                                        entity={entity}
+                                      />
+                                    );
+                                  }
+                                  if (domain === "media_player") {
+                                    return (
+                                      <SortableMediaPlayerCard
+                                        key={entity.entity_id}
+                                        entity={entity}
+                                      />
+                                    );
+                                  }
+                                  return (
+                                    <SortableDeviceCard
+                                      key={entity.entity_id}
+                                      entity={entity}
+                                      onToggle={() => handleDeviceToggle(entity.entity_id)}
+                                      onOpenDetails={() => {}}
+                                      onEditName={() => setEntityToRename(entity)}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        );
+                      })}
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
+              
+              {/* Appareils sans étage */}
+              {(() => {
+                const devicesWithoutFloor = devicesForType.filter((entity) => {
+                  const reg = entityRegistry.find((r) => r.entity_id === entity.entity_id);
+                  let areaId = reg?.area_id;
+                  if (!areaId && reg?.device_id) {
+                    const dev = devices.find((d) => d.id === reg.device_id);
+                    if (dev?.area_id) areaId = dev.area_id;
                   }
-                  return (
-                    <SortableDeviceCard
-                      key={entity.entity_id}
-                      entity={entity}
-                      onToggle={() => handleDeviceToggle(entity.entity_id)}
-                      onOpenDetails={() => {}}
-                      onEditName={() => setEntityToRename(entity)}
-                    />
-                  );
-                })}
-              </div>
-            </SortableContext>
+                  if (!areaId) return true;
+                  const area = areas.find((a) => a.area_id === areaId);
+                  return !area?.floor_id;
+                });
+                
+                if (devicesWithoutFloor.length === 0) return null;
+                
+                return (
+                  <Collapsible defaultOpen>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+                      <span className="font-medium text-muted-foreground">Sans étage</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{devicesWithoutFloor.length}</span>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pt-2">
+                      <div className={getGridClasses("devices", "mobile")}>
+                        {devicesWithoutFloor.map((entity) => {
+                          const domain = getEntityDomain(entity.entity_id);
+                          if (domain === "cover") {
+                            return (
+                              <SortableCoverEntityTile
+                                key={entity.entity_id}
+                                entity={entity}
+                              />
+                            );
+                          }
+                          if (domain === "media_player") {
+                            return (
+                              <SortableMediaPlayerCard
+                                key={entity.entity_id}
+                                entity={entity}
+                              />
+                            );
+                          }
+                          return (
+                            <SortableDeviceCard
+                              key={entity.entity_id}
+                              entity={entity}
+                              onToggle={() => handleDeviceToggle(entity.entity_id)}
+                              onOpenDetails={() => {}}
+                              onEditName={() => setEntityToRename(entity)}
+                            />
+                          );
+                        })}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })()}
+            </div>
           </div>
         )}
       </DndContext>
