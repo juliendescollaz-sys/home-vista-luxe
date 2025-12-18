@@ -3,21 +3,17 @@ import { BottomNav } from "@/components/BottomNav";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useHAStore } from "@/store/useHAStore";
 import { useRoomPhotosStore } from "@/store/useRoomPhotosStore";
-import { useEffect, useMemo, useState, useRef } from "react";
-import { MapPin, Grid3x3, Loader2, ChevronLeft, Camera, Lock } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { MapPin, Grid3x3, Loader2, ChevronLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { HomeOverviewByTypeAndArea } from "@/components/HomeOverviewByTypeAndArea";
-import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, closestCenter, DragOverlay } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { SortableAreaCard } from "@/components/SortableAreaCard";
 import { SortableRoomCardWithPhoto } from "@/components/SortableRoomCardWithPhoto";
 import { SortableTypeCard } from "@/components/SortableTypeCard";
 import { SortableDeviceCard } from "@/components/SortableDeviceCard";
 import { SortableMediaPlayerCard } from "@/components/SortableMediaPlayerCard";
 import { SortableCoverEntityTile } from "@/components/entities/SortableCoverEntityTile";
-import { RoomPhotoOptionsDialog } from "@/components/room-photos/RoomPhotoOptionsDialog";
-import { ParentalCodeDialog } from "@/components/room-photos/ParentalCodeDialog";
 
 import { RenameDialog } from "@/components/RenameDialog";
 import { getGridClasses } from "@/lib/gridLayout";
@@ -26,7 +22,6 @@ import { cn } from "@/lib/utils";
 import { DraggableRoomLabel } from "@/components/DraggableRoomLabel";
 import { RoomDevicesGrid } from "@/components/RoomDevicesGrid";
 import type { HAEntity, HAArea } from "@/types/homeassistant";
-import type { PhotoUploadOptions } from "@/types/roomPhotos";
 import { getEntityDomain, filterPrimaryControlEntities } from "@/lib/entityUtils";
 
 // ============== MaisonTabletPanelView ==============
@@ -101,16 +96,6 @@ export const MaisonTabletPanelView = () => {
       </div>
     );
   }
-
-  // Calculer le centroïde d'un polygon (au cas où besoin plus tard)
-  const getPolygonCenter = (relative: [number, number][]): { x: number; y: number } => {
-    const sumX = relative.reduce((sum, [x]) => sum + x, 0);
-    const sumY = relative.reduce((sum, [, y]) => sum + y, 0);
-    return {
-      x: sumX / relative.length,
-      y: sumY / relative.length,
-    };
-  };
 
   return (
     <div className="animate-fade-in flex flex-col h-full relative rounded-3xl p-4 overflow-hidden glass-card elevated-subtle border-border/50">
@@ -342,23 +327,11 @@ const MaisonMobileView = () => {
   const entityRegistry = useHAStore((state) => state.entityRegistry);
   const devices = useHAStore((state) => state.devices);
   const client = useHAStore((state) => state.client);
-  const connection = useHAStore((state) => state.connection);
   const renameArea = useHAStore((state) => state.renameArea);
   const renameEntity = useHAStore((state) => state.renameEntity);
 
-  // Room photos store
-  const {
-    loadMetadata,
-    uploadPhoto,
-    getAccess,
-    unlockRoom,
-    getPhotoUrlForRoom,
-    getRoomMetadata,
-    isLoading: isPhotoLoading,
-    currentUserId,
-    setCurrentUserId,
-    setHAConnection,
-  } = useRoomPhotosStore();
+  // Room photos store - LOCAL ONLY
+  const { loadPhotos, setPhoto, getPhoto, isLoading: isPhotoLoading } = useRoomPhotosStore();
 
   const [viewMode, setViewMode] = useState<"room" | "type">("room");
 
@@ -367,14 +340,6 @@ const MaisonMobileView = () => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [areaToRename, setAreaToRename] = useState<HAArea | null>(null);
   const [entityToRename, setEntityToRename] = useState<HAEntity | null>(null);
-
-  // Photo dialogs state
-  const [photoDialogArea, setPhotoDialogArea] = useState<HAArea | null>(null);
-  const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null);
-  const [pendingPhotoPreview, setPendingPhotoPreview] = useState<string | null>(null);
-  const [unlockDialogArea, setUnlockDialogArea] = useState<HAArea | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const targetAreaRef = useRef<string | null>(null);
 
   const LS_AREA_ORDER = "neolia_mobile_area_order";
   const LS_TYPE_ORDER = "neolia_mobile_type_order";
@@ -455,119 +420,25 @@ const MaisonMobileView = () => {
     } catch {}
   }, [deviceOrderByType]);
 
-  // Load room photos metadata on mount and when connection changes
+  // Load local room photos on mount
   useEffect(() => {
-    // Set HA connection info for photos
-    if (connection?.url && connection?.token) {
-      setHAConnection(connection.url, connection.token);
-    }
-    
-    // Set a basic user ID if not set (in production, use actual user auth)
-    if (!currentUserId) {
-      const storedUserId = localStorage.getItem("neolia_user_id");
-      if (storedUserId) {
-        setCurrentUserId(storedUserId);
-      } else {
-        const newUserId = `user_${Date.now()}`;
-        localStorage.setItem("neolia_user_id", newUserId);
-        setCurrentUserId(newUserId);
-      }
-    }
-    
-    // Load metadata from HA after connection is set
-    if (connection?.url && connection?.token) {
-      loadMetadata();
-    }
-  }, [connection?.url, connection?.token, loadMetadata, currentUserId, setCurrentUserId, setHAConnection]);
+    loadPhotos();
+  }, [loadPhotos]);
 
-  // Handle photo selection from file input
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !targetAreaRef.current) return;
-    
-    const areaId = targetAreaRef.current;
-    const area = areas.find((a) => a.area_id === areaId);
-    if (!area) return;
-
-    // Create preview URL
-    const previewUrl = URL.createObjectURL(file);
-    setPendingPhotoFile(file);
-    setPendingPhotoPreview(previewUrl);
-    setPhotoDialogArea(area);
-    
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  // Handle photo change request (called from SortableRoomCardWithPhoto)
-  const handleRoomPhotoChange = (areaId: string, file: File) => {
-    const area = areas.find((a) => a.area_id === areaId);
-    if (!area) return;
-
-    const access = getAccess(areaId);
-    
-    // If locked and not owner, show unlock dialog
-    if (access.requiresUnlock) {
-      targetAreaRef.current = areaId;
-      setUnlockDialogArea(area);
-      return;
-    }
-
-    // Create preview URL
-    const previewUrl = URL.createObjectURL(file);
-    setPendingPhotoFile(file);
-    setPendingPhotoPreview(previewUrl);
-    setPhotoDialogArea(area);
-  };
-
-  // Handle photo options confirmation
-  const handlePhotoConfirm = async (options: PhotoUploadOptions) => {
-    if (!pendingPhotoFile || !photoDialogArea) {
-      return;
-    }
-
+  // Handle photo change - save locally
+  const handleRoomPhotoChange = async (areaId: string, file: File) => {
     try {
-      await uploadPhoto(
-        photoDialogArea.area_id,
-        pendingPhotoFile,
-        options
-      );
+      await setPhoto(areaId, file);
       toast.success("Photo enregistrée");
     } catch (error) {
-      console.error("[RoomPhotos] Upload failed:", error);
+      console.error("[RoomPhotos] Save failed:", error);
       toast.error("Erreur lors de l'enregistrement de la photo");
-    } finally {
-      // Clean up
-      if (pendingPhotoPreview) {
-        URL.revokeObjectURL(pendingPhotoPreview);
-      }
-      setPendingPhotoFile(null);
-      setPendingPhotoPreview(null);
-      setPhotoDialogArea(null);
     }
   };
 
-  // Handle unlock attempt
-  const handleUnlockAttempt = async (code: string): Promise<boolean> => {
-    if (!unlockDialogArea) return false;
-    
-    const success = await unlockRoom(unlockDialogArea.area_id, code);
-    if (success) {
-      toast.success("Photo déverrouillée");
-      setUnlockDialogArea(null);
-      
-      // Trigger file input for the unlocked area
-      targetAreaRef.current = unlockDialogArea.area_id;
-      setTimeout(() => fileInputRef.current?.click(), 100);
-    }
-    return success;
-  };
-
-  // Get photo URL for a room (with access control)
+  // Get photo URL for a room (local storage)
   const getRoomPhotoUrl = (areaId: string): string | undefined => {
-    return getPhotoUrlForRoom(areaId) ?? undefined;
+    return getPhoto(areaId) ?? undefined;
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -837,7 +708,6 @@ const MaisonMobileView = () => {
                     onPhotoChange={handleRoomPhotoChange}
                     onClick={() => setSelectedAreaId(area.area_id)}
                     onEditName={setAreaToRename}
-                    photoAccess={getAccess(area.area_id)}
                   />
                 );
               })}
@@ -990,38 +860,6 @@ const MaisonMobileView = () => {
           }
         }}
         onClose={() => setEntityToRename(null)}
-      />
-
-      {/* Hidden file input for photo selection */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleFileInputChange}
-        className="hidden"
-      />
-
-      {/* Photo options dialog */}
-      <RoomPhotoOptionsDialog
-        open={!!photoDialogArea}
-        onClose={() => {
-          if (pendingPhotoPreview) URL.revokeObjectURL(pendingPhotoPreview);
-          setPendingPhotoFile(null);
-          setPendingPhotoPreview(null);
-          setPhotoDialogArea(null);
-        }}
-        onConfirm={handlePhotoConfirm}
-        isLoading={isPhotoLoading}
-        previewUrl={pendingPhotoPreview ?? undefined}
-      />
-
-      {/* Parental code dialog */}
-      <ParentalCodeDialog
-        open={!!unlockDialogArea}
-        onClose={() => setUnlockDialogArea(null)}
-        onConfirm={handleUnlockAttempt}
-        roomName={unlockDialogArea?.name}
       />
     </div>
   );
