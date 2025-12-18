@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import { ConnectionModeProvider } from "@/components/ConnectionModeProvider";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { PageTransition } from "@/components/PageTransition";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TabletSidebar } from "@/components/TabletSidebar";
 import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
@@ -44,22 +45,24 @@ export function TabletRootLayout() {
             {/* Contenu : seule zone scrollable */}
             <main className="flex-1 min-h-0 overflow-y-auto">
               <ScrollToTop />
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/rooms" element={<Rooms />} />
-                <Route path="/rooms/:areaId" element={<RoomDetails />} />
-                <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
-                <Route path="/media-player/:entityId" element={<MediaPlayerDetails />} />
-                <Route path="/favorites" element={<Favorites />} />
-                <Route path="/scenes" element={<Scenes />} />
-                <Route path="/routines" element={<Routines />} />
-                <Route path="/groupes" element={<Groupes />} />
-                <Route path="/smart" element={<Smart />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/dev" element={<Dev />} />
-                <Route path="/sonos-zones" element={<SonosZones />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <PageTransition>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/rooms" element={<Rooms />} />
+                  <Route path="/rooms/:areaId" element={<RoomDetails />} />
+                  <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
+                  <Route path="/media-player/:entityId" element={<MediaPlayerDetails />} />
+                  <Route path="/favorites" element={<Favorites />} />
+                  <Route path="/scenes" element={<Scenes />} />
+                  <Route path="/routines" element={<Routines />} />
+                  <Route path="/groupes" element={<Groupes />} />
+                  <Route path="/smart" element={<Smart />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/dev" element={<Dev />} />
+                  <Route path="/sonos-zones" element={<SonosZones />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </PageTransition>
             </main>
           </div>
         </div>

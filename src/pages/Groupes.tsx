@@ -83,7 +83,7 @@ const Groupes = () => {
           </Button>
         </div>
 
-        <div className={getGridClasses("cards", displayMode)}>
+        <div className={`${getGridClasses("cards", displayMode)} stagger-fade-in`}>
           {groups.map(group => <GroupTile key={group.id} group={group} />)}
         </div>
       </div>

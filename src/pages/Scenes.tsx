@@ -61,7 +61,7 @@ const Scenes = () => {
             </Button>
           </div>
 
-          <div className={getGridClasses("cards", displayMode)}>
+          <div className={`${getGridClasses("cards", displayMode)} stagger-fade-in`}>
             {scenes.map((scene) => (
               <SceneTile key={scene.id} sceneId={scene.id} />
             ))}

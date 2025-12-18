@@ -68,7 +68,7 @@ const Routines = () => {
             </Button>
           </div>
 
-          <div className={getGridClasses("cards", displayMode)}>
+          <div className={`${getGridClasses("cards", displayMode)} stagger-fade-in`}>
             {routines.map((routine) => (
               <RoutineTile key={routine.id} routineId={routine.id} />
             ))}
