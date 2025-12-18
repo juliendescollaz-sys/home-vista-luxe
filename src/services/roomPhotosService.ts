@@ -1,11 +1,11 @@
 /**
  * Service for managing room photos stored in Home Assistant.
  *
- * IMPORTANT (PWA/iOS): direct browser calls to Home Assistant custom endpoints can fail
- * with CORS/network errors ("Failed to fetch").
+ * Photos are uploaded via POST /api/neolia/room_photo (requires Bearer token)
+ * Metadata is loaded from GET /local/neolia/pieces/room_photos.json (public, no auth needed)
  *
- * To make it reliable, this service calls a backend proxy function (ha-room-photos)
- * which then calls Home Assistant server-to-server.
+ * CORS: For the PWA to call HA directly, CORS must be configured in Home Assistant.
+ * See docs/ha-cors.md for setup instructions.
  */
 
 import type {
@@ -15,18 +15,9 @@ import type {
   RoomPhotoAccess,
 } from "@/types/roomPhotos";
 
-function getBackendConfig(): { functionsUrl: string; apikey: string } {
-  const baseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-  const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
-
-  if (!baseUrl || !apikey) {
-    throw new Error("Backend non configuré");
-  }
-
-  return {
-    functionsUrl: `${baseUrl}/functions/v1/ha-room-photos`,
-    apikey,
-  };
+// Normalize HA base URL (remove trailing slashes)
+function normalizeBaseUrl(url: string): string {
+  return url.replace(/\/+$/, "");
 }
 
 // Helper to hash parental code with SHA-256
@@ -39,45 +30,57 @@ export async function hashCode(code: string): Promise<string> {
   return `sha256:${hashHex}`;
 }
 
-// Load room photos metadata from Home Assistant
+/**
+ * Load room photos metadata from Home Assistant.
+ * GET /local/neolia/pieces/room_photos.json (public, no auth required)
+ */
 export async function loadRoomPhotosMetadata(
   haBaseUrl: string,
-  haToken: string
+  _haToken: string // Not used for /local/ URLs (public)
 ): Promise<RoomPhotosJson> {
-  try {
-    const { functionsUrl, apikey } = getBackendConfig();
+  const metadataUrl = `${normalizeBaseUrl(haBaseUrl)}/local/neolia/pieces/room_photos.json`;
 
-    const response = await fetch(functionsUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey,
-      },
-      body: JSON.stringify({
-        action: "metadata",
-        haBaseUrl,
-        haToken,
-      }),
+  try {
+    const response = await fetch(metadataUrl, {
+      method: "GET",
+      // No Authorization header needed for /local/ URLs
     });
 
+    if (response.status === 404) {
+      console.log("[RoomPhotos] No metadata file found (404), returning empty");
+      return { version: 1, rooms: {} };
+    }
+
     if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      console.warn("[RoomPhotos] Failed to load metadata via backend:", response.status, errorText);
+      console.warn("[RoomPhotos] Failed to load metadata:", response.status);
       return { version: 1, rooms: {} };
     }
 
     const metadata = (await response.json()) as RoomPhotosJson;
+    console.log("[RoomPhotos] Loaded metadata:", Object.keys(metadata?.rooms || {}).length, "rooms");
+
     return {
       version: metadata?.version ?? 1,
       rooms: metadata?.rooms ?? {},
     };
   } catch (error) {
-    console.warn("[RoomPhotos] Could not load metadata:", error);
+    // Detect CORS/network errors (TypeError: Failed to fetch)
+    if (error instanceof TypeError && error.message.includes("fetch")) {
+      console.warn(
+        "[RoomPhotos] Network/CORS error loading metadata. " +
+          "Ensure CORS is configured in Home Assistant. See docs/ha-cors.md"
+      );
+    } else {
+      console.warn("[RoomPhotos] Could not load metadata:", error);
+    }
     return { version: 1, rooms: {} };
   }
 }
 
-// Upload photo to Home Assistant via custom endpoint (proxied)
+/**
+ * Upload photo to Home Assistant via custom endpoint.
+ * POST /api/neolia/room_photo (requires Bearer token)
+ */
 export async function uploadRoomPhoto(
   haBaseUrl: string,
   haToken: string,
@@ -92,12 +95,11 @@ export async function uploadRoomPhoto(
     parentalCodeHash = await hashCode(options.parentalCode);
   }
 
-  const { functionsUrl, apikey } = getBackendConfig();
+  const uploadUrl = `${normalizeBaseUrl(haBaseUrl)}/api/neolia/room_photo`;
+  console.log("[RoomPhotos] Uploading to:", uploadUrl);
 
-  // Create FormData for upload (sent to backend proxy)
+  // Create FormData for upload (no haBaseUrl/haToken in form data)
   const formData = new FormData();
-  formData.append("haBaseUrl", haBaseUrl);
-  formData.append("haToken", haToken);
   formData.append("file", imageFile);
   formData.append("roomId", roomId);
   formData.append("userId", userId);
@@ -107,26 +109,42 @@ export async function uploadRoomPhoto(
     formData.append("parentalCodeHash", parentalCodeHash);
   }
 
-  const response = await fetch(functionsUrl, {
-    method: "POST",
-    headers: {
-      apikey,
-    },
-    body: formData,
-  });
+  try {
+    const response = await fetch(uploadUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${haToken}`,
+      },
+      body: formData,
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "");
-    console.error("[RoomPhotos] Upload failed via backend:", response.status, errorText);
-    throw new Error(`Upload failed: ${response.status}`);
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      console.error("[RoomPhotos] Upload failed:", response.status, errorText);
+      throw new Error(`Upload failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log("[RoomPhotos] Upload successful:", result);
+
+    return {
+      photoUrl: result.photoUrl,
+      metadata: result.metadata || { version: 1, rooms: {} },
+    };
+  } catch (error) {
+    // Detect CORS/network errors (TypeError: Failed to fetch)
+    if (error instanceof TypeError && error.message.includes("fetch")) {
+      console.error(
+        "[RoomPhotos] Network/CORS error during upload. " +
+          "Ensure CORS is configured in Home Assistant. See docs/ha-cors.md"
+      );
+      throw new Error(
+        "Erreur réseau/CORS. Vérifiez la configuration CORS de Home Assistant. " +
+          "Consultez docs/ha-cors.md pour les instructions."
+      );
+    }
+    throw error;
   }
-
-  const result = await response.json();
-
-  return {
-    photoUrl: result.photoUrl,
-    metadata: result.metadata || { version: 1, rooms: {} },
-  };
 }
 
 // Check access permissions for a room photo
@@ -199,7 +217,7 @@ export function getPhotoUrl(
   updatedAt?: string
 ): string {
   // photoUrl is relative like /local/neolia/pieces/room_xxx.jpg
-  const fullUrl = `${haBaseUrl}${photoUrl}`;
+  const fullUrl = `${normalizeBaseUrl(haBaseUrl)}${photoUrl}`;
 
   // Add cache-busting param
   if (updatedAt) {
