@@ -1,30 +1,12 @@
 /**
- * Types for room photos stored in Home Assistant
+ * Types for room photos - local storage only
  */
 
-export interface RoomPhotoMetadata {
-  photoUrl: string;
-  ownerUserId: string;
-  shared: boolean;
-  locked: boolean;
-  parentalCodeHash?: string; // sha256:<hash>
+export interface LocalRoomPhoto {
+  data: string; // base64 data URL
   updatedAt: string; // ISO8601
 }
 
-export interface RoomPhotosJson {
-  version: number;
-  rooms: Record<string, RoomPhotoMetadata>;
-}
-
-export interface PhotoUploadOptions {
-  shared: boolean;
-  locked: boolean;
-  parentalCode?: string; // Raw code, will be hashed before storing
-}
-
-export interface RoomPhotoAccess {
-  canView: boolean;
-  canEdit: boolean;
-  requiresUnlock: boolean;
-  isOwner: boolean;
+export interface LocalRoomPhotosData {
+  [areaId: string]: LocalRoomPhoto;
 }

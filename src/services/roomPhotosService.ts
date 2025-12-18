@@ -1,211 +1,89 @@
 /**
- * Service for managing room photos stored in Home Assistant
- * Photos are uploaded via POST /api/neolia/room_photo
- * Metadata is loaded from /local/neolia/pieces/room_photos.json
+ * Service for managing room photos - LOCAL STORAGE ONLY
+ * 
+ * Photos are stored locally on the device using localStorage.
+ * No network calls, no cloud, no Home Assistant dependency.
  */
 
-import type {
-  RoomPhotosJson,
-  RoomPhotoMetadata,
-  PhotoUploadOptions,
-  RoomPhotoAccess,
-} from "@/types/roomPhotos";
+import type { LocalRoomPhoto, LocalRoomPhotosData } from "@/types/roomPhotos";
 
-function normalizeBaseUrl(url: string): string {
-  return (url || "").replace(/\/+$/, "");
-}
+const STORAGE_KEY = "neolia_room_photos_v1";
 
-function isNetworkOrCorsError(err: unknown): boolean {
-  // Browsers often throw TypeError("Failed to fetch") for CORS/network blocks
-  return err instanceof TypeError && String(err.message || "").toLowerCase().includes("fetch");
-}
-
-// Helper to hash parental code with SHA-256
-export async function hashCode(code: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(code);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-  return `sha256:${hashHex}`;
-}
-
-// Load room photos metadata from Home Assistant
-export async function loadRoomPhotosMetadata(
-  haBaseUrl: string,
-  _haToken: string // token not needed for /local
-): Promise<RoomPhotosJson> {
+/**
+ * Get all locally stored room photos
+ */
+export function getLocalRoomPhotos(): LocalRoomPhotosData {
   try {
-    const base = normalizeBaseUrl(haBaseUrl);
-    const metadataUrl = `${base}/local/neolia/pieces/room_photos.json`;
-
-    // IMPORTANT: do not send Authorization header here.
-    // Sending auth triggers preflight/CORS complications for a static local file.
-    const response = await fetch(metadataUrl, { method: "GET" });
-
-    if (response.status === 404) {
-      console.log("[RoomPhotos] No metadata file found (404), returning empty");
-      return { version: 1, rooms: {} };
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      console.warn("[RoomPhotos] Failed to load metadata:", response.status, errorText);
-      return { version: 1, rooms: {} };
-    }
-
-    const metadata = (await response.json()) as RoomPhotosJson;
-    return {
-      version: metadata?.version ?? 1,
-      rooms: metadata?.rooms ?? {},
-    };
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return {};
+    return JSON.parse(stored) as LocalRoomPhotosData;
   } catch (error) {
-    if (isNetworkOrCorsError(error)) {
-      console.warn(
-        "[RoomPhotos] Network/CORS error loading metadata. Check Home Assistant CORS config.",
-        error
-      );
-    } else {
-      console.warn("[RoomPhotos] Could not load metadata from HA:", error);
-    }
-    return { version: 1, rooms: {} };
+    console.warn("[RoomPhotos] Failed to read from localStorage:", error);
+    return {};
   }
 }
 
-// Upload photo to Home Assistant via custom endpoint
-export async function uploadRoomPhoto(
-  haBaseUrl: string,
-  haToken: string,
-  roomId: string,
-  userId: string,
-  imageFile: File,
-  options: PhotoUploadOptions
-): Promise<{ photoUrl: string; metadata: RoomPhotosJson }> {
-  // Hash parental code if provided
-  let parentalCodeHash = "";
-  if (options.locked && options.parentalCode) {
-    parentalCodeHash = await hashCode(options.parentalCode);
-  }
+/**
+ * Get photo for a specific room
+ */
+export function getLocalRoomPhoto(areaId: string): LocalRoomPhoto | null {
+  const photos = getLocalRoomPhotos();
+  return photos[areaId] ?? null;
+}
 
-  const base = normalizeBaseUrl(haBaseUrl);
+/**
+ * Save photo for a room (converts File to base64)
+ */
+export async function setLocalRoomPhoto(areaId: string, file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = () => {
+      try {
+        const base64 = reader.result as string;
+        const photos = getLocalRoomPhotos();
+        
+        photos[areaId] = {
+          data: base64,
+          updatedAt: new Date().toISOString(),
+        };
+        
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(photos));
+        console.log("[RoomPhotos] Photo saved locally for:", areaId);
+        resolve(base64);
+      } catch (error) {
+        console.error("[RoomPhotos] Failed to save photo:", error);
+        reject(new Error("Erreur lors de l'enregistrement de la photo"));
+      }
+    };
+    
+    reader.onerror = () => {
+      console.error("[RoomPhotos] Failed to read file:", reader.error);
+      reject(new Error("Erreur lors de la lecture du fichier"));
+    };
+    
+    reader.readAsDataURL(file);
+  });
+}
 
-  // Create FormData for upload
-  const formData = new FormData();
-  formData.append("file", imageFile);
-  formData.append("roomId", roomId);
-  formData.append("userId", userId);
-  formData.append("shared", options.shared ? "true" : "false");
-  formData.append("locked", options.locked ? "true" : "false");
-  if (parentalCodeHash) {
-    formData.append("parentalCodeHash", parentalCodeHash);
-  }
-
-  const uploadUrl = `${base}/api/neolia/room_photo`;
-  console.log("[RoomPhotos] Uploading to:", uploadUrl);
-
+/**
+ * Delete photo for a room
+ */
+export function deleteLocalRoomPhoto(areaId: string): void {
   try {
-    const response = await fetch(uploadUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${haToken}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      console.error("[RoomPhotos] Upload failed:", response.status, errorText);
-      throw new Error(`Upload failed: ${response.status}`);
-    }
-
-    const result = await response.json().catch(() => ({} as any));
-    return {
-      photoUrl: result.photoUrl,
-      metadata: result.metadata || { version: 1, rooms: {} },
-    };
+    const photos = getLocalRoomPhotos();
+    delete photos[areaId];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(photos));
+    console.log("[RoomPhotos] Photo deleted for:", areaId);
   } catch (error) {
-    if (isNetworkOrCorsError(error)) {
-      console.error(
-        "[RoomPhotos] Network/CORS error uploading photo. Configure Home Assistant CORS for your PWA origin.",
-        error
-      );
-      throw new Error("Network/CORS error: configure Home Assistant CORS for Neolia PWA.");
-    }
-    throw error;
+    console.warn("[RoomPhotos] Failed to delete photo:", error);
   }
 }
 
-// Check access permissions for a room photo
-export function checkPhotoAccess(
-  metadata: RoomPhotoMetadata | undefined,
-  currentUserId: string
-): RoomPhotoAccess {
-  if (!metadata) {
-    return {
-      canView: false,
-      canEdit: true, // Can add new photo
-      requiresUnlock: false,
-      isOwner: false,
-    };
-  }
-
-  const isOwner = metadata.ownerUserId === currentUserId;
-
-  if (isOwner) {
-    return {
-      canView: true,
-      canEdit: true,
-      requiresUnlock: false,
-      isOwner: true,
-    };
-  }
-
-  // Not owner
-  if (!metadata.shared) {
-    return {
-      canView: false,
-      canEdit: false,
-      requiresUnlock: false,
-      isOwner: false,
-    };
-  }
-
-  // Shared photo
-  if (metadata.locked) {
-    return {
-      canView: true,
-      canEdit: false,
-      requiresUnlock: true,
-      isOwner: false,
-    };
-  }
-
-  return {
-    canView: true,
-    canEdit: true,
-    requiresUnlock: false,
-    isOwner: false,
-  };
-}
-
-// Verify parental code
-export async function verifyParentalCode(
-  metadata: RoomPhotoMetadata,
-  code: string
-): Promise<boolean> {
-  if (!metadata.parentalCodeHash) return false;
-  const hash = await hashCode(code);
-  return hash === metadata.parentalCodeHash;
-}
-
-// Get photo URL with cache-busting
-export function getPhotoUrl(haBaseUrl: string, photoUrl: string, updatedAt?: string): string {
-  const base = normalizeBaseUrl(haBaseUrl);
-  const fullUrl = `${base}${photoUrl}`;
-
-  if (updatedAt) {
-    return `${fullUrl}?v=${encodeURIComponent(updatedAt)}`;
-  }
-
-  return fullUrl;
+/**
+ * Get photo URL (base64 data URL) for a room
+ */
+export function getPhotoUrl(areaId: string): string | null {
+  const photo = getLocalRoomPhoto(areaId);
+  return photo?.data ?? null;
 }
