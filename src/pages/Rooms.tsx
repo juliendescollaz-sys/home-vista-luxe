@@ -357,6 +357,7 @@ const MaisonMobileView = () => {
     isLoading: isPhotoLoading,
     currentUserId,
     setCurrentUserId,
+    setHAConnection,
   } = useRoomPhotosStore();
 
   const [viewMode, setViewMode] = useState<"room" | "type">("room");
@@ -454,9 +455,12 @@ const MaisonMobileView = () => {
     } catch {}
   }, [deviceOrderByType]);
 
-  // Load room photos metadata on mount
+  // Load room photos metadata on mount and when connection changes
   useEffect(() => {
-    loadMetadata();
+    // Set HA connection info for photos
+    if (connection?.url && connection?.token) {
+      setHAConnection(connection.url, connection.token);
+    }
     
     // Set a basic user ID if not set (in production, use actual user auth)
     if (!currentUserId) {
@@ -469,7 +473,12 @@ const MaisonMobileView = () => {
         setCurrentUserId(newUserId);
       }
     }
-  }, [loadMetadata, currentUserId, setCurrentUserId]);
+    
+    // Load metadata from HA after connection is set
+    if (connection?.url && connection?.token) {
+      loadMetadata();
+    }
+  }, [connection?.url, connection?.token, loadMetadata, currentUserId, setCurrentUserId, setHAConnection]);
 
   // Handle photo selection from file input
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

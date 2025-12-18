@@ -17,6 +17,3 @@ verify_jwt = false  # Public endpoint for AI icon suggestions
 
 [functions.ha-automation-manager]
 verify_jwt = false  # Public endpoint - uses HA token for authentication
-
-[functions.ha-room-photos]
-verify_jwt = false  # Public endpoint - uses HA token for authentication

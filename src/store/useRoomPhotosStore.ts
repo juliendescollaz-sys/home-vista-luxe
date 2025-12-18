@@ -1,15 +1,14 @@
 /**
  * Zustand store for room photos management
- * Uses localStorage for device-local photo storage
+ * Uses Home Assistant custom endpoint for photo storage
  */
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { RoomPhotosJson, RoomPhotoMetadata, RoomPhotoAccess, PhotoUploadOptions } from "@/types/roomPhotos";
 import {
-  getRoomPhotosMetadata,
+  loadRoomPhotosMetadata,
   uploadRoomPhoto,
-  deleteRoomPhoto,
   checkPhotoAccess,
   verifyParentalCode,
   getPhotoUrl,
@@ -23,15 +22,19 @@ interface RoomPhotosStore {
   currentUserId: string;
   unlockedRooms: Set<string>; // Rooms unlocked via parental code this session
   
+  // HA connection info (needed for API calls)
+  haBaseUrl: string | null;
+  haToken: string | null;
+  
   // Actions
+  setHAConnection: (baseUrl: string, token: string) => void;
   setCurrentUserId: (userId: string) => void;
-  loadMetadata: () => void;
+  loadMetadata: () => Promise<void>;
   uploadPhoto: (
     roomId: string,
     imageFile: File,
     options: PhotoUploadOptions
   ) => Promise<string>;
-  deletePhoto: (roomId: string) => void;
   getAccess: (roomId: string) => RoomPhotoAccess;
   unlockRoom: (roomId: string, code: string) => Promise<boolean>;
   getPhotoUrlForRoom: (roomId: string) => string | null;
@@ -46,14 +49,35 @@ export const useRoomPhotosStore = create<RoomPhotosStore>()(
       error: null,
       currentUserId: "",
       unlockedRooms: new Set(),
+      haBaseUrl: null,
+      haToken: null,
+      
+      setHAConnection: (baseUrl: string, token: string) => {
+        set({ haBaseUrl: baseUrl, haToken: token });
+      },
       
       setCurrentUserId: (userId: string) => {
         set({ currentUserId: userId });
       },
       
-      loadMetadata: () => {
-        const metadata = getRoomPhotosMetadata();
-        set({ metadata, isLoading: false, error: null });
+      loadMetadata: async () => {
+        const { haBaseUrl, haToken } = get();
+        
+        if (!haBaseUrl || !haToken) {
+          console.warn("[RoomPhotos] No HA connection configured, skipping metadata load");
+          return;
+        }
+        
+        set({ isLoading: true, error: null });
+        
+        try {
+          const metadata = await loadRoomPhotosMetadata(haBaseUrl, haToken);
+          set({ metadata, isLoading: false });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to load metadata";
+          console.error("[RoomPhotos] Load metadata error:", error);
+          set({ isLoading: false, error: message });
+        }
       },
       
       uploadPhoto: async (
@@ -61,26 +85,39 @@ export const useRoomPhotosStore = create<RoomPhotosStore>()(
         imageFile: File,
         options: PhotoUploadOptions
       ) => {
-        const { currentUserId } = get();
+        const { currentUserId, haBaseUrl, haToken } = get();
+        
+        if (!haBaseUrl || !haToken) {
+          throw new Error("Home Assistant non connecté");
+        }
+        
         set({ isLoading: true, error: null });
         
         try {
-          const photoUrl = await uploadRoomPhoto(roomId, currentUserId, imageFile, options);
-          // Reload metadata after upload
-          const metadata = getRoomPhotosMetadata();
-          set({ metadata, isLoading: false });
-          return photoUrl;
+          const result = await uploadRoomPhoto(
+            haBaseUrl,
+            haToken,
+            roomId,
+            currentUserId,
+            imageFile,
+            options
+          );
+          
+          // Update metadata from response
+          if (result.metadata) {
+            set({ metadata: result.metadata, isLoading: false });
+          } else {
+            // Reload metadata if not returned in response
+            const metadata = await loadRoomPhotosMetadata(haBaseUrl, haToken);
+            set({ metadata, isLoading: false });
+          }
+          
+          return result.photoUrl;
         } catch (error) {
           const message = error instanceof Error ? error.message : "Upload failed";
           set({ isLoading: false, error: message });
           throw error;
         }
-      },
-      
-      deletePhoto: (roomId: string) => {
-        deleteRoomPhoto(roomId);
-        const metadata = getRoomPhotosMetadata();
-        set({ metadata });
       },
       
       getAccess: (roomId: string) => {
@@ -116,15 +153,15 @@ export const useRoomPhotosStore = create<RoomPhotosStore>()(
       },
       
       getPhotoUrlForRoom: (roomId: string) => {
-        const { metadata, currentUserId } = get();
+        const { metadata, currentUserId, haBaseUrl } = get();
         const roomMetadata = metadata.rooms[roomId];
         
-        if (!roomMetadata) return null;
+        if (!roomMetadata || !haBaseUrl) return null;
         
         const access = checkPhotoAccess(roomMetadata, currentUserId);
         if (!access.canView) return null;
         
-        return getPhotoUrl(roomMetadata.photoUrl);
+        return getPhotoUrl(haBaseUrl, roomMetadata.photoUrl, roomMetadata.updatedAt);
       },
       
       getRoomMetadata: (roomId: string) => {
@@ -137,6 +174,7 @@ export const useRoomPhotosStore = create<RoomPhotosStore>()(
       partialize: (state) => ({
         currentUserId: state.currentUserId,
         // Don't persist unlockedRooms - it's session-only
+        // Don't persist metadata - it's loaded from HA
       }),
       merge: (persistedState, currentState) => ({
         ...currentState,
