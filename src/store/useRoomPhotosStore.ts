@@ -122,7 +122,7 @@ export const useRoomPhotosStore = create<RoomPhotosStore>()(
       
       getAccess: (roomId: string) => {
         const { metadata, currentUserId, unlockedRooms } = get();
-        const roomMetadata = metadata.rooms[roomId];
+        const roomMetadata = metadata?.rooms?.[roomId];
         const access = checkPhotoAccess(roomMetadata, currentUserId);
         
         // If room was unlocked this session, allow editing
@@ -139,7 +139,7 @@ export const useRoomPhotosStore = create<RoomPhotosStore>()(
       
       unlockRoom: async (roomId: string, code: string) => {
         const { metadata, unlockedRooms } = get();
-        const roomMetadata = metadata.rooms[roomId];
+        const roomMetadata = metadata?.rooms?.[roomId];
         
         if (!roomMetadata) return false;
         
@@ -155,7 +155,7 @@ export const useRoomPhotosStore = create<RoomPhotosStore>()(
       
       getPhotoUrlForRoom: (roomId: string) => {
         const { metadata, currentUserId, haBaseUrl } = get();
-        const roomMetadata = metadata.rooms[roomId];
+        const roomMetadata = metadata?.rooms?.[roomId];
         
         if (!roomMetadata || !haBaseUrl) return null;
         
@@ -167,7 +167,7 @@ export const useRoomPhotosStore = create<RoomPhotosStore>()(
       
       getRoomMetadata: (roomId: string) => {
         const { metadata } = get();
-        return metadata.rooms[roomId];
+        return metadata?.rooms?.[roomId];
       },
     }),
     {
@@ -180,6 +180,7 @@ export const useRoomPhotosStore = create<RoomPhotosStore>()(
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...(persistedState as Partial<RoomPhotosStore>),
+        metadata: { version: 1, rooms: {} }, // Always reset metadata - load from HA
         unlockedRooms: [], // Always start with empty unlocked rooms
       }),
     }
