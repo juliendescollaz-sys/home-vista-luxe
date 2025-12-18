@@ -1,7 +1,6 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { ConnectionModeProvider } from "@/components/ConnectionModeProvider";
 import { ScrollToTop } from "@/components/ScrollToTop";
-import { PageTransition } from "@/components/PageTransition";
 import Home from "@/pages/Home";
 import Rooms from "@/pages/Rooms";
 import RoomDetails from "@/pages/RoomDetails";
@@ -33,27 +32,25 @@ export function MobileRootLayout() {
   return (
     <ConnectionModeProvider>
       <ScrollToTop />
-      <PageTransition>
-        <Routes>
-          {/* Routes principales (avec PrivateRoute wrapper dans App.tsx) */}
-          <Route path="/" element={<Home />} />
-          <Route path="/rooms" element={<Rooms />} />
-          <Route path="/rooms/:areaId" element={<RoomDetails />} />
-          <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
-          <Route path="/media-player/:entityId" element={<MediaPlayerDetails />} />
-          <Route path="/favorites" element={<Favorites />} />
-          <Route path="/scenes" element={<Scenes />} />
-          <Route path="/routines" element={<Routines />} />
-          <Route path="/groupes" element={<Groupes />} />
-          <Route path="/smart" element={<Smart />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/dev" element={<Dev />} />
-          <Route path="/sonos-zones" element={<SonosZones />} />
+      <Routes>
+        {/* Routes principales (avec PrivateRoute wrapper dans App.tsx) */}
+        <Route path="/" element={<Home />} />
+        <Route path="/rooms" element={<Rooms />} />
+        <Route path="/rooms/:areaId" element={<RoomDetails />} />
+        <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
+        <Route path="/media-player/:entityId" element={<MediaPlayerDetails />} />
+        <Route path="/favorites" element={<Favorites />} />
+        <Route path="/scenes" element={<Scenes />} />
+        <Route path="/routines" element={<Routines />} />
+        <Route path="/groupes" element={<Groupes />} />
+        <Route path="/smart" element={<Smart />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/dev" element={<Dev />} />
+        <Route path="/sonos-zones" element={<SonosZones />} />
 
-          {/* 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </PageTransition>
+        {/* 404 */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
     </ConnectionModeProvider>
   );
 }

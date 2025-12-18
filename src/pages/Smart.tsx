@@ -51,7 +51,7 @@ const Smart = () => {
             </Button>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-fade-in">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {automations.map((automation) => (
               <SmartTile key={automation.id} automationId={automation.id} />
             ))}

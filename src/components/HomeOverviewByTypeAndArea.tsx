@@ -307,7 +307,7 @@ export function HomeOverviewByTypeAndArea({
                 <h3 className={displayMode === "mobile" ? "text-lg font-semibold text-foreground px-1" : "text-2xl font-semibold text-foreground"}>
                   {groupName}
                 </h3>
-                <div className={`${getGridClasses("devices", displayMode)} stagger-fade-in`}>
+                <div className={getGridClasses("devices", displayMode)}>
                   {items.map((item) => {
                     if (item.type === "group") {
                       return <SortableGroupTile key={item.id} group={item.data} hideEditButton />;
