@@ -682,7 +682,7 @@ const MaisonMobileView = () => {
           )}
         >
           <Grid3x3 className="h-4 w-4" />
-          <span className="text-sm">Types</span>
+          <span className="text-sm">Appareils</span>
         </button>
       </div>
 

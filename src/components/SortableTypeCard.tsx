@@ -1,7 +1,32 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card } from "@/components/ui/card";
-import { ChevronRight } from "lucide-react";
+import { 
+  ChevronRight, 
+  Lightbulb, 
+  ToggleRight, 
+  PanelTop, 
+  Thermometer, 
+  Fan, 
+  Lock, 
+  Music, 
+  Clapperboard, 
+  FileCode,
+  MoreHorizontal
+} from "lucide-react";
+
+const typeIcons: Record<string, React.ElementType> = {
+  "Éclairages": Lightbulb,
+  "Interrupteurs": ToggleRight,
+  "Volets": PanelTop,
+  "Climatisation": Thermometer,
+  "Ventilateurs": Fan,
+  "Serrures": Lock,
+  "Lecteurs média": Music,
+  "Scènes": Clapperboard,
+  "Scripts": FileCode,
+  "Autres": MoreHorizontal,
+};
 
 interface SortableTypeCardProps {
   typeName: string;
@@ -26,6 +51,8 @@ export const SortableTypeCard = ({ typeName, deviceCount, onClick }: SortableTyp
     zIndex: isDragging ? 50 : 'auto',
   };
 
+  const Icon = typeIcons[typeName] || MoreHorizontal;
+
   return (
     <div
       ref={setNodeRef}
@@ -43,10 +70,15 @@ export const SortableTypeCard = ({ typeName, deviceCount, onClick }: SortableTyp
         }}
       >
         <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <div className="font-medium text-base">{typeName}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">
-              {deviceCount} appareil{deviceCount > 1 ? "s" : ""}
+          <div className="flex items-center gap-3 flex-1">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Icon className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <div className="font-medium text-base">{typeName}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                {deviceCount} appareil{deviceCount > 1 ? "s" : ""}
+              </div>
             </div>
           </div>
           <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
