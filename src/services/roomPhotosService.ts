@@ -1,13 +1,12 @@
 /**
- * Service for managing room photos stored in Home Assistant
- * Photos are stored in /config/www/neolia/pieces/ and served via /local/neolia/pieces/
- * Metadata is stored in room_photos.json
+ * Service for managing room photos stored in localStorage
+ * Photos are stored as base64 data URLs locally on each device
+ * This is a device-local storage solution - photos do not sync across devices
  */
 
 import type { RoomPhotosJson, RoomPhotoMetadata, PhotoUploadOptions, RoomPhotoAccess } from "@/types/roomPhotos";
 
-const HA_PHOTOS_PATH = "/local/neolia/pieces";
-const JSON_FILENAME = "room_photos.json";
+const STORAGE_KEY = "neolia_room_photos";
 
 // Helper to hash parental code with SHA-256
 async function hashCode(code: string): Promise<string> {
@@ -19,66 +18,41 @@ async function hashCode(code: string): Promise<string> {
   return `sha256:${hashHex}`;
 }
 
-// Generate filename following convention: room_<roomId>__by_<userId>__<timestamp>.jpg
-function generateFilename(roomId: string, userId: string): string {
-  const safeRoomId = roomId.replace(/[^a-zA-Z0-9_-]/g, "_");
-  const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, "_");
-  const timestamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 15);
-  return `room_${safeRoomId}__by_${safeUserId}__${timestamp}.jpg`;
+// Get room photos metadata from localStorage
+export function getRoomPhotosMetadata(): RoomPhotosJson {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.warn("[RoomPhotos] Could not read from localStorage:", error);
+  }
+  return { version: 1, rooms: {} };
 }
 
-// Fetch room_photos.json metadata from HA
-export async function fetchRoomPhotosMetadata(
-  haBaseUrl: string,
-  haToken: string
-): Promise<RoomPhotosJson> {
-  const url = `${haBaseUrl}${HA_PHOTOS_PATH}/${JSON_FILENAME}`;
-  
+// Save room photos metadata to localStorage
+function saveRoomPhotosMetadata(metadata: RoomPhotosJson): void {
   try {
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${haToken}`,
-      },
-    });
-    
-    if (response.status === 404) {
-      // Return empty structure if file doesn't exist
-      return { version: 1, rooms: {} };
-    }
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch room photos metadata: ${response.status}`);
-    }
-    
-    return await response.json();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(metadata));
   } catch (error) {
-    console.warn("[RoomPhotos] Could not fetch metadata, using empty:", error);
-    return { version: 1, rooms: {} };
+    console.error("[RoomPhotos] Could not save to localStorage:", error);
+    throw new Error("Impossible de sauvegarder la photo (stockage local plein)");
   }
 }
 
-// Upload photo and metadata via Edge Function
+// Upload photo (store as base64 in localStorage)
 export async function uploadRoomPhoto(
-  haBaseUrl: string,
-  haToken: string,
   roomId: string,
   userId: string,
   imageFile: File,
   options: PhotoUploadOptions
 ): Promise<string> {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  
-  const filename = generateFilename(roomId, userId);
-  
-  // Convert file to base64 for Edge Function
+  // Convert file to base64
   const base64 = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const result = reader.result as string;
-      // Remove data URL prefix
-      const base64Data = result.split(",")[1];
-      resolve(base64Data);
+      resolve(reader.result as string);
     };
     reader.onerror = reject;
     reader.readAsDataURL(imageFile);
@@ -90,64 +64,26 @@ export async function uploadRoomPhoto(
     parentalCodeHash = await hashCode(options.parentalCode);
   }
   
-  const response = await fetch(`${supabaseUrl}/functions/v1/ha-room-photos`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: supabaseKey,
-    },
-    body: JSON.stringify({
-      haBaseUrl,
-      haToken,
-      action: "upload",
-      roomId,
-      userId,
-      filename,
-      imageBase64: base64,
-      metadata: {
-        shared: options.shared,
-        locked: options.locked,
-        parentalCodeHash,
-      },
-    }),
-  });
+  // Get current metadata and update
+  const metadata = getRoomPhotosMetadata();
+  metadata.rooms[roomId] = {
+    photoUrl: base64, // Store base64 directly as the URL
+    ownerUserId: userId,
+    shared: options.shared,
+    locked: options.locked,
+    parentalCodeHash,
+    updatedAt: new Date().toISOString(),
+  };
   
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || `Upload failed: ${response.status}`);
-  }
-  
-  const result = await response.json();
-  return result.photoUrl;
+  saveRoomPhotosMetadata(metadata);
+  return base64;
 }
 
-// Delete room photo via Edge Function
-export async function deleteRoomPhoto(
-  haBaseUrl: string,
-  haToken: string,
-  roomId: string
-): Promise<void> {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  
-  const response = await fetch(`${supabaseUrl}/functions/v1/ha-room-photos`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: supabaseKey,
-    },
-    body: JSON.stringify({
-      haBaseUrl,
-      haToken,
-      action: "delete",
-      roomId,
-    }),
-  });
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || `Delete failed: ${response.status}`);
-  }
+// Delete room photo
+export function deleteRoomPhoto(roomId: string): void {
+  const metadata = getRoomPhotosMetadata();
+  delete metadata.rooms[roomId];
+  saveRoomPhotosMetadata(metadata);
 }
 
 // Check access permissions for a room photo
@@ -213,12 +149,7 @@ export async function verifyParentalCode(
   return hash === metadata.parentalCodeHash;
 }
 
-// Build photo URL with cache busting
-export function getPhotoUrl(
-  haBaseUrl: string,
-  photoUrl: string,
-  updatedAt: string
-): string {
-  const timestamp = new Date(updatedAt).getTime();
-  return `${haBaseUrl}${photoUrl}?v=${timestamp}`;
+// Get photo URL (for localStorage, just return the base64 directly)
+export function getPhotoUrl(photoUrl: string): string {
+  return photoUrl;
 }
