@@ -100,7 +100,7 @@ export function PanelOnboarding() {
   const [pnpFoundUrl, setPnpFoundUrl] = useState<string | null>(null);
   const [pnpHint, setPnpHint] = useState<string>("");
 
-  // évite de relancer la connexion automatique en boucle
+  // évite de relancer la connexion auto en boucle
   const autoConnectStartedRef = useRef(false);
 
   useEffect(() => {
@@ -140,6 +140,10 @@ export function PanelOnboarding() {
       // Pré-remplit le champ avec l'IP
       const host = extractHostFromUrlLike(found);
       if (host) setHaBaseUrl(host);
+
+      // IMPORTANT : si on avait “essayé trop tôt”, on déverrouille l’auto-connect
+      // pour qu’il se relance maintenant qu’on a une IP exploitable.
+      autoConnectStartedRef.current = false;
     } else {
       setPnpState("not_found");
       setPnpHint("Aucun Home Assistant détecté automatiquement sur le réseau.");
@@ -209,26 +213,33 @@ export function PanelOnboarding() {
     [setConnection],
   );
 
+  const getEffectiveMqttHost = useCallback((): string => {
+    // 1) si mqttHost est déjà défini, on le respecte
+    if ((mqttHost || "").trim()) return (mqttHost || "").trim();
+
+    // 2) sinon on dérive depuis HA détecté / IP affichée
+    const derivedFromFound =
+      (pnpFoundUrl ? extractHostFromUrlLike(pnpFoundUrl) : "") || (haBaseUrl || "").trim();
+    if ((derivedFromFound || "").trim()) return (derivedFromFound || "").trim();
+
+    // 3) sinon fallback dev (peut être vide selon build)
+    return (DEV_DEFAULT_MQTT_HOST || "").trim();
+  }, [mqttHost, pnpFoundUrl, haBaseUrl]);
+
   const attemptPanelConnection = useCallback(async () => {
     setPanelConnecting(true);
     setPanelError(false);
     setPanelSuccess(false);
     setPanelErrorMessage("");
 
-    // 1) si mqttHost est déjà défini, on le respecte
-    // 2) sinon on dérive depuis HA détecté (pnpFoundUrl/haBaseUrl)
-    // 3) sinon fallback dev
-    const derivedHost =
-      (pnpFoundUrl ? extractHostFromUrlLike(pnpFoundUrl) : "") || (haBaseUrl || "").trim();
-
-    const effectiveMqttHost = (mqttHost || derivedHost || DEV_DEFAULT_MQTT_HOST || "").trim();
+    const effectiveMqttHost = getEffectiveMqttHost();
 
     if (!effectiveMqttHost) {
       setPanelError(true);
       setPanelConnecting(false);
       setPanelErrorMessage(
         "Impossible de déterminer l'adresse du serveur MQTT.\n\n" +
-          "Vérifie que le broker MQTT est accessible sur le réseau (souvent sur la machine HA) et relance.",
+          "Attends la détection HA (bandeau vert), ou relance le scan PnP.",
       );
       return;
     }
@@ -264,9 +275,7 @@ export function PanelOnboarding() {
       setPanelErrorMessage(String((error as any)?.message || error));
     }
   }, [
-    mqttHost,
-    pnpFoundUrl,
-    haBaseUrl,
+    getEffectiveMqttHost,
     setMqttHost,
     setMqttPort,
     setMqttUseSecure,
@@ -275,7 +284,7 @@ export function PanelOnboarding() {
     applyHaConfigFromMqtt,
   ]);
 
-  // DÉCLENCHEMENT AUTOMATIQUE : après le SN step, on tente MQTT direct
+  // AUTO-CONNECT : on ne lance QUE quand on a un host MQTT déterminable
   useEffect(() => {
     if (!isPanelMode()) return;
     if (!hasCompletedSnStep) return;
@@ -283,13 +292,21 @@ export function PanelOnboarding() {
     if (shouldBypassPanelOnboarding) return;
     if (autoConnectStartedRef.current) return;
 
+    const effective = getEffectiveMqttHost();
+    if (!effective) return; // <-- clé : on attend d’avoir un host
+
     autoConnectStartedRef.current = true;
 
-    // petit délai pour laisser l'UI s'afficher proprement
     setTimeout(() => {
       attemptPanelConnection();
     }, 50);
-  }, [hasCompletedSnStep, manualMode, shouldBypassPanelOnboarding, attemptPanelConnection]);
+  }, [
+    hasCompletedSnStep,
+    manualMode,
+    shouldBypassPanelOnboarding,
+    getEffectiveMqttHost,
+    attemptPanelConnection,
+  ]);
 
   // ---------------- PANEL MODE ----------------
   if (isPanelMode()) {
@@ -436,13 +453,12 @@ export function PanelOnboarding() {
                 )}
               </Button>
 
-              {/* MODE AUTO (MQTT) : lancé automatiquement */}
               {!manualMode && (
                 <>
                   <Button
                     onClick={() => {
-                      // reset auto flag to allow retry through same flow
-                      autoConnectStartedRef.current = true;
+                      // on autorise un nouveau départ auto si besoin
+                      autoConnectStartedRef.current = false;
                       attemptPanelConnection();
                     }}
                     disabled={panelConnecting}
@@ -452,12 +468,7 @@ export function PanelOnboarding() {
                     {panelConnecting ? (
                       <>
                         <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                        Connexion automatique en cours…
-                      </>
-                    ) : panelSuccess ? (
-                      <>
-                        <CheckCircle2 className="mr-2 h-6 w-6" />
-                        Connecté — ouverture d’Accueil…
+                        Connexion automatique (MQTT) en cours…
                       </>
                     ) : (
                       "Relancer la connexion automatique (MQTT)"
@@ -473,7 +484,6 @@ export function PanelOnboarding() {
                     </Alert>
                   )}
 
-                  {/* accès au mode de secours uniquement si besoin */}
                   <Button
                     variant="outline"
                     onClick={() => setManualMode(true)}
@@ -485,7 +495,6 @@ export function PanelOnboarding() {
                 </>
               )}
 
-              {/* MODE SECOURS (hardcoded token) */}
               {manualMode && (
                 <div className="space-y-6">
                   <div className="space-y-3">
@@ -502,8 +511,7 @@ export function PanelOnboarding() {
                       className="text-lg h-14"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Détecté automatiquement :{" "}
-                      <span className="font-medium">{pnpFoundUrl || "—"}</span>
+                      Détecté automatiquement : <span className="font-medium">{pnpFoundUrl || "—"}</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Token : <span className="font-medium">hardcodé (temporaire)</span>
@@ -573,7 +581,6 @@ export function PanelOnboarding() {
                         setPanelErrorMessage("");
                         setPanelSuccess(false);
                         setPanelConnecting(false);
-                        // permet un nouveau démarrage auto
                         autoConnectStartedRef.current = false;
                       }}
                     >
@@ -631,9 +638,9 @@ export function PanelOnboarding() {
         throw new Error("Réponse invalide ou incomplète reçue de Home Assistant.");
       }
 
-      const ha_url: string = json.ha_url;
-      const token: string = json.token;
-      const remoteHaUrl: string | undefined = json.remoteHaUrl?.trim() || undefined;
+      const ha_url: string = (json as any).ha_url;
+      const token: string = (json as any).token;
+      const remoteHaUrl: string | undefined = (json as any).remoteHaUrl?.trim() || undefined;
 
       setStatusMessage("Configuration reçue. Enregistrement sur le panneau…");
 
