@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "next-themes";
@@ -13,7 +13,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useInitializeConnection } from "@/hooks/useInitializeConnection";
 import { useHAClient } from "@/hooks/useHAClient";
 import { useHARefreshOnForeground } from "@/hooks/useHARefreshOnForeground";
-import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useOrientationLock } from "@/hooks/useOrientationLock";
 import { OrientationOverlay } from "@/components/OrientationOverlay";
 import { IOSVisibilityGuard } from "@/components/IOSVisibilityGuard";
@@ -29,16 +28,51 @@ const OnboardingManual = lazy(() => import("@/pages/OnboardingManual"));
 
 const queryClient = new QueryClient();
 
-const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
+type DisplayMode = "mobile" | "tablet" | "panel";
+
+function computeResponsiveMode(): DisplayMode {
+  const width = window.innerWidth;
+  if (width < 600) return "mobile";
+  if (width < 1100) return "tablet";
+  return "tablet";
+}
+
+function getBuildMode(): string {
+  // Vite garantit import.meta.env.MODE
+  return (import.meta as any)?.env?.MODE ?? "unknown";
+}
+
+function getDisplayMode(): DisplayMode {
+  // 1) Override manuel (debug)
+  if (typeof window !== "undefined" && (window as any).NEOLIA_PANEL_MODE === true) {
+    return "panel";
+  }
+
+  // 2) Build Vite = vérité
+  // Si tu buildes avec `vite build --mode panel`, MODE === "panel"
+  if (getBuildMode() === "panel") {
+    return "panel";
+  }
+
+  // 3) Responsive
+  return computeResponsiveMode();
+}
+
+const PrivateRoute = ({
+  children,
+  displayMode,
+}: {
+  children: React.ReactNode;
+  displayMode: DisplayMode;
+}) => {
   const connection = useHAStore((state) => state.connection);
   const isConnected = useHAStore((state) => state.isConnected);
   const hasValidConnection = !!(connection && connection.url && connection.token);
   const [showBackButton, setShowBackButton] = useState(false);
   const navigate = useNavigate();
-  const { displayMode } = useDisplayMode();
 
   // En mode Panel, vérifier si l'onboarding a déjà été complété
-  const [panelOnboardingCompleted, setPanelOnboardingCompleted] = useState(() => {
+  const [panelOnboardingCompleted] = useState(() => {
     if (displayMode !== "panel") return false;
     try {
       return window.localStorage.getItem("neolia_panel_onboarding_completed") === "1";
@@ -85,14 +119,14 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 
   // Cas 2 : aucune configuration Home Assistant
   if (!hasValidConnection) {
-    // En mode PANEL : 
+    // En mode PANEL :
     // - Si l'onboarding n'a jamais été complété → afficher PanelOnboarding
     // - Si l'onboarding a été complété mais la connexion est perdue → laisser passer (erreur affichée dans le layout)
     if (displayMode === "panel") {
       if (!panelOnboardingCompleted) {
         return <PanelOnboarding />;
       }
-      // Onboarding déjà fait mais config perdue → on laisse passer, 
+      // Onboarding déjà fait mais config perdue → on laisse passer,
       // le layout affichera une erreur de connexion
       console.log("[PrivateRoute] Panel: onboarding complété mais config perdue, on laisse passer");
     } else {
@@ -122,13 +156,38 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 const App = () => {
   // Initialisation de la connexion HA (restaure url/token depuis le storage et met à jour le store)
   const isInitialized = useInitializeConnection();
-  const { displayMode } = useDisplayMode();
+
+  const [displayMode, setDisplayMode] = useState<DisplayMode>(() => {
+    if (typeof window === "undefined") return "mobile";
+    return getDisplayMode();
+  });
 
   // Établir la connexion WebSocket dès que les credentials sont restaurés
   useHAClient();
 
   // Rafraîchir les entités au retour au premier plan
   useHARefreshOnForeground();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const apply = () => setDisplayMode(getDisplayMode());
+
+    apply();
+
+    const onResize = () => apply();
+
+    const interval = window.setInterval(() => {
+      apply();
+    }, 1000);
+
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("resize", onResize);
+    };
+  }, []);
 
   // Disable pinch-zoom and double-tap zoom for native-like PWA behavior
   useEffect(() => {
@@ -156,6 +215,13 @@ const App = () => {
       document.removeEventListener("touchend", preventDoubleTapZoom);
     };
   }, []);
+
+  // Petit marqueur de build (utile tant qu'on debug)
+  const buildMode = useMemo(() => getBuildMode(), []);
+
+  useEffect(() => {
+    console.log("[NEOLIA] buildMode =", buildMode, "| displayMode =", displayMode);
+  }, [buildMode, displayMode]);
 
   if (!isInitialized) {
     return (
@@ -213,7 +279,7 @@ const App = () => {
                   <Route
                     path="/*"
                     element={
-                      <PrivateRoute>
+                      <PrivateRoute displayMode={displayMode}>
                         <AppContent displayMode={displayMode} />
                       </PrivateRoute>
                     }
@@ -231,7 +297,7 @@ const App = () => {
 /**
  * Contenu de l'app avec gestion de l'orientation
  */
-function AppContent({ displayMode }: { displayMode: "mobile" | "tablet" | "panel" }) {
+function AppContent({ displayMode }: { displayMode: DisplayMode }) {
   const { showRotateOverlay, showPortraitSuggestion } = useOrientationLock(displayMode);
 
   return (
