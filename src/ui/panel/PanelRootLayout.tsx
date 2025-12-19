@@ -20,11 +20,8 @@ import FloorPlanEditor from "@/pages/FloorPlanEditor";
 import { hasHaConfig } from "@/services/haConfig";
 import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
 import { useNeoliaPanelConfigLoader } from "@/hooks/useNeoliaPanelConfigLoader";
-
 import { TopBarPanel } from "@/components/TopBarPanel";
-
-// 🔌 MQTT PANEL – on l’importe ici
-import { connectNeoliaMqttPanel } from "@/components/neolia/bootstrap/neoliaMqttClient";
+import { NeoliaLoadingScreen } from "@/ui/panel/components/NeoliaLoadingScreen";
 
 // Mapping des routes vers les titres
 const ROUTE_TITLES: Record<string, string> = {
@@ -57,23 +54,6 @@ export function PanelRootLayout() {
   // Chargement de la config Neolia Panel depuis HA (en arrière-plan)
   useNeoliaPanelConfigLoader();
 
-  // ✅ DEBUG / INIT MQTT PANEL
-  // On force une tentative de connexion MQTT au démarrage du Panel.
-  useEffect(() => {
-    console.log("[PanelRootLayout][MQTT] Tentative de connexion Panel → MQTT (debug)");
-
-    connectNeoliaMqttPanel(
-      () => {
-        console.log("[PanelRootLayout][MQTT] Connexion MQTT Panel OK (debug)");
-      },
-      (error) => {
-        console.error("[PanelRootLayout][MQTT] Erreur connexion MQTT Panel (debug):", error?.message || error);
-      },
-    ).catch((err) => {
-      console.error("[PanelRootLayout][MQTT] Exception lors de la connexion MQTT Panel (debug):", err);
-    });
-  }, []);
-
   // Déterminer le titre de la page
   const pageTitle = useMemo(() => {
     const path = location.pathname;
@@ -98,15 +78,13 @@ export function PanelRootLayout() {
     };
   }, []);
 
-  // Écran de chargement
+  // Écran de chargement (même spinner que l'onboarding => transition invisible)
   if (hasConfig === null) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto" />
-          <p className="text-lg text-muted-foreground">Chargement...</p>
-        </div>
-      </div>
+      <NeoliaLoadingScreen
+        title="Chargement…"
+        subtitle="Préparation de l’interface et synchronisation avec Home Assistant…"
+      />
     );
   }
 
