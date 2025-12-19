@@ -47,6 +47,21 @@ function extractHostFromUrlLike(rawUrl: string): string {
   }
 }
 
+function markTransitionToHome() {
+  try {
+    sessionStorage.setItem("neolia_panel_transition", "1");
+  } catch {
+    // ignore
+  }
+}
+
+function gotoHomeSoon(delayMs = 250) {
+  markTransitionToHome();
+  window.setTimeout(() => {
+    window.location.href = "/";
+  }, delayMs);
+}
+
 // Envoie la requête de découverte PnP sur MQTT après connexion
 function sendPanelDiscoveryRequest(client: any, mode: "auto" | "manual") {
   try {
@@ -70,7 +85,6 @@ function sendPanelDiscoveryRequest(client: any, mode: "auto" | "manual") {
     console.error("[PanelOnboarding] Erreur lors de l'envoi discovery MQTT:", e);
   }
 }
-
 
 export function PanelOnboarding() {
   const { hasCompletedSnStep } = useNeoliaPanelConfigStore();
@@ -111,7 +125,8 @@ export function PanelOnboarding() {
       const flag = window.localStorage.getItem("neolia_panel_onboarding_completed");
       if (flag === "1") {
         setShouldBypassPanelOnboarding(true);
-        window.location.href = "/";
+        // Transition “propre” même si déjà onboardé
+        gotoHomeSoon(0);
       }
     } catch {
       // ignore
@@ -136,11 +151,9 @@ export function PanelOnboarding() {
       setPnpFoundUrl(found);
       setPnpState("found");
 
-      // Pré-remplit le champ avec l'IP
       const host = extractHostFromUrlLike(found);
       if (host) setHaBaseUrl(host);
 
-      // Important : permet de relancer l'auto connect maintenant qu'on a une IP.
       autoConnectStartedRef.current = false;
     } else {
       setPnpState("not_found");
@@ -196,9 +209,7 @@ export function PanelOnboarding() {
       setPanelConnecting(false);
       setFlow("auto_loading"); // on reste sur l'écran de chargement jusqu'à la redirection
 
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 250);
+      gotoHomeSoon(250);
     },
     [setConnection],
   );
@@ -275,11 +286,10 @@ export function PanelOnboarding() {
     if (shouldBypassPanelOnboarding) return;
     if (autoConnectStartedRef.current) return;
 
-    // On force un écran de chargement dès qu'on arrive ici, pour éviter le flash UI.
     setFlow("auto_loading");
 
     const effective = getEffectiveMqttHost();
-    if (!effective) return; // attend la détection
+    if (!effective) return;
 
     autoConnectStartedRef.current = true;
 
@@ -357,7 +367,9 @@ export function PanelOnboarding() {
                   <ul className="list-disc pl-5 space-y-1">
                     <li>Le panneau et Home Assistant sont bien sur le même réseau (même Wi-Fi / VLAN).</li>
                     <li>Le broker MQTT est bien actif et accessible depuis le LAN (port {DEFAULT_MQTT_PORT}).</li>
-                    <li>Les identifiants MQTT du panneau sont valides (user: <b>panel</b>).</li>
+                    <li>
+                      Les identifiants MQTT du panneau sont valides (user: <b>panel</b>).
+                    </li>
                     <li>{hintHa}</li>
                   </ul>
                 </div>
@@ -382,7 +394,6 @@ export function PanelOnboarding() {
                     onClick={async () => {
                       setFlow("auto_loading");
                       await runPnPScan();
-                      // autoConnectStartedRef est réarmé dans runPnPScan si HA trouvé
                       const effective = getEffectiveMqttHost();
                       if (effective) {
                         autoConnectStartedRef.current = false;
@@ -471,13 +482,17 @@ export function PanelOnboarding() {
         setStatus("success");
         setStatusMessage("Configuration appliquée. Redirection…");
 
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 300);
+        gotoHomeSoon(300);
       } catch (e: any) {
         setStatus("error");
         setStatusMessage("");
         setErrorMessage(e?.message || "Erreur inconnue.");
+      }
+    };
+
+    const handleKeyPressManual = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter" && status !== "loading" && status !== "success") {
+        handleManualConnect();
       }
     };
 
@@ -499,7 +514,8 @@ export function PanelOnboarding() {
                 <CardTitle className="text-3xl">Connexion manuelle</CardTitle>
               </div>
               <CardDescription className="text-lg leading-relaxed">
-                Utilise l’IP locale de Home Assistant et un token admin. (Mode de secours après échec du Plug &amp; Play.)
+                Utilise l’IP locale de Home Assistant et un token admin. (Mode de secours après échec du Plug &amp;
+                Play.)
               </CardDescription>
             </CardHeader>
 
@@ -525,6 +541,7 @@ export function PanelOnboarding() {
                   onChange={(e) => setHaBaseUrl(e.target.value)}
                   disabled={isInputDisabled}
                   className="text-lg h-14"
+                  onKeyDown={handleKeyPressManual}
                 />
                 <p className="text-xs text-muted-foreground">
                   Port par défaut : 8123 (il est ajouté automatiquement si absent).
@@ -543,6 +560,7 @@ export function PanelOnboarding() {
                   onChange={(e) => setAdminToken(e.target.value)}
                   disabled={isInputDisabled}
                   className="text-lg h-14"
+                  onKeyDown={handleKeyPressManual}
                 />
               </div>
 
@@ -572,12 +590,7 @@ export function PanelOnboarding() {
               )}
 
               <div className="flex flex-col gap-3">
-                <Button
-                  onClick={handleManualConnect}
-                  disabled={isButtonDisabled}
-                  size="lg"
-                  className="w-full h-16 text-lg"
-                >
+                <Button onClick={handleManualConnect} disabled={isButtonDisabled} size="lg" className="w-full h-16 text-lg">
                   {status === "loading" ? (
                     <>
                       <Loader2 className="mr-2 h-6 w-6 animate-spin" />
@@ -599,14 +612,13 @@ export function PanelOnboarding() {
                   size="lg"
                   className="w-full h-14"
                   onClick={() => {
-                    // retour auto
                     setStatus("idle");
                     setStatusMessage("");
                     setErrorMessage("");
                     setPanelErrorMessage("");
                     setFlow("auto_loading");
                     autoConnectStartedRef.current = false;
-                    // relance auto si possible
+
                     const effective = getEffectiveMqttHost();
                     if (effective) attemptPanelConnection();
                     else runPnPScan();
