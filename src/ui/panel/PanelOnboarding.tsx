@@ -96,8 +96,8 @@ function NeoliaLoadingScreen({ title, subtitle }: { title: string; subtitle?: st
             {/* logo */}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="flex items-center justify-center h-20 w-20 rounded-2xl bg-card shadow-lg border">
-                <img src={neoliaLogoDark} alt="Neolia" className="h-10 dark:hidden" />
-                <img src={neoliaLogo} alt="Neolia" className="h-10 hidden dark:block" />
+                <img src={neoliaLogoDark} alt="Neolia" className="h-10 w-auto max-w-[120px] object-contain dark:hidden" />
+                <img src={neoliaLogo} alt="Neolia" className="h-10 w-auto max-w-[120px] object-contain hidden dark:block" />
               </div>
             </div>
           </div>
