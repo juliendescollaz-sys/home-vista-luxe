@@ -19,10 +19,14 @@ type OnboardingStatus = "idle" | "loading" | "success" | "error";
 type PanelFlow = "auto_loading" | "auto_error" | "manual";
 
 /**
- * OPTION A (robuste) — Panel sans MQTT :
+ * PANEL — OPTION A (robuste, sans MQTT) :
  * 1) Discover HA (LAN)
  * 2) POST /api/neolia/pair avec code SN4
  * 3) HA renvoie { ha_url, token } => on persiste et on redirige
+ *
+ * UX FIX:
+ * - Tant que le scan est en cours => JAMAIS d'écran erreur (évite le flash "Erreur inconnue")
+ * - Erreur uniquement si scan finit en not_found ou si /pair répond en erreur.
  */
 
 function normalizeHaBaseUrl(raw: string): string {
@@ -35,7 +39,6 @@ function normalizeHaBaseUrl(raw: string): string {
 function normalizeHostToBaseUrl(hostOrBase: string): string {
   const raw = (hostOrBase || "").trim();
   if (!raw) throw new Error("Adresse Home Assistant vide");
-  // Si l’utilisateur met juste "192.168.1.85" => ajoute :8123
   const withPort = raw.includes(":") ? raw : `${raw}:8123`;
   return normalizeHaBaseUrl(withPort);
 }
@@ -68,7 +71,7 @@ function gotoHomeSoon(delayMs = 250) {
   }, delayMs);
 }
 
-async function postJson(url: string, body: any, timeoutMs = 2200): Promise<{ ok: boolean; status: number; json?: any }> {
+async function postJson(url: string, body: any, timeoutMs = 2500): Promise<{ ok: boolean; status: number; json?: any }> {
   const controller = new AbortController();
   const t = window.setTimeout(() => controller.abort(), timeoutMs);
 
@@ -88,7 +91,7 @@ async function postJson(url: string, body: any, timeoutMs = 2200): Promise<{ ok:
     }
 
     return { ok: resp.ok, status: resp.status, json };
-  } catch (e) {
+  } catch {
     return { ok: false, status: 0 };
   } finally {
     window.clearTimeout(t);
@@ -97,6 +100,7 @@ async function postJson(url: string, body: any, timeoutMs = 2200): Promise<{ ok:
 
 function buildPairErrorMessage(status: number, payload?: any): string {
   const code = payload?.error;
+
   if (status === 0) return "Impossible de joindre Home Assistant (réseau/port 8123).";
   if (status === 403) return "Accès refusé (le panel doit être sur le LAN privé).";
   if (status === 401 && code === "mismatch") return "Code SN incorrect (mismatch).";
@@ -106,14 +110,15 @@ function buildPairErrorMessage(status: number, payload?: any): string {
     return "Home Assistant n’a pas de token panel enregistré (panel_token_not_set).";
   if (status === 404) return "Endpoint neolia_pnp introuvable (404). L’intégration neolia_pnp n’est pas chargée.";
   if (status >= 500) return "Erreur interne Home Assistant (500+).";
+
   return `Erreur Home Assistant ${status}${code ? ` (${code})` : ""}.`;
 }
 
 export function PanelOnboarding() {
   const { hasCompletedSnStep, enteredNeoliaCode } = useNeoliaPanelConfigStore();
 
-  const [haBaseUrl, setHaBaseUrl] = useState(""); // UI manual (host) + affichage du host détecté
-  const [adminToken, setAdminToken] = useState(""); // mode manuel secours
+  const [haBaseUrl, setHaBaseUrl] = useState("");
+  const [adminToken, setAdminToken] = useState("");
 
   const [status, setStatus] = useState<OnboardingStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -123,7 +128,7 @@ export function PanelOnboarding() {
 
   const [shouldBypassPanelOnboarding, setShouldBypassPanelOnboarding] = useState(false);
 
-  // ---- PnP UI visible ----
+  // PnP
   const [pnpState, setPnpState] = useState<"idle" | "scanning" | "found" | "not_found">("idle");
   const [pnpFoundUrl, setPnpFoundUrl] = useState<string | null>(null);
 
@@ -131,7 +136,8 @@ export function PanelOnboarding() {
   const [flow, setFlow] = useState<PanelFlow>("auto_loading");
   const [failCount, setFailCount] = useState(0);
 
-  const autoConnectStartedRef = useRef(false);
+  const pairingInFlightRef = useRef(false);
+  const globalTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!isPanelMode()) return;
@@ -167,27 +173,42 @@ export function PanelOnboarding() {
 
       const host = extractHostFromUrlLike(found);
       if (host) setHaBaseUrl(host);
-
-      autoConnectStartedRef.current = false;
     } else {
       setPnpState("not_found");
     }
   }, [hasCompletedSnStep]);
 
+  // Lancer scan après SN step
   useEffect(() => {
     if (!isPanelMode()) return;
     if (!hasCompletedSnStep) return;
-    runPnPScan();
-  }, [hasCompletedSnStep, runPnPScan]);
+    if (shouldBypassPanelOnboarding) return;
 
-  /**
-   * Auto-connect (Option A) :
-   * - si scan en cours => on attend (pas d’écran erreur transitoire)
-   * - si HA trouvé => POST /api/neolia/pair avec code SN4 => récupère token
-   */
-  const attemptPanelConnection = useCallback(async () => {
+    setFlow("auto_loading");
+    setErrorMessage("");
+    setFailCount(0);
+
+    runPnPScan();
+
+    // Timeout global UX (au bout de 20s sans succès => erreur)
+    if (globalTimeoutRef.current) window.clearTimeout(globalTimeoutRef.current);
+    globalTimeoutRef.current = window.setTimeout(() => {
+      if (!pairingInFlightRef.current) {
+        setErrorMessage("Aucun Home Assistant détecté automatiquement (timeout).");
+        setFlow("auto_error");
+      }
+    }, 20000);
+
+    return () => {
+      if (globalTimeoutRef.current) window.clearTimeout(globalTimeoutRef.current);
+      globalTimeoutRef.current = null;
+    };
+  }, [hasCompletedSnStep, shouldBypassPanelOnboarding, runPnPScan]);
+
+  const attemptPairNow = useCallback(async () => {
     if (!isPanelMode()) return;
     if (!hasCompletedSnStep) return;
+    if (pairingInFlightRef.current) return;
 
     const code = (enteredNeoliaCode || "").trim();
     if (!code || code.length !== 4) {
@@ -195,32 +216,20 @@ export function PanelOnboarding() {
       return;
     }
 
-    // Tant que le scan tourne, on reste en loading (on évite ton écran “Connexion impossible” qui flash)
-    if (pnpState === "scanning") {
-      setFlow("auto_loading");
-      return;
-    }
+    if (!pnpFoundUrl) return; // on pair seulement quand HA est trouvé
 
-    // Il nous faut une base HA
-    const base = pnpFoundUrl ? normalizeHaBaseUrl(pnpFoundUrl) : null;
-    if (!base) {
-      setFailCount((prev) => {
-        const next = prev + 1;
-        if (next >= 3) setFlow("manual");
-        else setFlow("auto_error");
-        return next;
-      });
-      return;
-    }
-
+    pairingInFlightRef.current = true;
     setFlow("auto_loading");
+    setErrorMessage("");
 
+    const base = normalizeHaBaseUrl(pnpFoundUrl);
     const pairUrl = `${base}/api/neolia/pair`;
-    const panelId = "panel";
 
-    const res = await postJson(pairUrl, { code, panel_id: panelId }, 2500);
+    const res = await postJson(pairUrl, { code, panel_id: "panel" }, 2500);
 
     if (!res.ok) {
+      pairingInFlightRef.current = false;
+
       const msg = buildPairErrorMessage(res.status, res.json);
       setErrorMessage(msg);
 
@@ -238,20 +247,16 @@ export function PanelOnboarding() {
     const token = res.json?.token;
 
     if (!ha_url || !token) {
+      pairingInFlightRef.current = false;
       setErrorMessage("Réponse invalide de Home Assistant (ha_url/token manquants).");
-      setFailCount((prev) => {
-        const next = prev + 1;
-        if (next >= 3) setFlow("manual");
-        else setFlow("auto_error");
-        return next;
-      });
+      setFlow("auto_error");
       return;
     }
 
     try {
       await setHaConfig({ localHaUrl: ha_url, token });
     } catch {
-      // ignore (on continue quand même)
+      // ignore
     }
 
     setConnection({ url: ha_url, token, connected: false });
@@ -263,22 +268,25 @@ export function PanelOnboarding() {
     }
 
     gotoHomeSoon(250);
-  }, [enteredNeoliaCode, hasCompletedSnStep, pnpFoundUrl, pnpState, setConnection]);
+  }, [enteredNeoliaCode, hasCompletedSnStep, pnpFoundUrl, setConnection]);
 
-  // AUTO-CONNECT : seulement après SN step, et seulement une fois.
+  // Déclenche le pairing uniquement quand le scan a trouvé HA
   useEffect(() => {
     if (!isPanelMode()) return;
     if (!hasCompletedSnStep) return;
     if (shouldBypassPanelOnboarding) return;
-    if (autoConnectStartedRef.current) return;
 
-    autoConnectStartedRef.current = true;
-    setFlow("auto_loading");
+    if (pnpState === "found") {
+      attemptPairNow();
+      return;
+    }
 
-    window.setTimeout(() => {
-      attemptPanelConnection();
-    }, 80);
-  }, [hasCompletedSnStep, shouldBypassPanelOnboarding, attemptPanelConnection]);
+    // Important: si scan finit en not_found => on affiche l’erreur (pas avant)
+    if (pnpState === "not_found") {
+      setErrorMessage("Home Assistant non détecté automatiquement sur le réseau.");
+      setFlow("auto_error");
+    }
+  }, [pnpState, hasCompletedSnStep, shouldBypassPanelOnboarding, attemptPairNow]);
 
   // ---------------- PANEL MODE ----------------
   if (isPanelMode()) {
@@ -294,7 +302,7 @@ export function PanelOnboarding() {
       return <PanelSnEntryStep />;
     }
 
-    // 1) ÉCRAN DE CHARGEMENT
+    // Loading (zéro flash erreur tant que scan en cours)
     if (flow === "auto_loading") {
       const subtitle =
         pnpState === "scanning"
@@ -308,7 +316,7 @@ export function PanelOnboarding() {
       return <NeoliaLoadingScreen title="Connexion automatique" subtitle={subtitle} />;
     }
 
-    // 2) ÉCRAN ERREUR (avec retry) — puis bascule manuel après 3 échecs
+    // Erreur
     if (flow === "auto_error") {
       const hintHa = pnpFoundUrl ? `HA détecté : ${pnpFoundUrl}` : "HA non détecté automatiquement";
 
@@ -343,7 +351,9 @@ export function PanelOnboarding() {
                   <div className="font-medium text-foreground">Vérifications à faire :</div>
                   <ul className="list-disc pl-5 space-y-1">
                     <li>Le panneau et Home Assistant sont sur le même réseau (même Wi-Fi / VLAN).</li>
-                    <li>Dans HA : l’intégration <b>neolia_pnp</b> est chargée et <b>/api/neolia/capabilities</b> répond.</li>
+                    <li>
+                      Dans HA : l’intégration <b>neolia_pnp</b> est chargée et <b>/api/neolia/capabilities</b> répond.
+                    </li>
                     <li>Le Configurator a bien poussé <b>SN4</b> (pair_code) + <b>panel_token</b>.</li>
                     <li>{hintHa}</li>
                   </ul>
@@ -353,11 +363,11 @@ export function PanelOnboarding() {
                   <Button
                     size="lg"
                     className="w-full h-14 text-lg"
-                    onClick={() => {
+                    onClick={async () => {
                       setFlow("auto_loading");
                       setErrorMessage("");
-                      autoConnectStartedRef.current = false;
-                      attemptPanelConnection();
+                      setFailCount(0);
+                      await runPnPScan();
                     }}
                   >
                     Réessayer (tentative {Math.min(failCount + 1, 3)}/3)
@@ -371,8 +381,6 @@ export function PanelOnboarding() {
                       setFlow("auto_loading");
                       setErrorMessage("");
                       await runPnPScan();
-                      autoConnectStartedRef.current = false;
-                      attemptPanelConnection();
                     }}
                   >
                     <RefreshCw className="mr-2 h-5 w-5" />
@@ -394,7 +402,7 @@ export function PanelOnboarding() {
       );
     }
 
-    // 3) MODE MANUEL (IP + TOKEN ADMIN) — secours
+    // Mode manuel secours
     const handleManualConnect = async () => {
       try {
         const host = (haBaseUrl || "").trim();
@@ -578,8 +586,7 @@ export function PanelOnboarding() {
                     setStatusMessage("");
                     setErrorMessage("");
                     setFlow("auto_loading");
-                    autoConnectStartedRef.current = false;
-                    attemptPanelConnection();
+                    runPnPScan();
                   }}
                 >
                   Retour au Plug &amp; Play
@@ -592,8 +599,7 @@ export function PanelOnboarding() {
     );
   }
 
-  // ---------------- MODE MOBILE / TABLET ----------------
-  // (inchangé ici : ton écran mobile utilise un endpoint panel_config spécifique ; si tu veux on le remplace aussi par Option A plus tard)
+  // Mobile/Tablet: inchangé
   return (
     <div className="min-h-screen flex items-center justify-center p-8 bg-background">
       <div className="max-w-xl w-full">
@@ -601,8 +607,6 @@ export function PanelOnboarding() {
           <AlertCircle className="h-5 w-5" />
           <AlertDescription>
             Ce fichier est focalisé sur le <b>mode PANEL</b> (Option A).
-            <br />
-            Le flux mobile/tablette reste inchangé dans ton projet actuel.
           </AlertDescription>
         </Alert>
       </div>
