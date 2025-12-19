@@ -25,7 +25,7 @@ import { PanelSnEntryStep } from "@/ui/panel/components/PanelSnEntryStep";
 type OnboardingStatus = "idle" | "loading" | "success" | "error";
 type PanelFlow = "auto_loading" | "auto_error" | "manual";
 
-const PANEL_CODE = "NEOLIA_DEFAULT_PANEL";
+const PANEL_ID = "panel";
 
 function normalizeHaBaseUrl(raw: string): string {
   let url = (raw || "").trim();
@@ -60,6 +60,69 @@ function gotoHomeSoon(delayMs = 250) {
   window.setTimeout(() => {
     window.location.href = "/";
   }, delayMs);
+}
+
+/**
+ * Appairage HTTP (Option A) :
+ * - Le Configurator écrit SN4 via /api/neolia/pair_code
+ * - Le Configurator écrit le panel_token via /api/neolia/panel_token
+ * - Le panel appelle /api/neolia/pair (sans auth) avec le code SN4
+ * => HA renvoie { ha_url, token } et le panel peut persister la config.
+ */
+async function fetchPanelConfigFromHaPairing(haBaseUrl: string, sn4: string): Promise<{ ha_url: string; token: string }> {
+  const base = normalizeHaBaseUrl(haBaseUrl);
+  const url = `${base}/api/neolia/pair`;
+
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 2200);
+
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ code: sn4, panel_id: PANEL_ID }),
+      signal: controller.signal,
+    });
+
+    // Important : on veut un message utile si erreur
+    let json: any = null;
+    try {
+      json = await resp.json();
+    } catch {
+      // ignore
+    }
+
+    if (!resp.ok) {
+      const err = json?.error ? String(json.error) : `HTTP_${resp.status}`;
+      // Cas utile : token non set
+      if (resp.status === 409 && err === "panel_token_not_set") {
+        throw new Error(
+          "Le token du panel n'est pas défini dans Home Assistant (panel_token_not_set). " +
+            "Dans Configurator, clique sur 'Charger vers HA' après avoir renseigné le token.",
+        );
+      }
+      if (resp.status === 401 && err === "mismatch") {
+        throw new Error("Le code SN4 ne correspond pas (mismatch). Vérifie les 4 derniers caractères du SN.");
+      }
+      if (resp.status === 409 && err === "pair_code_not_set") {
+        throw new Error("Le code SN4 n'est pas enregistré dans Home Assistant (pair_code_not_set).");
+      }
+      throw new Error(`Pairing refusé: ${err}`);
+    }
+
+    if (!json || typeof json !== "object" || typeof json.ha_url !== "string" || typeof json.token !== "string") {
+      throw new Error("Réponse pairing invalide (ha_url/token manquants).");
+    }
+
+    return { ha_url: json.ha_url, token: json.token };
+  } catch (e: any) {
+    if (e?.name === "AbortError") {
+      throw new Error("TIMEOUT: Home Assistant ne répond pas (pairing).");
+    }
+    throw e;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 }
 
 // Envoie la requête de découverte PnP sur MQTT après connexion
@@ -125,7 +188,6 @@ export function PanelOnboarding() {
       const flag = window.localStorage.getItem("neolia_panel_onboarding_completed");
       if (flag === "1") {
         setShouldBypassPanelOnboarding(true);
-        // Transition “propre” même si déjà onboardé
         gotoHomeSoon(0);
       }
     } catch {
@@ -166,6 +228,38 @@ export function PanelOnboarding() {
     runPnPScan();
   }, [hasCompletedSnStep, runPnPScan]);
 
+  const finalizePanelConfig = useCallback(
+    async (baseUrl: string, token: string) => {
+      try {
+        await setHaConfig({
+          localHaUrl: baseUrl,
+          token,
+        });
+      } catch (e) {
+        console.error("[PanelOnboarding] Erreur persistance config HA:", e);
+      }
+
+      setConnection({
+        url: baseUrl,
+        token,
+        connected: false,
+      });
+
+      try {
+        window.localStorage.setItem("neolia_panel_onboarding_completed", "1");
+      } catch {
+        // ignore
+      }
+
+      setPanelSuccess(true);
+      setPanelConnecting(false);
+      setFlow("auto_loading");
+
+      gotoHomeSoon(250);
+    },
+    [setConnection],
+  );
+
   const applyHaConfigFromMqtt = useCallback(
     async (payload: unknown) => {
       const config = parseNeoliaConfig(payload);
@@ -184,35 +278,45 @@ export function PanelOnboarding() {
         return;
       }
 
-      try {
-        await setHaConfig({
-          localHaUrl: haConn.baseUrl,
-          token: haConn.token,
-        });
-      } catch (e) {
-        console.error("[PanelOnboarding] Erreur persistance config HA:", e);
-      }
-
-      setConnection({
-        url: haConn.baseUrl,
-        token: haConn.token,
-        connected: false,
-      });
-
-      try {
-        window.localStorage.setItem("neolia_panel_onboarding_completed", "1");
-      } catch {
-        // ignore
-      }
-
-      setPanelSuccess(true);
-      setPanelConnecting(false);
-      setFlow("auto_loading"); // on reste sur l'écran de chargement jusqu'à la redirection
-
-      gotoHomeSoon(250);
+      await finalizePanelConfig(haConn.baseUrl, haConn.token);
     },
-    [setConnection],
+    [finalizePanelConfig],
   );
+
+  const getEffectiveHaUrlForPairing = useCallback((): string | null => {
+    // Priorité : URL trouvée par PnP (contient déjà le port)
+    if (pnpFoundUrl) return normalizeHaBaseUrl(pnpFoundUrl);
+
+    // Sinon : on reconstruit depuis le champ IP
+    const host = (haBaseUrl || "").trim();
+    if (!host) return null;
+
+    const baseUrl = normalizeHaBaseUrl(host.includes(":") ? host : `${host}:8123`);
+    return baseUrl;
+  }, [pnpFoundUrl, haBaseUrl]);
+
+  const getSn4 = useCallback((): string => {
+    const { enteredNeoliaCode } = useNeoliaPanelConfigStore.getState();
+    return (enteredNeoliaCode || "").trim();
+  }, []);
+
+  const attemptPanelHttpPairingFirst = useCallback(async () => {
+    const sn4 = getSn4();
+    if (!sn4 || sn4.length !== 4) {
+      throw new Error("Code SN4 invalide. Reviens à l'étape SN et saisis exactement 4 caractères.");
+    }
+
+    const haUrl = getEffectiveHaUrlForPairing();
+    if (!haUrl) {
+      throw new Error("Impossible de déterminer l'URL Home Assistant. Relance le scan PnP ou saisis l'IP.");
+    }
+
+    const pair = await fetchPanelConfigFromHaPairing(haUrl, sn4);
+
+    // On préfère la ha_url renvoyée par HA (source de vérité)
+    const finalUrl = normalizeHaBaseUrl(pair.ha_url || haUrl);
+    await finalizePanelConfig(finalUrl, pair.token);
+  }, [getSn4, getEffectiveHaUrlForPairing, finalizePanelConfig]);
 
   const getEffectiveMqttHost = useCallback((): string => {
     if ((mqttHost || "").trim()) return (mqttHost || "").trim();
@@ -226,6 +330,16 @@ export function PanelOnboarding() {
     setPanelConnecting(true);
     setPanelErrorMessage("");
 
+    // ✅ OPTION A : on tente d'abord l'appairage HTTP /api/neolia/pair
+    try {
+      await attemptPanelHttpPairingFirst();
+      return; // success => redirection déjà lancée
+    } catch (e: any) {
+      // On log + on bascule sur MQTT seulement si pairing impossible
+      console.warn("[PanelOnboarding] Pairing HTTP failed, fallback MQTT:", e?.message || e);
+    }
+
+    // Fallback MQTT (si tu veux le garder en secours)
     const effectiveMqttHost = getEffectiveMqttHost();
     if (!effectiveMqttHost) {
       setPanelConnecting(false);
@@ -270,6 +384,7 @@ export function PanelOnboarding() {
       setPanelErrorMessage(e?.message || "Erreur MQTT inconnue.");
     }
   }, [
+    attemptPanelHttpPairingFirst,
     getEffectiveMqttHost,
     setMqttHost,
     setMqttPort,
@@ -288,15 +403,30 @@ export function PanelOnboarding() {
 
     setFlow("auto_loading");
 
-    const effective = getEffectiveMqttHost();
-    if (!effective) return;
+    // On peut tenter même si pnpFoundUrl absent (IP saisie)
+    const effectiveHa = (() => {
+      try {
+        return getEffectiveHaUrlForPairing();
+      } catch {
+        return null;
+      }
+    })();
+
+    // Si on n'a vraiment rien, on laisse le scan continuer
+    if (!effectiveHa && pnpState === "scanning") return;
 
     autoConnectStartedRef.current = true;
 
     setTimeout(() => {
       attemptPanelConnection();
     }, 50);
-  }, [hasCompletedSnStep, shouldBypassPanelOnboarding, getEffectiveMqttHost, attemptPanelConnection]);
+  }, [
+    hasCompletedSnStep,
+    shouldBypassPanelOnboarding,
+    getEffectiveHaUrlForPairing,
+    attemptPanelConnection,
+    pnpState,
+  ]);
 
   // ---------------- PANEL MODE ----------------
   if (isPanelMode()) {
@@ -318,10 +448,12 @@ export function PanelOnboarding() {
         pnpState === "scanning"
           ? "Recherche de Home Assistant sur le réseau…"
           : pnpState === "found"
-            ? `Home Assistant détecté (${pnpFoundUrl}). Connexion sécurisée en cours…`
+            ? `Home Assistant détecté (${pnpFoundUrl}). Appairage en cours…`
             : pnpState === "not_found"
-              ? "Home Assistant non détecté. Vérification réseau…"
-              : "Initialisation…";
+              ? "Home Assistant non détecté. Tentative d’appairage via IP…"
+              : panelConnecting
+                ? "Connexion en cours…"
+                : "Initialisation…";
 
       return (
         <NeoliaLoadingScreen
@@ -350,7 +482,7 @@ export function PanelOnboarding() {
                   <CardTitle className="text-2xl">Connexion impossible</CardTitle>
                 </div>
                 <CardDescription className="text-base leading-relaxed">
-                  Le panneau n’a pas réussi à récupérer la configuration via MQTT.
+                  Le panneau n’a pas réussi à récupérer la configuration.
                 </CardDescription>
               </CardHeader>
 
@@ -358,7 +490,7 @@ export function PanelOnboarding() {
                 <Alert variant="destructive">
                   <AlertCircle className="h-5 w-5" />
                   <AlertDescription className="text-base whitespace-pre-line">
-                    {panelErrorMessage || "Erreur MQTT inconnue."}
+                    {panelErrorMessage || "Erreur inconnue."}
                   </AlertDescription>
                 </Alert>
 
@@ -366,10 +498,8 @@ export function PanelOnboarding() {
                   <div className="font-medium text-foreground">Vérifications à faire :</div>
                   <ul className="list-disc pl-5 space-y-1">
                     <li>Le panneau et Home Assistant sont bien sur le même réseau (même Wi-Fi / VLAN).</li>
-                    <li>Le broker MQTT est bien actif et accessible depuis le LAN (port {DEFAULT_MQTT_PORT}).</li>
-                    <li>
-                      Les identifiants MQTT du panneau sont valides (user: <b>panel</b>).
-                    </li>
+                    <li>Dans HA : l’intégration neolia_pnp est chargée et /api/neolia/capabilities répond.</li>
+                    <li>Le Configurator a bien poussé SN4 (pair_code) + panel_token.</li>
                     <li>{hintHa}</li>
                   </ul>
                 </div>
@@ -394,13 +524,8 @@ export function PanelOnboarding() {
                     onClick={async () => {
                       setFlow("auto_loading");
                       await runPnPScan();
-                      const effective = getEffectiveMqttHost();
-                      if (effective) {
-                        autoConnectStartedRef.current = false;
-                        attemptPanelConnection();
-                      } else {
-                        setFlow("auto_error");
-                      }
+                      autoConnectStartedRef.current = false;
+                      attemptPanelConnection();
                     }}
                   >
                     <RefreshCw className="mr-2 h-5 w-5" />
@@ -514,8 +639,7 @@ export function PanelOnboarding() {
                 <CardTitle className="text-3xl">Connexion manuelle</CardTitle>
               </div>
               <CardDescription className="text-lg leading-relaxed">
-                Utilise l’IP locale de Home Assistant et un token admin. (Mode de secours après échec du Plug &amp;
-                Play.)
+                Utilise l’IP locale de Home Assistant et un token admin. (Mode de secours.)
               </CardDescription>
             </CardHeader>
 
@@ -619,9 +743,7 @@ export function PanelOnboarding() {
                     setFlow("auto_loading");
                     autoConnectStartedRef.current = false;
 
-                    const effective = getEffectiveMqttHost();
-                    if (effective) attemptPanelConnection();
-                    else runPnPScan();
+                    attemptPanelConnection();
                   }}
                 >
                   Retour au Plug &amp; Play
@@ -635,6 +757,8 @@ export function PanelOnboarding() {
   }
 
   // ---------------- MODE MOBILE / TABLET (inchangé) ----------------
+  const PANEL_CODE = "NEOLIA_DEFAULT_PANEL";
+
   const handleImportConfigMobile = async () => {
     const trimmed = haBaseUrl.trim();
 
