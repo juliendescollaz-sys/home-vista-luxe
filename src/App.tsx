@@ -38,7 +38,6 @@ function computeResponsiveMode(): DisplayMode {
 }
 
 function getBuildMode(): string {
-  // Vite garantit import.meta.env.MODE
   return (import.meta as any)?.env?.MODE ?? "unknown";
 }
 
@@ -49,7 +48,6 @@ function getDisplayMode(): DisplayMode {
   }
 
   // 2) Build Vite = vérité
-  // Si tu buildes avec `vite build --mode panel`, MODE === "panel"
   if (getBuildMode() === "panel") {
     return "panel";
   }
@@ -71,7 +69,6 @@ const PrivateRoute = ({
   const [showBackButton, setShowBackButton] = useState(false);
   const navigate = useNavigate();
 
-  // En mode Panel, vérifier si l'onboarding a déjà été complété
   const [panelOnboardingCompleted] = useState(() => {
     if (displayMode !== "panel") return false;
     try {
@@ -82,7 +79,6 @@ const PrivateRoute = ({
   });
 
   useEffect(() => {
-    // En mode Panel : jamais de bouton "Retour à la configuration"
     if (!hasValidConnection || isConnected || displayMode === "panel") {
       setShowBackButton(false);
       return;
@@ -92,13 +88,9 @@ const PrivateRoute = ({
       setShowBackButton(true);
     }, 5000);
 
-    return () => {
-      clearTimeout(timer);
-    };
+    return () => clearTimeout(timer);
   }, [hasValidConnection, isConnected, displayMode]);
 
-  // Cas 1 : config HA présente mais WebSocket pas encore connecté
-  // → on NE bloque pas le mode PANEL ici, sinon il reste coincé sur "Connexion en cours..."
   if (displayMode !== "panel" && hasValidConnection && !isConnected) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -117,25 +109,17 @@ const PrivateRoute = ({
     );
   }
 
-  // Cas 2 : aucune configuration Home Assistant
   if (!hasValidConnection) {
-    // En mode PANEL :
-    // - Si l'onboarding n'a jamais été complété → afficher PanelOnboarding
-    // - Si l'onboarding a été complété mais la connexion est perdue → laisser passer (erreur affichée dans le layout)
     if (displayMode === "panel") {
       if (!panelOnboardingCompleted) {
         return <PanelOnboarding />;
       }
-      // Onboarding déjà fait mais config perdue → on laisse passer,
-      // le layout affichera une erreur de connexion
       console.log("[PrivateRoute] Panel: onboarding complété mais config perdue, on laisse passer");
     } else {
-      // En mobile/tablette : onboarding classique
       return <Navigate to="/onboarding" />;
     }
   }
 
-  // Cas 3 : connexion OK (ou mode PANEL avec config mais WS pas encore up) → rendu normal
   return <>{children}</>;
 };
 
@@ -154,7 +138,6 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => {
-  // Initialisation de la connexion HA (restaure url/token depuis le storage et met à jour le store)
   const isInitialized = useInitializeConnection();
 
   const [displayMode, setDisplayMode] = useState<DisplayMode>(() => {
@@ -162,24 +145,17 @@ const App = () => {
     return getDisplayMode();
   });
 
-  // Établir la connexion WebSocket dès que les credentials sont restaurés
   useHAClient();
-
-  // Rafraîchir les entités au retour au premier plan
   useHARefreshOnForeground();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const apply = () => setDisplayMode(getDisplayMode());
-
     apply();
 
     const onResize = () => apply();
-
-    const interval = window.setInterval(() => {
-      apply();
-    }, 1000);
+    const interval = window.setInterval(() => apply(), 1000);
 
     window.addEventListener("resize", onResize);
 
@@ -189,21 +165,16 @@ const App = () => {
     };
   }, []);
 
-  // Disable pinch-zoom and double-tap zoom for native-like PWA behavior
   useEffect(() => {
     let lastTouchEnd = 0;
 
     const preventPinchZoom = (e: TouchEvent) => {
-      if (e.touches.length > 1) {
-        e.preventDefault();
-      }
+      if (e.touches.length > 1) e.preventDefault();
     };
 
     const preventDoubleTapZoom = (e: TouchEvent) => {
       const now = Date.now();
-      if (now - lastTouchEnd <= 300) {
-        e.preventDefault();
-      }
+      if (now - lastTouchEnd <= 300) e.preventDefault();
       lastTouchEnd = now;
     };
 
@@ -216,12 +187,7 @@ const App = () => {
     };
   }, []);
 
-  // Petit marqueur de build (utile tant qu'on debug)
   const buildMode = useMemo(() => getBuildMode(), []);
-
-  useEffect(() => {
-    console.log("[NEOLIA] buildMode =", buildMode, "| displayMode =", displayMode);
-  }, [buildMode, displayMode]);
 
   if (!isInitialized) {
     return (
@@ -240,12 +206,34 @@ const App = () => {
             <div className={`mode-${displayMode}`}>
               <Toaster />
               <Sonner />
+
+              {/* DEBUG OVERLAY (visible sur panel aussi) */}
+              <div
+                style={{
+                  position: "fixed",
+                  right: 10,
+                  bottom: 10,
+                  zIndex: 99999,
+                  fontSize: 12,
+                  lineHeight: 1.2,
+                  padding: "8px 10px",
+                  borderRadius: 10,
+                  background: "rgba(0,0,0,0.65)",
+                  color: "#fff",
+                  maxWidth: 260,
+                  pointerEvents: "none",
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+                }}
+              >
+                <div>buildMode: {String(buildMode)}</div>
+                <div>displayMode: {String(displayMode)}</div>
+                <div>innerWidth: {typeof window !== "undefined" ? window.innerWidth : "n/a"}</div>
+              </div>
+
               <BrowserRouter>
                 <Routes>
-                  {/* Routes publiques (onboarding, auth, admin) */}
                   <Route path="/auth" element={<Auth />} />
 
-                  {/* Onboarding : dépend du mode */}
                   <Route path="/onboarding" element={displayMode === "panel" ? <PanelOnboarding /> : <Onboarding />} />
                   <Route
                     path="/onboarding/scan"
@@ -275,7 +263,6 @@ const App = () => {
                     }
                   />
 
-                  {/* Routes protégées avec routage par mode d'affichage */}
                   <Route
                     path="/*"
                     element={
@@ -294,21 +281,14 @@ const App = () => {
   );
 };
 
-/**
- * Contenu de l'app avec gestion de l'orientation
- */
 function AppContent({ displayMode }: { displayMode: DisplayMode }) {
   const { showRotateOverlay, showPortraitSuggestion } = useOrientationLock(displayMode);
 
   return (
     <>
-      {/* Overlay bloquant pour mobile en paysage */}
       {showRotateOverlay && <OrientationOverlay type="blocking" />}
-
-      {/* Suggestion non bloquante pour tablet/panel en portrait */}
       {showPortraitSuggestion && <OrientationOverlay type="suggestion" />}
 
-      {/* Contenu principal selon le mode */}
       {displayMode === "panel" && <PanelRootLayout />}
       {displayMode === "tablet" && <TabletRootLayout />}
       {displayMode === "mobile" && <MobileRootLayout />}
