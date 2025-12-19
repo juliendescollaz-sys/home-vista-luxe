@@ -12,34 +12,60 @@ function computeFromWidth(): DisplayMode {
   return "tablet";
 }
 
-/**
- * Lit le capacitor.config.json runtime pour déterminer la cible d'app.
- * C'est fiable sur Android car ce fichier est embarqué dans l'APK.
- */
-async function readRuntimeTarget(): Promise<RuntimeTarget> {
+function isNativeAndroidCapacitor(): boolean {
   try {
-    // Sur Android Capacitor, on peut fetch le fichier de config embarqué.
-    // Il est copié dans android/app/src/main/assets/capacitor.config.json
-    const res = await fetch("/capacitor.config.json", { cache: "no-store" });
-    if (!res.ok) return "unknown";
-    const json = await res.json();
-    const target = (json?.appTarget || json?.APP_TARGET || "").toString().toLowerCase();
-    if (target === "panel") return "panel";
-    if (target === "mobile") return "mobile";
-    return "unknown";
+    return Capacitor.getPlatform() === "android" && typeof (window as any).Capacitor !== "undefined";
   } catch {
-    return "unknown";
+    return false;
   }
+}
+
+/**
+ * ✅ Source de vérité: Capacitor.getConfig() si disponible
+ * Fallback: tenter un fetch du capacitor.config.json via plusieurs URLs probables.
+ */
+async function getRuntimeTarget(): Promise<RuntimeTarget> {
+  // 1) Capacitor.getConfig() (le plus fiable)
+  try {
+    const anyCap = Capacitor as any;
+    if (typeof anyCap.getConfig === "function") {
+      const cfg = anyCap.getConfig();
+      const target = String(cfg?.appTarget || cfg?.APP_TARGET || "").toLowerCase();
+      if (target === "panel") return "panel";
+      if (target === "mobile") return "mobile";
+    }
+  } catch {
+    // ignore
+  }
+
+  // 2) Fallback fetch (certaines WebViews ne servent pas /capacitor.config.json de la même façon)
+  const candidates = [
+    "/capacitor.config.json",
+    "capacitor.config.json",
+    "http://localhost/capacitor.config.json",
+    "http://localhost/assets/capacitor.config.json",
+  ];
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) continue;
+      const json = await res.json();
+      const target = String(json?.appTarget || json?.APP_TARGET || "").toLowerCase();
+      if (target === "panel") return "panel";
+      if (target === "mobile") return "mobile";
+    } catch {
+      // try next
+    }
+  }
+
+  return "unknown";
 }
 
 export function useDisplayMode(): { displayMode: DisplayMode } {
   const [mode, setMode] = useState<DisplayMode>(() => {
     if (typeof window === "undefined") return "mobile";
-
-    // Override manuel (debug)
     if ((window as any).NEOLIA_PANEL_MODE === true) return "panel";
-
-    // Première passe : responsive (on corrigera dès qu'on a lu la config runtime)
     return computeFromWidth();
   });
 
@@ -55,12 +81,9 @@ export function useDisplayMode(): { displayMode: DisplayMode } {
         return;
       }
 
-      // Si on est dans un runtime Capacitor Android, on lit la config runtime
-      const isAndroid = Capacitor.getPlatform() === "android";
-      const isCapacitor = typeof (window as any).Capacitor !== "undefined";
-
-      if (isAndroid && isCapacitor) {
-        const target = await readRuntimeTarget();
+      // Sur Android Capacitor: décider via target runtime
+      if (isNativeAndroidCapacitor()) {
+        const target = await getRuntimeTarget();
         if (cancelled) return;
 
         if (target === "panel") {
@@ -75,13 +98,8 @@ export function useDisplayMode(): { displayMode: DisplayMode } {
 
     apply();
 
-    const onResize = () => {
-      apply();
-    };
-
-    const interval = window.setInterval(() => {
-      apply();
-    }, 1000);
+    const onResize = () => apply();
+    const interval = window.setInterval(() => apply(), 1000);
 
     window.addEventListener("resize", onResize);
 
