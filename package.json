@@ -6,10 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+
+    "build:mobile": "vite build --mode mobile",
+    "build:panel": "vite build --mode panel",
+
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "build:panel:android": "npm run build && npx cap sync android",
+
+    "build:mobile:android": "npm run build:mobile && npx cap sync android",
+    "build:panel:android": "npm run build:panel && npx cap sync android",
+
     "android:open": "npx cap open android"
   },
   "dependencies": {
