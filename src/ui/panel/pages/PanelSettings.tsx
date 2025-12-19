@@ -11,6 +11,7 @@ import { LogOut, Moon, Sun, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { clearHACredentials } from "@/lib/crypto";
+import { useNeoliaPanelConfigStore } from "@/store/useNeoliaPanelConfigStore";
 
 export function PanelSettings() {
   const disconnect = useHAStore((state) => state.disconnect);
@@ -18,10 +19,41 @@ export function PanelSettings() {
   const { theme, setTheme } = useTheme();
 
   const handleDisconnect = () => {
+    // 1) coupe la connexion HA
     disconnect();
+
+    // 2) efface les creds stockés
     clearHACredentials();
-    toast.success("Déconnecté de Home Assistant");
-    window.location.href = "/onboarding";
+
+    // 3) efface le flag "onboarding terminé"
+    try {
+      window.localStorage.removeItem("neolia_panel_onboarding_completed");
+    } catch {
+      // ignore
+    }
+
+    // 4) reset de l'étape SN (retour 4 chiffres)
+    //    (Zustand expose généralement getState / setState sur le hook)
+    try {
+      const storeAny = useNeoliaPanelConfigStore as any;
+
+      // si le store expose une méthode reset
+      if (typeof storeAny.getState?.().reset === "function") {
+        storeAny.getState().reset();
+      } else if (typeof storeAny.setState === "function") {
+        // sinon on remet les champs essentiels à zéro (best effort)
+        storeAny.setState({
+          hasCompletedSnStep: false,
+          enteredNeoliaCode: "",
+        });
+      }
+    } catch {
+      // ignore
+    }
+
+    toast.success("Déconnecté — retour à l’onboarding");
+    // 5) redirection vers onboarding, avec reset=1 (sécurité côté PanelOnboarding)
+    window.location.href = "/onboarding?reset=1";
   };
 
   return (
@@ -45,12 +77,8 @@ export function PanelSettings() {
               </div>
             </div>
           </Card>
-          
-          <Button
-            variant="destructive"
-            className="w-full"
-            onClick={handleDisconnect}
-          >
+
+          <Button variant="destructive" className="w-full" onClick={handleDisconnect}>
             <LogOut className="mr-2 h-4 w-4" />
             Se déconnecter
           </Button>
@@ -63,8 +91,8 @@ export function PanelSettings() {
             <div>
               <p className="text-xs text-muted-foreground mb-2">Thème</p>
               <div className="flex gap-2">
-                <Button 
-                  variant={theme === "light" ? "default" : "outline"} 
+                <Button
+                  variant={theme === "light" ? "default" : "outline"}
                   className="flex-1"
                   size="sm"
                   onClick={() => setTheme("light")}
@@ -72,8 +100,8 @@ export function PanelSettings() {
                   <Sun className="mr-1 h-3 w-3" />
                   Clair
                 </Button>
-                <Button 
-                  variant={theme === "dark" ? "default" : "outline"} 
+                <Button
+                  variant={theme === "dark" ? "default" : "outline"}
                   className="flex-1"
                   size="sm"
                   onClick={() => setTheme("dark")}
