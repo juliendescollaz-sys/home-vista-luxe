@@ -23,6 +23,11 @@ export function PanelHome() {
   const favorites = useHAStore((state) => state.favorites);
   const isConnected = useHAStore((state) => state.isConnected);
 
+  // --- suppression des faux positifs pendant onboarding / transition panel ---
+  const isPanelTransition =
+    typeof window !== "undefined" &&
+    sessionStorage.getItem("neolia_panel_transition") === "1";
+
   // Trouver les device_id des media_players pour filtrer leurs entités associées
   const mediaPlayerDeviceIds = new Set(
     entities
@@ -42,7 +47,7 @@ export function PanelHome() {
       const reg = entityRegistry.find((r) => r.entity_id === e.entity_id);
       const deviceId = reg?.device_id;
 
-      // Filtre centralisé : entités contrôlables (inclut whitelist ZWA2, exclut mesures/états)
+      // Filtre centralisé : entités contrôlables
       if (!isControllableEntity(e, reg)) return false;
 
       // Exclure les entités "techniques" liées aux media_players
@@ -77,10 +82,12 @@ export function PanelHome() {
     });
   }, [activeDevices, areas, floors, devices, entityRegistry]);
 
-  // Handler de toggle simple (comme Maison/Favoris)
+  // Handler de toggle simple
   const handleDeviceToggle = async (entityId: string) => {
     if (!client) {
-      toast.error("Client non connecté");
+      if (!isPanelTransition) {
+        toast.error("Client non connecté");
+      }
       return;
     }
 
@@ -99,11 +106,12 @@ export function PanelHome() {
     }
   };
 
+  // ⚠️ toast uniquement hors phase de transition
   useEffect(() => {
-    if (!isConnected) {
+    if (!isConnected && !isPanelTransition) {
       toast.error("Connexion à Home Assistant perdue");
     }
-  }, [isConnected]);
+  }, [isConnected, isPanelTransition]);
 
   if (!client || !entities || entities.length === 0) {
     return (
@@ -122,9 +130,8 @@ export function PanelHome() {
 
   return (
     <div className="h-full flex flex-col bg-background">
-      {/* Container scrollable qui occupe tout l'espace disponible - pb-4 = 16px en bas */}
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-3 pb-4 space-y-3">
-        {/* Section météo - hauteur réduite pour Panel */}
+        {/* Section météo */}
         <div className="animate-fade-in shrink-0">
           <AnimatedWeatherTile />
         </div>
@@ -142,11 +149,18 @@ export function PanelHome() {
               {enrichedActiveDevices.map(({ entity, area, floor }) => {
                 const isMediaPlayer = entity.entity_id.startsWith("media_player.");
                 const isCover = entity.entity_id.startsWith("cover.");
-                
+
                 if (isMediaPlayer) {
-                  return <MediaPlayerCard key={entity.entity_id} entity={entity} floor={floor} area={area} />;
+                  return (
+                    <MediaPlayerCard
+                      key={entity.entity_id}
+                      entity={entity}
+                      floor={floor}
+                      area={area}
+                    />
+                  );
                 }
-                
+
                 if (isCover) {
                   return (
                     <SortableCoverEntityTile
@@ -157,7 +171,7 @@ export function PanelHome() {
                     />
                   );
                 }
-                
+
                 return (
                   <SortableDeviceCard
                     key={entity.entity_id}
