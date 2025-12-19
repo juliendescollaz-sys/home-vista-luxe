@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "next-themes";
@@ -21,7 +21,6 @@ import { MobileRootLayout } from "@/ui/mobile/MobileRootLayout";
 import { TabletRootLayout } from "@/ui/tablet/TabletRootLayout";
 import { PanelRootLayout } from "@/ui/panel/PanelRootLayout";
 import { PanelOnboarding } from "@/ui/panel/PanelOnboarding";
-import { Capacitor } from "@capacitor/core";
 
 // Lazy load pages avec dependencies lourdes
 const Admin = lazy(() => import("@/pages/Admin"));
@@ -29,23 +28,6 @@ const OnboardingScan = lazy(() => import("@/pages/OnboardingScan"));
 const OnboardingManual = lazy(() => import("@/pages/OnboardingManual"));
 
 const queryClient = new QueryClient();
-
-function getBuildMode(): string {
-  return (import.meta as any)?.env?.MODE ?? "unknown";
-}
-
-function getViteTarget(): string {
-  return (import.meta as any)?.env?.VITE_NEOLIA_APP_TARGET ?? "undefined";
-}
-
-function getEnvKeys(): string {
-  try {
-    const envObj = (import.meta as any)?.env ?? {};
-    return Object.keys(envObj).sort().join(", ") || "(none)";
-  } catch {
-    return "(error)";
-  }
-}
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const connection = useHAStore((state) => state.connection);
@@ -95,7 +77,6 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   if (!hasValidConnection) {
     if (displayMode === "panel") {
       if (!panelOnboardingCompleted) return <PanelOnboarding />;
-      console.log("[PrivateRoute] Panel: onboarding complété mais config perdue, on laisse passer");
     } else {
       return <Navigate to="/onboarding" />;
     }
@@ -107,8 +88,14 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
-  if (!user) return <Navigate to="/auth" replace />;
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
   return <>{children}</>;
 };
 
@@ -141,42 +128,6 @@ const App = () => {
     };
   }, []);
 
-  const buildMode = useMemo(() => getBuildMode(), []);
-  const viteTarget = useMemo(() => getViteTarget(), []);
-  const envKeys = useMemo(() => getEnvKeys(), []);
-
-  const platform = useMemo(() => {
-    try {
-      return Capacitor.getPlatform();
-    } catch {
-      return "error";
-    }
-  }, []);
-
-  const hasWindowCapacitor = useMemo(() => {
-    try {
-      return typeof (window as any).Capacitor !== "undefined";
-    } catch {
-      return false;
-    }
-  }, []);
-
-  const hasCapacitorPlugins = useMemo(() => {
-    try {
-      return typeof (window as any).CapacitorPlugins !== "undefined";
-    } catch {
-      return false;
-    }
-  }, []);
-
-  const ua = useMemo(() => {
-    try {
-      return navigator.userAgent || "";
-    } catch {
-      return "";
-    }
-  }, []);
-
   if (!isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -195,43 +146,14 @@ const App = () => {
               <Toaster />
               <Sonner />
 
-              {/* DEBUG OVERLAY */}
-              <div
-                style={{
-                  position: "fixed",
-                  right: 10,
-                  bottom: 10,
-                  zIndex: 99999,
-                  fontSize: 12,
-                  lineHeight: 1.25,
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  background: "rgba(0,0,0,0.70)",
-                  color: "#fff",
-                  maxWidth: 520,
-                  pointerEvents: "none",
-                  fontFamily:
-                    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                }}
-              >
-                <div>buildMode: {String(buildMode)}</div>
-                <div>viteTarget(VITE_NEOLIA_APP_TARGET): {String(viteTarget)}</div>
-                <div>displayMode: {String(displayMode)}</div>
-                <div>innerWidth: {typeof window !== "undefined" ? window.innerWidth : "n/a"}</div>
-                <div>Capacitor.getPlatform(): {String(platform)}</div>
-                <div>window.Capacitor: {String(hasWindowCapacitor)}</div>
-                <div>window.CapacitorPlugins: {String(hasCapacitorPlugins)}</div>
-                <div>env keys: {envKeys}</div>
-                <div>UA: {ua}</div>
-              </div>
-
               <BrowserRouter>
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
 
-                  <Route path="/onboarding" element={displayMode === "panel" ? <PanelOnboarding /> : <Onboarding />} />
+                  <Route
+                    path="/onboarding"
+                    element={displayMode === "panel" ? <PanelOnboarding /> : <Onboarding />}
+                  />
                   <Route
                     path="/onboarding/scan"
                     element={
