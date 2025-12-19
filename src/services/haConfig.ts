@@ -5,6 +5,10 @@
  * Étape 1 (PnP clean) :
  * - Ajout d'une découverte HA autonome (sans MQTT) : discoverHA()
  * - Tests réseau fiables en natif via CapacitorHttp (bypass CORS/WebView)
+ *
+ * + PnP Panel (SN4):
+ * - fetchPanelConfigFromHA() : POST /api/neolia/pair -> attend { ha_url, token }
+ *   (Nécessite que l'intégration HA renvoie bien le token panel)
  */
 
 import { storeHACredentials, getHACredentials } from "@/lib/crypto";
@@ -22,9 +26,8 @@ export interface HAConfigLegacy {
   token: string;
 }
 
-/**
- * Détecte si on tourne en mode natif (Android / iOS)
- */
+type HttpResult<T = any> = { status: number; data?: T; ok: boolean };
+
 function isNativePlatform(): boolean {
   try {
     const direct = (Capacitor as any).isNativePlatform?.();
@@ -41,29 +44,19 @@ function isNativePlatform(): boolean {
   }
 }
 
-/**
- * Normalise une URL (trim + supprime trailing slash)
- */
 function normalizeBaseUrl(url: string): string {
   return (url || "").trim().replace(/\/+$/, "");
 }
 
-/**
- * Petit helper "sleep" pour laisser respirer le runtime si besoin
- */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Effectue une requête HTTP GET en mode natif (CapacitorHttp) si possible,
- * sinon en fetch (web).
- */
 async function httpGet(
   url: string,
   headers: Record<string, string> = {},
   timeoutMs: number = 1200,
-): Promise<{ status: number; data?: any; ok: boolean }> {
+): Promise<HttpResult> {
   const native = isNativePlatform();
 
   if (native) {
@@ -85,7 +78,6 @@ async function httpGet(
     }
   }
 
-  // Web : fetch + AbortController
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -95,12 +87,76 @@ async function httpGet(
       headers,
       signal: controller.signal,
     });
+
     let data: any = undefined;
     try {
       data = await resp.json();
     } catch {
       // ignore
     }
+
+    return { status: resp.status, data, ok: resp.ok };
+  } catch {
+    return { status: 0, ok: false };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function httpPost(
+  url: string,
+  body: any,
+  headers: Record<string, string> = {},
+  timeoutMs: number = 2000,
+): Promise<HttpResult> {
+  const native = isNativePlatform();
+
+  if (native) {
+    const options: HttpOptions = {
+      url,
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...headers,
+      },
+      data: body,
+      connectTimeout: timeoutMs,
+      readTimeout: timeoutMs,
+    };
+
+    try {
+      const resp = await CapacitorHttp.post(options);
+      const status = (resp as any).status ?? 0;
+      const data = (resp as any).data;
+      return { status, data, ok: status >= 200 && status < 300 };
+    } catch {
+      return { status: 0, ok: false };
+    }
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...headers,
+      },
+      body: JSON.stringify(body ?? {}),
+      signal: controller.signal,
+    });
+
+    let data: any = undefined;
+    try {
+      data = await resp.json();
+    } catch {
+      // ignore
+    }
+
     return { status: resp.status, data, ok: resp.ok };
   } catch {
     return { status: 0, ok: false };
@@ -127,7 +183,6 @@ async function probeHomeAssistantBaseUrl(baseUrl: string, timeoutMs: number): Pr
     timeoutMs,
   );
 
-  // 401 = HA trouvé mais auth requise (normal)
   if (res.status === 401 || res.status === 200) return true;
   return false;
 }
@@ -138,11 +193,9 @@ async function probeHomeAssistantBaseUrl(baseUrl: string, timeoutMs: number): Pr
 function buildCandidateBaseUrls(): string[] {
   const candidates: string[] = [];
 
-  // Hostnames mDNS fréquents
   candidates.push("http://homeassistant.local:8123");
   candidates.push("http://hass.local:8123");
 
-  // Quelques IP "classiques" (on évite de trop charger, le scan fera le reste)
   candidates.push("http://192.168.1.2:8123");
   candidates.push("http://192.168.1.3:8123");
   candidates.push("http://192.168.1.10:8123");
@@ -155,11 +208,9 @@ function buildCandidateBaseUrls(): string[] {
 
 /**
  * Scan rapide d'un /24 (ex: 192.168.1.*) sur le port HA 8123
- * - concurrence limitée pour ne pas tuer la WebView/Android
- * - timeout court
  */
 async function scanSubnetForHA(
-  subnetPrefix: string, // ex "192.168.1"
+  subnetPrefix: string,
   timeoutMs: number,
   concurrency: number,
 ): Promise<string | null> {
@@ -182,7 +233,6 @@ async function scanSubnetForHA(
         return;
       }
 
-      // petite pause micro pour éviter de saturer
       await sleep(5);
     }
   };
@@ -198,17 +248,11 @@ async function scanSubnetForHA(
 
 /**
  * Découverte Plug & Play de Home Assistant (sans MQTT)
- * Stratégie:
- * 1) Réutilise ce qui existe (credentials + ha_config_v2)
- * 2) Teste quelques hostnames/candidats
- * 3) Scan de subnets privés usuels (limité)
- *
- * Retourne une URL base HA (ex: http://192.168.1.80:8123) ou null
  */
 export async function discoverHA(options?: {
-  timeoutMs?: number; // timeout par probe
-  concurrency?: number; // scan concurrency
-  scanSubnets?: string[]; // préfixes /24 (sans le dernier octet)
+  timeoutMs?: number;
+  concurrency?: number;
+  scanSubnets?: string[];
   verbose?: boolean;
 }): Promise<string | null> {
   const timeoutMs = options?.timeoutMs ?? 550;
@@ -219,7 +263,6 @@ export async function discoverHA(options?: {
     if (verbose) console.log("[PnP][discoverHA]", ...args);
   };
 
-  // 1) Priorité: config déjà connue
   try {
     const cfg = await getHaConfig();
     if (cfg?.localHaUrl) {
@@ -240,16 +283,13 @@ export async function discoverHA(options?: {
     // ignore
   }
 
-  // 2) Candidats "probables"
   const candidates = buildCandidateBaseUrls();
   for (const c of candidates) {
     log("Probe candidat:", c);
     if (await probeHomeAssistantBaseUrl(c, timeoutMs)) return normalizeBaseUrl(c);
   }
 
-  // 3) Scan /24 : on scanne quelques subnets standards
   const subnets = options?.scanSubnets ?? ["192.168.1", "192.168.0", "10.0.0", "172.16.0"];
-
   for (const prefix of subnets) {
     log("Scan subnet:", prefix);
     const found = await scanSubnetForHA(prefix, timeoutMs, concurrency);
@@ -278,7 +318,6 @@ export async function hasHaConfig(): Promise<boolean> {
 
 /**
  * Récupère la configuration HA existante
- * Gère à la fois le nouveau format (local + remote) et l'ancien format (url unique)
  */
 export async function getHaConfig(): Promise<HAConfig | null> {
   try {
@@ -287,7 +326,6 @@ export async function getHaConfig(): Promise<HAConfig | null> {
       return null;
     }
 
-    // Nouveau format : localHaUrl (obligatoire) et/ou remoteHaUrl (optionnel)
     const configStr = localStorage.getItem("ha_config_v2");
     if (configStr) {
       try {
@@ -304,7 +342,6 @@ export async function getHaConfig(): Promise<HAConfig | null> {
       }
     }
 
-    // Ancien format : baseUrl unique (compatibilité ascendante)
     if (credentials.baseUrl) {
       return {
         localHaUrl: normalizeBaseUrl(credentials.baseUrl),
@@ -322,11 +359,9 @@ export async function getHaConfig(): Promise<HAConfig | null> {
 
 /**
  * Enregistre la configuration HA (URL + token)
- * Supporte à la fois le nouveau format (local + remote) et l'ancien format (url unique)
  */
 export async function setHaConfig(config: HAConfig | HAConfigLegacy): Promise<void> {
   try {
-    // Si c'est l'ancien format (url unique)
     if ("url" in config) {
       const url = normalizeBaseUrl(config.url);
       await storeHACredentials(url, config.token);
@@ -340,7 +375,6 @@ export async function setHaConfig(config: HAConfig | HAConfigLegacy): Promise<vo
       return;
     }
 
-    // Nouveau format : localHaUrl est obligatoire
     const localHaUrl = normalizeBaseUrl(config.localHaUrl);
     const remoteHaUrl = config.remoteHaUrl ? normalizeBaseUrl(config.remoteHaUrl) : undefined;
     const token = config.token;
@@ -365,9 +399,86 @@ export async function setHaConfig(config: HAConfig | HAConfigLegacy): Promise<vo
 }
 
 /**
+ * PnP PANEL:
+ * Appairage LAN via l'intégration HA:
+ * POST { code, panel_id } -> attend { ha_url, token }
+ *
+ * IMPORTANT:
+ * - Ton HA DOIT renvoyer le token (ex: en lisant panel_token stocké en storage)
+ * - Sinon: on échoue proprement, car sans token le panel est bloqué.
+ */
+export async function fetchPanelConfigFromHA(params: {
+  haBaseUrl: string; // ex: http://192.168.1.85:8123
+  code: string; // SN4
+  panelId?: string; // optionnel
+  timeoutMs?: number;
+}): Promise<{ ha_url: string; token: string }> {
+  const base = normalizeBaseUrl(params.haBaseUrl);
+  if (!base) throw new Error("URL Home Assistant vide");
+
+  const code = (params.code || "").trim();
+  if (!code || code.length !== 4) {
+    throw new Error("Code panel invalide (SN4 requis)");
+  }
+
+  const panelId = (params.panelId || "").trim();
+  const timeoutMs = params.timeoutMs ?? 1800;
+
+  const url = `${base}/api/neolia/pair`;
+
+  const res = await httpPost(
+    url,
+    {
+      code,
+      panel_id: panelId,
+    },
+    { Accept: "application/json" },
+    timeoutMs,
+  );
+
+  if (!res.ok) {
+    const status = res.status || 0;
+
+    if (status === 401) throw new Error("Code SN4 incorrect (mismatch).");
+    if (status === 409) throw new Error("Code SN4 non défini dans Home Assistant (pair_code_not_set).");
+    if (status === 403) throw new Error("Requête refusée (non LAN / IP non privée).");
+
+    throw new Error(`Erreur pairing Home Assistant (${status}).`);
+  }
+
+  const data: any = res.data;
+
+  // CapacitorHttp peut renvoyer une string JSON selon config
+  const json = typeof data === "string" ? safeJsonParse(data) : data;
+
+  const ha_url = (json as any)?.ha_url;
+  const token = (json as any)?.token;
+
+  if (typeof ha_url !== "string" || !ha_url) {
+    throw new Error("Réponse pairing invalide: ha_url manquant.");
+  }
+
+  if (typeof token !== "string" || !token) {
+    // Très important: c'est exactement ton cas actuel si HA n'inclut pas le token
+    console.warn("[PnP][fetchPanelConfigFromHA] Pair OK mais token absent. HA doit renvoyer token.");
+    throw new Error(
+      "Pairing OK mais token absent. Côté Home Assistant, l'endpoint /api/neolia/pair doit renvoyer aussi le token du panel.",
+    );
+  }
+
+  return { ha_url: normalizeBaseUrl(ha_url), token };
+}
+
+function safeJsonParse(str: string): any | null {
+  try {
+    return JSON.parse(str);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Récupère la configuration depuis NeoliaServer (mode PANEL uniquement)
- * @param installerIpOrHost - L'adresse IP (ou IP:port) du PC de l'installateur
- * @returns La configuration HA { ha_url, token }
  */
 export async function fetchConfigFromNeoliaServer(
   installerIpOrHost: string,
@@ -405,7 +516,6 @@ export async function fetchConfigFromNeoliaServer(
   console.log("[NeoliaServer] fetchConfigFromNeoliaServer URL =", url);
 
   const isNative = isNativePlatform();
-
   const timeoutMs = 4000;
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
@@ -563,7 +673,6 @@ export async function testHaConnection(url: string, token: string, timeoutMs: nu
 
   if (!(res.status >= 200 && res.status < 300)) return false;
 
-  // Valide légèrement la structure attendue
   try {
     const data = res.data;
     if (!data || typeof data !== "object") return false;
