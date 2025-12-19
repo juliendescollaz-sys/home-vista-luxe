@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useInitializeConnection } from "@/hooks/useInitializeConnection";
 import { useHAClient } from "@/hooks/useHAClient";
 import { useHARefreshOnForeground } from "@/hooks/useHARefreshOnForeground";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useOrientationLock } from "@/hooks/useOrientationLock";
 import { OrientationOverlay } from "@/components/OrientationOverlay";
 import { IOSVisibilityGuard } from "@/components/IOSVisibilityGuard";
@@ -20,6 +21,7 @@ import { MobileRootLayout } from "@/ui/mobile/MobileRootLayout";
 import { TabletRootLayout } from "@/ui/tablet/TabletRootLayout";
 import { PanelRootLayout } from "@/ui/panel/PanelRootLayout";
 import { PanelOnboarding } from "@/ui/panel/PanelOnboarding";
+import { Capacitor } from "@capacitor/core";
 
 // Lazy load pages avec dependencies lourdes
 const Admin = lazy(() => import("@/pages/Admin"));
@@ -28,46 +30,17 @@ const OnboardingManual = lazy(() => import("@/pages/OnboardingManual"));
 
 const queryClient = new QueryClient();
 
-type DisplayMode = "mobile" | "tablet" | "panel";
-
-function computeResponsiveMode(): DisplayMode {
-  const width = window.innerWidth;
-  if (width < 600) return "mobile";
-  if (width < 1100) return "tablet";
-  return "tablet";
-}
-
 function getBuildMode(): string {
   return (import.meta as any)?.env?.MODE ?? "unknown";
 }
 
-function getDisplayMode(): DisplayMode {
-  // 1) Override manuel (debug)
-  if (typeof window !== "undefined" && (window as any).NEOLIA_PANEL_MODE === true) {
-    return "panel";
-  }
-
-  // 2) Build Vite = vérité
-  if (getBuildMode() === "panel") {
-    return "panel";
-  }
-
-  // 3) Responsive
-  return computeResponsiveMode();
-}
-
-const PrivateRoute = ({
-  children,
-  displayMode,
-}: {
-  children: React.ReactNode;
-  displayMode: DisplayMode;
-}) => {
+const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const connection = useHAStore((state) => state.connection);
   const isConnected = useHAStore((state) => state.isConnected);
   const hasValidConnection = !!(connection && connection.url && connection.token);
   const [showBackButton, setShowBackButton] = useState(false);
   const navigate = useNavigate();
+  const { displayMode } = useDisplayMode();
 
   const [panelOnboardingCompleted] = useState(() => {
     if (displayMode !== "panel") return false;
@@ -84,10 +57,7 @@ const PrivateRoute = ({
       return;
     }
 
-    const timer = setTimeout(() => {
-      setShowBackButton(true);
-    }, 5000);
-
+    const timer = setTimeout(() => setShowBackButton(true), 5000);
     return () => clearTimeout(timer);
   }, [hasValidConnection, isConnected, displayMode]);
 
@@ -111,9 +81,7 @@ const PrivateRoute = ({
 
   if (!hasValidConnection) {
     if (displayMode === "panel") {
-      if (!panelOnboardingCompleted) {
-        return <PanelOnboarding />;
-      }
+      if (!panelOnboardingCompleted) return <PanelOnboarding />;
       console.log("[PrivateRoute] Panel: onboarding complété mais config perdue, on laisse passer");
     } else {
       return <Navigate to="/onboarding" />;
@@ -126,44 +94,17 @@ const PrivateRoute = ({
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
-  }
-
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
+  if (!user) return <Navigate to="/auth" replace />;
   return <>{children}</>;
 };
 
 const App = () => {
   const isInitialized = useInitializeConnection();
-
-  const [displayMode, setDisplayMode] = useState<DisplayMode>(() => {
-    if (typeof window === "undefined") return "mobile";
-    return getDisplayMode();
-  });
+  const { displayMode } = useDisplayMode();
 
   useHAClient();
   useHARefreshOnForeground();
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const apply = () => setDisplayMode(getDisplayMode());
-    apply();
-
-    const onResize = () => apply();
-    const interval = window.setInterval(() => apply(), 1000);
-
-    window.addEventListener("resize", onResize);
-
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("resize", onResize);
-    };
-  }, []);
 
   useEffect(() => {
     let lastTouchEnd = 0;
@@ -189,6 +130,38 @@ const App = () => {
 
   const buildMode = useMemo(() => getBuildMode(), []);
 
+  const platform = useMemo(() => {
+    try {
+      return Capacitor.getPlatform();
+    } catch {
+      return "error";
+    }
+  }, []);
+
+  const hasWindowCapacitor = useMemo(() => {
+    try {
+      return typeof (window as any).Capacitor !== "undefined";
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const hasCapacitorPlugins = useMemo(() => {
+    try {
+      return typeof (window as any).CapacitorPlugins !== "undefined";
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const ua = useMemo(() => {
+    try {
+      return navigator.userAgent || "";
+    } catch {
+      return "";
+    }
+  }, []);
+
   if (!isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -207,7 +180,7 @@ const App = () => {
               <Toaster />
               <Sonner />
 
-              {/* DEBUG OVERLAY (visible sur panel aussi) */}
+              {/* DEBUG OVERLAY */}
               <div
                 style={{
                   position: "fixed",
@@ -215,19 +188,26 @@ const App = () => {
                   bottom: 10,
                   zIndex: 99999,
                   fontSize: 12,
-                  lineHeight: 1.2,
-                  padding: "8px 10px",
-                  borderRadius: 10,
-                  background: "rgba(0,0,0,0.65)",
+                  lineHeight: 1.25,
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  background: "rgba(0,0,0,0.70)",
                   color: "#fff",
-                  maxWidth: 260,
+                  maxWidth: 360,
                   pointerEvents: "none",
-                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+                  fontFamily:
+                    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
                 }}
               >
                 <div>buildMode: {String(buildMode)}</div>
                 <div>displayMode: {String(displayMode)}</div>
                 <div>innerWidth: {typeof window !== "undefined" ? window.innerWidth : "n/a"}</div>
+                <div>Capacitor.getPlatform(): {String(platform)}</div>
+                <div>window.Capacitor: {String(hasWindowCapacitor)}</div>
+                <div>window.CapacitorPlugins: {String(hasCapacitorPlugins)}</div>
+                <div>UA: {ua}</div>
               </div>
 
               <BrowserRouter>
@@ -266,7 +246,7 @@ const App = () => {
                   <Route
                     path="/*"
                     element={
-                      <PrivateRoute displayMode={displayMode}>
+                      <PrivateRoute>
                         <AppContent displayMode={displayMode} />
                       </PrivateRoute>
                     }
@@ -281,7 +261,7 @@ const App = () => {
   );
 };
 
-function AppContent({ displayMode }: { displayMode: DisplayMode }) {
+function AppContent({ displayMode }: { displayMode: "mobile" | "tablet" | "panel" }) {
   const { showRotateOverlay, showPortraitSuggestion } = useOrientationLock(displayMode);
 
   return (
