@@ -34,6 +34,19 @@ function getBuildMode(): string {
   return (import.meta as any)?.env?.MODE ?? "unknown";
 }
 
+function getViteTarget(): string {
+  return (import.meta as any)?.env?.VITE_NEOLIA_APP_TARGET ?? "undefined";
+}
+
+function getEnvKeys(): string {
+  try {
+    const envObj = (import.meta as any)?.env ?? {};
+    return Object.keys(envObj).sort().join(", ") || "(none)";
+  } catch {
+    return "(error)";
+  }
+}
+
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const connection = useHAStore((state) => state.connection);
   const isConnected = useHAStore((state) => state.isConnected);
@@ -129,6 +142,8 @@ const App = () => {
   }, []);
 
   const buildMode = useMemo(() => getBuildMode(), []);
+  const viteTarget = useMemo(() => getViteTarget(), []);
+  const envKeys = useMemo(() => getEnvKeys(), []);
 
   const platform = useMemo(() => {
     try {
@@ -193,7 +208,7 @@ const App = () => {
                   borderRadius: 12,
                   background: "rgba(0,0,0,0.70)",
                   color: "#fff",
-                  maxWidth: 360,
+                  maxWidth: 520,
                   pointerEvents: "none",
                   fontFamily:
                     "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
@@ -202,11 +217,13 @@ const App = () => {
                 }}
               >
                 <div>buildMode: {String(buildMode)}</div>
+                <div>viteTarget(VITE_NEOLIA_APP_TARGET): {String(viteTarget)}</div>
                 <div>displayMode: {String(displayMode)}</div>
                 <div>innerWidth: {typeof window !== "undefined" ? window.innerWidth : "n/a"}</div>
                 <div>Capacitor.getPlatform(): {String(platform)}</div>
                 <div>window.Capacitor: {String(hasWindowCapacitor)}</div>
                 <div>window.CapacitorPlugins: {String(hasCapacitorPlugins)}</div>
+                <div>env keys: {envKeys}</div>
                 <div>UA: {ua}</div>
               </div>
 
