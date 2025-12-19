@@ -1,27 +1,24 @@
 import { useEffect, useState } from "react";
-import { isPanelMode } from "@/lib/platform";
 
 export type DisplayMode = "mobile" | "tablet" | "panel";
 
 /**
  * Hook central pour déterminer le mode d'affichage :
- * - "panel" : UNIQUEMENT si build "panel" (flag env) + runtime natif, OU flag global forcé
+ * - "panel" : si build "panel" (flag env) OU flag global forcé
  * - "tablet" / "mobile" : en fonction de la largeur de l'écran
  *
  * Priorité :
  * 1) Flag global window.NEOLIA_PANEL_MODE === true (debug/override)
- * 2) Build "panel" explicite + runtime natif panel (Capacitor)
+ * 2) Build "panel" explicite (VITE_NEOLIA_APP_TARGET === "panel")
  * 3) Fallback responsive sur la largeur de l'écran
  *
  * IMPORTANT :
- * - On NE doit PAS basculer en "panel" juste parce que l'app tourne sur Android,
- *   sinon un téléphone Android (Samsung) se retrouve en UI panel.
+ * - On ne dépend PAS du runtime (Capacitor) pour activer le mode panel,
+ *   car certains panels/kiosk n'exposent pas correctement les signaux Capacitor.
+ * - L'APK mobile reste mobile car son build est "mobile".
  */
 export function useDisplayMode(): { displayMode: DisplayMode } {
   const getIsPanelBuild = (): boolean => {
-    // Vite: import.meta.env.* est défini au build.
-    // Mets VITE_NEOLIA_APP_TARGET=panel dans l'APK "panel",
-    // et VITE_NEOLIA_APP_TARGET=mobile (ou rien) dans l'APK mobile.
     const target = (import.meta as any)?.env?.VITE_NEOLIA_APP_TARGET;
     return target === "panel";
   };
@@ -37,37 +34,29 @@ export function useDisplayMode(): { displayMode: DisplayMode } {
     // 1) Override manuel (debug)
     if ((window as any).NEOLIA_PANEL_MODE === true) return true;
 
-    // 2) Panel uniquement si on est sur une build "panel" + runtime natif
-    if (getIsPanelBuild() && isPanelMode()) return true;
+    // 2) Build panel = UI panel, quoi qu'il arrive
+    if (getIsPanelBuild()) return true;
 
     return false;
   };
 
   const [mode, setMode] = useState<DisplayMode>(() => {
     if (typeof window === "undefined") return "mobile";
-
-    if (shouldUsePanel()) return "panel";
-
-    return computeFromWidth();
+    return shouldUsePanel() ? "panel" : computeFromWidth();
   });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const applyMode = () => {
-      if (shouldUsePanel()) {
-        setMode("panel");
-        return;
-      }
-      setMode(computeFromWidth());
+      setMode(shouldUsePanel() ? "panel" : computeFromWidth());
     };
 
     applyMode();
 
     const onResize = () => applyMode();
 
-    // Si tu veux garder la possibilité de basculer via console:
-    // window.NEOLIA_PANEL_MODE = true/false
+    // Permet de basculer via console si besoin
     const interval = window.setInterval(() => {
       applyMode();
     }, 1000);
