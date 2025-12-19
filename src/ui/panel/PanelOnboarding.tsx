@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Server, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
+import { Loader2, Server, AlertCircle, CheckCircle2, RefreshCw, WifiOff, KeyRound } from "lucide-react";
 import { setHaConfig, discoverHA, testHaConnection } from "@/services/haConfig";
 import { useHAStore } from "@/store/useHAStore";
 import { useNeoliaSettings } from "@/store/useNeoliaSettings";
@@ -22,12 +22,9 @@ import { useNeoliaPanelConfigStore } from "@/store/useNeoliaPanelConfigStore";
 import { PanelSnEntryStep } from "@/ui/panel/components/PanelSnEntryStep";
 
 type OnboardingStatus = "idle" | "loading" | "success" | "error";
+type PanelFlow = "auto_loading" | "auto_error" | "manual";
 
 const PANEL_CODE = "NEOLIA_DEFAULT_PANEL";
-
-// ⚠️ TEMP TEST ONLY — À SUPPRIMER + RÉVOQUER APRÈS VALIDATION
-const HARDCODED_HA_TOKEN =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMTIyYzA5MGZkOGY0OGZlYjcxZjM5MjgzMjgwZTdmMSIsImlhdCI6MTc2Mjc2OTcxNSwiZXhwIjoyMDc4MTI5NzE1fQ.x7o25AkxgP8PXjTijmXkYOZeMDneeSZVPJT5kUi0emM";
 
 function normalizeHaBaseUrl(raw: string): string {
   let url = (raw || "").trim();
@@ -73,10 +70,58 @@ function sendPanelDiscoveryRequest(client: any, mode: "auto" | "manual") {
   }
 }
 
+/**
+ * Spinner "esthétique & original" :
+ * - Logo au centre + halo pulsant
+ * - Anneau en rotation + points en orbite
+ */
+function NeoliaLoadingScreen({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-background">
+      <div className="w-full max-w-lg px-8">
+        <div className="flex flex-col items-center text-center">
+          <div className="relative h-44 w-44">
+            {/* halo */}
+            <div className="absolute inset-0 rounded-full bg-primary/15 blur-2xl animate-pulse" />
+            {/* anneau */}
+            <div className="absolute inset-4 rounded-full border-2 border-primary/20" />
+            <div className="absolute inset-2 rounded-full border-2 border-primary/40 border-t-transparent animate-spin" />
+            {/* orbite */}
+            <div className="absolute inset-0 animate-spin" style={{ animationDuration: "1600ms" }}>
+              <div className="absolute left-1/2 top-0 -translate-x-1/2 h-3 w-3 rounded-full bg-primary" />
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-primary/70" />
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-primary/70" />
+            </div>
+
+            {/* logo */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="flex items-center justify-center h-20 w-20 rounded-2xl bg-card shadow-lg border">
+                <img src={neoliaLogoDark} alt="Neolia" className="h-10 dark:hidden" />
+                <img src={neoliaLogo} alt="Neolia" className="h-10 hidden dark:block" />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 space-y-2">
+            <div className="text-2xl font-semibold">{title}</div>
+            {subtitle && <div className="text-sm text-muted-foreground">{subtitle}</div>}
+          </div>
+
+          <div className="mt-6 flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Veuillez patienter…</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PanelOnboarding() {
   const { hasCompletedSnStep } = useNeoliaPanelConfigStore();
 
   const [haBaseUrl, setHaBaseUrl] = useState("");
+  const [adminToken, setAdminToken] = useState("");
 
   const [status, setStatus] = useState<OnboardingStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -85,10 +130,8 @@ export function PanelOnboarding() {
   const setConnection = useHAStore((state) => state.setConnection);
 
   const [panelConnecting, setPanelConnecting] = useState(false);
-  const [panelError, setPanelError] = useState(false);
   const [panelSuccess, setPanelSuccess] = useState(false);
   const [panelErrorMessage, setPanelErrorMessage] = useState("");
-  const [manualMode, setManualMode] = useState(false);
 
   const { mqttHost, setMqttHost, setMqttPort, setMqttUseSecure, setMqttUsername, setMqttPassword } =
     useNeoliaSettings();
@@ -98,9 +141,12 @@ export function PanelOnboarding() {
   // ---- PnP UI visible (sans console) ----
   const [pnpState, setPnpState] = useState<"idle" | "scanning" | "found" | "not_found">("idle");
   const [pnpFoundUrl, setPnpFoundUrl] = useState<string | null>(null);
-  const [pnpHint, setPnpHint] = useState<string>("");
 
-  // évite de relancer la connexion auto en boucle
+  // Flow UX
+  const [flow, setFlow] = useState<PanelFlow>("auto_loading");
+  const [failCount, setFailCount] = useState(0);
+
+  // évite boucle
   const autoConnectStartedRef = useRef(false);
 
   useEffect(() => {
@@ -123,7 +169,6 @@ export function PanelOnboarding() {
 
     setPnpState("scanning");
     setPnpFoundUrl(null);
-    setPnpHint("Scan du réseau en cours (PnP)…");
 
     const found = await discoverHA({
       verbose: false,
@@ -135,18 +180,15 @@ export function PanelOnboarding() {
     if (found) {
       setPnpFoundUrl(found);
       setPnpState("found");
-      setPnpHint(`Home Assistant détecté : ${found}`);
 
       // Pré-remplit le champ avec l'IP
       const host = extractHostFromUrlLike(found);
       if (host) setHaBaseUrl(host);
 
-      // IMPORTANT : si on avait “essayé trop tôt”, on déverrouille l’auto-connect
-      // pour qu’il se relance maintenant qu’on a une IP exploitable.
+      // Important : permet de relancer l'auto connect maintenant qu'on a une IP.
       autoConnectStartedRef.current = false;
     } else {
       setPnpState("not_found");
-      setPnpHint("Aucun Home Assistant détecté automatiquement sur le réseau.");
     }
   }, [hasCompletedSnStep]);
 
@@ -160,23 +202,17 @@ export function PanelOnboarding() {
     async (payload: unknown) => {
       const config = parseNeoliaConfig(payload);
       if (!config) {
-        setPanelError(true);
         setPanelConnecting(false);
         setPanelErrorMessage("Configuration Neolia invalide reçue via MQTT.");
-        setStatus("error");
-        setStatusMessage("");
-        setErrorMessage("Configuration Neolia invalide reçue via MQTT.");
+        setFlow("auto_error");
         return;
       }
 
       const haConn = extractHaConnection(config);
       if (!haConn) {
-        setPanelError(true);
         setPanelConnecting(false);
         setPanelErrorMessage("Configuration Home Assistant manquante dans le payload MQTT.");
-        setStatus("error");
-        setStatusMessage("");
-        setErrorMessage("Configuration Home Assistant manquante dans le payload MQTT.");
+        setFlow("auto_error");
         return;
       }
 
@@ -203,44 +239,34 @@ export function PanelOnboarding() {
 
       setPanelSuccess(true);
       setPanelConnecting(false);
-      setStatus("success");
-      setStatusMessage("Configuration reçue et appliquée. Redirection en cours…");
+      setFlow("auto_loading"); // on reste sur l'écran de chargement jusqu'à la redirection
 
       setTimeout(() => {
         window.location.href = "/";
-      }, 300);
+      }, 250);
     },
     [setConnection],
   );
 
   const getEffectiveMqttHost = useCallback((): string => {
-    // 1) si mqttHost est déjà défini, on le respecte
     if ((mqttHost || "").trim()) return (mqttHost || "").trim();
-
-    // 2) sinon on dérive depuis HA détecté / IP affichée
-    const derivedFromFound =
+    const derived =
       (pnpFoundUrl ? extractHostFromUrlLike(pnpFoundUrl) : "") || (haBaseUrl || "").trim();
-    if ((derivedFromFound || "").trim()) return (derivedFromFound || "").trim();
-
-    // 3) sinon fallback dev (peut être vide selon build)
+    if ((derived || "").trim()) return (derived || "").trim();
     return (DEV_DEFAULT_MQTT_HOST || "").trim();
   }, [mqttHost, pnpFoundUrl, haBaseUrl]);
 
   const attemptPanelConnection = useCallback(async () => {
     setPanelConnecting(true);
-    setPanelError(false);
-    setPanelSuccess(false);
     setPanelErrorMessage("");
 
     const effectiveMqttHost = getEffectiveMqttHost();
-
     if (!effectiveMqttHost) {
-      setPanelError(true);
       setPanelConnecting(false);
       setPanelErrorMessage(
-        "Impossible de déterminer l'adresse du serveur MQTT.\n\n" +
-          "Attends la détection HA (bandeau vert), ou relance le scan PnP.",
+        "Impossible de déterminer l'adresse du serveur MQTT. Relance le scan PnP ou vérifie le réseau.",
       );
+      setFlow("auto_error");
       return;
     }
 
@@ -254,25 +280,28 @@ export function PanelOnboarding() {
       const result = await connectNeoliaMqttPanel(
         () => {},
         (error) => {
-          setPanelError(true);
-          setPanelConnecting(false);
-          setPanelErrorMessage(String(error?.message || error));
+          throw new Error(String(error?.message || error));
         },
       );
 
       if (!result?.client) {
-        setPanelError(true);
-        setPanelConnecting(false);
-        setPanelErrorMessage("Connexion MQTT impossible (client non initialisé).");
-        return;
+        throw new Error("Connexion MQTT impossible (client non initialisé).");
       }
 
       subscribeNeoliaConfigGlobal(result.client, applyHaConfigFromMqtt);
       sendPanelDiscoveryRequest(result.client, "auto");
-    } catch (error) {
-      setPanelError(true);
+      // on reste sur le loading : la suite = réception config via MQTT
+    } catch (e: any) {
       setPanelConnecting(false);
-      setPanelErrorMessage(String((error as any)?.message || error));
+
+      setFailCount((prev) => {
+        const next = prev + 1;
+        if (next >= 3) setFlow("manual");
+        else setFlow("auto_error");
+        return next;
+      });
+
+      setPanelErrorMessage(e?.message || "Erreur MQTT inconnue.");
     }
   }, [
     getEffectiveMqttHost,
@@ -284,29 +313,25 @@ export function PanelOnboarding() {
     applyHaConfigFromMqtt,
   ]);
 
-  // AUTO-CONNECT : on ne lance QUE quand on a un host MQTT déterminable
+  // AUTO-CONNECT : seulement après SN step, et seulement quand on a un host déterminable.
   useEffect(() => {
     if (!isPanelMode()) return;
     if (!hasCompletedSnStep) return;
-    if (manualMode) return;
     if (shouldBypassPanelOnboarding) return;
     if (autoConnectStartedRef.current) return;
 
+    // On force un écran de chargement dès qu'on arrive ici, pour éviter le flash UI.
+    setFlow("auto_loading");
+
     const effective = getEffectiveMqttHost();
-    if (!effective) return; // <-- clé : on attend d’avoir un host
+    if (!effective) return; // attend la détection
 
     autoConnectStartedRef.current = true;
 
     setTimeout(() => {
       attemptPanelConnection();
     }, 50);
-  }, [
-    hasCompletedSnStep,
-    manualMode,
-    shouldBypassPanelOnboarding,
-    getEffectiveMqttHost,
-    attemptPanelConnection,
-  ]);
+  }, [hasCompletedSnStep, shouldBypassPanelOnboarding, getEffectiveMqttHost, attemptPanelConnection]);
 
   // ---------------- PANEL MODE ----------------
   if (isPanelMode()) {
@@ -322,20 +347,134 @@ export function PanelOnboarding() {
       return <PanelSnEntryStep />;
     }
 
-    const handlePnPConnect = async () => {
+    // 1) ÉCRAN DE CHARGEMENT (cache tout)
+    if (flow === "auto_loading") {
+      const subtitle =
+        pnpState === "scanning"
+          ? "Recherche de Home Assistant sur le réseau…"
+          : pnpState === "found"
+            ? `Home Assistant détecté (${pnpFoundUrl}). Connexion sécurisée en cours…`
+            : pnpState === "not_found"
+              ? "Home Assistant non détecté. Vérification réseau…"
+              : "Initialisation…";
+
+      return (
+        <NeoliaLoadingScreen
+          title={panelSuccess ? "Ouverture d’Accueil…" : "Connexion automatique"}
+          subtitle={subtitle}
+        />
+      );
+    }
+
+    // 2) ÉCRAN ERREUR (avec retry) — puis bascule manuel après 3 échecs
+    if (flow === "auto_error") {
+      const hintHa = pnpFoundUrl ? `HA détecté : ${pnpFoundUrl}` : "HA non détecté automatiquement";
+
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-background">
+          <div className="w-full max-w-2xl space-y-6">
+            <div className="flex justify-center mb-2">
+              <img src={neoliaLogoDark} alt="Neolia" className="h-12 dark:hidden" />
+              <img src={neoliaLogo} alt="Neolia" className="h-12 hidden dark:block" />
+            </div>
+
+            <Card className="shadow-2xl border-2">
+              <CardHeader className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <WifiOff className="h-7 w-7 text-destructive" />
+                  <CardTitle className="text-2xl">Connexion impossible</CardTitle>
+                </div>
+                <CardDescription className="text-base leading-relaxed">
+                  Le panneau n’a pas réussi à récupérer la configuration via MQTT.
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-5">
+                <Alert variant="destructive">
+                  <AlertCircle className="h-5 w-5" />
+                  <AlertDescription className="text-base whitespace-pre-line">
+                    {panelErrorMessage || "Erreur MQTT inconnue."}
+                  </AlertDescription>
+                </Alert>
+
+                <div className="text-sm text-muted-foreground space-y-2">
+                  <div className="font-medium text-foreground">Vérifications à faire :</div>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>Le panneau et Home Assistant sont bien sur le même réseau (même Wi-Fi / VLAN).</li>
+                    <li>Le broker MQTT est bien actif et accessible depuis le LAN (port {DEFAULT_MQTT_PORT}).</li>
+                    <li>Les identifiants MQTT du panneau sont valides (user: <b>panel</b>).</li>
+                    <li>{hintHa}</li>
+                  </ul>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <Button
+                    size="lg"
+                    className="w-full h-14 text-lg"
+                    onClick={() => {
+                      setFlow("auto_loading");
+                      autoConnectStartedRef.current = false;
+                      attemptPanelConnection();
+                    }}
+                  >
+                    Réessayer (tentative {Math.min(failCount + 1, 3)}/3)
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full h-14"
+                    onClick={async () => {
+                      setFlow("auto_loading");
+                      await runPnPScan();
+                      // autoConnectStartedRef est réarmé dans runPnPScan si HA trouvé
+                      const effective = getEffectiveMqttHost();
+                      if (effective) {
+                        autoConnectStartedRef.current = false;
+                        attemptPanelConnection();
+                      } else {
+                        setFlow("auto_error");
+                      }
+                    }}
+                  >
+                    <RefreshCw className="mr-2 h-5 w-5" />
+                    Relancer le scan PnP
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full h-14"
+                    onClick={() => setFlow("manual")}
+                  >
+                    Connexion manuelle (IP + token admin)
+                  </Button>
+                </div>
+
+                <div className="text-xs text-muted-foreground">
+                  Après 3 échecs, la connexion manuelle est proposée automatiquement.
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    // 3) MODE MANUEL (IP + TOKEN ADMIN)
+    const handleManualConnect = async () => {
       try {
         const host = (haBaseUrl || "").trim();
+        const token = (adminToken || "").trim();
 
         if (!host) {
           setStatus("error");
           setErrorMessage("Adresse IP Home Assistant manquante.");
           return;
         }
-
-        const token = (HARDCODED_HA_TOKEN || "").trim();
         if (!token) {
           setStatus("error");
-          setErrorMessage("Token hardcodé manquant (HARDCODED_HA_TOKEN).");
+          setErrorMessage("Token admin Home Assistant manquant.");
           return;
         }
 
@@ -345,11 +484,13 @@ export function PanelOnboarding() {
         setErrorMessage("");
         setStatusMessage("Test de connexion à Home Assistant…");
 
-        const ok = await testHaConnection(baseUrl, token, 1500);
+        const ok = await testHaConnection(baseUrl, token, 1800);
         if (!ok) {
           setStatus("error");
           setStatusMessage("");
-          setErrorMessage("Connexion refusée. Vérifie : IP/port 8123, et access_token valide.");
+          setErrorMessage(
+            "Connexion refusée. Vérifie : IP/port 8123, token admin valide, et que le panneau est sur le même réseau.",
+          );
           return;
         }
 
@@ -391,204 +532,134 @@ export function PanelOnboarding() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-background">
         <div className="w-full max-w-2xl space-y-8">
-          <div className="flex justify-center mb-8">
-            <img src={neoliaLogoDark} alt="Neolia Logo Dark" className="h-16 dark:hidden" />
-            <img src={neoliaLogo} alt="Neolia Logo" className="h-16 hidden dark:block" />
+          <div className="flex justify-center mb-6">
+            <img src={neoliaLogoDark} alt="Neolia Logo Dark" className="h-14 dark:hidden" />
+            <img src={neoliaLogo} alt="Neolia Logo" className="h-14 hidden dark:block" />
           </div>
 
           <Card className="shadow-2xl border-2">
             <CardHeader className="space-y-3">
               <div className="flex items-center gap-3">
-                <Server className="h-8 w-8 text-primary" />
-                <CardTitle className="text-3xl">Configuration du panneau Neolia</CardTitle>
+                <KeyRound className="h-8 w-8 text-primary" />
+                <CardTitle className="text-3xl">Connexion manuelle</CardTitle>
               </div>
               <CardDescription className="text-lg leading-relaxed">
-                Connexion Plug &amp; Play : après le code, le panneau se connecte automatiquement et ouvre Accueil.
+                Utilise l’IP locale de Home Assistant et un token admin. (Mode de secours après échec du Plug &amp; Play.)
               </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-6">
-              {/* ---- Bandeau PnP visible ---- */}
-              <Alert
-                className={
-                  pnpState === "found"
-                    ? "border-green-500 bg-green-50 dark:bg-green-950"
-                    : pnpState === "not_found"
-                      ? "border-red-500 bg-red-50 dark:bg-red-950"
-                      : "border-blue-500 bg-blue-50 dark:bg-blue-950"
-                }
-              >
-                {pnpState === "scanning" ? (
-                  <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                ) : pnpState === "found" ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                ) : pnpState === "not_found" ? (
-                  <AlertCircle className="h-5 w-5 text-red-600" />
-                ) : (
-                  <RefreshCw className="h-5 w-5 text-blue-600" />
-                )}
-
-                <AlertDescription className="text-base whitespace-pre-line">
-                  {pnpHint || "PnP prêt."}
+              <Alert className="border-blue-500 bg-blue-50 dark:bg-blue-950">
+                <Server className="h-5 w-5 text-blue-600" />
+                <AlertDescription className="text-sm text-blue-700 dark:text-blue-300 whitespace-pre-line">
+                  IP détectée (si dispo) : {pnpFoundUrl || "—"}
+                  {"\n"}
+                  Conseil : crée un token dédié “Neolia Panel” dans Home Assistant.
                 </AlertDescription>
               </Alert>
 
-              <Button
-                variant="outline"
-                onClick={runPnPScan}
-                disabled={pnpState === "scanning"}
-                size="lg"
-                className="w-full h-14"
-              >
-                {pnpState === "scanning" ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Scan PnP en cours…
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="mr-2 h-5 w-5" />
-                    Relancer le scan PnP
-                  </>
-                )}
-              </Button>
+              <div className="space-y-3">
+                <Label htmlFor="ha-base-url-panel" className="text-lg">
+                  Adresse IP de Home Assistant (LAN)
+                </Label>
+                <Input
+                  id="ha-base-url-panel"
+                  type="text"
+                  placeholder="ex: 192.168.1.80"
+                  value={haBaseUrl}
+                  onChange={(e) => setHaBaseUrl(e.target.value)}
+                  disabled={isInputDisabled}
+                  className="text-lg h-14"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Port par défaut : 8123 (il est ajouté automatiquement si absent).
+                </p>
+              </div>
 
-              {!manualMode && (
-                <>
-                  <Button
-                    onClick={() => {
-                      // on autorise un nouveau départ auto si besoin
-                      autoConnectStartedRef.current = false;
-                      attemptPanelConnection();
-                    }}
-                    disabled={panelConnecting}
-                    size="lg"
-                    className="w-full h-16 text-lg"
-                  >
-                    {panelConnecting ? (
-                      <>
-                        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                        Connexion automatique (MQTT) en cours…
-                      </>
-                    ) : (
-                      "Relancer la connexion automatique (MQTT)"
-                    )}
-                  </Button>
+              <div className="space-y-3">
+                <Label htmlFor="ha-admin-token" className="text-lg">
+                  Token admin Home Assistant
+                </Label>
+                <Input
+                  id="ha-admin-token"
+                  type="password"
+                  placeholder="Colle ici le Long-Lived Access Token"
+                  value={adminToken}
+                  onChange={(e) => setAdminToken(e.target.value)}
+                  disabled={isInputDisabled}
+                  className="text-lg h-14"
+                />
+              </div>
 
-                  {!panelConnecting && panelError && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-5 w-5" />
-                      <AlertDescription className="text-base whitespace-pre-line">
-                        {panelErrorMessage || "Erreur de connexion MQTT."}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  <Button
-                    variant="outline"
-                    onClick={() => setManualMode(true)}
-                    size="lg"
-                    className="w-full h-14"
-                  >
-                    Mode secours : Plug &amp; Play (détection + token hardcodé)
-                  </Button>
-                </>
+              {status === "loading" && statusMessage && (
+                <Alert className="border-blue-500 bg-blue-50 dark:bg-blue-950">
+                  <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+                  <AlertDescription className="text-base text-blue-600 dark:text-blue-400">
+                    {statusMessage}
+                  </AlertDescription>
+                </Alert>
               )}
 
-              {manualMode && (
-                <div className="space-y-6">
-                  <div className="space-y-3">
-                    <Label htmlFor="ha-base-url-panel" className="text-lg">
-                      Adresse IP de Home Assistant (LAN)
-                    </Label>
-                    <Input
-                      id="ha-base-url-panel"
-                      type="text"
-                      placeholder="ex: 192.168.1.80"
-                      value={haBaseUrl}
-                      onChange={(e) => setHaBaseUrl(e.target.value)}
-                      disabled={isInputDisabled}
-                      className="text-lg h-14"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Détecté automatiquement : <span className="font-medium">{pnpFoundUrl || "—"}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Token : <span className="font-medium">hardcodé (temporaire)</span>
-                    </p>
-                  </div>
-
-                  {status === "loading" && statusMessage && (
-                    <Alert className="border-blue-500 bg-blue-50 dark:bg-blue-950">
-                      <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
-                      <AlertDescription className="text-base text-blue-600 dark:text-blue-400">
-                        {statusMessage}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {status === "error" && errorMessage && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-5 w-5" />
-                      <AlertDescription className="text-base whitespace-pre-line">
-                        {errorMessage}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {status === "success" && statusMessage && (
-                    <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
-                      <CheckCircle2 className="h-5 w-5 text-green-600" />
-                      <AlertDescription className="text-base text-green-600 dark:text-green-400">
-                        {statusMessage}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  <div className="flex flex-col gap-3">
-                    <Button
-                      onClick={handlePnPConnect}
-                      disabled={isButtonDisabled}
-                      size="lg"
-                      className="w-full h-16 text-lg"
-                    >
-                      {status === "loading" ? (
-                        <>
-                          <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                          Connexion en cours…
-                        </>
-                      ) : status === "success" ? (
-                        <>
-                          <CheckCircle2 className="mr-2 h-6 w-6" />
-                          Config appliquée
-                        </>
-                      ) : (
-                        "Valider et connecter (secours)"
-                      )}
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="lg"
-                      className="w-full h-14"
-                      onClick={() => {
-                        setManualMode(false);
-                        setStatus("idle");
-                        setStatusMessage("");
-                        setErrorMessage("");
-                        setPanelError(false);
-                        setPanelErrorMessage("");
-                        setPanelSuccess(false);
-                        setPanelConnecting(false);
-                        autoConnectStartedRef.current = false;
-                      }}
-                    >
-                      Retour au mode automatique
-                    </Button>
-                  </div>
-                </div>
+              {status === "error" && errorMessage && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-5 w-5" />
+                  <AlertDescription className="text-base whitespace-pre-line">{errorMessage}</AlertDescription>
+                </Alert>
               )}
+
+              {status === "success" && statusMessage && (
+                <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  <AlertDescription className="text-base text-green-600 dark:text-green-400">
+                    {statusMessage}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex flex-col gap-3">
+                <Button
+                  onClick={handleManualConnect}
+                  disabled={isButtonDisabled}
+                  size="lg"
+                  className="w-full h-16 text-lg"
+                >
+                  {status === "loading" ? (
+                    <>
+                      <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                      Connexion en cours…
+                    </>
+                  ) : status === "success" ? (
+                    <>
+                      <CheckCircle2 className="mr-2 h-6 w-6" />
+                      Config appliquée
+                    </>
+                  ) : (
+                    "Valider et connecter"
+                  )}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full h-14"
+                  onClick={() => {
+                    // retour auto
+                    setStatus("idle");
+                    setStatusMessage("");
+                    setErrorMessage("");
+                    setPanelErrorMessage("");
+                    setFlow("auto_loading");
+                    autoConnectStartedRef.current = false;
+                    // relance auto si possible
+                    const effective = getEffectiveMqttHost();
+                    if (effective) attemptPanelConnection();
+                    else runPnPScan();
+                  }}
+                >
+                  Retour au Plug &amp; Play
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -634,7 +705,7 @@ export function PanelOnboarding() {
 
       const json = await response.json();
 
-      if (!json || typeof json !== "object" || !json.ha_url || !json.token) {
+      if (!json || typeof json !== "object" || !(json as any).ha_url || !(json as any).token) {
         throw new Error("Réponse invalide ou incomplète reçue de Home Assistant.");
       }
 
@@ -724,9 +795,7 @@ export function PanelOnboarding() {
             {status === "error" && errorMessage && (
               <Alert variant="destructive">
                 <AlertCircle className="h-5 w-5" />
-                <AlertDescription className="text-base whitespace-pre-line">
-                  {errorMessage}
-                </AlertDescription>
+                <AlertDescription className="text-base whitespace-pre-line">{errorMessage}</AlertDescription>
               </Alert>
             )}
 
