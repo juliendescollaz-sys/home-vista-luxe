@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -99,6 +99,9 @@ export function PanelOnboarding() {
   const [pnpState, setPnpState] = useState<"idle" | "scanning" | "found" | "not_found">("idle");
   const [pnpFoundUrl, setPnpFoundUrl] = useState<string | null>(null);
   const [pnpHint, setPnpHint] = useState<string>("");
+
+  // évite de relancer la connexion automatique en boucle
+  const autoConnectStartedRef = useRef(false);
 
   useEffect(() => {
     if (!isPanelMode()) return;
@@ -201,7 +204,7 @@ export function PanelOnboarding() {
 
       setTimeout(() => {
         window.location.href = "/";
-      }, 500);
+      }, 300);
     },
     [setConnection],
   );
@@ -212,14 +215,20 @@ export function PanelOnboarding() {
     setPanelSuccess(false);
     setPanelErrorMessage("");
 
-    const effectiveMqttHost = mqttHost || DEV_DEFAULT_MQTT_HOST;
+    // 1) si mqttHost est déjà défini, on le respecte
+    // 2) sinon on dérive depuis HA détecté (pnpFoundUrl/haBaseUrl)
+    // 3) sinon fallback dev
+    const derivedHost =
+      (pnpFoundUrl ? extractHostFromUrlLike(pnpFoundUrl) : "") || (haBaseUrl || "").trim();
+
+    const effectiveMqttHost = (mqttHost || derivedHost || DEV_DEFAULT_MQTT_HOST || "").trim();
 
     if (!effectiveMqttHost) {
       setPanelError(true);
       setPanelConnecting(false);
       setPanelErrorMessage(
-        "Aucune adresse de serveur MQTT configurée.\n\n" +
-          "Utilisez le mode Plug & Play (détection + token hardcodé) pour tester.",
+        "Impossible de déterminer l'adresse du serveur MQTT.\n\n" +
+          "Vérifie que le broker MQTT est accessible sur le réseau (souvent sur la machine HA) et relance.",
       );
       return;
     }
@@ -243,6 +252,7 @@ export function PanelOnboarding() {
       if (!result?.client) {
         setPanelError(true);
         setPanelConnecting(false);
+        setPanelErrorMessage("Connexion MQTT impossible (client non initialisé).");
         return;
       }
 
@@ -255,6 +265,8 @@ export function PanelOnboarding() {
     }
   }, [
     mqttHost,
+    pnpFoundUrl,
+    haBaseUrl,
     setMqttHost,
     setMqttPort,
     setMqttUseSecure,
@@ -262,6 +274,22 @@ export function PanelOnboarding() {
     setMqttPassword,
     applyHaConfigFromMqtt,
   ]);
+
+  // DÉCLENCHEMENT AUTOMATIQUE : après le SN step, on tente MQTT direct
+  useEffect(() => {
+    if (!isPanelMode()) return;
+    if (!hasCompletedSnStep) return;
+    if (manualMode) return;
+    if (shouldBypassPanelOnboarding) return;
+    if (autoConnectStartedRef.current) return;
+
+    autoConnectStartedRef.current = true;
+
+    // petit délai pour laisser l'UI s'afficher proprement
+    setTimeout(() => {
+      attemptPanelConnection();
+    }, 50);
+  }, [hasCompletedSnStep, manualMode, shouldBypassPanelOnboarding, attemptPanelConnection]);
 
   // ---------------- PANEL MODE ----------------
   if (isPanelMode()) {
@@ -304,9 +332,7 @@ export function PanelOnboarding() {
         if (!ok) {
           setStatus("error");
           setStatusMessage("");
-          setErrorMessage(
-            "Connexion refusée. Vérifie : IP/port 8123, et access_token valide.",
-          );
+          setErrorMessage("Connexion refusée. Vérifie : IP/port 8123, et access_token valide.");
           return;
         }
 
@@ -334,7 +360,7 @@ export function PanelOnboarding() {
 
         setTimeout(() => {
           window.location.href = "/";
-        }, 500);
+        }, 300);
       } catch (e: any) {
         setStatus("error");
         setStatusMessage("");
@@ -360,7 +386,7 @@ export function PanelOnboarding() {
                 <CardTitle className="text-3xl">Configuration du panneau Neolia</CardTitle>
               </div>
               <CardDescription className="text-lg leading-relaxed">
-                Test PnP : détection réseau + token hardcodé (temporaire).
+                Connexion Plug &amp; Play : après le code, le panneau se connecte automatiquement et ouvre Accueil.
               </CardDescription>
             </CardHeader>
 
@@ -410,34 +436,33 @@ export function PanelOnboarding() {
                 )}
               </Button>
 
+              {/* MODE AUTO (MQTT) : lancé automatiquement */}
               {!manualMode && (
                 <>
-                  <div className="space-y-4">
-                    <Button
-                      onClick={attemptPanelConnection}
-                      disabled={panelConnecting}
-                      size="lg"
-                      className="w-full h-16 text-lg"
-                    >
-                      {panelConnecting ? (
-                        <>
-                          <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                          Connexion MQTT en cours…
-                        </>
-                      ) : (
-                        "Connexion automatique (MQTT)"
-                      )}
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      onClick={() => setManualMode(true)}
-                      size="lg"
-                      className="w-full h-16 text-lg"
-                    >
-                      Plug &amp; Play (détection + token hardcodé)
-                    </Button>
-                  </div>
+                  <Button
+                    onClick={() => {
+                      // reset auto flag to allow retry through same flow
+                      autoConnectStartedRef.current = true;
+                      attemptPanelConnection();
+                    }}
+                    disabled={panelConnecting}
+                    size="lg"
+                    className="w-full h-16 text-lg"
+                  >
+                    {panelConnecting ? (
+                      <>
+                        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                        Connexion automatique en cours…
+                      </>
+                    ) : panelSuccess ? (
+                      <>
+                        <CheckCircle2 className="mr-2 h-6 w-6" />
+                        Connecté — ouverture d’Accueil…
+                      </>
+                    ) : (
+                      "Relancer la connexion automatique (MQTT)"
+                    )}
+                  </Button>
 
                   {!panelConnecting && panelError && (
                     <Alert variant="destructive">
@@ -447,9 +472,20 @@ export function PanelOnboarding() {
                       </AlertDescription>
                     </Alert>
                   )}
+
+                  {/* accès au mode de secours uniquement si besoin */}
+                  <Button
+                    variant="outline"
+                    onClick={() => setManualMode(true)}
+                    size="lg"
+                    className="w-full h-14"
+                  >
+                    Mode secours : Plug &amp; Play (détection + token hardcodé)
+                  </Button>
                 </>
               )}
 
+              {/* MODE SECOURS (hardcoded token) */}
               {manualMode && (
                 <div className="space-y-6">
                   <div className="space-y-3">
@@ -466,7 +502,8 @@ export function PanelOnboarding() {
                       className="text-lg h-14"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Détecté automatiquement : <span className="font-medium">{pnpFoundUrl || "—"}</span>
+                      Détecté automatiquement :{" "}
+                      <span className="font-medium">{pnpFoundUrl || "—"}</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Token : <span className="font-medium">hardcodé (temporaire)</span>
@@ -518,7 +555,7 @@ export function PanelOnboarding() {
                           Config appliquée
                         </>
                       ) : (
-                        "Valider et connecter (PnP)"
+                        "Valider et connecter (secours)"
                       )}
                     </Button>
 
@@ -532,9 +569,15 @@ export function PanelOnboarding() {
                         setStatus("idle");
                         setStatusMessage("");
                         setErrorMessage("");
+                        setPanelError(false);
+                        setPanelErrorMessage("");
+                        setPanelSuccess(false);
+                        setPanelConnecting(false);
+                        // permet un nouveau démarrage auto
+                        autoConnectStartedRef.current = false;
                       }}
                     >
-                      Retour
+                      Retour au mode automatique
                     </Button>
                   </div>
                 </div>
