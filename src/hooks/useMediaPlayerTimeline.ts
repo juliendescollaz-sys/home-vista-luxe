@@ -31,15 +31,17 @@ export function useMediaPlayerTimeline(
   client: HAClient | null,
   entity: HAEntity | undefined
 ) {
-  const [timeline, setTimeline] = useState<TimelineState>({
+  // TOUJOURS initialiser avec des valeurs par défaut stables
+  // pour éviter l'erreur React #310 (hooks conditionnels) au retour d'arrière-plan iOS
+  const [timeline, setTimeline] = useState<TimelineState>(() => ({
     position: entity?.attributes?.media_position || 0,
     duration: entity?.attributes?.media_duration || 0,
-    state: (entity?.state as any) || "idle",
+    state: (entity?.state as TimelineState["state"]) || "idle",
     positionUpdatedAt: entity?.attributes?.media_position_updated_at,
     repeat: entity?.attributes?.repeat || "off",
     media_content_id: entity?.attributes?.media_content_id,
     media_title: entity?.attributes?.media_title,
-  });
+  }));
 
   const [phase, setPhase] = useState<PlaybackPhase>("idle");
   const [isDragging, setIsDragging] = useState(false);

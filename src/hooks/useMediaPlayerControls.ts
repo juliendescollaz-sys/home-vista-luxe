@@ -11,6 +11,9 @@ export function useMediaPlayerControls(
   entityId: string, 
   currentState: MediaState
 ) {
+  // Stabiliser entityId pour éviter des comportements incohérents au retour d'arrière-plan iOS
+  const stableEntityId = entityId || "";
+  
   const [inFlightAction, setInFlightAction] = useState<"play" | "pause" | null>(null);
   const timerRef = useRef<number | null>(null);
   const confirmTimerRef = useRef<number | null>(null);
@@ -69,11 +72,11 @@ export function useMediaPlayerControls(
         try {
           if (action === "play") {
             await client.callService("media_player", "media_play", undefined, { 
-              entity_id: entityId 
+              entity_id: stableEntityId 
             });
           } else {
             await client.callService("media_player", "media_pause", undefined, { 
-              entity_id: entityId 
+              entity_id: stableEntityId 
             });
           }
         } catch (e) {
@@ -85,11 +88,11 @@ export function useMediaPlayerControls(
     try {
       if (action === "play") {
         await client.callService("media_player", "media_play", undefined, { 
-          entity_id: entityId 
+          entity_id: stableEntityId 
         });
       } else {
         await client.callService("media_player", "media_pause", undefined, { 
-          entity_id: entityId 
+          entity_id: stableEntityId 
         });
       }
     } catch (e) {
@@ -98,7 +101,7 @@ export function useMediaPlayerControls(
       retryRef.current = false;
       lastCommandRef.current = null;
     }
-  }, [entityId, inFlightAction, clearInFlight, client]);
+  }, [stableEntityId, inFlightAction, clearInFlight, client]);
 
   // API publique
   const play = useCallback(() => sendAction("play"), [sendAction]);
