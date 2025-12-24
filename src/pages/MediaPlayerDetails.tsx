@@ -207,6 +207,9 @@ const MediaPlayerDetails = () => {
     navigate(`/media-player/${encodeURIComponent(masterEntityId)}`);
   }, [navigate]);
 
+  // IMPORTANT: Tous les hooks doivent être appelés AVANT tout early return
+  // pour éviter l'erreur React #310 au retour d'arrière-plan iOS
+  
   // Timeline hook pour la barre de progression
   const {
     position,
@@ -222,15 +225,36 @@ const MediaPlayerDetails = () => {
   } = useMediaPlayerTimeline(client, entity);
 
   // Hook de contrôle fiable pour play/pause
+  const mediaState = (entity?.state as "playing" | "paused" | "idle" | "off" | "standby" | "buffering" | "unavailable") || "idle";
   const {
     play,
     pause,
     inFlight: playPauseInFlight,
-  } = useMediaPlayerControls(
-    client,
-    decodedEntityId,
-    (entity?.state as any) || "idle"
-  );
+  } = useMediaPlayerControls(client, decodedEntityId, mediaState);
+  
+  // Récupérer le nom de la pièce - DOIT être avant le early return
+  const areaName = useMemo(() => {
+    if (!entityReg) return null;
+    
+    // D'abord essayer area_id directement
+    let areaId = entityReg.area_id;
+    
+    // Sinon chercher via device_id
+    if (!areaId && entityReg.device_id) {
+      const device = devices.find((d) => d.id === entityReg.device_id);
+      if (device) {
+        areaId = device.area_id;
+      }
+    }
+    
+    // Trouver l'area correspondante
+    if (areaId) {
+      const area = areas.find((a) => a.area_id === areaId);
+      return area?.name || null;
+    }
+    
+    return null;
+  }, [entityReg, devices, areas]);
 
   // Handler play/pause avec gestion de phase
   const handlePlayPause = useCallback(async () => {
@@ -278,30 +302,6 @@ const MediaPlayerDetails = () => {
   }
 
   const { attributes, isPlaying, isMuted, mediaTitle, mediaArtist, mediaAlbum, albumArt, canPause, canPlay, canSetVolume, canMute, canPrevious, canNext, canShuffle, canRepeat } = entityData;
-
-  // Récupérer le nom de la pièce
-  const areaName = useMemo(() => {
-    if (!entityReg) return null;
-    
-    // D'abord essayer area_id directement
-    let areaId = entityReg.area_id;
-    
-    // Sinon chercher via device_id
-    if (!areaId && entityReg.device_id) {
-      const device = devices.find((d) => d.id === entityReg.device_id);
-      if (device) {
-        areaId = device.area_id;
-      }
-    }
-    
-    // Trouver l'area correspondante
-    if (areaId) {
-      const area = areas.find((a) => a.area_id === areaId);
-      return area?.name || null;
-    }
-    
-    return null;
-  }, [entityReg, devices, areas]);
 
   const title = areaName || (entity?.attributes.friendly_name ?? "Chambre");
 
