@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useHAStore } from "@/store/useHAStore";
+import { sipService } from '@/services/sipService';
+import { useIntercomStore } from '@/store/intercomStore';
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "next-themes";
 import Onboarding from "@/pages/Onboarding";
@@ -105,6 +107,20 @@ const App = () => {
 
   useHAClient();
   useHARefreshOnForeground();
+
+  // Initialize SIP client
+  useEffect(() => {
+    sipService.init({
+      uri: 'sip:201@sip.neolia.ch',
+      password: 'neolia123',
+      wsServers: 'wss://sip.neolia.ch/ws',
+      displayName: 'Neolia App',
+    });
+
+    return () => {
+      sipService.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     let lastTouchEnd = 0;
