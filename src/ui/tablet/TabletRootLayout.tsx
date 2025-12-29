@@ -18,6 +18,7 @@ import Dev from "@/pages/Dev";
 import NotFound from "@/pages/NotFound";
 import SonosZones from "@/pages/SonosZones";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
+import IntercomTest from "@/pages/IntercomTest";
 
 /**
  * Layout racine pour l'interface TABLET (iPad, Galaxy Tab)
@@ -58,6 +59,7 @@ export function TabletRootLayout() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/dev" element={<Dev />} />
                 <Route path="/sonos-zones" element={<SonosZones />} />
+                <Route path="/intercom-test" element={<IntercomTest />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
