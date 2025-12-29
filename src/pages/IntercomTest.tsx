@@ -168,16 +168,7 @@ export default function IntercomTest() {
         )}
       </div>
 
-      {/* Vidéo locale (petit carré en haut à droite) */}
-      <div className="absolute top-4 right-4 w-32 h-24 rounded-lg overflow-hidden border-2 border-white/20 shadow-lg bg-black">
-        <video
-          ref={localVideoRef}
-          autoPlay
-          playsInline
-          muted
-          className="w-full h-full object-cover scale-x-[-1]"
-        />
-      </div>
+      {/* Vidéo locale masquée - caméra utilisateur non utilisée */}
 
       {/* Contrôles en bas */}
       <div className="absolute bottom-8 left-0 right-0 flex justify-center">
