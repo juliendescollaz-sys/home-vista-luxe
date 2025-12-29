@@ -155,26 +155,74 @@ export async function decryptData(encryptedBase64: string): Promise<string> {
  */
 export async function storeHACredentials(baseUrl: string, token: string): Promise<void> {
   const data = JSON.stringify({ baseUrl, token });
-  const encrypted = await encryptData(data);
-  localStorage.setItem('ha_credentials_enc', encrypted);
+  
+  // Fallback pour les environnements sans crypto.subtle (HTTP localhost)
+  if (!crypto?.subtle) {
+    console.warn('[crypto] crypto.subtle non disponible, stockage en clair (dev uniquement)');
+    localStorage.setItem('ha_credentials_plain', data);
+    return;
+  }
+  
+  try {
+    const encrypted = await encryptData(data);
+    localStorage.setItem('ha_credentials_enc', encrypted);
+  } catch (error) {
+    console.warn('[crypto] Erreur chiffrement, fallback stockage clair:', error);
+    localStorage.setItem('ha_credentials_plain', data);
+  }
 }
 
 /**
  * Retrieve and decrypt HA credentials
  */
 export async function getHACredentials(): Promise<{ baseUrl: string; token: string } | null> {
+  // Essayer d'abord le stockage chiffré
   const encrypted = localStorage.getItem('ha_credentials_enc');
-  if (!encrypted) {
-    return null;
+  if (encrypted) {
+    // Fallback si crypto.subtle non disponible
+    if (!crypto?.subtle) {
+      console.warn('[crypto] crypto.subtle non disponible pour déchiffrement');
+      // Essayer le fallback plain
+      const plain = localStorage.getItem('ha_credentials_plain');
+      if (plain) {
+        try {
+          return JSON.parse(plain);
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    }
+    
+    try {
+      const decrypted = await decryptData(encrypted);
+      return JSON.parse(decrypted);
+    } catch (error) {
+      console.error('Failed to decrypt credentials:', error);
+      // Essayer le fallback plain
+      const plain = localStorage.getItem('ha_credentials_plain');
+      if (plain) {
+        try {
+          return JSON.parse(plain);
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    }
   }
   
-  try {
-    const decrypted = await decryptData(encrypted);
-    return JSON.parse(decrypted);
-  } catch (error) {
-    console.error('Failed to decrypt credentials:', error);
-    return null;
+  // Fallback stockage en clair (dev HTTP)
+  const plain = localStorage.getItem('ha_credentials_plain');
+  if (plain) {
+    try {
+      return JSON.parse(plain);
+    } catch {
+      return null;
+    }
   }
+  
+  return null;
 }
 
 /**
@@ -182,5 +230,6 @@ export async function getHACredentials(): Promise<{ baseUrl: string; token: stri
  */
 export function clearHACredentials(): void {
   localStorage.removeItem('ha_credentials_enc');
+  localStorage.removeItem('ha_credentials_plain');
   localStorage.removeItem('device_key');
 }
