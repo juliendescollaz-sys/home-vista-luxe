@@ -23,7 +23,7 @@ export const useVideoCall = () => {
     try {
       // Setup callbacks
       livekitService.setOnTrackSubscribed((track, participant) => {
-        console.log('Track received:', track.kind);
+        console.log('Track received:', track.kind, 'from', participant.identity);
         if (track.kind === 'video') {
           setRemoteVideoTrack(track);
         } else if (track.kind === 'audio') {
@@ -44,13 +44,10 @@ export const useVideoCall = () => {
       // Connect to LiveKit
       const room = await livekitService.connect(call.livekitUrl, call.calleeToken);
 
-      // Attach local video
-      if (localVideoRef.current && room.localParticipant.videoTrackPublications.size > 0) {
-        const localVideoTrack = Array.from(room.localParticipant.videoTrackPublications.values())[0].track;
-        if (localVideoTrack) {
-          localVideoRef.current.srcObject = new MediaStream([localVideoTrack.mediaStreamTrack]);
-        }
-      }
+      // Active SEULEMENT le micro (pas la caméra)
+      await room.localParticipant.setMicrophoneEnabled(true);
+
+      console.log('✅ Connected to LiveKit, microphone enabled');
 
     } catch (err) {
       console.error('Failed to connect to LiveKit:', err);
@@ -72,6 +69,7 @@ export const useVideoCall = () => {
   // Attach remote video when track is received
   useEffect(() => {
     if (remoteVideoTrack && remoteVideoRef.current) {
+      console.log('📹 Attaching remote video track');
       const element = remoteVideoTrack.attach();
       remoteVideoRef.current.appendChild(element);
       
@@ -84,6 +82,7 @@ export const useVideoCall = () => {
   // Attach remote audio when track is received
   useEffect(() => {
     if (remoteAudioTrack) {
+      console.log('🔊 Attaching remote audio track');
       const element = remoteAudioTrack.attach();
       document.body.appendChild(element);
       
