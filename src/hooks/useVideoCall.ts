@@ -4,6 +4,7 @@ import { livekitService } from '@/services/livekitService';
 import { useIntercomStore } from '@/store/intercomStore';
 import { IntercomCall } from '@/types/intercom';
 import { websocketService } from '@/services/websocketService';
+import { sipService } from '@/services/sipService';
 
 export const useVideoCall = () => {
   const [isConnecting, setIsConnecting] = useState(false);
@@ -106,6 +107,33 @@ export const useVideoCall = () => {
       websocketService.disconnect();
     };
   }, [setCurrentCall]);
+
+  // Handle incoming SIP calls
+  useEffect(() => {
+    sipService.onIncomingCall((session: any) => {
+      console.log('📞 SIP call session received');
+      
+      // Setup audio stream
+      session.on('confirmed', () => {
+        console.log('✅ SIP call confirmed');
+        const remoteStream = session.connection.getRemoteStreams()[0];
+        if (remoteStream) {
+          const audioElement = new Audio();
+          audioElement.srcObject = remoteStream;
+          audioElement.play();
+        }
+      });
+
+      session.on('ended', () => {
+        console.log('📴 SIP call ended');
+      });
+
+      // Auto-answer when user accepts the intercom call
+      if (currentCall?.status === 'active') {
+        sipService.answer();
+      }
+    });
+  }, [currentCall]);
 
   return {
     connect,
