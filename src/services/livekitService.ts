@@ -30,8 +30,8 @@ export class LiveKitService {
     // Connect to room
     await this.room.connect(url, token);
 
-    // Enable camera and microphone
-    await this.room.localParticipant.enableCameraAndMicrophone();
+    // NE PAS activer la caméra automatiquement
+    // C'est le hook qui décide d'activer le micro uniquement
 
     return this.room;
   }
