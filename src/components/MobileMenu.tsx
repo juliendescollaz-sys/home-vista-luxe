@@ -1,4 +1,4 @@
-import { LayoutDashboard, Home, Star, Sparkles, Repeat, Package, Wand2, Settings } from "lucide-react";
+import { LayoutDashboard, Home, Star, Sparkles, Repeat, Package, Wand2, Settings, Video } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sheet,
@@ -21,6 +21,7 @@ const navItems = [
   { to: "/routines", icon: Repeat, label: "Routines" },
   { to: "/groupes", icon: Package, label: "Groupes" },
   { to: "/smart", icon: Wand2, label: "Smarthome" },
+  { to: "/intercom-test", icon: Video, label: "Test Interphone" },
   { to: "/settings", icon: Settings, label: "Paramètres" },
 ];
 

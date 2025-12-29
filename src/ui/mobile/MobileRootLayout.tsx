@@ -15,6 +15,7 @@ import Dev from "@/pages/Dev";
 import NotFound from "@/pages/NotFound";
 import SonosZones from "@/pages/SonosZones";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
+import IntercomTest from "@/pages/IntercomTest";
 
 /**
  * Layout racine pour l'interface MOBILE (smartphone)
@@ -47,6 +48,7 @@ export function MobileRootLayout() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/dev" element={<Dev />} />
         <Route path="/sonos-zones" element={<SonosZones />} />
+        <Route path="/intercom-test" element={<IntercomTest />} />
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />

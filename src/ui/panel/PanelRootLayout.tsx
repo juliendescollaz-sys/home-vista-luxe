@@ -17,6 +17,7 @@ import { PanelSonosZones } from "./pages/PanelSonosZones";
 import { PanelDev } from "./pages/PanelDev";
 import NotFound from "@/pages/NotFound";
 import FloorPlanEditor from "@/pages/FloorPlanEditor";
+import IntercomTest from "@/pages/IntercomTest";
 import { hasHaConfig } from "@/services/haConfig";
 import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
 import { useNeoliaPanelConfigLoader } from "@/hooks/useNeoliaPanelConfigLoader";
@@ -139,6 +140,7 @@ export function PanelRootLayout() {
               <Route path="/sonos-zones" element={<PanelSonosZones />} />
               <Route path="/floor-plan-editor" element={<FloorPlanEditor />} />
               <Route path="/dev" element={<PanelDev />} />
+              <Route path="/intercom-test" element={<IntercomTest />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
