@@ -3,6 +3,7 @@ import { RemoteTrack, RemoteParticipant } from 'livekit-client';
 import { livekitService } from '@/services/livekitService';
 import { useIntercomStore } from '@/store/intercomStore';
 import { IntercomCall } from '@/types/intercom';
+import { websocketService } from '@/services/websocketService';
 
 export const useVideoCall = () => {
   const [isConnecting, setIsConnecting] = useState(false);
@@ -11,7 +12,7 @@ export const useVideoCall = () => {
   const [remoteVideoTrack, setRemoteVideoTrack] = useState<RemoteTrack | null>(null);
   const [remoteAudioTrack, setRemoteAudioTrack] = useState<RemoteTrack | null>(null);
   
-  const { currentCall, updateCallStatus, endCall } = useIntercomStore();
+  const { currentCall, updateCallStatus, endCall, setCurrentCall } = useIntercomStore();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -92,6 +93,20 @@ export const useVideoCall = () => {
       };
     }
   }, [remoteAudioTrack]);
+
+  // Connect to WebSocket for incoming calls
+  useEffect(() => {
+    websocketService.connect();
+    
+    websocketService.onIncomingCall((call) => {
+      console.log('📞 Incoming call received:', call);
+      setCurrentCall(call);
+    });
+
+    return () => {
+      websocketService.disconnect();
+    };
+  }, [setCurrentCall]);
 
   return {
     connect,
