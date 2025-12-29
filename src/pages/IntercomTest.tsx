@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { intercomService } from "@/services/intercomService";
 import { useIntercomStore } from "@/store/intercomStore";
 import { useVideoCall } from "@/hooks/useVideoCall";
+import { sipService } from '@/services/sipService';
 import { toast } from "sonner";
 
 export default function IntercomTest() {
@@ -37,7 +38,12 @@ export default function IntercomTest() {
   const handleAcceptCall = async () => {
     if (!currentCall) return;
     try {
+      // Accept SIP audio call
+      sipService.answer();
+      
+      // Connect to LiveKit for video
       await connect(currentCall);
+      
       toast.success("Appel accepté");
     } catch (err) {
       console.error("Erreur connexion:", err);
@@ -51,6 +57,7 @@ export default function IntercomTest() {
   };
 
   const handleHangUp = () => {
+    sipService.hangup();
     disconnect();
     toast.info("Appel terminé");
   };
