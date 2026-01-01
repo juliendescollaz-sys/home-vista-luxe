@@ -22,36 +22,56 @@ interface AutomationRequest {
   };
 }
 
-// Helper function with retry logic for transient network errors
+// Helper function with retry logic for transient network errors (especially TLS issues with Nabu Casa)
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
-  retries = 3,
-  delay = 500
+  retries = 5,
+  initialDelay = 1000
 ): Promise<Response> {
+  let delay = initialDelay;
+  let lastError: Error | null = null;
+  
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const response = await fetch(url, options);
+      // Add timeout to prevent hanging connections
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
       return response;
     } catch (error) {
-      const isTransientError = error instanceof Error && (
-        error.message.includes("tls handshake") ||
-        error.message.includes("connection") ||
-        error.message.includes("network") ||
-        error.message.includes("ECONNRESET") ||
-        error.message.includes("ETIMEDOUT")
-      );
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      const errorMsg = lastError.message.toLowerCase();
+      const isTransientError = 
+        errorMsg.includes("tls handshake") ||
+        errorMsg.includes("tls") ||
+        errorMsg.includes("eof") ||
+        errorMsg.includes("connection") ||
+        errorMsg.includes("network") ||
+        errorMsg.includes("econnreset") ||
+        errorMsg.includes("etimedout") ||
+        errorMsg.includes("abort") ||
+        errorMsg.includes("timeout");
       
       if (isTransientError && attempt < retries) {
-        console.log(`[ha-automation-manager] Attempt ${attempt}/${retries} failed, retrying in ${delay}ms...`);
+        console.log(`[ha-automation-manager] Attempt ${attempt}/${retries} failed (${lastError.message}), retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2; // Exponential backoff
-      } else {
-        throw error;
+        delay = Math.min(delay * 1.5, 5000); // Exponential backoff capped at 5s
+      } else if (!isTransientError) {
+        // Non-transient error, throw immediately
+        throw lastError;
       }
     }
   }
-  throw new Error("Max retries exceeded");
+  
+  throw lastError || new Error("Max retries exceeded");
 }
 
 serve(async (req) => {
