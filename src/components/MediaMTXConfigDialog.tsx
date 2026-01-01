@@ -49,10 +49,12 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
    * Valide et sauvegarde la configuration
    */
   const handleSave = () => {
-    // Valider l'IP
+    // Valider l'IP ou hostname
     const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (!ipPattern.test(raspberryIp)) {
-      toast.error('Adresse IP invalide');
+    const hostnamePattern = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
+
+    if (!ipPattern.test(raspberryIp) && !hostnamePattern.test(raspberryIp)) {
+      toast.error('Adresse IP ou hostname invalide');
       return;
     }
 
