@@ -94,11 +94,24 @@
      - `rtp.conf` - Ports RTP
      - `http.conf` - WebSocket
 
-3. **LiveKit** (WebRTC Server)
+3. **LiveKit** (WebRTC Server) ✅ ACTIF
    - Image : `livekit/livekit-server:latest`
-   - API Keys : `neolia-api-key-1234567890123456`
+   - **URL publique** : `wss://livekit.sip.neolia.ch`
+   - **URL interne** : `ws://livekit:7880`
+   - **API Key** : `neolia-api-key-1234567890123456`
+   - **API Secret** : `neolia-secret-key-1234567890123456789012`
+   - **Ports** :
+     - HTTP : 7880
+     - WebSocket : 7881
+     - RTC/UDP : 50000-50100
    - Config : `/home/debian/infra/livekit/livekit.yaml`
-   - Connecté à Redis
+   - Redis : configuré et actif
+   - Auto-création rooms : activée
+   - Timeout room vide : 300 secondes
+   - Max participants/room : 100
+   - SSL : Let's Encrypt via Traefik
+   
+   > ⚠️ **Note** : Un conteneur `livekit-sip` existe avec credentials différentes (devkey/secret) - à clarifier
 
 4. **Backend FastAPI**
    - Port : 8000
