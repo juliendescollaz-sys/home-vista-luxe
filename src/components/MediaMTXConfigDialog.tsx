@@ -115,17 +115,16 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
 
             <div className="space-y-2">
               <Label htmlFor="raspberry-ip" className="text-sm text-muted-foreground">
-                Adresse IP sur le LAN
+                Adresse IP ou hostname
               </Label>
               <Input
                 id="raspberry-ip"
-                placeholder="192.168.1.115"
+                placeholder="192.168.1.115 ou example.ngrok-free.dev"
                 value={raspberryIp}
                 onChange={(e) => setRaspberryIp(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                L'IP du Raspberry Pi sur votre réseau local (peut être trouvée via le routeur ou
-                l'API de découverte).
+                IP locale (192.168.x.x) ou hostname public (pour ngrok/Cloudflare Tunnel).
               </p>
             </div>
 
@@ -134,7 +133,7 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
               <div className="mt-2 p-2 bg-muted rounded-md">
                 <p className="text-xs text-muted-foreground">Endpoint WHEP généré :</p>
                 <code className="text-xs break-all">
-                  http://{raspberryIp}:8889/akuvox/whep
+                  {raspberryIp.includes('.') && !raspberryIp.match(/^\d/) ? 'https' : 'http'}://{raspberryIp}:8889/akuvox/whep
                 </code>
               </div>
             )}

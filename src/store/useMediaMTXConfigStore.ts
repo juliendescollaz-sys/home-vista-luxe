@@ -64,9 +64,14 @@ interface MediaMTXConfigState {
 
 /**
  * Génère l'URL complète du endpoint WHEP
+ * Utilise HTTPS pour les hostnames (non-IP), HTTP pour les IPs locales
  */
-function generateWhepUrl(ip: string, port: number, streamName: string): string {
-  return `http://${ip}:${port}/${streamName}/whep`;
+function generateWhepUrl(host: string, port: number, streamName: string): string {
+  // Détecter si c'est une IP (commence par un chiffre) ou un hostname
+  const isIpAddress = /^\d/.test(host);
+  const protocol = isIpAddress ? 'http' : 'https';
+
+  return `${protocol}://${host}:${port}/${streamName}/whep`;
 }
 
 /**
@@ -190,7 +195,10 @@ export function useIsMediaMTXConfigValid(): boolean {
 
   if (!config) return false;
 
-  // Vérifier que l'IP est renseignée et semble valide
+  // Vérifier que l'IP ou le hostname est renseigné et semble valide
   const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-  return ipPattern.test(config.raspberryPiIp) && config.whepPort > 0;
+  const hostnamePattern = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
+
+  const isValidHost = ipPattern.test(config.raspberryPiIp) || hostnamePattern.test(config.raspberryPiIp);
+  return isValidHost && config.whepPort > 0;
 }
