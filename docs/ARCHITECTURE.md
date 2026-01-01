@@ -73,7 +73,9 @@
 
 ## Stack Technique Détaillé
 
-### Backend (VPS OVH)
+### Backend Infrastructure
+
+#### VPS OVH (141.227.158.64)
 
 **Docker Compose Services :**
 
@@ -84,6 +86,13 @@
      - `api.sip.neolia.ch` → Backend
      - `sip.neolia.ch` → Asterisk WebSocket
      - `livekit.sip.neolia.ch` → LiveKit
+
+1bis. **Coturn** (TURN Server) ✅ ACTIF
+   - Port : 3478 UDP/TCP
+   - Ports relay : 49152-49200 UDP
+   - Credentials : `neolia:Neolia022Turn`
+   - Realm : `turn.sip.neolia.ch`
+   - Usage : Connexions WebRTC remote (Mobile/Tablet)
 
 2. **Asterisk** (SIP Server)
    - Image : `andrius/asterisk:20`
@@ -127,6 +136,28 @@
    - Port : 6379
    - Requis par LiveKit
 
+#### Raspberry Pi (LAN - IP DHCP, ex: 192.168.1.115) ✅ NOUVEAU
+
+**Docker Compose Services :**
+
+1. **MediaMTX** (RTSP → WebRTC Converter)
+   - Port RTSP : 8554
+   - Port WebRTC (WHEP) : 8889
+   - Endpoint : `http://<raspberry-ip>:8889/akuvox/whep`
+   - Mode : `network_mode: host`
+   - Source RTSP : `rtsp://admin:Neolia022@192.168.1.51:554/livestream/11` (Akuvox)
+   - Usage : Streaming vidéo direct vers app (alternative à LiveKit Ingress)
+
+2. **API Configuration** (FastAPI)
+   - Port : 8080
+   - Endpoints :
+     - `GET /` : Retourne l'IP actuelle du Raspberry Pi
+     - `POST /configure` : Configure MediaMTX dynamiquement
+   - Auto-restart : Redémarre MediaMTX après changement config
+   - Usage : Configuration dynamique IP Akuvox + credentials
+
+> **Architecture alternative vidéo :** Au lieu de LiveKit Ingress (VPS), on utilise MediaMTX sur Raspberry Pi en local pour convertir RTSP→WebRTC. Avantages : pas de transit vidéo via internet en mode Panel LAN.
+
 ---
 
 ### Frontend (App React)
@@ -139,23 +170,33 @@
 - Zustand (state management)
 
 **Services créés :**
-- `src/services/livekitService.ts` - Client LiveKit
+- `src/services/livekitService.ts` - Client LiveKit (ancien système)
 - `src/services/websocketService.ts` - WebSocket temps réel
 - `src/services/intercomService.ts` - API backend
 - `src/services/sipService.ts` - JsSIP (à remplacer par SDK natif)
+- `src/services/akuvoxWebRTCService.ts` - WebRTC WHEP vers MediaMTX ✅ NOUVEAU
 
 **Stores :**
 - `src/store/intercomStore.ts` - État des appels
+- `src/store/useMediaMTXConfigStore.ts` - Configuration Raspberry Pi + TURN ✅ NOUVEAU
 
 **Hooks :**
-- `src/hooks/useVideoCall.ts` - Gestion appels vidéo
+- `src/hooks/useVideoCall.ts` - Gestion appels vidéo (LiveKit)
+- `src/hooks/useAkuvoxVideo.ts` - Gestion vidéo Akuvox WebRTC ✅ NOUVEAU
+- `src/hooks/useDisplayMode.ts` - Détection Panel/Mobile/Tablet
+
+**Composants :**
+- `src/components/AkuvoxVideoStream.tsx` - Affichage vidéo Akuvox ✅ NOUVEAU
+- `src/components/MediaMTXConfigDialog.tsx` - Config IP Raspberry Pi ✅ NOUVEAU
 
 **Pages :**
-- `src/pages/IntercomTest.tsx` - Interface d'appel
+- `src/pages/IntercomTest.tsx` - Interface d'appel (avec toggle LiveKit/Akuvox)
 
 ---
 
 ## Flow d'un Appel Entrant
+
+### Option 1 : LiveKit (Ancien système)
 ```
 1. Visiteur appuie sur bouton Akuvox
    │
@@ -199,6 +240,48 @@
    - Vidéo : WebRTC via LiveKit (RTSP Ingress - TODO)
 ```
 
+### Option 2 : Akuvox WebRTC Direct (Nouveau système) ✅ ACTIF
+```
+1. Visiteur appuie sur bouton Akuvox
+   │
+   ▼
+2. Akuvox démarre flux RTSP : rtsp://192.168.1.51:554/livestream/11
+   │
+   ▼
+3. MediaMTX (Raspberry Pi) :
+   - Capture flux RTSP Akuvox
+   - Convertit en WebRTC (WHEP)
+   - Expose endpoint : http://192.168.1.115:8889/akuvox/whep
+   │
+   ▼
+4. App (Simulation d'appel pour test) :
+   - Affiche écran d'appel entrant
+   │
+   ▼
+5. Utilisateur accepte :
+   - Mode Panel (LAN) : Connexion WebRTC directe vers Raspberry Pi
+     → ICE: STUN only, pas de TURN
+   - Mode Mobile (Remote) : Connexion WebRTC via TURN
+     → ICE: STUN + TURN (141.227.158.64:3478)
+   │
+   ▼
+6. App initie connexion WHEP :
+   - Crée RTCPeerConnection
+   - Ajoute transceivers (video + audio recvonly)
+   - Crée SDP offer
+   - POST offer → http://192.168.1.115:8889/akuvox/whep
+   - Reçoit SDP answer
+   - Établit connexion WebRTC
+   │
+   ▼
+7. Communication active :
+   - Vidéo : WebRTC direct depuis MediaMTX
+   - Audio : (TODO - intégrer avec SIP)
+   - Latence réduite en mode Panel (pas de transit via internet)
+```
+
+> **Note :** L'option 2 (Akuvox WebRTC) est actuellement en test. Elle offre une latence plus faible en mode Panel car la vidéo ne transite pas par le VPS.
+
 ---
 
 ## Sécurité
@@ -238,7 +321,17 @@ docker logs livekit --tail 20
 ## Prochaines Évolutions
 
 1. **Linphone SDK natif** (remplace JsSIP)
-2. **LiveKit Ingress** (capture RTSP Akuvox)
-3. **Push notifications** (FCM + CallKit)
-4. **Admin web** (multi-tenant)
-5. **Monitoring** (UptimeRobot, Sentry)
+2. ~~**LiveKit Ingress** (capture RTSP Akuvox)~~ → **Remplacé par MediaMTX** ✅
+3. **Intégrer audio SIP avec vidéo Akuvox** (combiner les 2 systèmes)
+4. **Push notifications** (FCM + CallKit)
+5. **Admin web** (multi-tenant)
+6. **Monitoring** (UptimeRobot, Sentry)
+7. **Découverte automatique Raspberry Pi** (mDNS ou API discovery)
+
+## Documentation Complémentaire
+
+- **Intégration Akuvox WebRTC** : Voir `docs/AKUVOX_INTEGRATION.md` pour :
+  - Architecture détaillée MediaMTX
+  - Guide d'utilisation des composants
+  - Configuration Raspberry Pi
+  - Tests et troubleshooting

@@ -30,7 +30,7 @@ Application unique Neolia (iOS/Android/APK custom) intégrant :
 
 ---
 
-## Phase 2 : Intégration App ✅ (EN COURS)
+## Phase 2 : Intégration App ✅ (TERMINÉ)
 
 **Objectif** : App React reçoit les appels avec vidéo
 
@@ -40,10 +40,30 @@ Application unique Neolia (iOS/Android/APK custom) intégrant :
 - [x] Interface d'appel entrant (sonnerie, accepter/rejeter)
 - [x] LiveKit client intégré (vidéo WebRTC)
 - [x] Flow complet : Akuvox appelle → App affiche l'appel
+- [x] **Vidéo Akuvox via MediaMTX (alternative à LiveKit Ingress)** ✅ NOUVEAU
 
-### En cours
-- [ ] Audio bidirectionnel (SDK Linphone natif iOS/Android)
-- [ ] Vidéo RTSP de l'Akuvox (LiveKit Ingress)
+---
+
+## Phase 2.5 : Vidéo Akuvox WebRTC Direct ✅ (TERMINÉ - Jan 2025)
+
+**Objectif** : Streaming vidéo Akuvox optimisé (MediaMTX sur Raspberry Pi)
+
+### Réalisations
+- [x] Infrastructure Raspberry Pi + MediaMTX déployée
+- [x] Conversion RTSP → WebRTC via protocole WHEP
+- [x] Service WebRTC React (`akuvoxWebRTCService.ts`)
+- [x] Hook React avec détection auto Panel/Mobile (`useAkuvoxVideo.ts`)
+- [x] Store configuration MediaMTX + TURN (`useMediaMTXConfigStore.ts`)
+- [x] Composants UI réutilisables (`AkuvoxVideoStream`, `MediaMTXConfigDialog`)
+- [x] Page de test avec toggle LiveKit/Akuvox
+- [x] Mode Panel : Connexion LAN directe (pas de TURN)
+- [x] Mode Mobile : Connexion via TURN (VPS OVH)
+- [x] Documentation complète (`docs/AKUVOX_INTEGRATION.md`)
+
+**Avantages :**
+- Latence réduite en mode Panel (pas de transit via VPS)
+- Architecture scalable (un Raspberry par immeuble)
+- Configuration dynamique (IP DHCP supportée)
 
 ---
 
@@ -62,26 +82,35 @@ Application unique Neolia (iOS/Android/APK custom) intégrant :
 
 ---
 
-## Phase 4 : Vidéo de l'Interphone
+## Phase 4 : ~~Vidéo de l'Interphone~~ ✅ (REMPLACÉ PAR PHASE 2.5)
 
-**Objectif** : Afficher la caméra de l'Akuvox dans l'app
+~~**Objectif** : Afficher la caméra de l'Akuvox dans l'app~~
+
+**Status** : Remplacé par l'intégration MediaMTX (Phase 2.5) qui offre de meilleures performances en mode Panel.
+
+---
+
+## Phase 5 : Intégration Audio + Vidéo (NOUVEAU)
+
+**Objectif** : Combiner audio SIP avec vidéo Akuvox WebRTC
 
 ### Tâches
-- [ ] Configurer LiveKit Ingress
-- [ ] Capturer stream RTSP de l'Akuvox
-- [ ] Injecter dans LiveKit Room
-- [ ] Afficher dans l'app (plein écran)
+- [ ] Synchroniser démarrage audio SIP + vidéo WebRTC
+- [ ] Tester latence audio/vidéo combinés
+- [ ] Gérer états combinés (connection, disconnection)
+- [ ] Interface unifiée pour contrôles (mute, speaker, etc.)
 
 **Temps estimé** : 1-2 jours
 
 ---
 
-## Timeline Globale
+## Timeline Globale (Mise à jour Jan 2025)
 
-- **Semaine 1-2** : Audio bidirectionnel (Phase 3)
-- **Semaine 3** : Vidéo RTSP (Phase 4)
-- **Semaine 4-5** : Push notifications
-- **Semaine 6-7** : Multi-tenant
-- **Semaine 8-10** : Production
+- ✅ **Semaines 1-2** : Vidéo Akuvox WebRTC (Phase 2.5) → **TERMINÉ**
+- **Semaine 3-4** : Audio bidirectionnel (Phase 3)
+- **Semaine 5** : Intégration Audio + Vidéo (Phase 5)
+- **Semaine 6-7** : Push notifications
+- **Semaine 8-9** : Multi-tenant
+- **Semaine 10-12** : Production
 
-**Total : ~10 semaines jusqu'au MVP production-ready**
+**Total : ~12 semaines jusqu'au MVP production-ready**

@@ -1,6 +1,33 @@
 # Neolia - TODO & Backlog Interphonie
 
-*Mis à jour le : 29 décembre 2024*
+*Mis à jour le : 1er janvier 2025*
+
+---
+
+## ✅ TERMINÉ RÉCEMMENT
+
+### Vidéo Akuvox WebRTC Direct (Jan 2025)
+- [x] **Infrastructure Raspberry Pi + MediaMTX**
+  - Deployment Docker Compose (MediaMTX + API Config)
+  - Configuration RTSP → WebRTC (WHEP)
+  - Support IP DHCP dynamique
+
+- [x] **Intégration Frontend React**
+  - Service WebRTC (`akuvoxWebRTCService.ts`)
+  - Hook React (`useAkuvoxVideo.ts`)
+  - Store Zustand (`useMediaMTXConfigStore.ts`)
+  - Composants UI (`AkuvoxVideoStream`, `MediaMTXConfigDialog`)
+  - Page de test avec toggle LiveKit/Akuvox
+
+- [x] **Modes de connexion**
+  - Panel (LAN) : Connexion directe sans TURN
+  - Mobile/Tablet (Remote) : Connexion via TURN server
+  - Détection automatique du mode
+
+- [x] **Documentation**
+  - `docs/AKUVOX_INTEGRATION.md` complet
+  - Mise à jour `ARCHITECTURE.md`
+  - Mise à jour `ROADMAP.md`
 
 ---
 
@@ -31,25 +58,32 @@
 
 ---
 
-### Vidéo RTSP de l'Akuvox
+### ~~Vidéo RTSP de l'Akuvox~~ ✅ (REMPLACÉ PAR MEDIAMTX)
 
-- [ ] **Configurer LiveKit Ingress**
-  - Créer Ingress via API LiveKit
-  - URL source : `rtsp://[IP_AKUVOX]/video1`
-  - Codec : H.264
-  - Injecter dans room lors de l'appel
+~~**Configurer LiveKit Ingress**~~ → **Remplacé par MediaMTX sur Raspberry Pi**
 
-- [ ] **Modifier webhook backend**
-  - Créer Ingress lors de l'appel
-  - Associer à la room LiveKit
-  - Cleanup après fin d'appel
+L'approche LiveKit Ingress a été remplacée par une solution MediaMTX offrant :
+- Meilleure latence en mode Panel (pas de transit via VPS)
+- Architecture distribuée (un Raspberry par immeuble)
+- Support DHCP et configuration dynamique
 
-- [ ] **Tester vidéo**
-  - Akuvox stream visible dans app
-  - Latence acceptable (<1s)
+Voir `docs/AKUVOX_INTEGRATION.md` pour détails.
+
+---
+
+### Intégration Audio SIP + Vidéo Akuvox (NOUVEAU)
+
+- [ ] **Combiner les deux systèmes**
+  - Audio : SIP via Linphone SDK (à venir)
+  - Vidéo : WebRTC via MediaMTX (actif)
+  - Synchroniser les deux flux
+
+- [ ] **Tests combinés**
+  - Latence audio + vidéo acceptable
   - Qualité suffisante
+  - Pas de désynchronisation
 
-**Temps estimé : 1-2 jours**
+**Temps estimé : 1 jour**
 
 ---
 
@@ -131,11 +165,17 @@
 
 ### Critiques
 - [x] ~~WebSocket reconnexion en boucle~~ → **RÉSOLU** (problème Lovable preview)
+- [x] ~~TLS handshake EOF avec Home Assistant~~ → **RÉSOLU** (retry logic améliorée - Jan 2025)
 - [ ] JsSIP `navigator.mediaDevices.getUserMedia` undefined → **À remplacer par SDK natif**
 
 ### Mineurs
 - [ ] Cadre vidéo locale vide affiché (à cacher car inutile)
 - [ ] Logs backend pollués par bots scanners (à filtrer)
+
+### Améliorations MediaMTX (Basse priorité)
+- [ ] Découverte automatique IP Raspberry Pi (mDNS)
+- [ ] Fallback LiveKit si MediaMTX indisponible
+- [ ] Métriques qualité vidéo (bitrate, latence, frame drops)
 
 ---
 
@@ -155,10 +195,18 @@
 - Meilleure stabilité et performance
 - Sonnerie native type WhatsApp
 
-**Pourquoi LiveKit Ingress pour RTSP ?**
-- Pas de conversion manuelle RTSP→WebRTC
-- Géré par LiveKit (scalable, optimisé)
-- Même room pour audio + vidéo
+**~~Pourquoi LiveKit Ingress pour RTSP ?~~** → **Remplacé par MediaMTX**
+- ~~Pas de conversion manuelle RTSP→WebRTC~~
+- ~~Géré par LiveKit (scalable, optimisé)~~
+- ~~Même room pour audio + vidéo~~
+
+**Pourquoi MediaMTX au lieu de LiveKit Ingress ?**
+- Conversion RTSP→WebRTC locale (Raspberry Pi)
+- Latence réduite en mode Panel (pas de transit VPS)
+- Architecture distribuée : un Raspberry par immeuble
+- Protocole WHEP standard (pas de dépendance LiveKit)
+- Coût réduit (pas de bande passante VPS pour vidéo)
+- Configuration dynamique via API
 
 ---
 
@@ -175,15 +223,28 @@
 
 ## 🔄 Prochaine Session
 
-**Objectif** : Commencer intégration Linphone SDK
+**Objectif** : Tester intégration Akuvox WebRTC + préparer audio SIP
 
-**Étape 1** : Setup iOS
-1. Installer CocoaPods dans le projet
-2. Ajouter `pod 'linphone-sdk'`
-3. Créer plugin Capacitor basique
-4. Tester enregistrement SIP
+**Tests à effectuer** :
+1. **Mode Panel (LAN)** :
+   - [ ] Configurer IP Raspberry Pi dans l'app
+   - [ ] Tester connexion WebRTC directe
+   - [ ] Vérifier qualité vidéo et latence
+   - [ ] Valider que TURN n'est pas utilisé
 
-**Préparation** :
-- Avoir Xcode installé
-- Compte Apple Developer (pour build iOS)
-- Android Studio (pour build Android)
+2. **Mode Mobile (TURN)** :
+   - [ ] Tester en 4G/5G (pas sur même LAN)
+   - [ ] Vérifier connexion via TURN relay
+   - [ ] Mesurer latence avec TURN
+   - [ ] Tester sur différents opérateurs
+
+3. **Préparer Linphone SDK** :
+   - [ ] Installer Xcode
+   - [ ] Installer Android Studio
+   - [ ] Installer CocoaPods
+   - [ ] Vérifier compte Apple Developer
+
+**Documentation à consulter** :
+- `docs/AKUVOX_INTEGRATION.md` : Guide complet MediaMTX
+- `docs/ARCHITECTURE.md` : Architecture mise à jour
+- `docs/ROADMAP.md` : Phases suivantes
