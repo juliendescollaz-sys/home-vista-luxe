@@ -1,25 +1,43 @@
 import { useState } from "react";
-import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff } from "lucide-react";
+import { Phone, PhoneOff, Video, Settings2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { intercomService } from "@/services/intercomService";
 import { useIntercomStore } from "@/store/intercomStore";
 import { useVideoCall } from "@/hooks/useVideoCall";
 import { sipService } from '@/services/sipService';
 import { toast } from "sonner";
+import { AkuvoxVideoStream } from "@/components/AkuvoxVideoStream";
+import { MediaMTXConfigDialog } from "@/components/MediaMTXConfigDialog";
+import { useAkuvoxVideo } from "@/hooks/useAkuvoxVideo";
+import { useIsMediaMTXConfigValid } from "@/store/useMediaMTXConfigStore";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 export default function IntercomTest() {
   const [isSimulating, setIsSimulating] = useState(false);
+  const [videoMode, setVideoMode] = useState<'akuvox' | 'livekit'>('akuvox');
   const { currentCall, setCurrentCall, endCall } = useIntercomStore();
+
+  // Hook LiveKit (ancien système)
   const {
-    connect,
-    disconnect,
-    isConnecting,
-    isConnected,
-    error,
-    localVideoRef,
+    connect: connectLiveKit,
+    disconnect: disconnectLiveKit,
+    isConnecting: isConnectingLiveKit,
+    isConnected: isConnectedLiveKit,
+    error: errorLiveKit,
     remoteVideoRef,
   } = useVideoCall();
+
+  // Hook Akuvox WebRTC (nouveau système)
+  const {
+    status: akuvoxStatus,
+    connect: connectAkuvox,
+    disconnect: disconnectAkuvox,
+    connectionMode,
+  } = useAkuvoxVideo();
+
+  const isMediaMTXConfigured = useIsMediaMTXConfigValid();
 
   const handleSimulateCall = async () => {
     setIsSimulating(true);
@@ -37,13 +55,19 @@ export default function IntercomTest() {
 
   const handleAcceptCall = async () => {
     if (!currentCall) return;
+
     try {
       // Accept SIP audio call
       sipService.answer();
-      
-      // Connect to LiveKit for video
-      await connect(currentCall);
-      
+
+      if (videoMode === 'livekit') {
+        // Connect to LiveKit for video (ancien système)
+        await connectLiveKit(currentCall);
+      } else {
+        // Connect to Akuvox WebRTC stream (nouveau système)
+        await connectAkuvox();
+      }
+
       toast.success("Appel accepté");
     } catch (err) {
       console.error("Erreur connexion:", err);
@@ -58,7 +82,14 @@ export default function IntercomTest() {
 
   const handleHangUp = () => {
     sipService.hangup();
-    disconnect();
+
+    if (videoMode === 'livekit') {
+      disconnectLiveKit();
+    } else {
+      disconnectAkuvox();
+    }
+
+    endCall();
     toast.info("Appel terminé");
   };
 
@@ -66,43 +97,151 @@ export default function IntercomTest() {
   if (!currentCall) {
     return (
       <div className="min-h-screen p-6 bg-background">
-        <div className="max-w-md mx-auto space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Video className="h-5 w-5" />
-                Test Interphone Vidéo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Header avec config */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Test Interphone Vidéo</h1>
               <p className="text-sm text-muted-foreground">
-                Cette page permet de tester l'intégration LiveKit pour l'interphone vidéo.
+                Test des deux systèmes : LiveKit (SIP) et Akuvox WebRTC (WHEP)
               </p>
-              <Button
-                onClick={handleSimulateCall}
-                disabled={isSimulating}
-                className="w-full"
-                size="lg"
-              >
-                {isSimulating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-background border-t-transparent mr-2" />
-                    Simulation en cours...
-                  </>
-                ) : (
-                  <>
-                    <Phone className="h-4 w-4 mr-2" />
-                    Simuler appel entrant
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
+            </div>
+            <MediaMTXConfigDialog />
+          </div>
 
-          {error && (
+          {/* Avertissement si MediaMTX non configuré */}
+          {!isMediaMTXConfigured && (
+            <Card className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20">
+              <CardContent className="pt-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                      Configuration MediaMTX manquante
+                    </p>
+                    <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                      Configurez l'IP du Raspberry Pi pour tester le système Akuvox WebRTC.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Sélection du mode vidéo */}
+          <Tabs value={videoMode} onValueChange={(v) => setVideoMode(v as 'akuvox' | 'livekit')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="akuvox" className="space-x-2">
+                <span>Akuvox WebRTC</span>
+                {isMediaMTXConfigured && (
+                  <Badge variant="outline" className="text-xs">
+                    {connectionMode === 'panel' ? 'LAN' : 'TURN'}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="livekit">LiveKit (SIP)</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="akuvox" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Video className="h-5 w-5" />
+                    Akuvox WebRTC Direct
+                  </CardTitle>
+                  <CardDescription>
+                    Connexion WebRTC native vers MediaMTX (Raspberry Pi). Mode détecté:{" "}
+                    <strong>{connectionMode === 'panel' ? 'Panel (LAN direct)' : 'Mobile/Tablet (TURN)'}</strong>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-sm space-y-2">
+                    <p className="text-muted-foreground">
+                      ✅ Flux RTSP Akuvox → MediaMTX → WebRTC WHEP
+                    </p>
+                    <p className="text-muted-foreground">
+                      {connectionMode === 'panel'
+                        ? '🏠 Connexion directe LAN (pas de TURN)'
+                        : '🌐 Connexion via serveur TURN pour accès remote'}
+                    </p>
+                    {!isMediaMTXConfigured && (
+                      <p className="text-destructive text-xs">
+                        ⚠️ Configuration MediaMTX requise
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={handleSimulateCall}
+                    disabled={isSimulating || !isMediaMTXConfigured}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {isSimulating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-background border-t-transparent mr-2" />
+                        Simulation en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Phone className="h-4 w-4 mr-2" />
+                        Simuler appel Akuvox WebRTC
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="livekit" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Video className="h-5 w-5" />
+                    LiveKit + SIP
+                  </CardTitle>
+                  <CardDescription>
+                    Système original avec LiveKit pour la vidéo et SIP pour l'audio
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-sm space-y-2">
+                    <p className="text-muted-foreground">
+                      📞 Audio: SIP (JsSIP)
+                    </p>
+                    <p className="text-muted-foreground">
+                      📹 Vidéo: LiveKit room
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={handleSimulateCall}
+                    disabled={isSimulating}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {isSimulating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-background border-t-transparent mr-2" />
+                        Simulation en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Phone className="h-4 w-4 mr-2" />
+                        Simuler appel LiveKit
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          {/* Affichage des erreurs */}
+          {errorLiveKit && videoMode === 'livekit' && (
             <Card className="border-destructive">
               <CardContent className="pt-4">
-                <p className="text-sm text-destructive">{error}</p>
+                <p className="text-sm text-destructive">{errorLiveKit}</p>
               </CardContent>
             </Card>
           )}
@@ -128,6 +267,9 @@ export default function IntercomTest() {
           <div className="space-y-2">
             <h2 className="text-2xl font-bold">Appel entrant</h2>
             <p className="text-muted-foreground">Interphone: {currentCall.from}</p>
+            <p className="text-xs text-muted-foreground">
+              Mode vidéo: {videoMode === 'akuvox' ? 'Akuvox WebRTC' : 'LiveKit'}
+            </p>
           </div>
 
           {/* Boutons d'action */}
@@ -144,9 +286,9 @@ export default function IntercomTest() {
               size="lg"
               className="rounded-full w-16 h-16 bg-green-600 hover:bg-green-700"
               onClick={handleAcceptCall}
-              disabled={isConnecting}
+              disabled={isConnectingLiveKit || akuvoxStatus === 'connecting'}
             >
-              {isConnecting ? (
+              {(isConnectingLiveKit || akuvoxStatus === 'connecting') ? (
                 <div className="animate-spin rounded-full h-6 w-6 border-2 border-background border-t-transparent" />
               ) : (
                 <Phone className="h-6 w-6" />
@@ -161,21 +303,31 @@ export default function IntercomTest() {
   // État: Appel actif (vidéo)
   return (
     <div className="fixed inset-0 z-50 bg-black">
-      {/* Vidéo distante (plein écran) - conteneur pour le track attach */}
-      <div className="absolute inset-0 flex items-center justify-center bg-black">
-        <div
-          ref={remoteVideoRef as unknown as React.RefObject<HTMLDivElement>}
-          className="w-full h-full flex items-center justify-center [&>video]:w-full [&>video]:h-full [&>video]:object-cover"
+      {/* Affichage selon le mode vidéo */}
+      {videoMode === 'akuvox' ? (
+        // Nouveau système: Akuvox WebRTC
+        <AkuvoxVideoStream
+          autoConnect={false}
+          showDebugInfo={import.meta.env.DEV}
+          className="w-full h-full"
+          onConnected={() => console.log('Akuvox stream connected')}
+          onError={(error) => toast.error(error)}
         />
-        {!isConnected && (
-          <div className="absolute text-white/50 flex flex-col items-center gap-2">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-white/50 border-t-transparent" />
-            <span>Connexion en cours...</span>
-          </div>
-        )}
-      </div>
-
-      {/* Vidéo locale masquée - caméra utilisateur non utilisée */}
+      ) : (
+        // Ancien système: LiveKit
+        <div className="absolute inset-0 flex items-center justify-center bg-black">
+          <div
+            ref={remoteVideoRef as unknown as React.RefObject<HTMLDivElement>}
+            className="w-full h-full flex items-center justify-center [&>video]:w-full [&>video]:h-full [&>video]:object-cover"
+          />
+          {!isConnectedLiveKit && (
+            <div className="absolute text-white/50 flex flex-col items-center gap-2">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-white/50 border-t-transparent" />
+              <span>Connexion LiveKit en cours...</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Contrôles en bas */}
       <div className="absolute bottom-8 left-0 right-0 flex justify-center">
@@ -191,10 +343,17 @@ export default function IntercomTest() {
         </div>
       </div>
 
-      {/* Erreur */}
-      {error && (
-        <div className="absolute top-4 left-4 right-20 p-3 rounded-lg bg-destructive/90 text-white text-sm">
-          {error}
+      {/* Indicateur du mode actif */}
+      <div className="absolute top-4 left-4 bg-black/50 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm">
+        {videoMode === 'akuvox'
+          ? `Akuvox WebRTC (${connectionMode === 'panel' ? 'LAN' : 'TURN'})`
+          : 'LiveKit'}
+      </div>
+
+      {/* Erreur LiveKit */}
+      {errorLiveKit && videoMode === 'livekit' && (
+        <div className="absolute top-4 right-4 max-w-xs p-3 rounded-lg bg-destructive/90 text-white text-sm">
+          {errorLiveKit}
         </div>
       )}
     </div>
