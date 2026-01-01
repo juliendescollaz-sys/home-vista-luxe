@@ -60,13 +60,14 @@ export default function IntercomTest() {
       // Accept SIP audio call
       sipService.answer();
 
+      // Mettre à jour le statut de l'appel pour afficher la vidéo
+      setCurrentCall({ ...currentCall, status: 'active' });
+
       if (videoMode === 'livekit') {
         // Connect to LiveKit for video (ancien système)
         await connectLiveKit(currentCall);
-      } else {
-        // Connect to Akuvox WebRTC stream (nouveau système)
-        await connectAkuvox();
       }
+      // Pour Akuvox, le composant AkuvoxVideoStream gère la connexion automatiquement
 
       toast.success("Appel accepté");
     } catch (err) {
@@ -307,7 +308,7 @@ export default function IntercomTest() {
       {videoMode === 'akuvox' ? (
         // Nouveau système: Akuvox WebRTC
         <AkuvoxVideoStream
-          autoConnect={false}
+          autoConnect={true}
           showDebugInfo={import.meta.env.DEV}
           className="w-full h-full"
           onConnected={() => console.log('Akuvox stream connected')}
