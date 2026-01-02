@@ -6,18 +6,28 @@ const PBKDF2_ITERATIONS = 200000;
  * Generate a random device key and store it in localStorage
  */
 export async function getOrCreateDeviceKey(): Promise<string> {
-  let deviceKey = localStorage.getItem('device_key');
-  
-  if (!deviceKey) {
+  try {
+    let deviceKey = localStorage.getItem('device_key');
+
+    if (!deviceKey) {
+      const keyArray = new Uint8Array(32);
+      crypto.getRandomValues(keyArray);
+      deviceKey = Array.from(keyArray)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      localStorage.setItem('device_key', deviceKey);
+    }
+
+    return deviceKey;
+  } catch (error) {
+    console.error('[crypto] localStorage access failed:', error);
+    // Fallback: generate ephemeral key (session only)
     const keyArray = new Uint8Array(32);
     crypto.getRandomValues(keyArray);
-    deviceKey = Array.from(keyArray)
+    return Array.from(keyArray)
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
-    localStorage.setItem('device_key', deviceKey);
   }
-  
-  return deviceKey;
 }
 
 /**
@@ -154,21 +164,26 @@ export async function decryptData(encryptedBase64: string): Promise<string> {
  * Store encrypted HA credentials
  */
 export async function storeHACredentials(baseUrl: string, token: string): Promise<void> {
-  const data = JSON.stringify({ baseUrl, token });
-  
-  // Fallback pour les environnements sans crypto.subtle (HTTP localhost)
-  if (!crypto?.subtle) {
-    console.warn('[crypto] crypto.subtle non disponible, stockage en clair (dev uniquement)');
-    localStorage.setItem('ha_credentials_plain', data);
-    return;
-  }
-  
   try {
-    const encrypted = await encryptData(data);
-    localStorage.setItem('ha_credentials_enc', encrypted);
+    const data = JSON.stringify({ baseUrl, token });
+
+    // Fallback pour les environnements sans crypto.subtle (HTTP localhost)
+    if (!crypto?.subtle) {
+      console.warn('[crypto] crypto.subtle non disponible, stockage en clair (dev uniquement)');
+      localStorage.setItem('ha_credentials_plain', data);
+      return;
+    }
+
+    try {
+      const encrypted = await encryptData(data);
+      localStorage.setItem('ha_credentials_enc', encrypted);
+    } catch (error) {
+      console.warn('[crypto] Erreur chiffrement, fallback stockage clair:', error);
+      localStorage.setItem('ha_credentials_plain', data);
+    }
   } catch (error) {
-    console.warn('[crypto] Erreur chiffrement, fallback stockage clair:', error);
-    localStorage.setItem('ha_credentials_plain', data);
+    console.error('[crypto] localStorage access failed in storeHACredentials:', error);
+    // Silent fail - don't block the app
   }
 }
 
@@ -176,60 +191,70 @@ export async function storeHACredentials(baseUrl: string, token: string): Promis
  * Retrieve and decrypt HA credentials
  */
 export async function getHACredentials(): Promise<{ baseUrl: string; token: string } | null> {
-  // Essayer d'abord le stockage chiffré
-  const encrypted = localStorage.getItem('ha_credentials_enc');
-  if (encrypted) {
-    // Fallback si crypto.subtle non disponible
-    if (!crypto?.subtle) {
-      console.warn('[crypto] crypto.subtle non disponible pour déchiffrement');
-      // Essayer le fallback plain
-      const plain = localStorage.getItem('ha_credentials_plain');
-      if (plain) {
-        try {
-          return JSON.parse(plain);
-        } catch {
-          return null;
+  try {
+    // Essayer d'abord le stockage chiffré
+    const encrypted = localStorage.getItem('ha_credentials_enc');
+    if (encrypted) {
+      // Fallback si crypto.subtle non disponible
+      if (!crypto?.subtle) {
+        console.warn('[crypto] crypto.subtle non disponible pour déchiffrement');
+        // Essayer le fallback plain
+        const plain = localStorage.getItem('ha_credentials_plain');
+        if (plain) {
+          try {
+            return JSON.parse(plain);
+          } catch {
+            return null;
+          }
         }
+        return null;
       }
-      return null;
-    }
-    
-    try {
-      const decrypted = await decryptData(encrypted);
-      return JSON.parse(decrypted);
-    } catch (error) {
-      console.error('Failed to decrypt credentials:', error);
-      // Essayer le fallback plain
-      const plain = localStorage.getItem('ha_credentials_plain');
-      if (plain) {
-        try {
-          return JSON.parse(plain);
-        } catch {
-          return null;
+
+      try {
+        const decrypted = await decryptData(encrypted);
+        return JSON.parse(decrypted);
+      } catch (error) {
+        console.error('Failed to decrypt credentials:', error);
+        // Essayer le fallback plain
+        const plain = localStorage.getItem('ha_credentials_plain');
+        if (plain) {
+          try {
+            return JSON.parse(plain);
+          } catch {
+            return null;
+          }
         }
+        return null;
       }
-      return null;
     }
-  }
-  
-  // Fallback stockage en clair (dev HTTP)
-  const plain = localStorage.getItem('ha_credentials_plain');
-  if (plain) {
-    try {
-      return JSON.parse(plain);
-    } catch {
-      return null;
+
+    // Fallback stockage en clair (dev HTTP)
+    const plain = localStorage.getItem('ha_credentials_plain');
+    if (plain) {
+      try {
+        return JSON.parse(plain);
+      } catch {
+        return null;
+      }
     }
+
+    return null;
+  } catch (error) {
+    console.error('[crypto] localStorage access failed in getHACredentials:', error);
+    return null;
   }
-  
-  return null;
 }
 
 /**
  * Clear stored credentials
  */
 export function clearHACredentials(): void {
-  localStorage.removeItem('ha_credentials_enc');
-  localStorage.removeItem('ha_credentials_plain');
-  localStorage.removeItem('device_key');
+  try {
+    localStorage.removeItem('ha_credentials_enc');
+    localStorage.removeItem('ha_credentials_plain');
+    localStorage.removeItem('device_key');
+  } catch (error) {
+    console.error('[crypto] localStorage access failed in clearHACredentials:', error);
+    // Silent fail - don't block the app
+  }
 }
