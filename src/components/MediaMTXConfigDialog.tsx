@@ -145,7 +145,7 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
         )}
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Server className="h-5 w-5" />
@@ -156,7 +156,7 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-6 py-4 overflow-y-auto max-h-[60vh]">
           {/* Configuration locale (N100) */}
           <div className="space-y-2">
             <Label htmlFor="raspberry-ip" className="text-base font-semibold">
