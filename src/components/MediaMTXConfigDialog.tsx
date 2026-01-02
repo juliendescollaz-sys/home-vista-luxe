@@ -53,16 +53,17 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
    * Valide et sauvegarde la configuration
    */
   const handleSave = () => {
-    // Valider l'IP locale ou hostname .local
+    // Valider l'IP locale ou hostname .local (obligatoire)
     const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
     const hostnamePattern = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
 
-    if (!ipPattern.test(raspberryIp) && !hostnamePattern.test(raspberryIp)) {
+    if (!raspberryIp || (!ipPattern.test(raspberryIp) && !hostnamePattern.test(raspberryIp))) {
       toast.error('Adresse IP ou hostname local invalide');
       return;
     }
 
-    if (!hostnamePattern.test(remoteHostname)) {
+    // Valider le hostname distant seulement s'il est renseigné (optionnel)
+    if (remoteHostname && !hostnamePattern.test(remoteHostname)) {
       toast.error('Hostname distant invalide');
       return;
     }
