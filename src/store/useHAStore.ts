@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { safePersist as persist } from "@/lib/persistMiddleware";
 import type { HAConnection, HAEntity, HAArea, HAFloor, HADevice } from "@/types/homeassistant";
 import type { HAClient } from "@/lib/haClient";
 import type { NeoliaFloorPlan } from "@/services/neoliaFloorPlans";

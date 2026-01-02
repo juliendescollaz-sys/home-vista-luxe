@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { safePersist as persist } from "@/lib/persistMiddleware";
 import { NeoliaRoutine, RoutineAction, RoutineSchedule } from "@/types/routines";
 import { useHAStore } from "./useHAStore";
 
