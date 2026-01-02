@@ -99,6 +99,9 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
     setError(null);
     setStream(null);
 
+    // Détecter le mode réseau (local vs remote) avant de se connecter
+    const detectedMode = await useMediaMTXConfigStore.getState().detectNetworkMode();
+
     try {
       // Créer le service WebRTC
       const service = new AkuvoxWebRTCService();
@@ -119,9 +122,11 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
       };
 
       console.log('🎥 Connecting to Akuvox stream:', {
-        mode: connectionMode,
+        networkMode: detectedMode,
+        displayMode: displayMode,
+        connectionMode: connectionMode,
         whepUrl: mediaMTXConfig.whepUrl,
-        useTurn: connectionMode === 'mobile',
+        useTurn: connectionMode === 'mobile' && detectedMode === 'remote',
       });
 
       // Connecter avec callbacks
