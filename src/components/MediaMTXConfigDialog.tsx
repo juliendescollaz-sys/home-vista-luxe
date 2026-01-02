@@ -71,7 +71,7 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
 
     // Sauvegarder la configuration complète
     setConfig({
-      raspberryPiIp,
+      raspberryPiIp: raspberryIp,
       remoteHostname,
     });
 
