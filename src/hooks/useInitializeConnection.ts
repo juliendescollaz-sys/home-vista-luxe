@@ -13,92 +13,100 @@ export function useInitializeConnection() {
   const { displayMode } = useDisplayMode();
 
   useEffect(() => {
+    console.log("[NEOLIA] useInitializeConnection - démarrage, displayMode:", displayMode);
+    
     const initializeConnection = async () => {
-      const isPanel = displayMode === "panel";
-      const devHaUrl = getDevInitialHaUrl();
-      
-      // Vérifier si on a déjà une connexion dans le store
-      const existingConnection = useHAStore.getState().connection;
-      if (existingConnection?.url && existingConnection?.token) {
-        console.log("[NEOLIA] Connexion déjà présente dans le store:", existingConnection.url);
-        setIsInitialized(true);
-        return;
-      }
-      
-      // En mode Panel, essayer de restaurer depuis les credentials stockés
-      if (isPanel) {
-        console.log("[NEOLIA][PANEL] Initialisation connexion HA en mode Panel");
+      try {
+        const isPanel = displayMode === "panel";
+        const devHaUrl = getDevInitialHaUrl();
         
-        try {
-          const credentials = await getHACredentials();
+        // Vérifier si on a déjà une connexion dans le store
+        const existingConnection = useHAStore.getState().connection;
+        if (existingConnection?.url && existingConnection?.token) {
+          console.log("[NEOLIA] Connexion déjà présente dans le store:", existingConnection.url);
+          setIsInitialized(true);
+          return;
+        }
+        
+        // En mode Panel, essayer de restaurer depuis les credentials stockés
+        if (isPanel) {
+          console.log("[NEOLIA][PANEL] Initialisation connexion HA en mode Panel");
           
-          if (credentials?.baseUrl && credentials?.token) {
-            console.log("[NEOLIA][PANEL] Restauration credentials stockés:", credentials.baseUrl);
-            useHAStore.getState().setConnection({
-              url: credentials.baseUrl,
-              token: credentials.token,
-              connected: false,
-            });
-            setIsInitialized(true);
-            return;
+          try {
+            const credentials = await getHACredentials();
+            
+            if (credentials?.baseUrl && credentials?.token) {
+              console.log("[NEOLIA][PANEL] Restauration credentials stockés:", credentials.baseUrl);
+              useHAStore.getState().setConnection({
+                url: credentials.baseUrl,
+                token: credentials.token,
+                connected: false,
+              });
+              setIsInitialized(true);
+              return;
+            }
+          } catch (error) {
+            console.error("[NEOLIA][PANEL] Erreur lors de la restauration des credentials:", error);
           }
-        } catch (error) {
-          console.error("[NEOLIA][PANEL] Erreur lors de la restauration des credentials:", error);
-        }
-        
-        // Fallback sur les valeurs de dev si disponibles
-        if (devHaUrl && DEV_SHARED_TOKEN) {
-          console.log("[NEOLIA][PANEL] URL de dev disponible:", devHaUrl);
-          useHAStore.getState().setConnection({
-            url: devHaUrl,
-            token: DEV_SHARED_TOKEN,
-            connected: false,
-          });
-        } else {
-          console.log("[NEOLIA][PANEL] Pas de config, onboarding requis");
-          // Ne pas définir de connexion - l'onboarding sera déclenché
-        }
-        
-        setIsInitialized(true);
-        return;
-      }
-      
-      // En mode Mobile/Tablet, on utilise les credentials stockés ou le cloud par défaut
-      const connection = useHAStore.getState().connection;
-      
-      if (!connection || !connection.url || !connection.token) {
-        try {
-          const credentials = await getHACredentials();
           
-          if (credentials) {
-            console.log("[NEOLIA] Restauration credentials stockés:", credentials.baseUrl);
+          // Fallback sur les valeurs de dev si disponibles
+          if (devHaUrl && DEV_SHARED_TOKEN) {
+            console.log("[NEOLIA][PANEL] URL de dev disponible:", devHaUrl);
             useHAStore.getState().setConnection({
-              url: credentials.baseUrl,
-              token: credentials.token,
+              url: devHaUrl,
+              token: DEV_SHARED_TOKEN,
               connected: false,
             });
           } else {
-            // Fallback sur le cloud par défaut (ou URL de dev)
-            const fallbackUrl = devHaUrl || CLOUD_BASE_URL;
-            const fallbackToken = DEV_SHARED_TOKEN;
+            console.log("[NEOLIA][PANEL] Pas de config, onboarding requis");
+            // Ne pas définir de connexion - l'onboarding sera déclenché
+          }
+          
+          setIsInitialized(true);
+          return;
+        }
+        
+        // En mode Mobile/Tablet, on utilise les credentials stockés ou le cloud par défaut
+        const connection = useHAStore.getState().connection;
+        
+        if (!connection || !connection.url || !connection.token) {
+          try {
+            const credentials = await getHACredentials();
             
-            if (fallbackToken) {
-              console.log("[NEOLIA] Pas de credentials stockés, utilisation fallback:", fallbackUrl);
+            if (credentials) {
+              console.log("[NEOLIA] Restauration credentials stockés:", credentials.baseUrl);
               useHAStore.getState().setConnection({
-                url: fallbackUrl,
-                token: fallbackToken,
+                url: credentials.baseUrl,
+                token: credentials.token,
                 connected: false,
               });
             } else {
-              console.log("[NEOLIA] Pas de credentials, onboarding requis");
+              // Fallback sur le cloud par défaut (ou URL de dev)
+              const fallbackUrl = devHaUrl || CLOUD_BASE_URL;
+              const fallbackToken = DEV_SHARED_TOKEN;
+              
+              if (fallbackToken) {
+                console.log("[NEOLIA] Pas de credentials stockés, utilisation fallback:", fallbackUrl);
+                useHAStore.getState().setConnection({
+                  url: fallbackUrl,
+                  token: fallbackToken,
+                  connected: false,
+                });
+              } else {
+                console.log("[NEOLIA] Pas de credentials, onboarding requis");
+              }
             }
+          } catch (error) {
+            console.error("❌ Erreur lors de la restauration des credentials:", error);
           }
-        } catch (error) {
-          console.error("❌ Erreur lors de la restauration des credentials:", error);
         }
+        
+        setIsInitialized(true);
+      } catch (error) {
+        console.error("[NEOLIA] Erreur critique lors de l'initialisation:", error);
+        // Même en cas d'erreur, on marque comme initialisé pour ne pas bloquer l'app
+        setIsInitialized(true);
       }
-      
-      setIsInitialized(true);
     };
 
     initializeConnection();

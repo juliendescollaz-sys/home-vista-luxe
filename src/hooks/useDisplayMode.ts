@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Capacitor } from "@capacitor/core";
 
 export type DisplayMode = "mobile" | "tablet" | "panel";
 
@@ -12,8 +11,9 @@ function computeFromWidth(): DisplayMode {
 
 function isNativeAndroid(): boolean {
   try {
-    // Vérifier que Capacitor est bien disponible avant d'appeler getPlatform
-    if (typeof Capacitor === "undefined" || !Capacitor.isNativePlatform) {
+    // Lazy import de Capacitor pour éviter les erreurs au chargement
+    const Capacitor = (window as any).Capacitor;
+    if (!Capacitor || typeof Capacitor.isNativePlatform !== "function") {
       return false;
     }
     return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";

@@ -12,7 +12,6 @@
  */
 
 import { storeHACredentials, getHACredentials } from "@/lib/crypto";
-import { Capacitor, CapacitorHttp, HttpOptions } from "@capacitor/core";
 
 export interface HAConfig {
   localHaUrl: string; // OBLIGATOIRE - URL locale (LAN)
@@ -28,19 +27,43 @@ export interface HAConfigLegacy {
 
 type HttpResult<T = any> = { status: number; data?: T; ok: boolean };
 
+/**
+ * Accès lazy à Capacitor pour éviter les erreurs d'import sur le web
+ */
+function getCapacitor(): any {
+  try {
+    return (window as any).Capacitor;
+  } catch {
+    return null;
+  }
+}
+
 function isNativePlatform(): boolean {
   try {
-    const direct = (Capacitor as any).isNativePlatform?.();
+    const Capacitor = getCapacitor();
+    if (!Capacitor) return false;
+    
+    const direct = Capacitor.isNativePlatform?.();
     if (typeof direct === "boolean") return direct;
-  } catch {
-    // ignore
-  }
 
-  try {
     const platform = Capacitor.getPlatform?.();
     return platform === "android" || platform === "ios";
   } catch {
     return false;
+  }
+}
+
+/**
+ * Accès lazy à CapacitorHttp pour éviter les erreurs d'import sur le web
+ */
+function getCapacitorHttp(): any {
+  try {
+    const Capacitor = getCapacitor();
+    if (!Capacitor) return null;
+    // CapacitorHttp est disponible via Capacitor.Plugins.CapacitorHttp ou directement sur window
+    return (window as any).CapacitorHttp || Capacitor?.Plugins?.CapacitorHttp;
+  } catch {
+    return null;
   }
 }
 
@@ -58,9 +81,10 @@ async function httpGet(
   timeoutMs: number = 1200,
 ): Promise<HttpResult> {
   const native = isNativePlatform();
+  const CapacitorHttp = getCapacitorHttp();
 
-  if (native) {
-    const options: HttpOptions = {
+  if (native && CapacitorHttp) {
+    const options = {
       url,
       method: "GET",
       headers,
@@ -110,9 +134,10 @@ async function httpPost(
   timeoutMs: number = 2000,
 ): Promise<HttpResult> {
   const native = isNativePlatform();
+  const CapacitorHttp = getCapacitorHttp();
 
-  if (native) {
-    const options: HttpOptions = {
+  if (native && CapacitorHttp) {
+    const options = {
       url,
       method: "POST",
       headers: {
@@ -516,14 +541,15 @@ export async function fetchConfigFromNeoliaServer(
   console.log("[NeoliaServer] fetchConfigFromNeoliaServer URL =", url);
 
   const isNative = isNativePlatform();
+  const CapacitorHttp = getCapacitorHttp();
   const timeoutMs = 4000;
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
   try {
-    if (isNative) {
+    if (isNative && CapacitorHttp) {
       console.log("[NeoliaServer] Utilisation de CapacitorHttp (mode natif)");
 
-      const options: HttpOptions = {
+      const options = {
         url,
         method: "GET",
         headers: { Accept: "application/json" },
