@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(npm run build:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(cat:*)",
+      "Bash(git add:*)",
+      "Bash(git pull:*)",
+      "Bash(git merge:*)",
+      "Bash(ssh:*)",
+      "Bash(git fetch:*)",
+      "Bash(git rebase:*)"
     ]
   }
 }
