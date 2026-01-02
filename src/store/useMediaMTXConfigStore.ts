@@ -109,25 +109,52 @@ const DEFAULT_REMOTE_HOSTNAME = 'webrtc.neolia.app';
 const DEFAULT_PREFERRED_MODE = 'auto';
 
 /**
- * Teste si le serveur local (N100) est accessible
- * Timeout rapide pour ne pas bloquer l'application
+ * Détecte si l'appareil est connecté via une connexion cellulaire (4G/5G)
+ * Utilise l'API Network Information si disponible
  */
-async function isLocalServerAccessible(localIp: string, port: number): Promise<boolean> {
+function isCellularConnection(): boolean {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 secondes max
+    // API Network Information (disponible sur Chrome/Android)
+    const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
 
-    const response = await fetch(`http://${localIp}:${port}/v3/config/global/get`, {
-      method: 'GET',
-      signal: controller.signal,
-    });
+    if (connection) {
+      const type = connection.effectiveType || connection.type;
+      console.log('📱 Connection type detected:', type);
 
-    clearTimeout(timeoutId);
-    return response.ok;
+      // Si c'est du cellular, on est en 4G/5G (pas sur le réseau local)
+      if (connection.type === 'cellular') {
+        return true;
+      }
+
+      // Détecter aussi via effectiveType (slow-2g, 2g, 3g, 4g)
+      if (['slow-2g', '2g', '3g', '4g'].includes(type)) {
+        return true;
+      }
+    }
+
+    return false;
   } catch (err) {
-    // Timeout ou erreur réseau = serveur local non accessible
+    console.warn('⚠️ Network Information API not available');
     return false;
   }
+}
+
+/**
+ * Teste si le serveur local (N100) est accessible
+ * Note: Ne peut pas utiliser HTTP fetch depuis HTTPS (Mixed Content)
+ * Utilise plutôt une heuristique basée sur le type de connexion réseau
+ */
+async function isLocalServerAccessible(localIp: string, port: number): Promise<boolean> {
+  // Si on est en connexion cellulaire, le serveur local n'est pas accessible
+  if (isCellularConnection()) {
+    console.log('📱 Cellular connection detected, server not accessible');
+    return false;
+  }
+
+  // Si on n'est pas en cellular, on suppose qu'on est en WiFi local
+  // Note: On ne peut pas faire de vraie vérification HTTP à cause de Mixed Content
+  console.log('📶 WiFi connection detected, assuming server is accessible');
+  return true;
 }
 
 /**
@@ -323,12 +350,19 @@ export const useMediaMTXConfigStore = create<MediaMTXConfigState>()(
           return 'remote';
         }
 
-        // Si raspberryPiIp est configuré, utiliser le mode local
-        // La détection HTTP depuis HTTPS ne fonctionne pas (Mixed Content)
-        // On se base uniquement sur la présence de la config
-        console.log('📡 Network mode: local (raspberryPiIp configured)');
-        get().setDetectedMode('local');
-        return 'local';
+        // Tester si le serveur local est accessible (timeout 2s)
+        console.log('📡 Testing local server accessibility...');
+        const isLocalAccessible = await isLocalServerAccessible(config.raspberryPiIp, config.whepPort);
+
+        if (isLocalAccessible) {
+          console.log('✅ Network mode: local (server accessible)');
+          get().setDetectedMode('local');
+          return 'local';
+        } else {
+          console.log('🌐 Network mode: remote (server not accessible, fallback to remote)');
+          get().setDetectedMode('remote');
+          return 'remote';
+        }
       },
 
       reset: () =>

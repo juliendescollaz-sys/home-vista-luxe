@@ -70,18 +70,23 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
   const serviceRef = useRef<AkuvoxWebRTCService | null>(null);
 
   // Récupérer la config MediaMTX depuis le store
-  const { config: mediaMTXConfig, turnConfig } = useMediaMTXConfigStore();
+  const { config: mediaMTXConfig, turnConfig, detectedMode } = useMediaMTXConfigStore();
   const isConfigValid = useIsMediaMTXConfigValid();
 
   // Détecter le mode d'affichage (panel, mobile, tablet)
   const { displayMode } = useDisplayMode();
 
   /**
-   * Détermine le mode de connexion en fonction du displayMode
-   * Panel → connexion LAN directe (pas de TURN)
-   * Mobile/Tablet → connexion via TURN
+   * Détermine le mode de connexion en fonction du mode réseau détecté
+   * - Si detectedMode est défini (après détection), on l'utilise
+   * - Sinon, fallback sur displayMode (panel → 'panel', autres → 'mobile')
+   *
+   * Cela permet à un iPhone en WiFi local d'utiliser le mode 'local' (sans TURN)
+   * et un iPhone en 4G d'utiliser le mode 'remote' (avec TURN)
    */
-  const connectionMode: ConnectionMode = displayMode === 'panel' ? 'panel' : 'mobile';
+  const connectionMode: ConnectionMode = detectedMode === 'local' ? 'panel' :
+                                          detectedMode === 'remote' ? 'mobile' :
+                                          displayMode === 'panel' ? 'panel' : 'mobile';
 
   /**
    * Démarre la connexion WebRTC
