@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, Server, Wifi, Check } from 'lucide-react';
+import { Settings, Server, Wifi, Check, Search, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMediaMTXConfigStore, useIsMediaMTXConfigValid } from '@/store/useMediaMTXConfigStore';
 import { toast } from 'sonner';
+import { discoverEdgeDevices, type EdgeDevice } from '@/services/edgeDeviceDiscovery';
 
 export interface MediaMTXConfigDialogProps {
   /** Contenu du bouton trigger (par défaut: icône Settings) */
@@ -45,6 +46,11 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
   const [turnUrl, setTurnUrl] = useState(turnConfig.url);
   const [turnUsername, setTurnUsername] = useState(turnConfig.username);
   const [turnCredential, setTurnCredential] = useState(turnConfig.credential);
+
+  // State pour la découverte automatique
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [discoveryProgress, setDiscoveryProgress] = useState({ scanned: 0, total: 0 });
+  const [discoveredDevices, setDiscoveredDevices] = useState<EdgeDevice[]>([]);
 
   /**
    * Valide et sauvegarde la configuration
@@ -96,6 +102,38 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
     setTurnCredential(turnConfig.credential);
   };
 
+  /**
+   * Découvre automatiquement les edge devices sur le réseau
+   */
+  const handleDiscover = async () => {
+    setIsDiscovering(true);
+    setDiscoveredDevices([]);
+    setDiscoveryProgress({ scanned: 0, total: 0 });
+
+    try {
+      const devices = await discoverEdgeDevices((scanned, total) => {
+        setDiscoveryProgress({ scanned, total });
+      });
+
+      setDiscoveredDevices(devices);
+
+      if (devices.length === 0) {
+        toast.info('Aucun edge device trouvé sur le réseau');
+      } else if (devices.length === 1) {
+        // Un seul device trouvé, le sélectionner automatiquement
+        setRaspberryIp(devices[0].ip);
+        toast.success(`Edge device détecté : ${devices[0].ip} (${devices[0].latency}ms)`);
+      } else {
+        toast.success(`${devices.length} edge devices trouvés`);
+      }
+    } catch (err) {
+      console.error('Discovery error:', err);
+      toast.error('Erreur lors de la découverte automatique');
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -129,16 +167,68 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
               <Label htmlFor="raspberry-ip" className="text-sm text-muted-foreground">
                 Adresse IP locale
               </Label>
-              <Input
-                id="raspberry-ip"
-                placeholder="Ex: 192.168.1.100"
-                value={raspberryIp}
-                onChange={(e) => setRaspberryIp(e.target.value)}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="raspberry-ip"
+                  placeholder="Ex: 192.168.1.100"
+                  value={raspberryIp}
+                  onChange={(e) => setRaspberryIp(e.target.value)}
+                  disabled={isDiscovering}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={handleDiscover}
+                  disabled={isDiscovering}
+                  title="Découvrir automatiquement"
+                >
+                  {isDiscovering ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground">
                 Utilisée pour connexion directe en WiFi (même réseau local).
               </p>
+              {isDiscovering && (
+                <div className="text-xs text-muted-foreground">
+                  Scan en cours... {discoveryProgress.scanned}/{discoveryProgress.total} IPs testées
+                </div>
+              )}
             </div>
+
+            {/* Liste des devices découverts */}
+            {discoveredDevices.length > 1 && (
+              <div className="mt-2 space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Devices détectés (cliquez pour sélectionner) :
+                </Label>
+                <div className="space-y-1">
+                  {discoveredDevices.map((device) => (
+                    <button
+                      key={device.ip}
+                      type="button"
+                      onClick={() => setRaspberryIp(device.ip)}
+                      className={cn(
+                        'w-full text-left px-3 py-2 rounded-md text-xs transition-colors',
+                        'hover:bg-muted',
+                        raspberryIp === device.ip
+                          ? 'bg-primary/10 border border-primary'
+                          : 'bg-muted/50 border border-transparent'
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono">{device.ip}</span>
+                        <span className="text-muted-foreground">{device.latency}ms</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Aperçu de l'URL WHEP locale */}
             {raspberryIp && (
