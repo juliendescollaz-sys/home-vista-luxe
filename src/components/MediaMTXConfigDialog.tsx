@@ -192,7 +192,7 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
               <div className="mt-2 p-2 bg-muted rounded-md">
                 <p className="text-xs text-muted-foreground">URL locale :</p>
                 <code className="text-xs break-all">
-                  http://{raspberryIp}:8890/akuvox/whep
+                  http://{raspberryIp}:8889/akuvox/whep
                 </code>
               </div>
             )}
