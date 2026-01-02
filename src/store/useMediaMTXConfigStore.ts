@@ -65,13 +65,17 @@ interface MediaMTXConfigState {
 /**
  * Génère l'URL complète du endpoint WHEP
  * Utilise HTTPS pour les hostnames (non-IP), HTTP pour les IPs locales
+ * Pour les hostnames HTTPS, le port n'est pas ajouté (géré par le tunnel)
  */
 function generateWhepUrl(host: string, port: number, streamName: string): string {
   // Détecter si c'est une IP (commence par un chiffre) ou un hostname
   const isIpAddress = /^\d/.test(host);
   const protocol = isIpAddress ? 'http' : 'https';
 
-  return `${protocol}://${host}:${port}/${streamName}/whep`;
+  // Pour HTTPS (hostname), ne pas inclure le port (ngrok/Cloudflare gèrent ça)
+  const portSuffix = protocol === 'https' ? '' : `:${port}`;
+
+  return `${protocol}://${host}${portSuffix}/${streamName}/whep`;
 }
 
 /**
