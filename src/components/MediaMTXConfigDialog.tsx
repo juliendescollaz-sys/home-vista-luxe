@@ -40,8 +40,8 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
   const isValid = useIsMediaMTXConfigValid();
 
   // State local du formulaire
-  const [raspberryIp, setRaspberryIp] = useState(config?.raspberryPiIp || '192.168.1.115');
-  const [remoteHostname, setRemoteHostname] = useState(config?.remoteHostname || 'webrtc.neolia.app');
+  const [raspberryIp, setRaspberryIp] = useState(config?.raspberryPiIp || '');
+  const [remoteHostname, setRemoteHostname] = useState(config?.remoteHostname || '');
   const [turnUrl, setTurnUrl] = useState(turnConfig.url);
   const [turnUsername, setTurnUsername] = useState(turnConfig.username);
   const [turnCredential, setTurnCredential] = useState(turnConfig.credential);
@@ -89,8 +89,8 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
    * Réinitialise les valeurs du formulaire
    */
   const handleReset = () => {
-    setRaspberryIp(config?.raspberryPiIp || '192.168.1.115');
-    setRemoteHostname(config?.remoteHostname || 'webrtc.neolia.app');
+    setRaspberryIp(config?.raspberryPiIp || '');
+    setRemoteHostname(config?.remoteHostname || '');
     setTurnUrl(turnConfig.url);
     setTurnUsername(turnConfig.username);
     setTurnCredential(turnConfig.credential);
@@ -131,7 +131,7 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
               </Label>
               <Input
                 id="raspberry-ip"
-                placeholder="192.168.1.115"
+                placeholder="Ex: 192.168.1.100"
                 value={raspberryIp}
                 onChange={(e) => setRaspberryIp(e.target.value)}
               />
@@ -145,7 +145,7 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
               <div className="mt-2 p-2 bg-muted rounded-md">
                 <p className="text-xs text-muted-foreground">URL locale :</p>
                 <code className="text-xs break-all">
-                  http://{raspberryIp}:8889/akuvox/whep
+                  http://{raspberryIp}:8890/akuvox/whep
                 </code>
               </div>
             )}
@@ -163,7 +163,7 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
               </Label>
               <Input
                 id="remote-hostname"
-                placeholder="webrtc.neolia.app"
+                placeholder="Ex: video.example.com"
                 value={remoteHostname}
                 onChange={(e) => setRemoteHostname(e.target.value)}
               />

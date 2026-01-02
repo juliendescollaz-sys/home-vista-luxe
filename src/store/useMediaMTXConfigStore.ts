@@ -97,9 +97,9 @@ const DEFAULT_TURN_CONFIG: TurnServerConfig = {
   realm: 'turn.sip.neolia.ch',
 };
 
-const DEFAULT_WHEP_PORT = 8889;
+const DEFAULT_WHEP_PORT = 8890;
 const DEFAULT_STREAM_NAME = 'akuvox';
-const DEFAULT_REMOTE_HOSTNAME = 'webrtc.neolia.app';
+const DEFAULT_REMOTE_HOSTNAME = '';
 
 /**
  * Teste si le serveur local (N100) est accessible
