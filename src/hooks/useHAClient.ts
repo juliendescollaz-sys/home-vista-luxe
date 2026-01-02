@@ -118,13 +118,19 @@ export function useHAClient() {
         } else {
           console.log("🔄 Initialisation du client HA...");
         }
-        
+
         const client = new HAClient({
           baseUrl: connection.url,
           token: connection.token,
         });
 
-        await client.connect();
+        // Timeout de 10 secondes pour la connexion initiale
+        const connectPromise = client.connect();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Connection timeout after 10s')), 10000)
+        );
+
+        await Promise.race([connectPromise, timeoutPromise]);
         if (cancelled) return;
 
         clientRef.current = client;
