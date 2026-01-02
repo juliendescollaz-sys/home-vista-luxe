@@ -12,7 +12,11 @@ function computeFromWidth(): DisplayMode {
 
 function isNativeAndroid(): boolean {
   try {
-    return Capacitor.getPlatform() === "android" && typeof (window as any).Capacitor !== "undefined";
+    // Vérifier que Capacitor est bien disponible avant d'appeler getPlatform
+    if (typeof Capacitor === "undefined" || !Capacitor.isNativePlatform) {
+      return false;
+    }
+    return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
   } catch {
     return false;
   }
