@@ -36,6 +36,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const isConnected = useHAStore((state) => state.isConnected);
   const hasValidConnection = !!(connection && connection.url && connection.token);
   const [showBackButton, setShowBackButton] = useState(false);
+  const [connectionTimeout, setConnectionTimeout] = useState(false);
   const navigate = useNavigate();
   const { displayMode } = useDisplayMode();
 
@@ -51,14 +52,24 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!hasValidConnection || isConnected || displayMode === "panel") {
       setShowBackButton(false);
+      setConnectionTimeout(false);
       return;
     }
 
-    const timer = setTimeout(() => setShowBackButton(true), 5000);
-    return () => clearTimeout(timer);
+    const backButtonTimer = setTimeout(() => setShowBackButton(true), 5000);
+    const timeoutTimer = setTimeout(() => {
+      console.warn('⏱️ Connection timeout - continuing anyway');
+      setConnectionTimeout(true);
+    }, 15000); // 15 secondes max pour se connecter
+
+    return () => {
+      clearTimeout(backButtonTimer);
+      clearTimeout(timeoutTimer);
+    };
   }, [hasValidConnection, isConnected, displayMode]);
 
-  if (displayMode !== "panel" && hasValidConnection && !isConnected) {
+  // Si timeout dépassé, afficher l'app quand même (mode dégradé)
+  if (displayMode !== "panel" && hasValidConnection && !isConnected && !connectionTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
