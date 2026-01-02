@@ -35,34 +35,105 @@
   </head>
 
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-    
-    <!-- Service Worker Registration -->
-    <script>
-      // IMPORTANT: ne pas activer le Service Worker sur les domaines de preview (sinon le cache persistant peut provoquer un écran blanc). On le garde pour les domaines "réels".
-      const host = window.location.hostname;
-      const isPreviewHost = host.endsWith(".lovableproject.com") || host.endsWith(".lovable.app") || host === "localhost" || host === "127.0.0.1";
+    <!-- Indicateur de boot (utile pour diagnostiquer un preview blanc) -->
+    <div id="boot-status" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;color:#fff;font:14px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;z-index:2147483647;white-space:pre-wrap;padding:16px;">
+      Boot…
+    </div>
 
-      if ("serviceWorker" in navigator) {
-        if (!isPreviewHost) {
-          window.addEventListener("load", () => {
-            navigator.serviceWorker.register("/sw.js").catch(() => {});
-          });
-        } else {
-          // En preview: désenregistrer + vider les caches pour éviter une app figée
-          window.addEventListener("load", async () => {
-            try {
-              const regs = await navigator.serviceWorker.getRegistrations();
-              await Promise.all(regs.map((r) => r.unregister()));
-            } catch {}
-            try {
-              const keys = await caches.keys();
-              await Promise.all(keys.map((k) => caches.delete(k)));
-            } catch {}
-          });
+    <div id="root"></div>
+
+    <!-- Boot: en preview, reset SW + caches AVANT de charger l'app.
+         Un SW/caches d'une ancienne session peut servir des modules Vite invalides → "Failed to fetch dynamically imported module". -->
+    <script type="module">
+      const boot = document.getElementById('boot-status');
+      const setBoot = (msg) => { if (boot) boot.textContent = msg; };
+
+      // Afficher erreurs JS directement dans le preview
+      window.addEventListener('error', (e) => {
+        const msg = e?.error?.stack || e?.message || String(e);
+        setBoot('Erreur JS:\n' + msg);
+      });
+      window.addEventListener('unhandledrejection', (e) => {
+        const msg = e?.reason?.stack || e?.reason?.message || String(e?.reason || e);
+        setBoot('Promise rejetée:\n' + msg);
+      });
+
+      const host = window.location.hostname;
+      const isPreviewHost =
+        host.endsWith('.lovableproject.com') ||
+        host.endsWith('.lovable.app') ||
+        host === 'localhost' ||
+        host === '127.0.0.1';
+
+      // En preview: si un SW contrôle déjà la page, on le retire puis on reload UNE fois.
+      if (isPreviewHost && 'serviceWorker' in navigator) {
+        const alreadyReset = sessionStorage.getItem('neolia_sw_reset_done') === '1';
+        const hasController = !!navigator.serviceWorker.controller;
+
+        if (!alreadyReset && hasController) {
+          setBoot('Reset Service Worker (preview)…');
+          try {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister()));
+          } catch {}
+          try {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          } catch {}
+
+          sessionStorage.setItem('neolia_sw_reset_done', '1');
+          location.reload();
+          throw new Error('SW reset: reloading');
         }
       }
+
+      // Hors preview: activer le SW
+      if (!isPreviewHost && 'serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+
+      const sniff = async (url) => {
+        try {
+          const res = await fetch(url, { cache: 'no-store' });
+          const ct = res.headers.get('content-type') || 'unknown';
+          const text = await res.text();
+          const head = text.slice(0, 180).replace(/\s+/g, ' ');
+          return { url, ok: res.ok, status: res.status, ct, head };
+        } catch (e) {
+          return { url, ok: false, status: -1, ct: 'fetch_error', head: String(e?.message || e) };
+        }
+      };
+
+      setBoot('Diagnostic des modules…');
+      const [mainInfo, appInfo, viteInfo] = await Promise.all([
+        sniff('/src/main.tsx'),
+        sniff('/src/App.tsx'),
+        sniff('/@vite/client'),
+      ]);
+
+      setBoot(
+        'Diagnostic:\n' +
+          `${mainInfo.url} -> status=${mainInfo.status} ct=${mainInfo.ct}\nhead=${mainInfo.head}\n\n` +
+          `${appInfo.url} -> status=${appInfo.status} ct=${appInfo.ct}\nhead=${appInfo.head}\n\n` +
+          `${viteInfo.url} -> status=${viteInfo.status} ct=${viteInfo.ct}\nhead=${viteInfo.head}`
+      );
+
+      // Si on reçoit de l'HTML (login, proxy, etc.), on ne peut pas charger l'app.
+      const looksHtml = (info) => info.head.toLowerCase().includes('<!doctype html') || info.ct.includes('text/html');
+      if (looksHtml(mainInfo) || looksHtml(appInfo) || looksHtml(viteInfo)) {
+        throw new Error('Modules served as HTML');
+      }
+
+      setBoot('Chargement de l\'app…');
+      const s = document.createElement('script');
+      s.type = 'module';
+      s.src = '/src/main.tsx';
+      s.addEventListener('load', () => boot?.remove());
+      s.addEventListener('error', () => setBoot('Erreur: chargement module (voir diagnostic ci-dessus)'));
+      document.body.appendChild(s);
     </script>
   </body>
 </html>
+
