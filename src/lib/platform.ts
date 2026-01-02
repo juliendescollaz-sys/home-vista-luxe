@@ -1,4 +1,13 @@
-import { Capacitor } from "@capacitor/core";
+/**
+ * Accès lazy à Capacitor pour éviter les erreurs d'import sur le web
+ */
+function getCapacitor(): any {
+  try {
+    return (window as any).Capacitor;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Détecte si l'app tourne sur Android.
@@ -21,8 +30,11 @@ export function isAndroidDevice(): boolean {
 export function isNativeAndroid(): boolean {
   try {
     // 1) Source la plus fiable quand dispo
-    const platform = Capacitor.getPlatform();
-    if (platform === "android") return true;
+    const Capacitor = getCapacitor();
+    if (Capacitor && typeof Capacitor.getPlatform === "function") {
+      const platform = Capacitor.getPlatform();
+      if (platform === "android") return true;
+    }
 
     // 2) Fallback : panel Android (UA Android) + contexte "app" typique (localhost / file / capacitor)
     if (!isAndroidDevice()) return false;

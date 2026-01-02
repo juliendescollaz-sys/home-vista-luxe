@@ -192,6 +192,12 @@ export async function storeHACredentials(baseUrl: string, token: string): Promis
  */
 export async function getHACredentials(): Promise<{ baseUrl: string; token: string } | null> {
   try {
+    // Protection contre l'absence de localStorage
+    if (typeof localStorage === "undefined") {
+      console.warn('[crypto] localStorage non disponible');
+      return null;
+    }
+
     // Essayer d'abord le stockage chiffré
     const encrypted = localStorage.getItem('ha_credentials_enc');
     if (encrypted) {
