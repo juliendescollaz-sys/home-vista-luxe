@@ -110,11 +110,11 @@ const DEFAULT_PREFERRED_MODE = 'auto';
 
 /**
  * Détecte si l'appareil est connecté via une connexion cellulaire (4G/5G)
- * Utilise l'API Network Information si disponible
+ * Utilise l'API Network Information si disponible (Chrome/Android uniquement, pas Safari)
  */
-function isCellularConnection(): boolean {
+function isCellularConnection(): boolean | null {
   try {
-    // API Network Information (disponible sur Chrome/Android)
+    // API Network Information (disponible sur Chrome/Android, PAS sur Safari iOS)
     const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
 
     if (connection) {
@@ -130,31 +130,74 @@ function isCellularConnection(): boolean {
       if (['slow-2g', '2g', '3g', '4g'].includes(type)) {
         return true;
       }
+
+      // Si on a l'API et que ce n'est pas cellular, c'est du WiFi
+      return false;
     }
 
-    return false;
+    // API non disponible (Safari iOS)
+    console.warn('⚠️ Network Information API not available (Safari iOS)');
+    return null;
   } catch (err) {
-    console.warn('⚠️ Network Information API not available');
-    return false;
+    console.warn('⚠️ Network Information API error:', err);
+    return null;
   }
 }
 
 /**
+ * Teste si le serveur local est accessible via WebSocket ping
+ * Utilisé sur Safari iOS où l'API Network Information n'est pas disponible
+ */
+async function testLocalServerWithWebSocket(localIp: string, port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    // Timeout de 1.5 secondes (rapide si WiFi local, échoue vite si 4G)
+    const timeout = setTimeout(() => {
+      console.log('⏱️ WebSocket ping timeout (likely not on local network)');
+      ws.close();
+      resolve(false);
+    }, 1500);
+
+    // Tester avec un endpoint WebSocket de MediaMTX (si disponible)
+    // Sinon, on considère que le test a échoué
+    const ws = new WebSocket(`ws://${localIp}:${port}/`);
+
+    ws.onopen = () => {
+      console.log('✅ WebSocket ping successful (local network)');
+      clearTimeout(timeout);
+      ws.close();
+      resolve(true);
+    };
+
+    ws.onerror = () => {
+      console.log('❌ WebSocket ping failed (not on local network)');
+      clearTimeout(timeout);
+      resolve(false);
+    };
+  });
+}
+
+/**
  * Teste si le serveur local (N100) est accessible
- * Note: Ne peut pas utiliser HTTP fetch depuis HTTPS (Mixed Content)
- * Utilise plutôt une heuristique basée sur le type de connexion réseau
+ * - Chrome/Android : utilise l'API Network Information
+ * - Safari iOS : utilise un WebSocket ping avec timeout court
  */
 async function isLocalServerAccessible(localIp: string, port: number): Promise<boolean> {
-  // Si on est en connexion cellulaire, le serveur local n'est pas accessible
-  if (isCellularConnection()) {
+  // 1. Essayer l'API Network Information (Chrome/Android)
+  const cellularStatus = isCellularConnection();
+
+  if (cellularStatus === true) {
     console.log('📱 Cellular connection detected, server not accessible');
     return false;
   }
 
-  // Si on n'est pas en cellular, on suppose qu'on est en WiFi local
-  // Note: On ne peut pas faire de vraie vérification HTTP à cause de Mixed Content
-  console.log('📶 WiFi connection detected, assuming server is accessible');
-  return true;
+  if (cellularStatus === false) {
+    console.log('📶 WiFi connection detected via Network API');
+    return true;
+  }
+
+  // 2. API non disponible (Safari iOS) → tester avec WebSocket ping
+  console.log('🔍 Testing local server with WebSocket ping...');
+  return await testLocalServerWithWebSocket(localIp, port);
 }
 
 /**
