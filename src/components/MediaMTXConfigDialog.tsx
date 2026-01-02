@@ -36,11 +36,12 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
   const [open, setOpen] = useState(false);
 
   // State du store
-  const { config, turnConfig, setRaspberryPiIp, setTurnConfig } = useMediaMTXConfigStore();
+  const { config, turnConfig, setConfig, setTurnConfig } = useMediaMTXConfigStore();
   const isValid = useIsMediaMTXConfigValid();
 
   // State local du formulaire
-  const [raspberryIp, setRaspberryIp] = useState(config?.raspberryPiIp || '');
+  const [raspberryIp, setRaspberryIp] = useState(config?.raspberryPiIp || '192.168.1.115');
+  const [remoteHostname, setRemoteHostname] = useState(config?.remoteHostname || 'webrtc.neolia.app');
   const [turnUrl, setTurnUrl] = useState(turnConfig.url);
   const [turnUsername, setTurnUsername] = useState(turnConfig.username);
   const [turnCredential, setTurnCredential] = useState(turnConfig.credential);
@@ -49,17 +50,25 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
    * Valide et sauvegarde la configuration
    */
   const handleSave = () => {
-    // Valider l'IP ou hostname
+    // Valider l'IP locale
     const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
     const hostnamePattern = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
 
-    if (!ipPattern.test(raspberryIp) && !hostnamePattern.test(raspberryIp)) {
-      toast.error('Adresse IP ou hostname invalide');
+    if (!ipPattern.test(raspberryIp)) {
+      toast.error('Adresse IP locale invalide');
       return;
     }
 
-    // Sauvegarder l'IP du Raspberry Pi
-    setRaspberryPiIp(raspberryIp);
+    if (!hostnamePattern.test(remoteHostname)) {
+      toast.error('Hostname distant invalide');
+      return;
+    }
+
+    // Sauvegarder la configuration complète
+    setConfig({
+      raspberryPiIp,
+      remoteHostname,
+    });
 
     // Sauvegarder la config TURN
     setTurnConfig({
@@ -80,7 +89,8 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
    * Réinitialise les valeurs du formulaire
    */
   const handleReset = () => {
-    setRaspberryIp(config?.raspberryPiIp || '');
+    setRaspberryIp(config?.raspberryPiIp || '192.168.1.115');
+    setRemoteHostname(config?.remoteHostname || 'webrtc.neolia.app');
     setTurnUrl(turnConfig.url);
     setTurnUsername(turnConfig.username);
     setTurnCredential(turnConfig.credential);
@@ -109,38 +119,65 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Configuration Raspberry Pi */}
+          {/* Configuration locale (N100) */}
           <div className="space-y-2">
             <Label htmlFor="raspberry-ip" className="text-base font-semibold">
-              Raspberry Pi (MediaMTX)
+              Serveur local (N100)
             </Label>
 
             <div className="space-y-2">
               <Label htmlFor="raspberry-ip" className="text-sm text-muted-foreground">
-                Adresse IP ou hostname
+                Adresse IP locale
               </Label>
               <Input
                 id="raspberry-ip"
-                placeholder="192.168.1.115 ou example.ngrok-free.dev"
+                placeholder="192.168.1.115"
                 value={raspberryIp}
                 onChange={(e) => setRaspberryIp(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                IP locale (192.168.x.x) ou hostname public (pour ngrok/Cloudflare Tunnel).
+                Utilisée pour connexion directe en WiFi (même réseau local).
               </p>
             </div>
 
-            {/* Aperçu de l'URL WHEP */}
+            {/* Aperçu de l'URL WHEP locale */}
             {raspberryIp && (
               <div className="mt-2 p-2 bg-muted rounded-md">
-                <p className="text-xs text-muted-foreground">Endpoint WHEP généré :</p>
+                <p className="text-xs text-muted-foreground">URL locale :</p>
                 <code className="text-xs break-all">
-                  {(() => {
-                    const isIp = /^\d/.test(raspberryIp);
-                    const protocol = isIp ? 'http' : 'https';
-                    const port = isIp ? ':8889' : '';
-                    return `${protocol}://${raspberryIp}${port}/akuvox/whep`;
-                  })()}
+                  http://{raspberryIp}:8889/akuvox/whep
+                </code>
+              </div>
+            )}
+          </div>
+
+          {/* Configuration distante (VPS) */}
+          <div className="space-y-2">
+            <Label htmlFor="remote-hostname" className="text-base font-semibold">
+              Serveur distant (VPS)
+            </Label>
+
+            <div className="space-y-2">
+              <Label htmlFor="remote-hostname" className="text-sm text-muted-foreground">
+                Hostname public
+              </Label>
+              <Input
+                id="remote-hostname"
+                placeholder="webrtc.neolia.app"
+                value={remoteHostname}
+                onChange={(e) => setRemoteHostname(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Utilisée pour connexion via internet (4G, réseau distant).
+              </p>
+            </div>
+
+            {/* Aperçu de l'URL WHEP distante */}
+            {remoteHostname && (
+              <div className="mt-2 p-2 bg-muted rounded-md">
+                <p className="text-xs text-muted-foreground">URL distante :</p>
+                <code className="text-xs break-all">
+                  https://{remoteHostname}/akuvox/whep
                 </code>
               </div>
             )}
