@@ -13,12 +13,6 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      // Workaround for a broken lucide-react ESM entry in this environment.
-      // Vite tries to load `dist/esm/lucide-react.js` (missing) via the `module` field.
-      "lucide-react": path.resolve(
-        __dirname,
-        "./node_modules/lucide-react/dist/cjs/lucide-react.js"
-      ),
     },
   },
 }));
