@@ -161,10 +161,19 @@ export const useMediaMTXConfigStore = create<MediaMTXConfigState>()(
             lastUpdated: Date.now(),
           };
 
-          // Recalculer l'URL WHEP selon le mode détecté
-          const mode = state.detectedMode || 'local';
-          const host = mode === 'local' ? newConfig.raspberryPiIp : newConfig.remoteHostname;
-          const port = mode === 'local' ? newConfig.whepPort : 443;
+          // Calculer le mode effectif selon preferredMode
+          let effectiveMode: 'local' | 'remote';
+          if (newConfig.preferredMode === 'local') {
+            effectiveMode = 'local';
+          } else if (newConfig.preferredMode === 'remote') {
+            effectiveMode = 'remote';
+          } else {
+            // Mode auto: si raspberryPiIp configuré, local, sinon remote
+            effectiveMode = newConfig.raspberryPiIp ? 'local' : 'remote';
+          }
+
+          const host = effectiveMode === 'local' ? newConfig.raspberryPiIp : newConfig.remoteHostname;
+          const port = effectiveMode === 'local' ? newConfig.whepPort : 443;
 
           // Générer l'URL WHEP seulement si on a un host valide
           newConfig.whepUrl = host ? generateWhepUrl(host, port, newConfig.streamName) : '';
@@ -193,10 +202,19 @@ export const useMediaMTXConfigStore = create<MediaMTXConfigState>()(
             lastUpdated: Date.now(),
           };
 
-          // Recalculer l'URL WHEP selon le mode
-          const mode = state.detectedMode || 'local';
-          const host = mode === 'local' ? newConfig.raspberryPiIp : newConfig.remoteHostname;
-          const port = mode === 'local' ? newConfig.whepPort : 443;
+          // Calculer le mode effectif selon preferredMode
+          let effectiveMode: 'local' | 'remote';
+          if (newConfig.preferredMode === 'local') {
+            effectiveMode = 'local';
+          } else if (newConfig.preferredMode === 'remote') {
+            effectiveMode = 'remote';
+          } else {
+            // Mode auto: si raspberryPiIp configuré, local, sinon remote
+            effectiveMode = newConfig.raspberryPiIp ? 'local' : 'remote';
+          }
+
+          const host = effectiveMode === 'local' ? newConfig.raspberryPiIp : newConfig.remoteHostname;
+          const port = effectiveMode === 'local' ? newConfig.whepPort : 443;
 
           // Générer l'URL WHEP seulement si on a un host valide
           newConfig.whepUrl = host ? generateWhepUrl(host, port, newConfig.streamName) : '';
@@ -225,10 +243,19 @@ export const useMediaMTXConfigStore = create<MediaMTXConfigState>()(
             lastUpdated: Date.now(),
           };
 
-          // Recalculer l'URL WHEP selon le mode
-          const mode = state.detectedMode || 'local';
-          const host = mode === 'local' ? newConfig.raspberryPiIp : newConfig.remoteHostname;
-          const port = mode === 'local' ? newConfig.whepPort : 443;
+          // Calculer le mode effectif selon preferredMode
+          let effectiveMode: 'local' | 'remote';
+          if (newConfig.preferredMode === 'local') {
+            effectiveMode = 'local';
+          } else if (newConfig.preferredMode === 'remote') {
+            effectiveMode = 'remote';
+          } else {
+            // Mode auto: si raspberryPiIp configuré, local, sinon remote
+            effectiveMode = newConfig.raspberryPiIp ? 'local' : 'remote';
+          }
+
+          const host = effectiveMode === 'local' ? newConfig.raspberryPiIp : newConfig.remoteHostname;
+          const port = effectiveMode === 'local' ? newConfig.whepPort : 443;
 
           // Générer l'URL WHEP seulement si on a un host valide
           newConfig.whepUrl = host ? generateWhepUrl(host, port, newConfig.streamName) : '';
