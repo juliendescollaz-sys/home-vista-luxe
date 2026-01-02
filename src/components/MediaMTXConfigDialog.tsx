@@ -135,7 +135,12 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
               <div className="mt-2 p-2 bg-muted rounded-md">
                 <p className="text-xs text-muted-foreground">Endpoint WHEP généré :</p>
                 <code className="text-xs break-all">
-                  {raspberryIp.includes('.') && !raspberryIp.match(/^\d/) ? 'https' : 'http'}://{raspberryIp}:8889/akuvox/whep
+                  {(() => {
+                    const isIp = /^\d/.test(raspberryIp);
+                    const protocol = isIp ? 'http' : 'https';
+                    const port = isIp ? ':8889' : '';
+                    return `${protocol}://${raspberryIp}${port}/akuvox/whep`;
+                  })()}
                 </code>
               </div>
             )}
