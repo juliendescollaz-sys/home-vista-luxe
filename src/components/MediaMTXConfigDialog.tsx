@@ -12,6 +12,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useMediaMTXConfigStore, useIsMediaMTXConfigValid } from '@/store/useMediaMTXConfigStore';
 import { toast } from 'sonner';
 
@@ -42,6 +49,7 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
   // State local du formulaire
   const [raspberryIp, setRaspberryIp] = useState(config?.raspberryPiIp || '');
   const [remoteHostname, setRemoteHostname] = useState(config?.remoteHostname || '');
+  const [preferredMode, setPreferredMode] = useState<'auto' | 'local' | 'remote'>(config?.preferredMode || 'auto');
   const [turnUrl, setTurnUrl] = useState(turnConfig.url);
   const [turnUsername, setTurnUsername] = useState(turnConfig.username);
   const [turnCredential, setTurnCredential] = useState(turnConfig.credential);
@@ -73,6 +81,7 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
     setConfig({
       raspberryPiIp: raspberryIp,
       remoteHostname,
+      preferredMode,
     });
 
     // Sauvegarder la config TURN
@@ -228,6 +237,26 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
                 </code>
               </div>
             )}
+          </div>
+
+          {/* Sélecteur de mode de connexion */}
+          <div className="space-y-2">
+            <Label htmlFor="preferred-mode" className="text-base font-semibold">
+              Mode de connexion
+            </Label>
+            <Select value={preferredMode} onValueChange={(value: 'auto' | 'local' | 'remote') => setPreferredMode(value)}>
+              <SelectTrigger id="preferred-mode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Automatique (détection)</SelectItem>
+                <SelectItem value="local">Local forcé (HTTP)</SelectItem>
+                <SelectItem value="remote">Remote forcé (HTTPS)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Automatique : détecte le mode selon la config. Local forcé : toujours HTTP. Remote forcé : toujours HTTPS (pour contourner Mixed Content sur mobile).
+            </p>
           </div>
 
           {/* Configuration TURN (pour mode mobile) */}
