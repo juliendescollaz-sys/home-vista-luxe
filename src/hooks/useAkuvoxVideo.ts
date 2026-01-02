@@ -68,6 +68,7 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const serviceRef = useRef<AkuvoxWebRTCService | null>(null);
+  const isConnectingRef = useRef<boolean>(false); // Guard pour éviter les connexions multiples
 
   // Récupérer la config MediaMTX depuis le store
   const { config: mediaMTXConfig, turnConfig, detectedMode } = useMediaMTXConfigStore();
@@ -92,6 +93,12 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
    * Démarre la connexion WebRTC
    */
   const connect = useCallback(async () => {
+    // Guard: éviter les connexions multiples simultanées
+    if (isConnectingRef.current) {
+      console.warn('⚠️ Connection already in progress, skipping duplicate connect() call');
+      return;
+    }
+
     // Vérifier que la config est valide
     if (!isConfigValid || !mediaMTXConfig) {
       const err = 'Configuration MediaMTX invalide. Veuillez configurer l\'IP du Raspberry Pi.';
@@ -100,6 +107,7 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
       return;
     }
 
+    isConnectingRef.current = true; // Marquer comme "en cours de connexion"
     setStatus('connecting');
     setError(null);
     setStream(null);
@@ -140,6 +148,7 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
           console.log('✅ Stream received:', receivedStream);
           setStream(receivedStream);
           setStatus('connected');
+          isConnectingRef.current = false; // Connexion terminée avec succès
         },
         onConnectionStateChange: (state) => {
           console.log('🔗 Connection state changed:', state);
@@ -179,6 +188,7 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
       const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue';
       setError(errorMessage);
       setStatus('failed');
+      isConnectingRef.current = false; // Réinitialiser le guard en cas d'erreur
     }
   }, [isConfigValid, mediaMTXConfig, turnConfig, connectionMode]);
 
@@ -197,6 +207,7 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
     setStatus('disconnected');
     setIceConnectionState(null);
     setError(null);
+    isConnectingRef.current = false; // Réinitialiser le guard
   }, []);
 
   /**
@@ -205,7 +216,33 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
   useEffect(() => {
     if (stream && videoRef.current) {
       console.log('📺 Attaching stream to video element');
+      console.log('  - Stream tracks:', {
+        video: stream.getVideoTracks().length,
+        audio: stream.getAudioTracks().length,
+      });
+      console.log('  - Video element:', {
+        readyState: videoRef.current.readyState,
+        paused: videoRef.current.paused,
+        muted: videoRef.current.muted,
+        autoplay: videoRef.current.autoplay,
+        playsInline: videoRef.current.playsInline,
+      });
+
       videoRef.current.srcObject = stream;
+
+      // Vérifier si la vidéo démarre automatiquement
+      videoRef.current.play().then(() => {
+        console.log('✅ Video playback started');
+      }).catch((err) => {
+        console.error('❌ Video playback failed:', err);
+        console.log('  - Trying with muted=true...');
+        if (videoRef.current) {
+          videoRef.current.muted = true;
+          videoRef.current.play().catch((e) => {
+            console.error('❌ Video playback still failed (muted):', e);
+          });
+        }
+      });
     }
 
     return () => {
