@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, Server, Wifi, Check } from 'lucide-react';
+import { Settings, Server, Wifi, Check, Search, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMediaMTXConfigStore, useIsMediaMTXConfigValid } from '@/store/useMediaMTXConfigStore';
 import { toast } from 'sonner';
+import { discoverEdgeDevices } from '@/services/edgeDeviceDiscovery';
 
 export interface MediaMTXConfigDialogProps {
   /** Contenu du bouton trigger (par défaut: icône Settings) */
@@ -46,16 +47,19 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
   const [turnUsername, setTurnUsername] = useState(turnConfig.username);
   const [turnCredential, setTurnCredential] = useState(turnConfig.credential);
 
+  // State pour la découverte automatique
+  const [isDiscovering, setIsDiscovering] = useState(false);
+
   /**
    * Valide et sauvegarde la configuration
    */
   const handleSave = () => {
-    // Valider l'IP locale
+    // Valider l'IP locale ou hostname .local
     const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
     const hostnamePattern = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
 
-    if (!ipPattern.test(raspberryIp)) {
-      toast.error('Adresse IP locale invalide');
+    if (!ipPattern.test(raspberryIp) && !hostnamePattern.test(raspberryIp)) {
+      toast.error('Adresse IP ou hostname local invalide');
       return;
     }
 
@@ -96,6 +100,31 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
     setTurnCredential(turnConfig.credential);
   };
 
+  /**
+   * Découvre automatiquement le N100 via mDNS (neolia-n100.local)
+   */
+  const handleDiscover = async () => {
+    setIsDiscovering(true);
+
+    try {
+      const devices = await discoverEdgeDevices();
+
+      if (devices.length === 0) {
+        toast.info('Aucun N100 trouvé sur le réseau local (neolia-n100.local)');
+      } else {
+        // Un device trouvé via mDNS
+        const device = devices[0];
+        setRaspberryIp(device.ip); // C'est le hostname neolia-n100.local
+        toast.success(`N100 détecté : ${device.hostname} (${device.latency}ms)`);
+      }
+    } catch (err) {
+      console.error('Discovery error:', err);
+      toast.error('Erreur lors de la découverte automatique');
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -127,16 +156,33 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
 
             <div className="space-y-2">
               <Label htmlFor="raspberry-ip" className="text-sm text-muted-foreground">
-                Adresse IP locale
+                Adresse IP ou hostname local
               </Label>
-              <Input
-                id="raspberry-ip"
-                placeholder="Ex: 192.168.1.115"
-                value={raspberryIp}
-                onChange={(e) => setRaspberryIp(e.target.value)}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="raspberry-ip"
+                  placeholder="Ex: neolia-n100.local ou 192.168.1.115"
+                  value={raspberryIp}
+                  onChange={(e) => setRaspberryIp(e.target.value)}
+                  disabled={isDiscovering}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={handleDiscover}
+                  disabled={isDiscovering}
+                  title="Découvrir via mDNS (neolia-n100.local)"
+                >
+                  {isDiscovering ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Utilisée pour connexion directe en WiFi (même réseau local). L'app détecte automatiquement si tu es en local ou remote.
+                Utilisée pour connexion WiFi locale. Clique sur la loupe pour détecter automatiquement le N100 via mDNS.
               </p>
             </div>
 
