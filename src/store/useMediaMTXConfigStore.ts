@@ -150,18 +150,22 @@ function isCellularConnection(): boolean | null {
  */
 async function testLocalServerWithWebSocket(localIp: string, port: number): Promise<boolean> {
   return new Promise((resolve) => {
+    // Déclarer ws en premier pour éviter les problèmes de scope
+    const ws = new WebSocket(`ws://${localIp}:${port}/`);
+    let resolved = false;
+
     // Timeout de 1.5 secondes (rapide si WiFi local, échoue vite si 4G)
     const timeout = setTimeout(() => {
+      if (resolved) return;
+      resolved = true;
       console.log('⏱️ WebSocket ping timeout (likely not on local network)');
-      ws.close();
+      try { ws.close(); } catch (_) { /* ignore */ }
       resolve(false);
     }, 1500);
 
-    // Tester avec un endpoint WebSocket de MediaMTX (si disponible)
-    // Sinon, on considère que le test a échoué
-    const ws = new WebSocket(`ws://${localIp}:${port}/`);
-
     ws.onopen = () => {
+      if (resolved) return;
+      resolved = true;
       console.log('✅ WebSocket ping successful (local network)');
       clearTimeout(timeout);
       ws.close();
@@ -169,6 +173,8 @@ async function testLocalServerWithWebSocket(localIp: string, port: number): Prom
     };
 
     ws.onerror = () => {
+      if (resolved) return;
+      resolved = true;
       console.log('❌ WebSocket ping failed (not on local network)');
       clearTimeout(timeout);
       resolve(false);
