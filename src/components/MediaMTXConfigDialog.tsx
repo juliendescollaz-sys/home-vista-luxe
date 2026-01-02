@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMediaMTXConfigStore, useIsMediaMTXConfigValid } from '@/store/useMediaMTXConfigStore';
 import { toast } from 'sonner';
-import { discoverEdgeDevices } from '@/services/edgeDeviceDiscovery';
 
 export interface MediaMTXConfigDialogProps {
   /** Contenu du bouton trigger (par défaut: icône Settings) */
@@ -101,25 +100,25 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
   };
 
   /**
-   * Découvre automatiquement le N100 via mDNS (neolia-n100.local)
+   * Configure automatiquement le hostname mDNS standard (neolia-n100.local)
+   * Le test de connexion se fera lors de la connexion vidéo pour éviter les erreurs Mixed Content
    */
   const handleDiscover = async () => {
     setIsDiscovering(true);
 
     try {
-      const devices = await discoverEdgeDevices();
+      const MDNS_HOSTNAME = 'neolia-n100.local';
 
-      if (devices.length === 0) {
-        toast.info('Aucun N100 trouvé sur le réseau local (neolia-n100.local)');
-      } else {
-        // Un device trouvé via mDNS
-        const device = devices[0];
-        setRaspberryIp(device.ip); // C'est le hostname neolia-n100.local
-        toast.success(`N100 détecté : ${device.hostname} (${device.latency}ms)`);
-      }
+      // Configurer directement le hostname mDNS standard
+      // Le test HTTP est impossible depuis HTTPS (Mixed Content), le vrai test se fera lors de la connexion WebRTC
+      setRaspberryIp(MDNS_HOSTNAME);
+
+      toast.success(`Configuration automatique : ${MDNS_HOSTNAME}`, {
+        description: 'Le test de connexion se fera lors de la connexion vidéo',
+      });
     } catch (err) {
       console.error('Discovery error:', err);
-      toast.error('Erreur lors de la découverte automatique');
+      toast.error('Erreur lors de la configuration automatique');
     } finally {
       setIsDiscovering(false);
     }
