@@ -40,8 +40,7 @@
     
     <!-- Service Worker Registration -->
     <script>
-      // IMPORTANT: ne pas activer le Service Worker sur les domaines de preview (sinon cache 
-      // persistant  écran blanc). On le garde pour les domaines "réels".
+      // IMPORTANT: ne pas activer le Service Worker sur les domaines de preview (sinon le cache persistant peut provoquer un écran blanc). On le garde pour les domaines "réels".
       const host = window.location.hostname;
       const isPreviewHost = host.endsWith(".lovableproject.com") || host.endsWith(".lovable.app") || host === "localhost" || host === "127.0.0.1";
 
