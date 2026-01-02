@@ -12,7 +12,8 @@
       "Bash(git merge:*)",
       "Bash(ssh:*)",
       "Bash(git fetch:*)",
-      "Bash(git rebase:*)"
+      "Bash(git rebase:*)",
+      "Bash(curl:*)"
     ]
   }
 }

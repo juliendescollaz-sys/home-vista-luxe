@@ -25,6 +25,9 @@ export interface MediaMTXConfig {
   /** URL complète du endpoint WHEP (calculée automatiquement selon le mode) */
   whepUrl: string;
 
+  /** Mode de connexion préféré: 'auto' (détection), 'local' (forcé), ou 'remote' (forcé) */
+  preferredMode: 'auto' | 'local' | 'remote';
+
   /** Dernière mise à jour de la config */
   lastUpdated: number;
 }
@@ -102,7 +105,8 @@ const DEFAULT_TURN_CONFIG: TurnServerConfig = {
 
 const DEFAULT_WHEP_PORT = 8889;
 const DEFAULT_STREAM_NAME = 'akuvox';
-const DEFAULT_REMOTE_HOSTNAME = '';
+const DEFAULT_REMOTE_HOSTNAME = 'webrtc.neolia.app';
+const DEFAULT_PREFERRED_MODE = 'auto';
 
 /**
  * Teste si le serveur local (N100) est accessible
@@ -146,6 +150,7 @@ export const useMediaMTXConfigStore = create<MediaMTXConfigState>()(
             whepPort: DEFAULT_WHEP_PORT,
             remoteHostname: DEFAULT_REMOTE_HOSTNAME,
             streamName: DEFAULT_STREAM_NAME,
+            preferredMode: DEFAULT_PREFERRED_MODE as 'auto' | 'local' | 'remote',
             whepUrl: '',
             lastUpdated: Date.now(),
           };
@@ -177,6 +182,7 @@ export const useMediaMTXConfigStore = create<MediaMTXConfigState>()(
             whepPort: DEFAULT_WHEP_PORT,
             remoteHostname: DEFAULT_REMOTE_HOSTNAME,
             streamName: DEFAULT_STREAM_NAME,
+            preferredMode: DEFAULT_PREFERRED_MODE as 'auto' | 'local' | 'remote',
             whepUrl: '',
             lastUpdated: Date.now(),
           };
@@ -208,6 +214,7 @@ export const useMediaMTXConfigStore = create<MediaMTXConfigState>()(
             whepPort: DEFAULT_WHEP_PORT,
             remoteHostname: hostname,
             streamName: DEFAULT_STREAM_NAME,
+            preferredMode: DEFAULT_PREFERRED_MODE as 'auto' | 'local' | 'remote',
             whepUrl: '',
             lastUpdated: Date.now(),
           };
@@ -268,8 +275,23 @@ export const useMediaMTXConfigStore = create<MediaMTXConfigState>()(
         const state = get();
         const config = state.config;
 
+        // Si l'utilisateur a forcé un mode, l'utiliser
+        if (config?.preferredMode === 'local') {
+          console.log('📡 Network mode: local (forced by user)');
+          get().setDetectedMode('local');
+          return 'local';
+        }
+
+        if (config?.preferredMode === 'remote') {
+          console.log('📡 Network mode: remote (forced by user)');
+          get().setDetectedMode('remote');
+          return 'remote';
+        }
+
+        // Mode auto: détection automatique
         if (!config || !config.raspberryPiIp) {
           // Pas de config locale, utiliser le mode remote
+          console.log('📡 Network mode: remote (no local config)');
           get().setDetectedMode('remote');
           return 'remote';
         }
@@ -277,7 +299,7 @@ export const useMediaMTXConfigStore = create<MediaMTXConfigState>()(
         // Si raspberryPiIp est configuré, utiliser le mode local
         // La détection HTTP depuis HTTPS ne fonctionne pas (Mixed Content)
         // On se base uniquement sur la présence de la config
-        console.log('📡 Network mode detected: local (raspberryPiIp configured)');
+        console.log('📡 Network mode: local (raspberryPiIp configured)');
         get().setDetectedMode('local');
         return 'local';
       },
