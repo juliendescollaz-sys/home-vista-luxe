@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { safePersist as persist } from "@/lib/persistMiddleware";
 import type { NeoliaGroup, HaGroupDomain, GroupScope, GroupMode } from "@/types/groups";
 import { getGroupScope, getGroupMode } from "@/types/groups";
 import {

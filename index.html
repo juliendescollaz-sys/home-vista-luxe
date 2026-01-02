@@ -40,10 +40,29 @@
     
     <!-- Service Worker Registration -->
     <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
-        });
+      // IMPORTANT: ne pas activer le Service Worker sur les domaines de preview (sinon cache 
+      // persistant  écran blanc). On le garde pour les domaines "réels".
+      const host = window.location.hostname;
+      const isPreviewHost = host.endsWith(".lovableproject.com") || host.endsWith(".lovable.app") || host === "localhost" || host === "127.0.0.1";
+
+      if ("serviceWorker" in navigator) {
+        if (!isPreviewHost) {
+          window.addEventListener("load", () => {
+            navigator.serviceWorker.register("/sw.js").catch(() => {});
+          });
+        } else {
+          // En preview: désenregistrer + vider les caches pour éviter une app figée
+          window.addEventListener("load", async () => {
+            try {
+              const regs = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(regs.map((r) => r.unregister()));
+            } catch {}
+            try {
+              const keys = await caches.keys();
+              await Promise.all(keys.map((k) => caches.delete(k)));
+            } catch {}
+          });
+        }
       }
     </script>
   </body>

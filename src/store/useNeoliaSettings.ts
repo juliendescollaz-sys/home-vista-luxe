@@ -1,7 +1,7 @@
 // src/store/useNeoliaSettings.ts
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { safePersist as persist } from "@/lib/persistMiddleware";
 import { isPanelMode } from "@/lib/platform";
 import { DEFAULT_MQTT_PORT, DEV_DEFAULT_MQTT_HOST } from "@/config/networkDefaults";
 

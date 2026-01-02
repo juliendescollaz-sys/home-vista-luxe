@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { safePersist as persist } from "@/lib/persistMiddleware";
 import { SmartAutomation, SmartTrigger, SmartAction, ConditionBlock } from "@/types/smart";
 import { useHAStore } from "./useHAStore";
 
