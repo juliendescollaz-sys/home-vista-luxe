@@ -274,14 +274,12 @@ export const useMediaMTXConfigStore = create<MediaMTXConfigState>()(
           return 'remote';
         }
 
-        console.log('🔍 Detecting network mode...');
-        const isLocalAvailable = await isLocalServerAccessible(config.raspberryPiIp, config.whepPort);
-
-        const mode = isLocalAvailable ? 'local' : 'remote';
-        console.log(`📡 Network mode detected: ${mode} ${isLocalAvailable ? '(N100 accessible)' : '(using VPS)'}`);
-
-        get().setDetectedMode(mode);
-        return mode;
+        // Si raspberryPiIp est configuré, utiliser le mode local
+        // La détection HTTP depuis HTTPS ne fonctionne pas (Mixed Content)
+        // On se base uniquement sur la présence de la config
+        console.log('📡 Network mode detected: local (raspberryPiIp configured)');
+        get().setDetectedMode('local');
+        return 'local';
       },
 
       reset: () =>
