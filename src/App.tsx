@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { lazy, Suspense, useEffect, useState, useRef } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "next-themes";
@@ -15,17 +15,16 @@ import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useOrientationLock } from "@/hooks/useOrientationLock";
 import { OrientationOverlay } from "@/components/OrientationOverlay";
 import { IOSVisibilityGuard } from "@/components/IOSVisibilityGuard";
-
-// Lazy load tous les composants lourds
-const MobileRootLayout = lazy(() => import("@/ui/mobile/MobileRootLayout").then(m => ({ default: m.MobileRootLayout })));
-const TabletRootLayout = lazy(() => import("@/ui/tablet/TabletRootLayout").then(m => ({ default: m.TabletRootLayout })));
-const PanelRootLayout = lazy(() => import("@/ui/panel/PanelRootLayout").then(m => ({ default: m.PanelRootLayout })));
-const PanelOnboarding = lazy(() => import("@/ui/panel/PanelOnboarding").then(m => ({ default: m.PanelOnboarding })));
-const Onboarding = lazy(() => import("@/pages/Onboarding"));
-const Auth = lazy(() => import("@/pages/Auth"));
-const Admin = lazy(() => import("@/pages/Admin"));
-const OnboardingScan = lazy(() => import("@/pages/OnboardingScan"));
-const OnboardingManual = lazy(() => import("@/pages/OnboardingManual"));
+import { MobileRootLayout } from "@/ui/mobile/MobileRootLayout";
+import { TabletRootLayout } from "@/ui/tablet/TabletRootLayout";
+import { PanelRootLayout } from "@/ui/panel/PanelRootLayout";
+import { PanelOnboarding } from "@/ui/panel/PanelOnboarding";
+import Onboarding from "@/pages/Onboarding";
+import Auth from "@/pages/Auth";
+import Admin from "@/pages/Admin";
+import OnboardingScan from "@/pages/OnboardingScan";
+import OnboardingManual from "@/pages/OnboardingManual";
+import { sipService } from "@/services/sipService";
 
 const queryClient = new QueryClient();
 
@@ -126,25 +125,23 @@ const App = () => {
   useHAClient();
   useHARefreshOnForeground();
 
-  // Initialize SIP client dynamiquement pour éviter les erreurs au chargement
-  const sipServiceRef = useRef<any>(null);
-  
+  // Initialize SIP client
   useEffect(() => {
-    // Import dynamique de sipService
-    import('@/services/sipService').then(({ sipService }) => {
-      sipServiceRef.current = sipService;
+    try {
       sipService.init({
         uri: 'sip:201@sip.neolia.ch',
         password: 'neolia123',
         wsServers: 'wss://sip.neolia.ch/ws',
         displayName: 'Neolia App',
       });
-    }).catch((error) => {
-      console.warn('[SIP] Impossible de charger le service SIP:', error);
-    });
+    } catch (error) {
+      console.warn('[SIP] Impossible d\'initialiser le service SIP:', error);
+    }
 
     return () => {
-      sipServiceRef.current?.disconnect();
+      try {
+        sipService.disconnect();
+      } catch {}
     };
   }, []);
 
