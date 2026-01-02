@@ -191,34 +191,12 @@ export class AkuvoxWebRTCService {
       if (state) {
         this.callbacks.onIceConnectionStateChange?.(state);
       }
-
-      // Détecter les problèmes de connexion ICE
-      if (state === 'disconnected') {
-        console.warn('⚠️ ICE disconnected - connection may be unstable');
-      }
-
-      if (state === 'failed') {
-        console.error('❌ ICE failed - connection cannot be established');
-        this.callbacks.onError?.(new Error('ICE connection failed'));
-      }
     };
 
     // Logger les ICE candidates (debug)
     this.pc.onicecandidate = (event) => {
       if (event.candidate) {
-        const candidate = event.candidate.candidate;
-        console.log('🧊 ICE candidate:', candidate);
-
-        // Identifier le type de candidate (host, srflx, relay)
-        if (candidate.includes('typ host')) {
-          console.log('  → Type: HOST (direct local)');
-        } else if (candidate.includes('typ srflx')) {
-          console.log('  → Type: SRFLX (STUN reflexive)');
-        } else if (candidate.includes('typ relay')) {
-          console.log('  → Type: RELAY (TURN relay) ✅');
-        }
-      } else {
-        console.log('🧊 ICE gathering complete');
+        console.log('🧊 ICE candidate:', event.candidate.candidate);
       }
     };
 

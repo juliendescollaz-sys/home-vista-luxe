@@ -13,8 +13,7 @@
       "Bash(ssh:*)",
       "Bash(git fetch:*)",
       "Bash(git rebase:*)",
-      "Bash(curl:*)",
-      "Bash(npx vite build)"
+      "Bash(curl:*)"
     ]
   }
 }
