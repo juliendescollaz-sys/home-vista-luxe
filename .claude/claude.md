@@ -1,7 +1,7 @@
 # Contexte projet Home Vista Luxe
 
 ## Communication
-- **TOUJOURS tutoyer l'utilisatrice (Julie)**
+- **TOUJOURS tutoyer l'utilisateur (Julien)**
 - Ton direct et concis, pas de formules de politesse excessives
 
 ## Workflow Git
