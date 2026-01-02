@@ -305,13 +305,19 @@ export function useIsMediaMTXConfigValid(): boolean {
 
   if (!config) return false;
 
-  // Vérifier que l'IP/hostname local ET le hostname distant sont renseignés et valides
+  // Les deux champs sont optionnels :
+  // - Si pas d'interphone : aucun champ requis
+  // - Si uniquement remote : seul le hostname distant est renseigné
+  // - Si uniquement local : seule l'IP/hostname local est renseigné
+  // - Si les deux : les deux sont renseignés
   const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
   const hostnamePattern = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
 
-  // Accepter IP ou hostname pour le serveur local
-  const isValidLocal = ipPattern.test(config.raspberryPiIp) || hostnamePattern.test(config.raspberryPiIp);
-  const isValidRemoteHostname = hostnamePattern.test(config.remoteHostname);
+  // Si l'IP/hostname local est fourni, il doit être valide
+  const isValidLocal = !config.raspberryPiIp || ipPattern.test(config.raspberryPiIp) || hostnamePattern.test(config.raspberryPiIp);
+
+  // Si le hostname distant est fourni, il doit être valide
+  const isValidRemoteHostname = !config.remoteHostname || hostnamePattern.test(config.remoteHostname);
 
   return isValidLocal && isValidRemoteHostname && config.whepPort > 0;
 }

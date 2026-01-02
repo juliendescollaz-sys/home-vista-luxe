@@ -53,16 +53,18 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
    * Valide et sauvegarde la configuration
    */
   const handleSave = () => {
-    // Valider l'IP locale ou hostname .local
+    // Les deux champs sont optionnels, mais s'ils sont renseignés, ils doivent être valides
     const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
     const hostnamePattern = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
 
-    if (!ipPattern.test(raspberryIp) && !hostnamePattern.test(raspberryIp)) {
+    // Valider l'IP/hostname local s'il est renseigné
+    if (raspberryIp && !ipPattern.test(raspberryIp) && !hostnamePattern.test(raspberryIp)) {
       toast.error('Adresse IP ou hostname local invalide');
       return;
     }
 
-    if (!hostnamePattern.test(remoteHostname)) {
+    // Valider le hostname distant s'il est renseigné
+    if (remoteHostname && !hostnamePattern.test(remoteHostname)) {
       toast.error('Hostname distant invalide');
       return;
     }
@@ -150,7 +152,7 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
           {/* Configuration locale (N100) */}
           <div className="space-y-2">
             <Label htmlFor="raspberry-ip" className="text-base font-semibold">
-              Serveur local (N100)
+              Serveur local (N100) <span className="text-sm font-normal text-muted-foreground">(optionnel)</span>
             </Label>
 
             <div className="space-y-2">
@@ -199,7 +201,7 @@ export function MediaMTXConfigDialog({ trigger, onSaved }: MediaMTXConfigDialogP
           {/* Configuration distante (VPS) */}
           <div className="space-y-2">
             <Label htmlFor="remote-hostname" className="text-base font-semibold">
-              Serveur distant (VPS)
+              Serveur distant (VPS) <span className="text-sm font-normal text-muted-foreground">(optionnel)</span>
             </Label>
 
             <div className="space-y-2">
