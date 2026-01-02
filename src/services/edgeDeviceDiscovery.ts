@@ -67,7 +67,7 @@ async function testEdgeDevice(hostname: string, port: number): Promise<EdgeDevic
  * @returns Liste des devices trouvés (normalement 1 seul par réseau)
  */
 export async function discoverEdgeDevices(): Promise<EdgeDevice[]> {
-  const PORT = 8890; // Caddy proxy devant MediaMTX
+  const PORT = 8889; // MediaMTX WHEP endpoint
   const MDNS_HOSTNAME = 'neolia-n100.local';
 
   console.log('🔍 Starting edge device discovery via mDNS...');
