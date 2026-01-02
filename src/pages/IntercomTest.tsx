@@ -13,6 +13,7 @@ import { useAkuvoxVideo } from "@/hooks/useAkuvoxVideo";
 import { useIsMediaMTXConfigValid } from "@/store/useMediaMTXConfigStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { DebugConsole } from "@/components/DebugConsole";
 
 export default function IntercomTest() {
   const [isSimulating, setIsSimulating] = useState(false);
@@ -357,6 +358,9 @@ export default function IntercomTest() {
           {errorLiveKit}
         </div>
       )}
+
+      {/* Debug Console */}
+      <DebugConsole />
     </div>
   );
 }
