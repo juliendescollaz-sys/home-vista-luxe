@@ -129,26 +129,27 @@ export class AkuvoxWebRTCService {
    * Crée la RTCPeerConnection avec la bonne configuration ICE
    */
   private createPeerConnection(config: AkuvoxWebRTCConfig): RTCPeerConnection {
-    const iceServers: RTCIceServer[] = [];
+    const iceServers: RTCIceServer[] = [
+      // STUN server pour P2P en local (tous les modes)
+      { urls: 'stun:stun.l.google.com:19302' },
+    ];
 
-    // Ajouter TURN en mode mobile/tablet
+    // Ajouter TURN en fallback pour mobile/tablet
     if (config.mode === 'mobile' && config.turnConfig) {
       iceServers.push({
         urls: config.turnConfig.url,
         username: config.turnConfig.username,
         credential: config.turnConfig.credential,
       });
-      console.log('🌐 Using TURN relay for remote connection (forced relay mode)');
+      console.log('🌐 TURN server available for fallback (mobile/tablet mode)');
     } else {
-      // Mode Panel: STUN seulement
-      iceServers.push({ urls: 'stun:stun.l.google.com:19302' });
-      console.log('🏠 Using direct LAN connection (Panel mode)');
+      console.log('🏠 Panel mode - P2P only');
     }
 
     return new RTCPeerConnection({
       iceServers,
-      // Force relay mode en mobile pour passer par TURN
-      iceTransportPolicy: config.mode === 'mobile' ? 'relay' : 'all',
+      // Toujours essayer P2P d'abord, TURN en fallback si P2P échoue
+      iceTransportPolicy: 'all',
     });
   }
 
