@@ -154,11 +154,12 @@ export const useMediaMTXConfigStore = create<MediaMTXConfigState>()(
           };
 
           // Recalculer l'URL WHEP selon le mode détecté
-          const mode = state.detectedMode || 'remote';
+          const mode = state.detectedMode || 'local';
           const host = mode === 'local' ? newConfig.raspberryPiIp : newConfig.remoteHostname;
           const port = mode === 'local' ? newConfig.whepPort : 443;
 
-          newConfig.whepUrl = generateWhepUrl(host, port, newConfig.streamName);
+          // Générer l'URL WHEP seulement si on a un host valide
+          newConfig.whepUrl = host ? generateWhepUrl(host, port, newConfig.streamName) : '';
 
           return {
             config: newConfig,
@@ -184,11 +185,12 @@ export const useMediaMTXConfigStore = create<MediaMTXConfigState>()(
           };
 
           // Recalculer l'URL WHEP selon le mode
-          const mode = state.detectedMode || 'remote';
+          const mode = state.detectedMode || 'local';
           const host = mode === 'local' ? newConfig.raspberryPiIp : newConfig.remoteHostname;
           const port = mode === 'local' ? newConfig.whepPort : 443;
 
-          newConfig.whepUrl = generateWhepUrl(host, port, newConfig.streamName);
+          // Générer l'URL WHEP seulement si on a un host valide
+          newConfig.whepUrl = host ? generateWhepUrl(host, port, newConfig.streamName) : '';
 
           return {
             config: newConfig,
@@ -214,11 +216,12 @@ export const useMediaMTXConfigStore = create<MediaMTXConfigState>()(
           };
 
           // Recalculer l'URL WHEP selon le mode
-          const mode = state.detectedMode || 'remote';
+          const mode = state.detectedMode || 'local';
           const host = mode === 'local' ? newConfig.raspberryPiIp : newConfig.remoteHostname;
           const port = mode === 'local' ? newConfig.whepPort : 443;
 
-          newConfig.whepUrl = generateWhepUrl(host, port, newConfig.streamName);
+          // Générer l'URL WHEP seulement si on a un host valide
+          newConfig.whepUrl = host ? generateWhepUrl(host, port, newConfig.streamName) : '';
 
           return {
             config: newConfig,
@@ -246,7 +249,8 @@ export const useMediaMTXConfigStore = create<MediaMTXConfigState>()(
           const host = mode === 'local' ? state.config.raspberryPiIp : state.config.remoteHostname;
           const port = mode === 'local' ? state.config.whepPort : 443;
 
-          const newWhepUrl = generateWhepUrl(host, port, state.config.streamName);
+          // Générer l'URL WHEP seulement si on a un host valide
+          const newWhepUrl = host ? generateWhepUrl(host, port, state.config.streamName) : '';
 
           set({
             config: {
