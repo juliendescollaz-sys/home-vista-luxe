@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useHAStore } from "@/store/useHAStore";
 import { getHACredentials } from "@/lib/crypto";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
@@ -11,8 +11,15 @@ import {
 export function useInitializeConnection() {
   const [isInitialized, setIsInitialized] = useState(false);
   const { displayMode } = useDisplayMode();
+  const initAttempted = useRef(false);
 
   useEffect(() => {
+    // Ne pas réinitialiser si déjà fait
+    if (initAttempted.current) {
+      return;
+    }
+    
+    initAttempted.current = true;
     console.log("[NEOLIA] useInitializeConnection - démarrage, displayMode:", displayMode);
     
     const initializeConnection = async () => {
@@ -109,8 +116,22 @@ export function useInitializeConnection() {
       }
     };
 
-    initializeConnection();
-  }, [displayMode]);
+    // Exécuter l'initialisation mais avec un timeout de sécurité
+    const timeoutId = setTimeout(() => {
+      if (!isInitialized) {
+        console.warn("[NEOLIA] Timeout d'initialisation atteint, forçage");
+        setIsInitialized(true);
+      }
+    }, 3000);
+
+    initializeConnection().finally(() => {
+      clearTimeout(timeoutId);
+    });
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, []); // Pas de dépendance sur displayMode pour éviter les re-runs
 
   return isInitialized;
 }

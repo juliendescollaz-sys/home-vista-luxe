@@ -3,14 +3,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, useRef } from "react";
 import { useHAStore } from "@/store/useHAStore";
-import { sipService } from '@/services/sipService';
-import { useIntercomStore } from '@/store/intercomStore';
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "next-themes";
-import Onboarding from "@/pages/Onboarding";
-import Auth from "@/pages/Auth";
 import { useAuth } from "@/hooks/useAuth";
 import { useInitializeConnection } from "@/hooks/useInitializeConnection";
 import { useHAClient } from "@/hooks/useHAClient";
@@ -19,17 +15,28 @@ import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useOrientationLock } from "@/hooks/useOrientationLock";
 import { OrientationOverlay } from "@/components/OrientationOverlay";
 import { IOSVisibilityGuard } from "@/components/IOSVisibilityGuard";
-import { MobileRootLayout } from "@/ui/mobile/MobileRootLayout";
-import { TabletRootLayout } from "@/ui/tablet/TabletRootLayout";
-import { PanelRootLayout } from "@/ui/panel/PanelRootLayout";
-import { PanelOnboarding } from "@/ui/panel/PanelOnboarding";
 
-// Lazy load pages avec dependencies lourdes
+// Lazy load tous les composants lourds
+const MobileRootLayout = lazy(() => import("@/ui/mobile/MobileRootLayout").then(m => ({ default: m.MobileRootLayout })));
+const TabletRootLayout = lazy(() => import("@/ui/tablet/TabletRootLayout").then(m => ({ default: m.TabletRootLayout })));
+const PanelRootLayout = lazy(() => import("@/ui/panel/PanelRootLayout").then(m => ({ default: m.PanelRootLayout })));
+const PanelOnboarding = lazy(() => import("@/ui/panel/PanelOnboarding").then(m => ({ default: m.PanelOnboarding })));
+const Onboarding = lazy(() => import("@/pages/Onboarding"));
+const Auth = lazy(() => import("@/pages/Auth"));
 const Admin = lazy(() => import("@/pages/Admin"));
 const OnboardingScan = lazy(() => import("@/pages/OnboardingScan"));
 const OnboardingManual = lazy(() => import("@/pages/OnboardingManual"));
 
 const queryClient = new QueryClient();
+
+// Composant de chargement réutilisable (déclaré tôt pour être utilisé partout)
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="animate-pulse text-muted-foreground">Chargement...</div>
+    </div>
+  );
+}
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const connection = useHAStore((state) => state.connection);
@@ -89,7 +96,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!hasValidConnection) {
     if (displayMode === "panel") {
-      if (!panelOnboardingCompleted) return <PanelOnboarding />;
+      if (!panelOnboardingCompleted) return <Suspense fallback={<LoadingScreen />}><PanelOnboarding /></Suspense>;
     } else {
       return <Navigate to="/onboarding" />;
     }
@@ -119,17 +126,25 @@ const App = () => {
   useHAClient();
   useHARefreshOnForeground();
 
-  // Initialize SIP client
+  // Initialize SIP client dynamiquement pour éviter les erreurs au chargement
+  const sipServiceRef = useRef<any>(null);
+  
   useEffect(() => {
-    sipService.init({
-      uri: 'sip:201@sip.neolia.ch',
-      password: 'neolia123',
-      wsServers: 'wss://sip.neolia.ch/ws',
-      displayName: 'Neolia App',
+    // Import dynamique de sipService
+    import('@/services/sipService').then(({ sipService }) => {
+      sipServiceRef.current = sipService;
+      sipService.init({
+        uri: 'sip:201@sip.neolia.ch',
+        password: 'neolia123',
+        wsServers: 'wss://sip.neolia.ch/ws',
+        displayName: 'Neolia App',
+      });
+    }).catch((error) => {
+      console.warn('[SIP] Impossible de charger le service SIP:', error);
     });
 
     return () => {
-      sipService.disconnect();
+      sipServiceRef.current?.disconnect();
     };
   }, []);
 
@@ -175,11 +190,11 @@ const App = () => {
 
               <BrowserRouter>
                 <Routes>
-                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/auth" element={<Suspense fallback={<LoadingScreen />}><Auth /></Suspense>} />
 
                   <Route
                     path="/onboarding"
-                    element={displayMode === "panel" ? <PanelOnboarding /> : <Onboarding />}
+                    element={<Suspense fallback={<LoadingScreen />}>{displayMode === "panel" ? <PanelOnboarding /> : <Onboarding />}</Suspense>}
                   />
                   <Route
                     path="/onboarding/scan"
@@ -231,22 +246,14 @@ function AppContent({ displayMode }: { displayMode: "mobile" | "tablet" | "panel
   const { showRotateOverlay, showPortraitSuggestion } = useOrientationLock(displayMode);
 
   return (
-    <>
+    <Suspense fallback={<LoadingScreen />}>
       {showRotateOverlay && <OrientationOverlay type="blocking" />}
       {showPortraitSuggestion && <OrientationOverlay type="suggestion" />}
 
       {displayMode === "panel" && <PanelRootLayout />}
       {displayMode === "tablet" && <TabletRootLayout />}
       {displayMode === "mobile" && <MobileRootLayout />}
-    </>
-  );
-}
-
-function LoadingScreen() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="animate-pulse text-muted-foreground">Chargement...</div>
-    </div>
+    </Suspense>
   );
 }
 
