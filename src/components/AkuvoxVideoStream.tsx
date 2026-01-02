@@ -57,12 +57,14 @@ export function AkuvoxVideoStream({
     connectionMode,
   } = useAkuvoxVideo();
 
-  // Auto-connect si demandé
+  // Auto-connect si demandé (une seule fois au montage si autoConnect)
   useEffect(() => {
     if (autoConnect && isConfigValid && status === 'idle') {
+      console.log('🚀 Auto-connect triggered');
       connect();
     }
-  }, [autoConnect, isConfigValid, status, connect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoConnect, isConfigValid, status]); // Ne PAS inclure 'connect' pour éviter la boucle
 
   // Appeler les callbacks
   useEffect(() => {
@@ -165,6 +167,7 @@ export function AkuvoxVideoStream({
         ref={videoRef}
         autoPlay
         playsInline
+        muted
         controls={false}
         className="w-full h-full object-cover"
       />
