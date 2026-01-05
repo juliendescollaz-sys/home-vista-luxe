@@ -30,7 +30,7 @@ export function SIPConfigDialog() {
   // Formulaire local
   const [uri, setUri] = useState(config?.uri || '');
   const [password, setPassword] = useState(config?.password || '');
-  const [wsServers, setWsServers] = useState(config?.wsServers || 'wss://neolia-sip.com:443');
+  const [wsServers, setWsServers] = useState(config?.wsServers || 'wss://sip.neolia.app:8443');
   const [displayName, setDisplayName] = useState(config?.displayName || 'Julien');
 
   const handleSave = () => {
@@ -69,7 +69,7 @@ export function SIPConfigDialog() {
     setConfig(null);
     setUri('');
     setPassword('');
-    setWsServers('wss://neolia-sip.com:443');
+    setWsServers('wss://sip.neolia.app:8443');
     setDisplayName('Julien');
     toast.info('Configuration SIP réinitialisée');
     setOpen(false);
@@ -99,7 +99,7 @@ export function SIPConfigDialog() {
             <Label htmlFor="uri">URI SIP *</Label>
             <Input
               id="uri"
-              placeholder="sip:julien@neolia-sip.com"
+              placeholder="sip:julien@sip.neolia.app"
               value={uri}
               onChange={(e) => setUri(e.target.value)}
             />
@@ -125,7 +125,7 @@ export function SIPConfigDialog() {
             <Label htmlFor="wsServers">Serveur WebSocket *</Label>
             <Input
               id="wsServers"
-              placeholder="wss://neolia-sip.com:443"
+              placeholder="wss://sip.neolia.app:8443"
               value={wsServers}
               onChange={(e) => setWsServers(e.target.value)}
             />
