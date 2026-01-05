@@ -119,19 +119,8 @@ const App = () => {
   useHAClient();
   useHARefreshOnForeground();
 
-  // Initialize SIP client
-  useEffect(() => {
-    sipService.init({
-      uri: 'sip:201@sip.neolia.ch',
-      password: 'neolia123',
-      wsServers: 'wss://sip.neolia.ch/ws',
-      displayName: 'Neolia App',
-    });
-
-    return () => {
-      sipService.disconnect();
-    };
-  }, []);
+  // SIP client is initialized from IntercomTest page using saved config
+  // Don't initialize here with hardcoded values
 
   useEffect(() => {
     let lastTouchEnd = 0;
