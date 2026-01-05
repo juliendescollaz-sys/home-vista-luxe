@@ -310,6 +310,8 @@ export default function IntercomTest() {
         // Nouveau système: Akuvox WebRTC
         <AkuvoxVideoStream
           autoConnect={true}
+          enableMicrophone={true}
+          showMicrophoneControl={true}
           showDebugInfo={import.meta.env.DEV}
           className="w-full h-full"
           onConnected={() => console.log('Akuvox stream connected')}
