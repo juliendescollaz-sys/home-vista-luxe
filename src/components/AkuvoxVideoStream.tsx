@@ -1,17 +1,24 @@
 import { useEffect } from 'react';
-import { Video, VideoOff, Loader2, WifiOff, Wifi } from 'lucide-react';
+import { Video, VideoOff, Loader2, WifiOff, Wifi, Mic, MicOff } from 'lucide-react';
 import { useAkuvoxVideo } from '@/hooks/useAkuvoxVideo';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 export interface AkuvoxVideoStreamProps {
   /** Démarre automatiquement la connexion au montage du composant */
   autoConnect?: boolean;
+
+  /** Activer l'audio bidirectionnel (micro) */
+  enableMicrophone?: boolean;
 
   /** Classe CSS personnalisée pour le conteneur */
   className?: string;
 
   /** Afficher les contrôles de debug (statut, ICE state, etc.) */
   showDebugInfo?: boolean;
+
+  /** Afficher le bouton de contrôle du micro */
+  showMicrophoneControl?: boolean;
 
   /** Callback appelé quand la connexion est établie */
   onConnected?: () => void;
@@ -40,8 +47,10 @@ export interface AkuvoxVideoStreamProps {
  */
 export function AkuvoxVideoStream({
   autoConnect = false,
+  enableMicrophone = false,
   className,
   showDebugInfo = false,
+  showMicrophoneControl = true,
   onConnected,
   onError,
 }: AkuvoxVideoStreamProps) {
@@ -55,16 +64,18 @@ export function AkuvoxVideoStream({
     disconnect,
     isConfigValid,
     connectionMode,
+    setMicrophoneEnabled,
+    isMicrophoneEnabled,
   } = useAkuvoxVideo();
 
   // Auto-connect si demandé (une seule fois au montage si autoConnect)
   useEffect(() => {
     if (autoConnect && isConfigValid && status === 'idle') {
-      console.log('🚀 Auto-connect triggered');
-      connect();
+      console.log('🚀 Auto-connect triggered (microphone:', enableMicrophone ? 'enabled' : 'disabled', ')');
+      connect(enableMicrophone);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoConnect, isConfigValid, status]); // Ne PAS inclure 'connect' pour éviter la boucle
+  }, [autoConnect, isConfigValid, status, enableMicrophone]); // Ne PAS inclure 'connect' pour éviter la boucle
 
   // Appeler les callbacks
   useEffect(() => {
@@ -182,6 +193,24 @@ export function AkuvoxVideoStream({
         </div>
       )}
 
+      {/* Contrôle du micro */}
+      {showMicrophoneControl && enableMicrophone && status === 'connected' && (
+        <div className="absolute bottom-4 right-4">
+          <Button
+            size="icon"
+            variant={isMicrophoneEnabled ? "default" : "destructive"}
+            className="h-12 w-12 rounded-full shadow-lg"
+            onClick={() => setMicrophoneEnabled(!isMicrophoneEnabled)}
+          >
+            {isMicrophoneEnabled ? (
+              <Mic className="h-6 w-6" />
+            ) : (
+              <MicOff className="h-6 w-6" />
+            )}
+          </Button>
+        </div>
+      )}
+
       {/* Debug info overlay */}
       {showDebugInfo && (
         <div className="absolute top-2 left-2 bg-black/75 text-white text-xs p-2 rounded space-y-1">
@@ -194,6 +223,16 @@ export function AkuvoxVideoStream({
           {stream && (
             <div>
               Stream: {stream.getVideoTracks().length}v / {stream.getAudioTracks().length}a
+            </div>
+          )}
+          {enableMicrophone && (
+            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/20">
+              {isMicrophoneEnabled ? (
+                <Mic className="h-3 w-3 text-green-500" />
+              ) : (
+                <MicOff className="h-3 w-3 text-red-500" />
+              )}
+              <span>Micro: {isMicrophoneEnabled ? 'ON' : 'OFF'}</span>
             </div>
           )}
         </div>

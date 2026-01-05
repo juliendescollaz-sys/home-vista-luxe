@@ -31,7 +31,7 @@ export interface UseAkuvoxVideoResult {
   error: string | null;
 
   /** Démarre la connexion */
-  connect: () => Promise<void>;
+  connect: (enableMicrophone?: boolean) => Promise<void>;
 
   /** Ferme la connexion */
   disconnect: () => void;
@@ -41,6 +41,12 @@ export interface UseAkuvoxVideoResult {
 
   /** Mode de connexion détecté (panel ou mobile) */
   connectionMode: ConnectionMode;
+
+  /** Active/désactive le micro */
+  setMicrophoneEnabled: (enabled: boolean) => void;
+
+  /** Vérifie si le micro est activé */
+  isMicrophoneEnabled: boolean;
 }
 
 /**
@@ -65,6 +71,7 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
   const [iceConnectionState, setIceConnectionState] = useState<RTCIceConnectionState | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isMicrophoneEnabled, setIsMicrophoneEnabled] = useState<boolean>(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const serviceRef = useRef<AkuvoxWebRTCService | null>(null);
@@ -91,8 +98,9 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
 
   /**
    * Démarre la connexion WebRTC
+   * @param enableMicrophone - Activer l'audio bidirectionnel (envoyer le micro)
    */
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (enableMicrophone: boolean = false) => {
     // Guard: éviter les connexions multiples simultanées
     if (isConnectingRef.current) {
       console.warn('⚠️ Connection already in progress, skipping duplicate connect() call');
@@ -124,6 +132,7 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
       const webrtcConfig: AkuvoxWebRTCConfig = {
         whepUrl: mediaMTXConfig.whepUrl,
         mode: connectionMode,
+        enableMicrophone: enableMicrophone,
         turnConfig:
           connectionMode === 'mobile'
             ? {
@@ -133,6 +142,9 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
               }
             : undefined,
       };
+
+      // Mettre à jour l'état du micro
+      setIsMicrophoneEnabled(enableMicrophone);
 
       console.log('🎥 Connecting to Akuvox stream:', {
         networkMode: detectedMode,
@@ -207,7 +219,18 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
     setStatus('disconnected');
     setIceConnectionState(null);
     setError(null);
+    setIsMicrophoneEnabled(false);
     isConnectingRef.current = false; // Réinitialiser le guard
+  }, []);
+
+  /**
+   * Active/désactive le micro
+   */
+  const toggleMicrophone = useCallback((enabled: boolean) => {
+    if (serviceRef.current) {
+      serviceRef.current.setMicrophoneEnabled(enabled);
+      setIsMicrophoneEnabled(enabled);
+    }
   }, []);
 
   /**
@@ -272,5 +295,7 @@ export function useAkuvoxVideo(): UseAkuvoxVideoResult {
     disconnect,
     isConfigValid,
     connectionMode,
+    setMicrophoneEnabled: toggleMicrophone,
+    isMicrophoneEnabled,
   };
 }
