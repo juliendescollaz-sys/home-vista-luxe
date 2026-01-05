@@ -393,10 +393,12 @@ export default function IntercomTest() {
       {/* Affichage selon le mode vidéo */}
       {videoMode === 'akuvox' ? (
         // Nouveau système: Akuvox WebRTC
+        // IMPORTANT: enableMicrophone=false car SIP gère déjà l'audio bidirectionnel
+        // Deux appels getUserMedia simultanés causent un conflit sur iOS Safari
         <AkuvoxVideoStream
           autoConnect={true}
-          enableMicrophone={true}
-          showMicrophoneControl={true}
+          enableMicrophone={false}
+          showMicrophoneControl={false}
           showDebugInfo={import.meta.env.DEV}
           className="w-full h-full"
           onConnected={() => console.log('Akuvox stream connected')}
