@@ -38,8 +38,8 @@ Ce document explique comment configurer et tester la réception d'appels SIP dep
 
 - VPS Debian/Ubuntu avec accès root
 - IP publique: 141.227.158.64
-- Domaine pointant vers le VPS (ex: neolia-sip.com)
-- Ports ouverts: 5060 (UDP/TCP), 5061 (TCP), 443 (TCP), 10000-20000 (UDP)
+- Domaine pointant vers le VPS: sip.neolia.app
+- Ports ouverts: 5060 (UDP/TCP), 5080 (TCP), 8443 (TCP)
 
 ### Script d'installation
 
@@ -112,9 +112,9 @@ Dans l'app Home Vista Luxe :
 1. Aller sur `/intercom-test`
 2. Cliquer sur l'icône Settings (engrenage) à côté de "Test Interphone Vidéo"
 3. Remplir le formulaire :
-   - **URI SIP**: `sip:julien@neolia-sip.com`
+   - **URI SIP**: `sip:julien@sip.neolia.app`
    - **Mot de passe**: Le mot de passe créé avec `kamctl add`
-   - **Serveur WebSocket**: `wss://neolia-sip.com:443`
+   - **Serveur WebSocket**: `wss://sip.neolia.app:8443`
    - **Nom d'affichage**: `Julien`
 4. Cliquer sur "Sauvegarder"
 
