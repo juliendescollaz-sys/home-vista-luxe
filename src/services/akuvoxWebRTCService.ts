@@ -29,6 +29,9 @@ export interface AkuvoxWebRTCConfig {
     username: string; // ex: neolia
     credential: string; // ex: Neolia022Turn
   };
+
+  /** Activer l'audio bidirectionnel (envoyer le micro vers l'Akuvox) */
+  enableMicrophone?: boolean;
 }
 
 export interface AkuvoxConnectionCallbacks {
@@ -42,6 +45,7 @@ export class AkuvoxWebRTCService {
   private pc: RTCPeerConnection | null = null;
   private config: AkuvoxWebRTCConfig | null = null;
   private callbacks: AkuvoxConnectionCallbacks = {};
+  private localStream: MediaStream | null = null; // Stream audio local (micro)
 
   /**
    * Démarre la connexion WebRTC vers le flux Akuvox
@@ -60,9 +64,30 @@ export class AkuvoxWebRTCService {
       // Setup event listeners
       this.setupEventListeners();
 
-      // Ajouter des transceivers pour recevoir vidéo et audio
+      // Capturer le micro si l'audio bidirectionnel est activé
+      if (config.enableMicrophone) {
+        await this.captureMicrophone();
+      }
+
+      // Ajouter des transceivers
+      // Vidéo : recvonly (on ne veut pas envoyer de vidéo)
       this.pc.addTransceiver('video', { direction: 'recvonly' });
-      this.pc.addTransceiver('audio', { direction: 'recvonly' });
+
+      // Audio : sendrecv si micro activé, sinon recvonly
+      if (config.enableMicrophone && this.localStream) {
+        // Ajouter le track audio local à la connexion
+        const audioTrack = this.localStream.getAudioTracks()[0];
+        if (audioTrack) {
+          this.pc.addTransceiver(audioTrack, { direction: 'sendrecv' });
+          console.log('🎤 Microphone enabled (sendrecv)');
+        } else {
+          this.pc.addTransceiver('audio', { direction: 'recvonly' });
+          console.warn('⚠️ No audio track found, falling back to recvonly');
+        }
+      } else {
+        this.pc.addTransceiver('audio', { direction: 'recvonly' });
+        console.log('🔇 Microphone disabled (recvonly)');
+      }
 
       // Créer l'offer SDP
       const offer = await this.pc.createOffer();
@@ -123,6 +148,38 @@ export class AkuvoxWebRTCService {
    */
   getIceConnectionState(): RTCIceConnectionState | null {
     return this.pc?.iceConnectionState ?? null;
+  }
+
+  /**
+   * Active ou désactive le micro
+   */
+  setMicrophoneEnabled(enabled: boolean): void {
+    if (!this.localStream) {
+      console.warn('⚠️ No local stream available');
+      return;
+    }
+
+    const audioTrack = this.localStream.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = enabled;
+      console.log(enabled ? '🎤 Microphone unmuted' : '🔇 Microphone muted');
+    }
+  }
+
+  /**
+   * Vérifie si le micro est activé
+   */
+  isMicrophoneEnabled(): boolean {
+    if (!this.localStream) return false;
+    const audioTrack = this.localStream.getAudioTracks()[0];
+    return audioTrack?.enabled ?? false;
+  }
+
+  /**
+   * Obtient le stream local (micro)
+   */
+  getLocalStream(): MediaStream | null {
+    return this.localStream;
   }
 
   /**
@@ -229,9 +286,47 @@ export class AkuvoxWebRTCService {
   }
 
   /**
+   * Capture le micro de l'utilisateur
+   */
+  private async captureMicrophone(): Promise<void> {
+    try {
+      console.log('🎤 Requesting microphone access...');
+
+      this.localStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,  // Annulation d'écho
+          noiseSuppression: true,  // Suppression du bruit
+          autoGainControl: true,   // Contrôle automatique du gain
+        },
+        video: false,
+      });
+
+      console.log('✅ Microphone captured successfully');
+    } catch (error) {
+      console.error('❌ Failed to capture microphone:', error);
+
+      // Si l'utilisateur refuse l'accès, continuer sans micro
+      if (error instanceof Error && error.name === 'NotAllowedError') {
+        console.warn('⚠️ Microphone permission denied by user');
+      }
+
+      throw error;
+    }
+  }
+
+  /**
    * Nettoie les ressources
    */
   private cleanup(): void {
+    // Arrêter les tracks audio locaux
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(track => {
+        track.stop();
+        console.log('🛑 Stopped local audio track');
+      });
+      this.localStream = null;
+    }
+
     if (this.pc) {
       this.pc.close();
       this.pc = null;

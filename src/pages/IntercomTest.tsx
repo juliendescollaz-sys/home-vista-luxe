@@ -1,14 +1,16 @@
-import { useState } from "react";
-import { Phone, PhoneOff, Video, Settings2, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Phone, PhoneOff, Video, Settings2, AlertCircle, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { intercomService } from "@/services/intercomService";
 import { useIntercomStore } from "@/store/intercomStore";
 import { useVideoCall } from "@/hooks/useVideoCall";
 import { sipService } from '@/services/sipService';
+import { useSIPConfigStore, useIsSIPConfigured } from '@/store/useSIPConfigStore';
 import { toast } from "sonner";
 import { AkuvoxVideoStream } from "@/components/AkuvoxVideoStream";
 import { MediaMTXConfigDialog } from "@/components/MediaMTXConfigDialog";
+import { SIPConfigDialog } from "@/components/SIPConfigDialog";
 import { useAkuvoxVideo } from "@/hooks/useAkuvoxVideo";
 import { useIsMediaMTXConfigValid } from "@/store/useMediaMTXConfigStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,7 +20,12 @@ import { DebugConsole } from "@/components/DebugConsole";
 export default function IntercomTest() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [videoMode, setVideoMode] = useState<'akuvox' | 'livekit'>('akuvox');
+  const [sipStatus, setSipStatus] = useState<string>('disconnected');
   const { currentCall, setCurrentCall, endCall } = useIntercomStore();
+
+  // Configuration SIP
+  const { config: sipConfig } = useSIPConfigStore();
+  const isSIPConfigured = useIsSIPConfigured();
 
   // Hook LiveKit (ancien système)
   const {
@@ -39,6 +46,43 @@ export default function IntercomTest() {
   } = useAkuvoxVideo();
 
   const isMediaMTXConfigured = useIsMediaMTXConfigValid();
+
+  // Initialiser le service SIP au montage si config disponible
+  useEffect(() => {
+    if (isSIPConfigured && sipConfig) {
+      console.log('🔌 Initializing SIP service with saved config');
+      sipService.init(sipConfig);
+
+      // Mettre à jour le statut SIP régulièrement
+      const statusInterval = setInterval(() => {
+        setSipStatus(sipService.getConnectionState());
+      }, 1000);
+
+      // Écouter les appels entrants réels depuis l'Akuvox
+      sipService.onIncomingCall((session) => {
+        console.log('📞 Real incoming call from Akuvox!');
+
+        // Créer un objet Call pour l'UI
+        const incomingCall = {
+          id: `call-${Date.now()}`,
+          from: session.remote_identity.display_name || session.remote_identity.uri.user || 'Akuvox',
+          timestamp: new Date(),
+          status: 'ringing' as const,
+        };
+
+        setCurrentCall(incomingCall);
+        toast.info(`Appel entrant de ${incomingCall.from}`);
+      });
+
+      return () => {
+        clearInterval(statusInterval);
+        sipService.disconnect();
+      };
+    } else {
+      console.log('⚠️ SIP not configured - skipping initialization');
+      setSipStatus('not_configured');
+    }
+  }, [isSIPConfigured, sipConfig, setCurrentCall]);
 
   const handleSimulateCall = async () => {
     setIsSimulating(true);
@@ -108,7 +152,10 @@ export default function IntercomTest() {
                 Test des deux systèmes : LiveKit (SIP) et Akuvox WebRTC (WHEP)
               </p>
             </div>
-            <MediaMTXConfigDialog />
+            <div className="flex gap-2">
+              <SIPConfigDialog />
+              <MediaMTXConfigDialog />
+            </div>
           </div>
 
           {/* Avertissement si MediaMTX non configuré */}
@@ -129,6 +176,44 @@ export default function IntercomTest() {
               </CardContent>
             </Card>
           )}
+
+          {/* Statut SIP */}
+          <Card className={
+            sipStatus === 'registered' ? 'border-green-500/50 bg-green-50 dark:bg-green-950/20' :
+            sipStatus === 'not_configured' ? 'border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20' :
+            'border-gray-500/50'
+          }>
+            <CardContent className="pt-4">
+              <div className="flex items-start gap-3">
+                <Wifi className={`h-5 w-5 mt-0.5 ${
+                  sipStatus === 'registered' ? 'text-green-600 dark:text-green-500' :
+                  sipStatus === 'not_configured' ? 'text-yellow-600 dark:text-yellow-500' :
+                  'text-gray-600 dark:text-gray-500'
+                }`} />
+                <div className="flex-1">
+                  <p className={`text-sm font-medium ${
+                    sipStatus === 'registered' ? 'text-green-800 dark:text-green-200' :
+                    sipStatus === 'not_configured' ? 'text-yellow-800 dark:text-yellow-200' :
+                    'text-gray-800 dark:text-gray-200'
+                  }`}>
+                    {sipStatus === 'registered' ? 'SIP Connecté' :
+                     sipStatus === 'not_configured' ? 'SIP Non Configuré' :
+                     sipStatus === 'connecting' ? 'SIP Connexion en cours...' :
+                     'SIP Déconnecté'}
+                  </p>
+                  <p className={`text-xs mt-1 ${
+                    sipStatus === 'registered' ? 'text-green-700 dark:text-green-300' :
+                    sipStatus === 'not_configured' ? 'text-yellow-700 dark:text-yellow-300' :
+                    'text-gray-700 dark:text-gray-300'
+                  }`}>
+                    {sipStatus === 'registered' ? 'Prêt à recevoir des appels depuis l\'Akuvox' :
+                     sipStatus === 'not_configured' ? 'Configure tes identifiants SIP pour recevoir les appels réels' :
+                     'En attente de connexion au serveur Kamailio'}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Sélection du mode vidéo */}
           <Tabs value={videoMode} onValueChange={(v) => setVideoMode(v as 'akuvox' | 'livekit')}>
@@ -310,6 +395,8 @@ export default function IntercomTest() {
         // Nouveau système: Akuvox WebRTC
         <AkuvoxVideoStream
           autoConnect={true}
+          enableMicrophone={true}
+          showMicrophoneControl={true}
           showDebugInfo={import.meta.env.DEV}
           className="w-full h-full"
           onConnected={() => console.log('Akuvox stream connected')}
