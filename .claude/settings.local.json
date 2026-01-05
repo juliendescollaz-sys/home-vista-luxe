@@ -13,7 +13,19 @@
       "Bash(ssh:*)",
       "Bash(git fetch:*)",
       "Bash(git rebase:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npx vite build)",
+      "Bash(git revert:*)",
+      "Bash(git reset:*)",
+      "Bash(nslookup sip.neolia.app)",
+      "Bash(npm run dev:*)",
+      "Bash(ping:*)",
+      "Bash(scp:*)",
+      "Bash(sshpass -p 'NexVentures+022%' ssh -o StrictHostKeyChecking=no debian@141.227.158.64 \"sudo kamctl ul show | grep -A 15 julien\")",
+      "Bash(powershell -Command \"echo ''NexVentures+022%'' | ssh debian@141.227.158.64 ''sudo kamctl ul show | grep -A 15 julien''\")",
+      "Bash(powershell -Command \"scp ''C:\\Users\\julie\\kamailio-contact-alias.cfg'' debian@141.227.158.64:/tmp/kamailio-new.cfg\")",
+      "Bash(powershell -Command \"scp ''C:\\Users\\julie\\kamailio-websocket-tcpconn.cfg'' debian@141.227.158.64:/tmp/kamailio-new.cfg\")",
+      "Bash(powershell -Command \"scp ''C:\\Users\\julie\\kamailio-force-socket.cfg'' debian@141.227.158.64:/tmp/kamailio-new.cfg\")"
     ]
   }
 }
