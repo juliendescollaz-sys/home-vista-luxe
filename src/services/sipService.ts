@@ -48,6 +48,27 @@ export class SIPService {
   private currentConfig: SIPConfig | null = null;
 
   /**
+   * Génère ou récupère un instance_id persistant pour cet appareil.
+   * Cela garantit que le même appareil utilise toujours le même identifiant SIP,
+   * évitant ainsi les enregistrements multiples sur Kamailio.
+   */
+  private getInstanceId(): string {
+    const STORAGE_KEY = 'sip_instance_id';
+    let instanceId = localStorage.getItem(STORAGE_KEY);
+
+    if (!instanceId) {
+      // Générer un UUID v4 unique pour cet appareil
+      instanceId = 'urn:uuid:' + crypto.randomUUID();
+      localStorage.setItem(STORAGE_KEY, instanceId);
+      console.log('🆔 Generated new SIP instance ID:', instanceId);
+    } else {
+      console.log('🆔 Using existing SIP instance ID:', instanceId);
+    }
+
+    return instanceId;
+  }
+
+  /**
    * Initialise la connexion SIP
    */
   init(sipConfig: SIPConfig) {
@@ -66,12 +87,18 @@ export class SIPService {
     // Créer le socket WebSocket
     const socket = new JsSIP.WebSocketInterface(sipConfig.wsServers);
 
+    // Récupérer l'instance_id persistant pour cet appareil
+    const instanceId = this.getInstanceId();
+
     const configuration = {
       sockets: [socket],
       uri: sipConfig.uri,
       password: sipConfig.password,
       display_name: sipConfig.displayName || 'Neolia App',
       session_timers: false,
+      // Instance ID persistant : garantit que le même appareil = même enregistrement SIP
+      // Évite les enregistrements multiples sur Kamailio
+      instance_id: instanceId,
       // Configuration pour améliorer la stabilité
       register_expires: 600,
       no_answer_timeout: 60,
@@ -189,12 +216,8 @@ export class SIPService {
         message: e.message,
       });
       this.currentSession = null;
-
-      // Ré-enregistrer après fin d'appel pour maintenir la connexion active
-      if (this.ua && this.connectionState === 'registered') {
-        console.log('🔄 Re-registering after call ended...');
-        this.ua.register();
-      }
+      // Note: pas besoin de ré-enregistrer manuellement, JsSIP gère ça automatiquement
+      // avec l'instance_id persistant qui garantit le même enregistrement
     });
 
     session.on('failed', (e: any) => {
@@ -205,12 +228,8 @@ export class SIPService {
         console.error('❌ Call failed - full message:', JSON.stringify(e.message, null, 2));
       }
       this.currentSession = null;
-
-      // Forcer un ré-enregistrement après échec d'appel pour s'assurer que le client reste connecté
-      if (this.ua && this.connectionState === 'registered') {
-        console.log('🔄 Re-registering after call failure...');
-        this.ua.register();
-      }
+      // Note: pas besoin de ré-enregistrer manuellement, JsSIP gère ça automatiquement
+      // avec l'instance_id persistant qui garantit le même enregistrement
     });
 
     // Événement crucial pour iOS : erreur getUserMedia
