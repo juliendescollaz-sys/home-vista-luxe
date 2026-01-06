@@ -247,9 +247,25 @@ export class SIPService {
       console.error('❌ getUserMedia failed:', e);
     });
 
+    // Erreur lors de la création de l'answer SDP (crucial pour diagnostiquer iOS)
+    session.on('createanswerfailed', (e: any) => {
+      console.error('❌ createAnswer failed:', e);
+      console.error('❌ createAnswer error name:', e?.name);
+      console.error('❌ createAnswer error message:', e?.message);
+    });
+
+    // Erreur lors de la création de l'offer SDP
+    session.on('createofferfailed', (e: any) => {
+      console.error('❌ createOffer failed:', e);
+    });
+
     // Événement quand le SDP est créé
     session.on('sdp', (e: any) => {
       console.log('📝 SDP event:', e.type, e.originator);
+      // Log le SDP complet pour debug
+      if (e.sdp) {
+        console.log('📝 SDP content (first 500 chars):', e.sdp.substring(0, 500));
+      }
     });
 
     // Événement ICE gathering
