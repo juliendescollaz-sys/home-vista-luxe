@@ -21,6 +21,7 @@ export default function IntercomTest() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [videoMode, setVideoMode] = useState<'akuvox' | 'livekit'>('akuvox');
   const [sipStatus, setSipStatus] = useState<string>('disconnected');
+  const [shouldShowVideo, setShouldShowVideo] = useState(false); // Contrôle explicite de l'affichage vidéo
   const { currentCall, setCurrentCall, endCall } = useIntercomStore();
 
   // Configuration SIP
@@ -101,6 +102,8 @@ export default function IntercomTest() {
   const handleAcceptCall = async () => {
     if (!currentCall) return;
 
+    console.log('🔔 handleAcceptCall started');
+
     try {
       // IMPORTANT sur iOS Safari : l'ordre est critique !
       // 1. Capturer le micro
@@ -130,11 +133,16 @@ export default function IntercomTest() {
       console.log('📞 Answering SIP call before mounting video...');
       sipService.answer(audioStream);
 
-      // Attendre un court instant pour laisser JsSIP établir sa PeerConnection
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Attendre que JsSIP établisse sa PeerConnection
+      console.log('⏳ Waiting for SIP to establish...');
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // MAINTENANT afficher la vidéo (monte AkuvoxVideoStream qui crée sa PeerConnection)
+      // Mettre à jour le statut de l'appel
       setCurrentCall({ ...currentCall, status: 'active' });
+
+      // MAINTENANT autoriser l'affichage de la vidéo
+      console.log('📺 Now showing video...');
+      setShouldShowVideo(true);
 
       if (videoMode === 'livekit') {
         // Connect to LiveKit for video (ancien système)
@@ -163,6 +171,7 @@ export default function IntercomTest() {
       disconnectAkuvox();
     }
 
+    setShouldShowVideo(false); // Reset pour le prochain appel
     endCall();
     toast.info("Appel terminé");
   };
@@ -418,20 +427,29 @@ export default function IntercomTest() {
   // État: Appel actif (vidéo)
   return (
     <div className="fixed inset-0 z-50 bg-black">
-      {/* Affichage selon le mode vidéo */}
+      {/* Affichage selon le mode vidéo - UNIQUEMENT si shouldShowVideo est true */}
       {videoMode === 'akuvox' ? (
         // Nouveau système: Akuvox WebRTC
-        // IMPORTANT: enableMicrophone=false car SIP gère déjà l'audio bidirectionnel
-        // Deux appels getUserMedia simultanés causent un conflit sur iOS Safari
-        <AkuvoxVideoStream
-          autoConnect={true}
-          enableMicrophone={false}
-          showMicrophoneControl={false}
-          showDebugInfo={import.meta.env.DEV}
-          className="w-full h-full"
-          onConnected={() => console.log('Akuvox stream connected')}
-          onError={(error) => toast.error(error)}
-        />
+        // IMPORTANT: Ne monter le composant QUE quand shouldShowVideo est true
+        // pour éviter les conflits PeerConnection avec SIP sur iOS Safari
+        shouldShowVideo ? (
+          <AkuvoxVideoStream
+            autoConnect={true}
+            enableMicrophone={false}
+            showMicrophoneControl={false}
+            showDebugInfo={import.meta.env.DEV}
+            className="w-full h-full"
+            onConnected={() => console.log('Akuvox stream connected')}
+            onError={(error) => toast.error(error)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="text-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mx-auto" />
+              <p className="text-white">Connexion audio en cours...</p>
+            </div>
+          </div>
+        )
       ) : (
         // Ancien système: LiveKit
         <div className="absolute inset-0 flex items-center justify-center bg-black">
