@@ -186,6 +186,9 @@ export default function IntercomTest() {
     toast.info("Appel terminé");
   };
 
+  // DEBUG: Logger l'état actuel à chaque render
+  console.log('🔄 RENDER - currentCall:', currentCall?.status, 'shouldShowVideo:', shouldShowVideo, 'videoMode:', videoMode);
+
   // État: Pas d'appel en cours
   if (!currentCall) {
     return (
@@ -435,6 +438,9 @@ export default function IntercomTest() {
   }
 
   // État: Appel actif (vidéo)
+  // DEBUG: On arrive ici si currentCall existe ET status !== 'ringing'
+  console.log('⚠️ RENDERING ACTIVE CALL SCREEN - status:', currentCall.status, 'shouldShowVideo:', shouldShowVideo);
+
   return (
     <div className="fixed inset-0 z-50 bg-black">
       {/* Affichage selon le mode vidéo - UNIQUEMENT si shouldShowVideo est true */}
