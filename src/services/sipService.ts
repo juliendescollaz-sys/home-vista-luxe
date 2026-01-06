@@ -292,19 +292,53 @@ export class SIPService {
 
       const pc: RTCPeerConnection = e.peerconnection;
 
-      // Intercepter setRemoteDescription pour modifier le SDP AVANT qu'il soit appliqué
+      // Intercepter setRemoteDescription pour voir les erreurs
       const originalSetRemoteDescription = pc.setRemoteDescription.bind(pc);
       pc.setRemoteDescription = async (description: RTCSessionDescriptionInit) => {
-        console.log('🔧 Intercepting setRemoteDescription...');
-        if (description.sdp && description.type === 'offer') {
-          // Modifier le SDP pour rejeter la vidéo
-          const originalVideoPort = description.sdp.match(/m=video (\d+)/)?.[1];
-          if (originalVideoPort && originalVideoPort !== '0') {
-            console.log('🔧 Modifying SDP in setRemoteDescription - video port:', originalVideoPort, '-> 0');
-            description.sdp = description.sdp.replace(/m=video \d+/g, 'm=video 0');
-          }
+        console.log('🔧 Intercepting setRemoteDescription, type:', description.type);
+        console.log('🔧 SDP has video port 0?', description.sdp?.includes('m=video 0'));
+        try {
+          const result = await originalSetRemoteDescription(description);
+          console.log('✅ setRemoteDescription succeeded');
+          return result;
+        } catch (err: any) {
+          console.error('❌ setRemoteDescription FAILED:', err);
+          console.error('❌ Error name:', err?.name);
+          console.error('❌ Error message:', err?.message);
+          throw err;
         }
-        return originalSetRemoteDescription(description);
+      };
+
+      // Intercepter createAnswer pour voir les erreurs
+      const originalCreateAnswer = pc.createAnswer.bind(pc);
+      pc.createAnswer = async (options?: RTCAnswerOptions) => {
+        console.log('🔧 Intercepting createAnswer...');
+        try {
+          const answer = await originalCreateAnswer(options);
+          console.log('✅ createAnswer succeeded');
+          return answer;
+        } catch (err: any) {
+          console.error('❌ createAnswer FAILED:', err);
+          console.error('❌ Error name:', err?.name);
+          console.error('❌ Error message:', err?.message);
+          throw err;
+        }
+      };
+
+      // Intercepter addTrack pour voir les erreurs
+      const originalAddTrack = pc.addTrack.bind(pc);
+      pc.addTrack = (track: MediaStreamTrack, ...streams: MediaStream[]) => {
+        console.log('🔧 Intercepting addTrack, kind:', track.kind);
+        try {
+          const sender = originalAddTrack(track, ...streams);
+          console.log('✅ addTrack succeeded for', track.kind);
+          return sender;
+        } catch (err: any) {
+          console.error('❌ addTrack FAILED for', track.kind, ':', err);
+          console.error('❌ Error name:', err?.name);
+          console.error('❌ Error message:', err?.message);
+          throw err;
+        }
       };
 
       pc.onicecandidate = (event) => {
