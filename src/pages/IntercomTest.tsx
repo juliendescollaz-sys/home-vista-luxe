@@ -102,11 +102,33 @@ export default function IntercomTest() {
     if (!currentCall) return;
 
     try {
-      // Accept SIP audio call
-      sipService.answer();
+      // Pré-capturer le micro AVANT de répondre à l'appel SIP
+      // Cela évite les conflits WebRTC sur iOS Safari quand il y a déjà
+      // une PeerConnection active (pour la vidéo Akuvox)
+      console.log('🎤 Pre-acquiring microphone...');
+      let audioStream: MediaStream | undefined;
+
+      try {
+        audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+          video: false,
+        });
+        console.log('✅ Microphone acquired');
+      } catch (micError) {
+        console.error('❌ Failed to acquire microphone:', micError);
+        toast.error("Impossible d'accéder au microphone");
+        return;
+      }
 
       // Mettre à jour le statut de l'appel pour afficher la vidéo
       setCurrentCall({ ...currentCall, status: 'active' });
+
+      // Accept SIP audio call avec le stream pré-capturé
+      sipService.answer(audioStream);
 
       if (videoMode === 'livekit') {
         // Connect to LiveKit for video (ancien système)

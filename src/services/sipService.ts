@@ -245,31 +245,38 @@ export class SIPService {
 
   /**
    * Répond à un appel entrant
+   * @param preAcquiredStream - Stream audio déjà capturé (pour éviter les conflits iOS)
    */
-  answer() {
+  answer(preAcquiredStream?: MediaStream) {
     if (!this.currentSession) {
       console.warn('⚠️ No active session to answer');
       return;
     }
 
-    console.log('📞 Answering call...');
+    console.log('📞 Answering call...', preAcquiredStream ? '(with pre-acquired stream)' : '(will request mic)');
 
-    const options = {
-      mediaConstraints: {
+    const options: any = {
+      pcConfig: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+        ],
+      },
+    };
+
+    // Si on a un stream pré-capturé, l'utiliser directement
+    // Sinon, laisser JsSIP demander le micro (peut causer des problèmes sur iOS)
+    if (preAcquiredStream) {
+      options.mediaStream = preAcquiredStream;
+    } else {
+      options.mediaConstraints = {
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
         },
         video: false,
-      },
-      pcConfig: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          // TURN server si nécessaire (à configurer)
-        ],
-      },
-    };
+      };
+    }
 
     this.currentSession.answer(options);
   }
