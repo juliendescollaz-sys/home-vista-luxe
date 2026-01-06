@@ -301,19 +301,17 @@ export class SIPService {
       },
     };
 
+    // Toujours spécifier les contraintes média
+    options.mediaConstraints = {
+      audio: true,
+      video: false,
+    };
+
     // Si on a un stream pré-capturé, l'utiliser directement
-    // Sinon, laisser JsSIP demander le micro (peut causer des problèmes sur iOS)
+    // Sinon, JsSIP demandera le micro (peut causer des problèmes sur iOS)
     if (preAcquiredStream) {
       options.mediaStream = preAcquiredStream;
-    } else {
-      options.mediaConstraints = {
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-        video: false,
-      };
+      console.log('📞 Using pre-acquired audio stream with', preAcquiredStream.getAudioTracks().length, 'audio tracks');
     }
 
     this.currentSession.answer(options);
