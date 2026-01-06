@@ -436,6 +436,9 @@ export default function IntercomTest() {
             </Button>
           </div>
         </div>
+
+        {/* Debug Console aussi sur l'écran de sonnerie */}
+        <DebugConsole />
       </div>
     );
   }
