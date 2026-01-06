@@ -11,8 +11,8 @@ import { toast } from "sonner";
 import { AkuvoxVideoStream } from "@/components/AkuvoxVideoStream";
 import { MediaMTXConfigDialog } from "@/components/MediaMTXConfigDialog";
 import { SIPConfigDialog } from "@/components/SIPConfigDialog";
-import { useAkuvoxVideo } from "@/hooks/useAkuvoxVideo";
-import { useIsMediaMTXConfigValid } from "@/store/useMediaMTXConfigStore";
+import { useIsMediaMTXConfigValid, useMediaMTXConfigStore } from "@/store/useMediaMTXConfigStore";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { DebugConsole } from "@/components/DebugConsole";
@@ -38,15 +38,17 @@ export default function IntercomTest() {
     remoteVideoRef,
   } = useVideoCall();
 
-  // Hook Akuvox WebRTC (nouveau système)
-  const {
-    status: akuvoxStatus,
-    connect: connectAkuvox,
-    disconnect: disconnectAkuvox,
-    connectionMode,
-  } = useAkuvoxVideo();
-
+  // Config MediaMTX et mode de connexion
+  // IMPORTANT: NE PAS utiliser useAkuvoxVideo() ici car ça initialise la PeerConnection
+  // avant qu'on soit prêt, ce qui cause des conflits avec SIP sur iOS Safari
   const isMediaMTXConfigured = useIsMediaMTXConfigValid();
+  const { detectedMode } = useMediaMTXConfigStore();
+  const { displayMode } = useDisplayMode();
+
+  // Déterminer le mode de connexion (panel ou mobile) sans initialiser la connexion
+  const connectionMode = detectedMode === 'local' ? 'panel' :
+                         detectedMode === 'remote' ? 'mobile' :
+                         displayMode === 'panel' ? 'panel' : 'mobile';
 
   // Initialiser le service SIP au montage si config disponible
   useEffect(() => {
@@ -175,9 +177,8 @@ export default function IntercomTest() {
 
     if (videoMode === 'livekit') {
       disconnectLiveKit();
-    } else {
-      disconnectAkuvox();
     }
+    // Pour Akuvox, la déconnexion est gérée par le composant AkuvoxVideoStream au unmount
 
     setShouldShowVideo(false); // Reset pour le prochain appel
     endCall();
@@ -418,9 +419,9 @@ export default function IntercomTest() {
               size="lg"
               className="rounded-full w-16 h-16 bg-green-600 hover:bg-green-700"
               onClick={handleAcceptCall}
-              disabled={isConnectingLiveKit || akuvoxStatus === 'connecting'}
+              disabled={isConnectingLiveKit}
             >
-              {(isConnectingLiveKit || akuvoxStatus === 'connecting') ? (
+              {isConnectingLiveKit ? (
                 <div className="animate-spin rounded-full h-6 w-6 border-2 border-background border-t-transparent" />
               ) : (
                 <Phone className="h-6 w-6" />
