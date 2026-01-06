@@ -192,11 +192,12 @@ export class SIPService {
     });
 
     session.on('failed', (e: any) => {
-      console.error('❌ Call failed:', {
-        originator: e.originator,
-        cause: e.cause,
-        message: e.message,
-      });
+      console.error('❌ Call failed - originator:', e.originator);
+      console.error('❌ Call failed - cause:', e.cause);
+      console.error('❌ Call failed - message:', e.message?.status_code, e.message?.reason_phrase);
+      if (e.message) {
+        console.error('❌ Call failed - full message:', JSON.stringify(e.message, null, 2));
+      }
       this.currentSession = null;
     });
 
