@@ -8,43 +8,69 @@ interface LogEntry {
   message: string;
 }
 
+// Store global pour persister les logs entre les écrans
+// Ceci évite de perdre les logs quand le composant est démonté/remonté
+const globalLogs: LogEntry[] = [];
+let logsListeners: ((logs: LogEntry[]) => void)[] = [];
+let isInterceptorInstalled = false;
+
+function addGlobalLog(type: 'log' | 'warn' | 'error', message: string) {
+  const entry = { timestamp: Date.now(), type, message };
+  globalLogs.push(entry);
+  // Garder max 200 logs
+  if (globalLogs.length > 200) {
+    globalLogs.shift();
+  }
+  // Notifier tous les listeners
+  logsListeners.forEach(listener => listener([...globalLogs]));
+}
+
+function clearGlobalLogs() {
+  globalLogs.length = 0;
+  logsListeners.forEach(listener => listener([]));
+}
+
+// Installer l'intercepteur une seule fois au niveau global
+if (!isInterceptorInstalled && typeof window !== 'undefined') {
+  isInterceptorInstalled = true;
+  const originalLog = console.log;
+  const originalWarn = console.warn;
+  const originalError = console.error;
+
+  console.log = (...args: any[]) => {
+    originalLog(...args);
+    addGlobalLog('log', args.map(a => String(a)).join(' '));
+  };
+
+  console.warn = (...args: any[]) => {
+    originalWarn(...args);
+    addGlobalLog('warn', args.map(a => String(a)).join(' '));
+  };
+
+  console.error = (...args: any[]) => {
+    originalError(...args);
+    addGlobalLog('error', args.map(a => String(a)).join(' '));
+  };
+}
+
 export function DebugConsole() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([...globalLogs]);
   const [isExpanded, setIsExpanded] = useState(true);
   const [isVisible, setIsVisible] = useState(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Intercepter console.log, console.warn, console.error
-    const originalLog = console.log;
-    const originalWarn = console.warn;
-    const originalError = console.error;
+    // S'abonner aux updates des logs
+    const listener = (newLogs: LogEntry[]) => setLogs(newLogs);
+    logsListeners.push(listener);
 
-    console.log = (...args: any[]) => {
-      originalLog(...args);
-      addLog('log', args.map(a => String(a)).join(' '));
-    };
-
-    console.warn = (...args: any[]) => {
-      originalWarn(...args);
-      addLog('warn', args.map(a => String(a)).join(' '));
-    };
-
-    console.error = (...args: any[]) => {
-      originalError(...args);
-      addLog('error', args.map(a => String(a)).join(' '));
-    };
+    // Sync initial
+    setLogs([...globalLogs]);
 
     return () => {
-      console.log = originalLog;
-      console.warn = originalWarn;
-      console.error = originalError;
+      logsListeners = logsListeners.filter(l => l !== listener);
     };
   }, []);
-
-  const addLog = (type: 'log' | 'warn' | 'error', message: string) => {
-    setLogs(prev => [...prev.slice(-99), { timestamp: Date.now(), type, message }]);
-  };
 
   useEffect(() => {
     // Auto-scroll vers le bas
@@ -68,7 +94,7 @@ export function DebugConsole() {
             variant="ghost"
             size="sm"
             className="h-6 w-6 p-0 text-white hover:bg-white/20"
-            onClick={() => setLogs([])}
+            onClick={() => clearGlobalLogs()}
           >
             Clear
           </Button>
