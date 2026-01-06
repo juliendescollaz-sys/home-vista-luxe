@@ -279,6 +279,14 @@ export class SIPService {
       // Log le SDP pour debug
       if (e.sdp) {
         console.log('📝 SDP content (first 500 chars):', e.sdp.substring(0, 500));
+        // Vérifier la présence de DTLS fingerprint
+        const hasFingerprint = e.sdp.includes('a=fingerprint:');
+        const hasSetup = e.sdp.includes('a=setup:');
+        const hasIceUfrag = e.sdp.includes('a=ice-ufrag:');
+        console.log('📝 SDP security check - fingerprint:', hasFingerprint, 'setup:', hasSetup, 'ice-ufrag:', hasIceUfrag);
+        if (!hasFingerprint) {
+          console.warn('⚠️ SDP has NO DTLS fingerprint - Akuvox does not support WebRTC encryption!');
+        }
       }
     });
 

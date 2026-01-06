@@ -25,7 +25,19 @@
       "Bash(powershell -Command \"echo ''NexVentures+022%'' | ssh debian@141.227.158.64 ''sudo kamctl ul show | grep -A 15 julien''\")",
       "Bash(powershell -Command \"scp ''C:\\Users\\julie\\kamailio-contact-alias.cfg'' debian@141.227.158.64:/tmp/kamailio-new.cfg\")",
       "Bash(powershell -Command \"scp ''C:\\Users\\julie\\kamailio-websocket-tcpconn.cfg'' debian@141.227.158.64:/tmp/kamailio-new.cfg\")",
-      "Bash(powershell -Command \"scp ''C:\\Users\\julie\\kamailio-force-socket.cfg'' debian@141.227.158.64:/tmp/kamailio-new.cfg\")"
+      "Bash(powershell -Command \"scp ''C:\\Users\\julie\\kamailio-force-socket.cfg'' debian@141.227.158.64:/tmp/kamailio-new.cfg\")",
+      "Bash(sshpass -p 'NexVentures+022%' ssh -o StrictHostKeyChecking=no debian@141.227.158.64 \"dpkg -l | grep -E ''rtpengine|rtpproxy|kamailio'' && echo ''---'' && systemctl status rtpengine 2>/dev/null || echo ''rtpengine not installed as service'' && echo ''---'' && ps aux | grep -E ''rtpengine|rtpproxy'' | grep -v grep\")",
+      "Bash(sshpass -p 'NexVentures+022%' ssh -o StrictHostKeyChecking=no debian@141.227.158.64 \"cat /etc/rtpengine/rtpengine.conf\")",
+      "Bash(powershell -Command \"scp ''C:\\Users\\julie\\.claude-worktrees\\home-vista-luxe\\youthful-sutherland\\kamailio-rtpengine.cfg'' debian@141.227.158.64:/tmp/kamailio-new.cfg\")",
+      "Bash(powershell -Command \"ssh debian@141.227.158.64 ''ls -la /tmp/kamailio-new.cfg 2>/dev/null || echo file-not-found''\")",
+      "Bash(powershell -Command \"ssh debian@141.227.158.64 ''sudo cp /tmp/kamailio-new.cfg /etc/kamailio/kamailio.cfg && sudo kamailio -c /etc/kamailio/kamailio.cfg''\")",
+      "Bash(powershell -Command \"ssh debian@141.227.158.64 ''sudo systemctl restart kamailio && sleep 2 && sudo systemctl status kamailio''\")",
+      "Bash(powershell -Command \"ssh debian@141.227.158.64 ''echo \"\"=== Services ===\"\"; systemctl is-active rtpengine kamailio; echo \"\"=== RTPEngine ports ===\"\"; sudo ss -tuln | grep -E \"\":(30000|2223|2224)\"\"; echo \"\"=== Kamailio ports ===\"\"; sudo ss -tuln | grep -E \"\":(5060|5080|8443)\"\"''\")",
+      "Bash(powershell -Command \"ssh debian@141.227.158.64 ''systemctl is-active rtpengine kamailio''\")",
+      "Bash(powershell -Command \"ssh debian@141.227.158.64 ''sudo ss -tuln''\")",
+      "Bash(powershell -Command \"ssh debian@141.227.158.64 ''cat /etc/rtpengine/rtpengine.conf''\")",
+      "Bash(powershell -Command \"ssh debian@141.227.158.64 ''sudo iptables -L -n''\")",
+      "Bash(powershell -Command \"ssh debian@141.227.158.64 ''sudo ufw allow 30000:40000/udp comment RTPEngine-RTP''\")"
     ]
   }
 }
