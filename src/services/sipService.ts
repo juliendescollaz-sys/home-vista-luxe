@@ -170,6 +170,10 @@ export class SIPService {
       console.log('📞 Call connecting...');
     });
 
+    session.on('progress', (e: any) => {
+      console.log('📞 Call progress:', e);
+    });
+
     session.on('accepted', () => {
       console.log('✅ Call accepted');
     });
@@ -178,25 +182,62 @@ export class SIPService {
       console.log('✅ Call confirmed (bidirectional audio established)');
     });
 
-    session.on('ended', () => {
-      console.log('📴 Call ended');
+    session.on('ended', (e: any) => {
+      console.log('📴 Call ended:', {
+        originator: e.originator,
+        cause: e.cause,
+        message: e.message,
+      });
       this.currentSession = null;
     });
 
     session.on('failed', (e: any) => {
-      console.error('❌ Call failed:', e);
+      console.error('❌ Call failed:', {
+        originator: e.originator,
+        cause: e.cause,
+        message: e.message,
+      });
       this.currentSession = null;
+    });
+
+    // Événement crucial pour iOS : erreur getUserMedia
+    session.on('getusermediafailed', (e: any) => {
+      console.error('❌ getUserMedia failed:', e);
+    });
+
+    // Événement quand le SDP est créé
+    session.on('sdp', (e: any) => {
+      console.log('📝 SDP event:', e.type, e.originator);
+    });
+
+    // Événement ICE gathering
+    session.on('icecandidate', (e: any) => {
+      console.log('🧊 SIP ICE candidate event:', e.candidate?.candidate);
     });
 
     session.on('peerconnection', (e: any) => {
       console.log('🔗 WebRTC PeerConnection established');
 
-      // Logger les ICE candidates pour debug
       const pc: RTCPeerConnection = e.peerconnection;
+
       pc.onicecandidate = (event) => {
         if (event.candidate) {
           console.log('🧊 ICE candidate:', event.candidate.candidate);
+        } else {
+          console.log('🧊 ICE gathering complete');
         }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log('🧊 ICE connection state:', pc.iceConnectionState);
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.log('🔗 Connection state:', pc.connectionState);
+      };
+
+      pc.onsignalingstatechange = () => {
+        console.log('📡 Signaling state:', pc.signalingState);
       };
     });
   }
