@@ -189,6 +189,12 @@ export class SIPService {
         message: e.message,
       });
       this.currentSession = null;
+
+      // Ré-enregistrer après fin d'appel pour maintenir la connexion active
+      if (this.ua && this.connectionState === 'registered') {
+        console.log('🔄 Re-registering after call ended...');
+        this.ua.register();
+      }
     });
 
     session.on('failed', (e: any) => {
@@ -199,6 +205,12 @@ export class SIPService {
         console.error('❌ Call failed - full message:', JSON.stringify(e.message, null, 2));
       }
       this.currentSession = null;
+
+      // Forcer un ré-enregistrement après échec d'appel pour s'assurer que le client reste connecté
+      if (this.ua && this.connectionState === 'registered') {
+        console.log('🔄 Re-registering after call failure...');
+        this.ua.register();
+      }
     });
 
     // Événement crucial pour iOS : erreur getUserMedia
