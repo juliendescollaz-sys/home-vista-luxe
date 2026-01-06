@@ -318,9 +318,17 @@ export class SIPService {
           { urls: 'stun:stun.l.google.com:19302' },
         ],
       },
+      // IMPORTANT: On utilise rtcAnswerConstraints pour forcer le mode recvonly sur la vidéo
+      // L'Akuvox envoie une offre avec audio+vidéo, mais on ne veut que l'audio bidirectionnel
+      // et ignorer la vidéo (on la reçoit via WHEP séparément)
+      rtcAnswerConstraints: {
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: false,
+      },
     };
 
-    // Toujours spécifier les contraintes média
+    // Spécifier les contraintes média : audio seulement
+    // La vidéo de l'Akuvox sera gérée par le composant AkuvoxVideoStream via WHEP
     options.mediaConstraints = {
       audio: true,
       video: false,
@@ -332,6 +340,12 @@ export class SIPService {
       options.mediaStream = preAcquiredStream;
       console.log('📞 Using pre-acquired audio stream with', preAcquiredStream.getAudioTracks().length, 'audio tracks');
     }
+
+    console.log('📞 Answer options:', JSON.stringify({
+      hasPreAcquiredStream: !!preAcquiredStream,
+      mediaConstraints: options.mediaConstraints,
+      rtcAnswerConstraints: options.rtcAnswerConstraints,
+    }));
 
     this.currentSession.answer(options);
   }
