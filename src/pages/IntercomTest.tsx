@@ -112,15 +112,15 @@ export default function IntercomTest() {
   const handleAcceptCall = async () => {
     if (!currentCall) return;
 
-    console.log('🔔 handleAcceptCall started');
+    console.log('🔔 handleAcceptCall started - timestamp:', Date.now());
 
     try {
       // IMPORTANT sur iOS Safari : l'ordre est critique !
-      // 1. Capturer le micro
-      // 2. Répondre au SIP (crée la PeerConnection SIP)
-      // 3. ENSUITE afficher la vidéo (crée la PeerConnection vidéo)
+      // 1. Capturer le micro AVANT tout
+      // 2. Répondre au SIP et ATTENDRE que la connexion soit établie
+      // 3. ENSUITE seulement afficher la vidéo
 
-      console.log('🎤 Pre-acquiring microphone...');
+      console.log('🎤 Step 1: Pre-acquiring microphone...');
       let audioStream: MediaStream | undefined;
 
       try {
@@ -132,33 +132,34 @@ export default function IntercomTest() {
           },
           video: false,
         });
-        console.log('✅ Microphone acquired');
+        console.log('✅ Microphone acquired successfully');
       } catch (micError) {
         console.error('❌ Failed to acquire microphone:', micError);
         toast.error("Impossible d'accéder au microphone");
         return;
       }
 
-      // Accept SIP audio call avec le stream pré-capturé AVANT d'afficher la vidéo
-      console.log('📞 Answering SIP call before mounting video...');
+      // Répondre au SIP avec le stream pré-capturé
+      console.log('📞 Step 2: Answering SIP call with pre-acquired stream...');
       sipService.answer(audioStream);
 
-      // Attendre que JsSIP établisse sa PeerConnection
-      console.log('⏳ Waiting for SIP to establish...');
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Attendre que le SIP soit vraiment connecté (ICE + RTP)
+      // On attend plus longtemps car iOS Safari peut être lent
+      console.log('⏳ Step 3: Waiting 2s for SIP WebRTC to establish...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Mettre à jour le statut de l'appel
+      console.log('✅ Step 4: SIP should be established, now updating UI...');
+
+      // MAINTENANT seulement, mettre à jour le statut et afficher la vidéo
+      // On fait les deux setState ensemble pour minimiser les re-renders
       setCurrentCall({ ...currentCall, status: 'active' });
-
-      // MAINTENANT autoriser l'affichage de la vidéo
-      console.log('📺 Now showing video...');
       setShouldShowVideo(true);
 
+      console.log('📺 Step 5: Video component should now mount');
+
       if (videoMode === 'livekit') {
-        // Connect to LiveKit for video (ancien système)
         await connectLiveKit(currentCall);
       }
-      // Pour Akuvox, le composant AkuvoxVideoStream gère la connexion automatiquement
 
       toast.success("Appel accepté");
     } catch (err) {
