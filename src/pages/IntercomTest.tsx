@@ -422,7 +422,10 @@ export default function IntercomTest() {
             <Button
               size="lg"
               className="rounded-full w-16 h-16 bg-green-600 hover:bg-green-700"
-              onClick={handleAcceptCall}
+              onClick={() => {
+                console.log('🟢 BUTTON CLICKED - before handleAcceptCall');
+                handleAcceptCall();
+              }}
               disabled={isConnectingLiveKit}
             >
               {isConnectingLiveKit ? (
