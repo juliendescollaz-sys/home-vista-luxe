@@ -58,11 +58,18 @@ export class SIPService {
 
     if (!instanceId) {
       // Générer un UUID v4 unique pour cet appareil
-      instanceId = 'urn:uuid:' + crypto.randomUUID();
+      instanceId = crypto.randomUUID();
       localStorage.setItem(STORAGE_KEY, instanceId);
       console.log('🆔 Generated new SIP instance ID:', instanceId);
     } else {
-      console.log('🆔 Using existing SIP instance ID:', instanceId);
+      // Migrer les anciens formats (urn:uuid:xxx -> xxx)
+      if (instanceId.startsWith('urn:uuid:')) {
+        instanceId = instanceId.replace('urn:uuid:', '');
+        localStorage.setItem(STORAGE_KEY, instanceId);
+        console.log('🆔 Migrated SIP instance ID:', instanceId);
+      } else {
+        console.log('🆔 Using existing SIP instance ID:', instanceId);
+      }
     }
 
     return instanceId;
