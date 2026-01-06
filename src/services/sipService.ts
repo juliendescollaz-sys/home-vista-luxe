@@ -1,5 +1,8 @@
 import JsSIP from 'jssip';
 
+// JsSIP RTCSession type - using 'any' as JsSIP types are not properly exported
+type RTCSessionType = any;
+
 /**
  * Service SIP pour gérer les appels audio bidirectionnels
  *
@@ -16,7 +19,7 @@ import JsSIP from 'jssip';
  * 5. L'utilisateur accepte → audio bidirectionnel établi
  */
 
-export type CallEventHandler = (call: JsSIP.RTCSession) => void;
+export type CallEventHandler = (call: RTCSessionType) => void;
 
 export interface SIPConfig {
   /** URI SIP de l'utilisateur (ex: sip:julien@neolia-sip.com) */
@@ -41,7 +44,7 @@ export type SIPConnectionState =
 
 export class SIPService {
   private ua: JsSIP.UA | null = null;
-  private currentSession: JsSIP.RTCSession | null = null;
+  private currentSession: RTCSessionType | null = null;
   private onIncomingCallHandler: CallEventHandler | null = null;
   private connectionState: SIPConnectionState = 'disconnected';
   private reconnectTimer: NodeJS.Timeout | null = null;
@@ -175,7 +178,7 @@ export class SIPService {
 
     // Nouvel appel entrant ou sortant
     this.ua.on('newRTCSession', (data: any) => {
-      const session: JsSIP.RTCSession = data.session;
+      const session: RTCSessionType = data.session;
 
       if (session.direction === 'incoming') {
         console.log('📞 Incoming SIP call from:', session.remote_identity.display_name || session.remote_identity.uri.user);
@@ -199,7 +202,7 @@ export class SIPService {
   /**
    * Configure les event listeners pour une session d'appel
    */
-  private setupSessionListeners(session: JsSIP.RTCSession) {
+  private setupSessionListeners(session: RTCSessionType) {
     session.on('connecting', () => {
       console.log('📞 Call connecting...');
     });
@@ -355,7 +358,7 @@ export class SIPService {
   /**
    * Obtient la session d'appel actuelle
    */
-  getCurrentSession(): JsSIP.RTCSession | null {
+  getCurrentSession(): RTCSessionType | null {
     return this.currentSession;
   }
 

@@ -63,12 +63,20 @@ export default function IntercomTest() {
       sipService.onIncomingCall((session) => {
         console.log('📞 Real incoming call from Akuvox!');
 
-        // Créer un objet Call pour l'UI
+        // Créer un objet Call pour l'UI (compatible avec IntercomCall)
+        const callerName = session.remote_identity.display_name || session.remote_identity.uri.user || 'Akuvox';
         const incomingCall = {
           id: `call-${Date.now()}`,
-          from: session.remote_identity.display_name || session.remote_identity.uri.user || 'Akuvox',
-          timestamp: new Date(),
+          room: `room-${Date.now()}`,
+          callerToken: '',
+          calleeToken: '',
+          livekitUrl: '',
+          from: callerName,
+          to: 'user',
           status: 'ringing' as const,
+          startTime: Date.now(),
+          videoEnabled: true,
+          audioEnabled: true,
         };
 
         setCurrentCall(incomingCall);
