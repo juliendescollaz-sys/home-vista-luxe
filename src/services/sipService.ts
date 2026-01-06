@@ -292,6 +292,21 @@ export class SIPService {
 
       const pc: RTCPeerConnection = e.peerconnection;
 
+      // Intercepter setRemoteDescription pour modifier le SDP AVANT qu'il soit appliqué
+      const originalSetRemoteDescription = pc.setRemoteDescription.bind(pc);
+      pc.setRemoteDescription = async (description: RTCSessionDescriptionInit) => {
+        console.log('🔧 Intercepting setRemoteDescription...');
+        if (description.sdp && description.type === 'offer') {
+          // Modifier le SDP pour rejeter la vidéo
+          const originalVideoPort = description.sdp.match(/m=video (\d+)/)?.[1];
+          if (originalVideoPort && originalVideoPort !== '0') {
+            console.log('🔧 Modifying SDP in setRemoteDescription - video port:', originalVideoPort, '-> 0');
+            description.sdp = description.sdp.replace(/m=video \d+/g, 'm=video 0');
+          }
+        }
+        return originalSetRemoteDescription(description);
+      };
+
       pc.onicecandidate = (event) => {
         if (event.candidate) {
           console.log('🧊 ICE candidate:', event.candidate.candidate);
