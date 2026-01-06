@@ -108,32 +108,9 @@ export const useVideoCall = () => {
     };
   }, [setCurrentCall]);
 
-  // Handle incoming SIP calls
-  useEffect(() => {
-    sipService.onIncomingCall((session: any) => {
-      console.log('📞 SIP call session received');
-      
-      // Setup audio stream
-      session.on('confirmed', () => {
-        console.log('✅ SIP call confirmed');
-        const remoteStream = session.connection.getRemoteStreams()[0];
-        if (remoteStream) {
-          const audioElement = new Audio();
-          audioElement.srcObject = remoteStream;
-          audioElement.play();
-        }
-      });
-
-      session.on('ended', () => {
-        console.log('📴 SIP call ended');
-      });
-
-      // Auto-answer when user accepts the intercom call
-      if (currentCall?.status === 'active') {
-        sipService.answer();
-      }
-    });
-  }, [currentCall]);
+  // NOTE: Le handler SIP est maintenant géré dans IntercomTest.tsx
+  // Ce hook ne doit PAS écraser le handler onIncomingCall du sipService
+  // car cela cause des conflits avec le mode Akuvox WebRTC
 
   return {
     connect,
