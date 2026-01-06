@@ -102,9 +102,11 @@ export default function IntercomTest() {
     if (!currentCall) return;
 
     try {
-      // Pré-capturer le micro AVANT de répondre à l'appel SIP
-      // Cela évite les conflits WebRTC sur iOS Safari quand il y a déjà
-      // une PeerConnection active (pour la vidéo Akuvox)
+      // IMPORTANT sur iOS Safari : l'ordre est critique !
+      // 1. Capturer le micro
+      // 2. Répondre au SIP (crée la PeerConnection SIP)
+      // 3. ENSUITE afficher la vidéo (crée la PeerConnection vidéo)
+
       console.log('🎤 Pre-acquiring microphone...');
       let audioStream: MediaStream | undefined;
 
@@ -124,11 +126,15 @@ export default function IntercomTest() {
         return;
       }
 
-      // Mettre à jour le statut de l'appel pour afficher la vidéo
-      setCurrentCall({ ...currentCall, status: 'active' });
-
-      // Accept SIP audio call avec le stream pré-capturé
+      // Accept SIP audio call avec le stream pré-capturé AVANT d'afficher la vidéo
+      console.log('📞 Answering SIP call before mounting video...');
       sipService.answer(audioStream);
+
+      // Attendre un court instant pour laisser JsSIP établir sa PeerConnection
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // MAINTENANT afficher la vidéo (monte AkuvoxVideoStream qui crée sa PeerConnection)
+      setCurrentCall({ ...currentCall, status: 'active' });
 
       if (videoMode === 'livekit') {
         // Connect to LiveKit for video (ancien système)
