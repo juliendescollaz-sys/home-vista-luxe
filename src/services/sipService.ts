@@ -259,10 +259,24 @@ export class SIPService {
       console.error('❌ createOffer failed:', e);
     });
 
-    // Événement quand le SDP est créé
+    // Événement quand le SDP est créé/reçu
+    // IMPORTANT: On modifie le SDP remote (offer) pour désactiver la vidéo
+    // Cela évite les problèmes de transceivers sur iOS Safari
     session.on('sdp', (e: any) => {
       console.log('📝 SDP event:', e.type, e.originator);
-      // Log le SDP complet pour debug
+
+      // Modifier l'offre entrante pour désactiver la vidéo AVANT setRemoteDescription
+      // Cela permet à createAnswer de fonctionner sans track vidéo
+      if (e.originator === 'remote' && e.type === 'offer') {
+        console.log('📝 Modifying remote offer to disable video (port=0)...');
+        const originalVideoPort = e.sdp.match(/m=video (\d+)/)?.[1];
+        if (originalVideoPort && originalVideoPort !== '0') {
+          e.sdp = e.sdp.replace(/m=video \d+/g, 'm=video 0');
+          console.log('📝 Video port changed from', originalVideoPort, 'to 0');
+        }
+      }
+
+      // Log le SDP pour debug
       if (e.sdp) {
         console.log('📝 SDP content (first 500 chars):', e.sdp.substring(0, 500));
       }
@@ -312,18 +326,14 @@ export class SIPService {
 
     console.log('📞 Answering call...', preAcquiredStream ? '(with pre-acquired stream)' : '(will request mic)');
 
+    // NOTE: La modification du SDP pour désactiver la vidéo est faite dans setupSessionListeners
+    // via l'événement 'sdp' qui est déclenché AVANT setRemoteDescription
+
     const options: any = {
       pcConfig: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
         ],
-      },
-      // IMPORTANT: On utilise rtcAnswerConstraints pour forcer le mode recvonly sur la vidéo
-      // L'Akuvox envoie une offre avec audio+vidéo, mais on ne veut que l'audio bidirectionnel
-      // et ignorer la vidéo (on la reçoit via WHEP séparément)
-      rtcAnswerConstraints: {
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: false,
       },
     };
 
@@ -344,7 +354,6 @@ export class SIPService {
     console.log('📞 Answer options:', JSON.stringify({
       hasPreAcquiredStream: !!preAcquiredStream,
       mediaConstraints: options.mediaConstraints,
-      rtcAnswerConstraints: options.rtcAnswerConstraints,
     }));
 
     this.currentSession.answer(options);
