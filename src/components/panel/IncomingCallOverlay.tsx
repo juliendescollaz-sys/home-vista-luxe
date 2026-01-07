@@ -151,21 +151,22 @@ export function IncomingCallOverlay({
           lowLatencyMode: false,
           backBufferLength: 30,
           // Config pour flux live avec MediaMTX (on-demand, démarrage lent)
-          manifestLoadingTimeOut: 20000,
+          manifestLoadingTimeOut: 30000,
           manifestLoadingMaxRetry: 10,
           manifestLoadingRetryDelay: 2000,
-          levelLoadingTimeOut: 20000,
-          levelLoadingMaxRetry: 10,       // Plus de retries pour le level
-          levelLoadingRetryDelay: 2000,   // 2s entre retries (MediaMTX est lent)
-          fragLoadingTimeOut: 20000,
+          levelLoadingTimeOut: 30000,
+          levelLoadingMaxRetry: 10,
+          levelLoadingRetryDelay: 2000,
+          fragLoadingTimeOut: 30000,
           fragLoadingMaxRetry: 10,
           fragLoadingRetryDelay: 2000,
-          // Forcer le rechargement du playlist (pas de cache)
+          // Forcer le rechargement du playlist
           liveSyncDurationCount: 3,
           liveMaxLatencyDurationCount: 10,
-          // Éviter les erreurs sur 404 temporaires
-          xhrSetup: (xhr) => {
-            xhr.setRequestHeader("Cache-Control", "no-cache");
+          // Désactiver les requêtes preflight/HEAD en forçant le mode simple
+          xhrSetup: (xhr, url) => {
+            // Pas de headers custom pour éviter les preflight CORS
+            addDebugLog(`XHR: ${url.split("/").pop()}`);
           },
         });
 
