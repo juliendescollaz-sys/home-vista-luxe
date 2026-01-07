@@ -452,16 +452,25 @@ export function IncomingCallOverlay({
           </div>
         </div>
 
-        {/* Video - HIDDEN tant que pas connectée (évite le lecteur Android) */}
+        {/* Video - hors écran tant que pas connectée (évite le lecteur Android) */}
         {showVideo && (
           <video
             ref={videoRef}
-            className={`absolute inset-0 w-full h-full object-cover ${
-              videoStatus === "connected" ? "visible" : "invisible"
-            }`}
+            className="absolute w-full h-full object-cover"
+            style={{
+              // Déplacer hors écran tant que pas connecté
+              top: videoStatus === "connected" ? 0 : "-200%",
+              left: videoStatus === "connected" ? 0 : "-200%",
+              // Transition douce quand on ramène la vidéo
+              transition: videoStatus === "connected" ? "none" : "none",
+            }}
             playsInline
             muted
             autoPlay
+            // Désactiver les contrôles natifs Android
+            controls={false}
+            disablePictureInPicture
+            disableRemotePlayback
           />
         )}
 
