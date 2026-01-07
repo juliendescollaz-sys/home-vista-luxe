@@ -189,10 +189,12 @@ public class LinphoneSipManager {
         core.setEchoCancellationEnabled(true);
         core.setAdaptiveRateControlEnabled(true);
 
-        // Ringback (sonnerie retour)
-        // core.setRingback(null); // Utiliser la sonnerie par défaut ou personnalisée
+        // Désactiver la sonnerie native de Linphone
+        // L'app gère sa propre sonnerie via IncomingCallOverlay
+        core.setRing(null);
+        core.setRingback(null);
 
-        Log.i(TAG, "Core configured");
+        Log.i(TAG, "Core configured (ringtone disabled)");
     }
 
     /**
