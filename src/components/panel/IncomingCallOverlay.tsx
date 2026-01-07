@@ -150,16 +150,23 @@ export function IncomingCallOverlay({
           enableWorker: true,
           lowLatencyMode: false,
           backBufferLength: 30,
-          // Tolérance accrue pour les flux on-demand (démarrage lent)
-          manifestLoadingTimeOut: 20000, // 20s pour charger le manifest
-          manifestLoadingMaxRetry: 6,    // 6 retries
-          manifestLoadingRetryDelay: 1000, // 1s entre retries
-          levelLoadingTimeOut: 20000,    // 20s pour charger les niveaux
-          levelLoadingMaxRetry: 6,
-          levelLoadingRetryDelay: 1000,
-          fragLoadingTimeOut: 20000,     // 20s pour les fragments
-          fragLoadingMaxRetry: 6,
-          fragLoadingRetryDelay: 1000,
+          // Config pour flux live avec MediaMTX (on-demand, démarrage lent)
+          manifestLoadingTimeOut: 20000,
+          manifestLoadingMaxRetry: 10,
+          manifestLoadingRetryDelay: 2000,
+          levelLoadingTimeOut: 20000,
+          levelLoadingMaxRetry: 10,       // Plus de retries pour le level
+          levelLoadingRetryDelay: 2000,   // 2s entre retries (MediaMTX est lent)
+          fragLoadingTimeOut: 20000,
+          fragLoadingMaxRetry: 10,
+          fragLoadingRetryDelay: 2000,
+          // Forcer le rechargement du playlist (pas de cache)
+          liveSyncDurationCount: 3,
+          liveMaxLatencyDurationCount: 10,
+          // Éviter les erreurs sur 404 temporaires
+          xhrSetup: (xhr) => {
+            xhr.setRequestHeader("Cache-Control", "no-cache");
+          },
         });
 
         // Log des événements de chargement
