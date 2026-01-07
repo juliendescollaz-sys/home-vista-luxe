@@ -175,8 +175,8 @@ export function IncomingCallOverlay({
           addDebugLog(`LEVEL_LOADING: level ${data.level}`);
         });
 
-        hls.on(Hls.Events.LEVEL_LOADED, () => {
-          addDebugLog(`LEVEL_LOADED OK`);
+        hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
+          addDebugLog(`LEVEL_LOADED: ${data.details.totalduration}s, ${data.details.fragments?.length || 0} frags`);
         });
 
         hls.on(Hls.Events.FRAG_LOADING, (event, data) => {
@@ -227,23 +227,26 @@ export function IncomingCallOverlay({
         video.onerror = () => addDebugLog(`VIDEO: error ${video.error?.message}`);
 
         hls.on(Hls.Events.ERROR, (event, data) => {
-          // Ne logger que les erreurs importantes
+          // Logger toutes les erreurs pour le debug
+          const errDetail = `${data.type}/${data.details}${data.response?.code ? ` (HTTP ${data.response.code})` : ""}`;
+
           if (data.fatal) {
-            addDebugLog(`FATAL ERROR: ${data.type} - ${data.details}`);
+            addDebugLog(`FATAL: ${errDetail}`);
             setVideoError(`${data.type}: ${data.details}`);
             // Essayer de récupérer automatiquement
             if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-              addDebugLog("Erreur réseau fatale - retry...");
+              addDebugLog("Retry réseau...");
               hls.startLoad();
             } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-              addDebugLog("Erreur média fatale - recovery...");
+              addDebugLog("Recovery média...");
               hls.recoverMediaError();
             } else {
-              // Seulement marquer comme failed si on ne peut pas récupérer
               setVideoStatus("failed");
             }
+          } else {
+            // Erreurs non-fatales - logger pour debug
+            addDebugLog(`WARN: ${errDetail}`);
           }
-          // Ignorer les erreurs non-fatales (retries automatiques de hls.js)
         });
 
         hlsRef.current = hls;
