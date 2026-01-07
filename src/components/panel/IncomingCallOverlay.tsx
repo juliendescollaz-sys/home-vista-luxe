@@ -154,10 +154,12 @@ export function IncomingCallOverlay({
 
   // Flag pour éviter les doubles initialisations
   const hlsInitializedRef = useRef(false);
-  // Container ref pour ajouter la vidéo dynamiquement
-  const videoContainerRef = useRef<HTMLDivElement>(null);
+  // Canvas ref pour dessiner la vidéo (évite le lecteur Android natif)
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Animation frame ref pour le rendu canvas
+  const animationFrameRef = useRef<number | null>(null);
 
-  // Étape 2: Charger HLS en mémoire, ajouter au DOM seulement quand prêt
+  // Étape 2: Charger HLS avec rendu sur canvas (évite le lecteur Android)
   useEffect(() => {
     if (!showVideo || !hlsUrl) return;
 
@@ -168,20 +170,30 @@ export function IncomingCallOverlay({
     }
     hlsInitializedRef.current = true;
 
-    // Créer l'élément vidéo EN MÉMOIRE (pas dans le DOM)
+    // Créer l'élément vidéo CACHÉ (jamais affiché directement)
     const video = document.createElement("video");
     video.playsInline = true;
     video.muted = true;
     video.autoplay = true;
     video.controls = false;
-    video.className = "absolute inset-0 w-full h-full object-cover";
+    // Garder la vidéo hors écran - ne jamais l'ajouter au DOM visible
+    video.style.position = "absolute";
+    video.style.left = "-9999px";
+    video.style.top = "-9999px";
+    video.style.width = "1px";
+    video.style.height = "1px";
+    video.style.opacity = "0";
+    video.style.pointerEvents = "none";
     video.setAttribute("disablePictureInPicture", "");
     video.setAttribute("disableRemotePlayback", "");
+
+    // Ajouter au body pour que le décodage fonctionne
+    document.body.appendChild(video);
 
     // Stocker la référence
     videoRef.current = video;
 
-    addDebugLog(`Video créée en mémoire, chargement HLS`);
+    addDebugLog(`Video créée (cachée), chargement HLS`);
 
     // Détruire l'instance HLS précédente si elle existe
     if (hlsRef.current) {
@@ -189,12 +201,60 @@ export function IncomingCallOverlay({
       hlsRef.current = null;
     }
 
-    // Tester d'abord le HLS natif (certains Android le supportent)
-    const canPlayHlsNative = video.canPlayType("application/vnd.apple.mpegurl") ||
-                             video.canPlayType("application/x-mpegURL");
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      addDebugLog("Canvas non trouvé!");
+      return;
+    }
+
+    // Fonction pour dessiner la vidéo sur le canvas
+    const drawVideoToCanvas = () => {
+      if (!video || video.paused || video.ended || !canvas) {
+        animationFrameRef.current = requestAnimationFrame(drawVideoToCanvas);
+        return;
+      }
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      // Adapter la taille du canvas au container
+      const rect = canvas.getBoundingClientRect();
+      if (canvas.width !== rect.width || canvas.height !== rect.height) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+
+      // Calculer les dimensions pour cover (comme object-fit: cover)
+      const videoRatio = video.videoWidth / video.videoHeight;
+      const canvasRatio = canvas.width / canvas.height;
+
+      let drawWidth, drawHeight, offsetX, offsetY;
+
+      if (canvasRatio > videoRatio) {
+        // Canvas plus large que la vidéo
+        drawWidth = canvas.width;
+        drawHeight = canvas.width / videoRatio;
+        offsetX = 0;
+        offsetY = (canvas.height - drawHeight) / 2;
+      } else {
+        // Canvas plus haut que la vidéo
+        drawHeight = canvas.height;
+        drawWidth = canvas.height * videoRatio;
+        offsetX = (canvas.width - drawWidth) / 2;
+        offsetY = 0;
+      }
+
+      ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
+      animationFrameRef.current = requestAnimationFrame(drawVideoToCanvas);
+    };
 
     // Fonction de cleanup commune
     const cleanup = () => {
+      // Arrêter l'animation
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
       // Réinitialiser le flag pour permettre une nouvelle initialisation
       hlsInitializedRef.current = false;
       // Détruire l'instance HLS
@@ -213,16 +273,19 @@ export function IncomingCallOverlay({
       }
     };
 
+    // Tester d'abord le HLS natif (certains Android le supportent)
+    const canPlayHlsNative = video.canPlayType("application/vnd.apple.mpegurl") ||
+                             video.canPlayType("application/x-mpegURL");
+
     if (canPlayHlsNative) {
-      addDebugLog("HLS NATIF");
+      addDebugLog("HLS NATIF + Canvas");
       video.src = hlsUrl;
 
-      // Quand la vidéo joue, l'ajouter au DOM
+      // Quand la vidéo joue, démarrer le rendu canvas
       video.onplaying = () => {
-        addDebugLog("VIDEO playing - ajout au DOM");
-        if (videoContainerRef.current && !videoContainerRef.current.contains(video)) {
-          videoContainerRef.current.appendChild(video);
-        }
+        addDebugLog("VIDEO playing - démarrage canvas");
+        // Démarrer le rendu sur canvas
+        drawVideoToCanvas();
         setVideoStatus("connected");
       };
       video.onloadeddata = () => addDebugLog("Data loaded");
@@ -239,7 +302,36 @@ export function IncomingCallOverlay({
 
     // Fallback: utiliser hls.js si HLS natif non supporté
     if (Hls.isSupported()) {
-      addDebugLog("hls.js - pas utilisé car natif préféré");
+      addDebugLog("hls.js + Canvas");
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+      });
+      hlsRef.current = hls;
+
+      hls.loadSource(hlsUrl);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        addDebugLog("Manifest parsed");
+        video.play().catch(e => addDebugLog(`Play: ${e.message}`));
+      });
+
+      video.onplaying = () => {
+        addDebugLog("VIDEO playing - démarrage canvas (hls.js)");
+        drawVideoToCanvas();
+        setVideoStatus("connected");
+      };
+
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        addDebugLog(`HLS Error: ${data.type} - ${data.details}`);
+        if (data.fatal) {
+          setVideoStatus("failed");
+          setVideoError(`HLS: ${data.details}`);
+        }
+      });
+
+      return cleanup;
     }
 
     // HLS non supporté du tout
@@ -333,10 +425,10 @@ export function IncomingCallOverlay({
           </div>
         </div>
 
-        {/* Container pour la vidéo - la vidéo est ajoutée dynamiquement quand elle joue */}
-        <div
-          ref={videoContainerRef}
-          className="absolute inset-0"
+        {/* Canvas pour afficher la vidéo (évite le lecteur Android natif) */}
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full"
         />
 
         {/* Overlay gradient pour lisibilité des contrôles */}
