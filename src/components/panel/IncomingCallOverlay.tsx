@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Phone, PhoneOff, DoorOpen, Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Hls from "hls.js";
+import { KeepAwake } from "@capacitor-community/keep-awake";
 
 interface IncomingCallOverlayProps {
   /** Visible ou non */
@@ -72,24 +73,34 @@ export function IncomingCallOverlay({
   // Réveiller l'écran et le garder allumé pendant l'appel
   useEffect(() => {
     if (visible) {
-      const requestWakeLock = async () => {
+      const activateKeepAwake = async () => {
         try {
-          if ("wakeLock" in navigator) {
-            wakeLockRef.current = await navigator.wakeLock.request("screen");
-            console.log("[IncomingCall] Wake Lock activé");
+          // Capacitor KeepAwake (Android natif - réveille l'écran)
+          await KeepAwake.keepAwake();
+          console.log("[IncomingCall] KeepAwake activé (Capacitor)");
+        } catch {
+          // Fallback: Web Wake Lock API (garde allumé mais ne réveille pas)
+          try {
+            if ("wakeLock" in navigator) {
+              wakeLockRef.current = await navigator.wakeLock.request("screen");
+              console.log("[IncomingCall] Wake Lock activé (Web API)");
+            }
+          } catch (err) {
+            console.warn("[IncomingCall] Wake Lock non disponible:", err);
           }
-        } catch (err) {
-          console.warn("[IncomingCall] Wake Lock non disponible:", err);
         }
       };
-      requestWakeLock();
+      activateKeepAwake();
 
       return () => {
+        // Libérer KeepAwake
+        KeepAwake.allowSleep().catch(() => {});
+        // Libérer Web Wake Lock
         if (wakeLockRef.current) {
           wakeLockRef.current.release();
           wakeLockRef.current = null;
-          console.log("[IncomingCall] Wake Lock libéré");
         }
+        console.log("[IncomingCall] Wake Lock libéré");
       };
     }
   }, [visible]);
