@@ -431,24 +431,23 @@ export function IncomingCallOverlay({
       <div className="absolute inset-0">
         {showVideo ? (
           <>
+            {/* Fond dégradé visible tant que la vidéo ne joue pas */}
+            {videoStatus !== "connected" && (
+              <div className="absolute inset-0 bg-gradient-to-b from-slate-900 to-black" />
+            )}
             {/* Video cachée tant qu'elle ne joue pas */}
             <video
               ref={videoRef}
-              className={`w-full h-full object-cover ${videoStatus === "connected" ? "opacity-100" : "opacity-0"}`}
+              className={`w-full h-full object-cover transition-opacity duration-300 ${videoStatus === "connected" ? "opacity-100" : "opacity-0"}`}
               playsInline
               muted
               autoPlay
             />
-            {/* Overlay de chargement - visible tant que pas connected */}
-            {videoStatus !== "connected" && (
-              <div className="absolute inset-0 bg-gradient-to-b from-slate-900 to-black flex items-center justify-center z-40">
-                <div className="text-center">
-                  <div className="w-24 h-24 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4 animate-pulse">
-                    <Phone className="w-12 h-12 text-white" />
-                  </div>
-                  <p className="text-white text-xl font-medium">Appel interphone</p>
-                  <p className="text-white/60 text-sm mt-2">Connexion video...</p>
-                </div>
+            {/* Indicateur de chargement - petit badge, ne bloque pas les contrôles */}
+            {videoStatus === "connecting" && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white text-sm px-4 py-2 rounded-full flex items-center gap-2 z-30">
+                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" />
+                Connexion video...
               </div>
             )}
             {/* Erreur */}

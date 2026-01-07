@@ -108,7 +108,8 @@
       "Bash(powershell -Command \"ssh sip@192.168.1.115 ''curl -sI http://localhost:8888/akuvox/main_stream.m3u8 | head -15''\")",
       "Bash(powershell -Command \"curl -s -m 5 http://192.168.1.115:8888/akuvox/index.m3u8 2>&1 | head -10\")",
       "Bash(powershell -Command:*)",
-      "Bash(npm run build:panel:*)"
+      "Bash(npm run build:panel:*)",
+      "Bash(npx cap sync android)"
     ]
   }
 }
