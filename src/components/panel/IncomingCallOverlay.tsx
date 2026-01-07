@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Phone, PhoneOff, DoorOpen, Mic, MicOff, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAkuvoxVideo } from "@/hooks/useAkuvoxVideo";
 
 interface IncomingCallOverlayProps {
   /** Visible ou non */
@@ -43,11 +44,19 @@ export function IncomingCallOverlay({
   videoDelayAfterDoor = 5,
 }: IncomingCallOverlayProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [micEnabled, setMicEnabled] = useState(true);
   const [showVideo, setShowVideo] = useState(false);
   const [doorOpened, setDoorOpened] = useState(false);
   const doorTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Hook pour la vidéo WHEP
+  const {
+    status: videoStatus,
+    videoRef,
+    connect: connectVideo,
+    disconnect: disconnectVideo,
+    setMicrophoneEnabled,
+  } = useAkuvoxVideo();
 
   // Jouer la sonnerie quand l'appel sonne
   useEffect(() => {
@@ -79,15 +88,24 @@ export function IncomingCallOverlay({
     }
   }, [callState]);
 
-  // Afficher la vidéo quand l'appel est actif
+  // Connecter la vidéo WHEP quand l'appel arrive
   useEffect(() => {
-    if (callState === "incall" && videoUrl) {
-      setShowVideo(true);
-    } else if (callState === "ringing") {
-      // Afficher la vidéo aussi pendant la sonnerie
+    if (visible && (callState === "ringing" || callState === "incall")) {
+      // Connecter à la vidéo WHEP
+      connectVideo(false).catch((err) => {
+        console.error("[IncomingCall] Erreur connexion vidéo:", err);
+      });
       setShowVideo(true);
     }
-  }, [callState, videoUrl]);
+
+    return () => {
+      // Déconnecter quand l'overlay se ferme ou l'appel se termine
+      if (!visible || callState === "ended") {
+        disconnectVideo();
+        setShowVideo(false);
+      }
+    };
+  }, [visible, callState, connectVideo, disconnectVideo]);
 
   // Gérer le délai vidéo après ouverture de porte
   useEffect(() => {
@@ -131,9 +149,10 @@ export function IncomingCallOverlay({
   }, [onOpenDoor]);
 
   const toggleMic = useCallback(() => {
-    setMicEnabled((prev) => !prev);
-    // TODO: Appeler linphoneSipService.setMicrophoneEnabled(!micEnabled)
-  }, []);
+    const newState = !micEnabled;
+    setMicEnabled(newState);
+    setMicrophoneEnabled(newState);
+  }, [micEnabled, setMicrophoneEnabled]);
 
   if (!visible) return null;
 
@@ -141,14 +160,22 @@ export function IncomingCallOverlay({
     <div className="fixed inset-0 z-[10000] bg-black flex flex-col">
       {/* Zone vidéo (fond) */}
       <div className="absolute inset-0">
-        {showVideo && videoUrl ? (
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover"
-            autoPlay
-            playsInline
-            muted
-          />
+        {showVideo ? (
+          <>
+            <video
+              ref={videoRef}
+              className="w-full h-full object-cover"
+              autoPlay
+              playsInline
+              muted={false}
+            />
+            {/* Indicateur de chargement vidéo */}
+            {videoStatus === "connecting" && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                <div className="text-white text-lg">Chargement vidéo...</div>
+              </div>
+            )}
+          </>
         ) : (
           <div className="w-full h-full bg-gradient-to-b from-slate-900 to-black flex items-center justify-center">
             <div className="text-center">

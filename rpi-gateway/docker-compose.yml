@@ -3,7 +3,7 @@ version: "3.8"
 services:
   # Serveur SIP Asterisk local
   asterisk:
-    image: andrius/asterisk:alpine-20
+    image: andrius/asterisk:latest
     container_name: asterisk
     restart: unless-stopped
     network_mode: host
@@ -13,6 +13,7 @@ services:
       - ./asterisk/rtp.conf:/etc/asterisk/rtp.conf:ro
       - ./asterisk/asterisk.conf:/etc/asterisk/asterisk.conf:ro
       - ./asterisk/logger.conf:/etc/asterisk/logger.conf:ro
+      - ./asterisk/modules.conf:/etc/asterisk/modules.conf:ro
       - asterisk-logs:/var/log/asterisk
     environment:
       - TZ=Europe/Zurich
