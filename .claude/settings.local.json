@@ -37,7 +37,9 @@
       "Bash(powershell -Command \"ssh debian@141.227.158.64 ''sudo ss -tuln''\")",
       "Bash(powershell -Command \"ssh debian@141.227.158.64 ''cat /etc/rtpengine/rtpengine.conf''\")",
       "Bash(powershell -Command \"ssh debian@141.227.158.64 ''sudo iptables -L -n''\")",
-      "Bash(powershell -Command \"ssh debian@141.227.158.64 ''sudo ufw allow 30000:40000/udp comment RTPEngine-RTP''\")"
+      "Bash(powershell -Command \"ssh debian@141.227.158.64 ''sudo ufw allow 30000:40000/udp comment RTPEngine-RTP''\")",
+      "Bash(ls:*)",
+      "Bash(sshpass -p 'NexVentures+022%' ssh -o StrictHostKeyChecking=no sip@192.168.1.115 \"echo ''=== SYSTÈME ==='' && uname -a && echo && echo ''=== SERVICES ACTIFS ==='' && systemctl list-units --type=service --state=running | grep -E ''asterisk|mediamtx|docker|avahi'' && echo && echo ''=== DOCKER ==='' && docker ps 2>/dev/null || echo ''Docker non installé ou non accessible'' && echo && echo ''=== ASTERISK ==='' && which asterisk && asterisk -V 2>/dev/null || echo ''Asterisk non trouvé'' && echo && echo ''=== MEDIAMTX ==='' && which mediamtx 2>/dev/null || ls /opt/mediamtx 2>/dev/null || echo ''MediaMTX non trouvé'' && echo && echo ''=== PORTS OUVERTS ==='' && ss -tuln | grep -E '':5060|:8889|:8080|:5353''\")"
     ]
   }
 }

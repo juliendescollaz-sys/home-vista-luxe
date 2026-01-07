@@ -40,6 +40,9 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+
+    // Linphone SDK for native SIP
+    implementation "org.linphone:linphone-sdk-android:5.3.+"
 }
 
 apply from: 'capacitor.build.gradle'

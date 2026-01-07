@@ -1,5 +1,5 @@
 import { Routes, Route, useLocation } from "react-router-dom";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PanelSidebar } from "@/components/PanelSidebar";
@@ -23,6 +23,8 @@ import { useNeoliaPlansPreloader } from "@/hooks/useNeoliaPlansPreloader";
 import { useNeoliaPanelConfigLoader } from "@/hooks/useNeoliaPanelConfigLoader";
 import { TopBarPanel } from "@/components/TopBarPanel";
 import { NeoliaLoadingScreen } from "@/ui/panel/components/NeoliaLoadingScreen";
+import { IncomingCallOverlay } from "@/components/panel/IncomingCallOverlay";
+import { usePanelIntercom } from "@/hooks/usePanelIntercom";
 
 const ROUTE_TITLES: Record<string, string> = {
   "/": "Accueil",
@@ -44,6 +46,22 @@ export function PanelRootLayout() {
 
   useNeoliaPlansPreloader();
   useNeoliaPanelConfigLoader();
+
+  // Hook interphone
+  const {
+    isConfigured: intercomConfigured,
+    currentCall,
+    callState,
+    callerName,
+    videoUrl,
+    config: intercomConfig,
+    answer,
+    hangup,
+    openDoor,
+  } = usePanelIntercom();
+
+  // Afficher l'overlay d'appel si un appel est en cours
+  const showCallOverlay = intercomConfigured && currentCall !== null && callState !== null;
 
   const pageTitle = useMemo(() => {
     const path = location.pathname;
@@ -157,10 +175,24 @@ export function PanelRootLayout() {
           >
             <NeoliaLoadingScreen
               title="Chargement…"
-              subtitle="Préparation de l’interface et synchronisation…"
+              subtitle="Préparation de l'interface et synchronisation…"
             />
           </div>
         )}
+
+        {/* Overlay appel entrant interphone */}
+        <IncomingCallOverlay
+          visible={showCallOverlay}
+          callerName={callerName || "Interphone"}
+          callState={callState as "ringing" | "incall" | "ended"}
+          videoUrl={videoUrl || undefined}
+          onAnswer={answer}
+          onHangup={hangup}
+          onOpenDoor={openDoor}
+          ringtone={intercomConfig.ringtone.name}
+          ringtoneVolume={intercomConfig.ringtone.volume}
+          videoDelayAfterDoor={intercomConfig.door.videoDelayAfterOpen}
+        />
       </div>
     </SidebarProvider>
   );

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { clearHACredentials } from "@/lib/crypto";
 import { useNeoliaPanelConfigStore } from "@/store/useNeoliaPanelConfigStore";
+import { IntercomSettingsCard } from "@/components/panel/IntercomSettingsCard";
 
 export function PanelSettings() {
   const disconnect = useHAStore((state) => state.disconnect);
@@ -137,15 +138,19 @@ export function PanelSettings() {
           </Card>
         </div>
 
-        {/* Colonne 3: À propos */}
-        <Card className="p-5 bg-gradient-card border-border/50">
-          <h3 className="text-base font-semibold mb-3">À propos</h3>
-          <div className="space-y-1 text-xs text-muted-foreground">
-            <p>Neolia Smart Home v1.0.0</p>
-            <p>Powered by Home Assistant</p>
-            <p>© 2025 Neolia. Tous droits réservés.</p>
-          </div>
-        </Card>
+        {/* Colonne 3: Interphone + À propos */}
+        <div className="flex flex-col gap-4">
+          <IntercomSettingsCard />
+
+          <Card className="p-5 bg-gradient-card border-border/50">
+            <h3 className="text-base font-semibold mb-3">À propos</h3>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>Neolia Smart Home v1.0.0</p>
+              <p>Powered by Home Assistant</p>
+              <p>© 2025 Neolia. Tous droits réservés.</p>
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   );
