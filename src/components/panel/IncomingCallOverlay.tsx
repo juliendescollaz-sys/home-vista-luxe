@@ -52,6 +52,7 @@ export function IncomingCallOverlay({
   const [videoError, setVideoError] = useState<string | null>(null);
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const doorTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
   // Helper pour ajouter des logs de debug visibles dans l'UI
   const addDebugLog = useCallback((msg: string) => {
@@ -67,6 +68,31 @@ export function IncomingCallOverlay({
 
   // Référence pour l'instance HLS
   const hlsRef = useRef<Hls | null>(null);
+
+  // Réveiller l'écran et le garder allumé pendant l'appel
+  useEffect(() => {
+    if (visible) {
+      const requestWakeLock = async () => {
+        try {
+          if ("wakeLock" in navigator) {
+            wakeLockRef.current = await navigator.wakeLock.request("screen");
+            console.log("[IncomingCall] Wake Lock activé");
+          }
+        } catch (err) {
+          console.warn("[IncomingCall] Wake Lock non disponible:", err);
+        }
+      };
+      requestWakeLock();
+
+      return () => {
+        if (wakeLockRef.current) {
+          wakeLockRef.current.release();
+          wakeLockRef.current = null;
+          console.log("[IncomingCall] Wake Lock libéré");
+        }
+      };
+    }
+  }, [visible]);
 
   // Jouer la sonnerie quand l'appel sonne
   useEffect(() => {
@@ -394,28 +420,30 @@ export function IncomingCallOverlay({
       <div className="absolute inset-0">
         {showVideo ? (
           <>
+            {/* Video cachée tant qu'elle ne joue pas */}
             <video
               ref={videoRef}
-              className="w-full h-full object-cover"
+              className={`w-full h-full object-cover ${videoStatus === "connected" ? "opacity-100" : "opacity-0"}`}
               playsInline
               muted
               autoPlay
             />
-            {/* Overlay de chargement pendant connexion */}
-            {videoStatus === "connecting" && (
-              <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-40">
+            {/* Overlay de chargement - visible tant que pas connected */}
+            {videoStatus !== "connected" && (
+              <div className="absolute inset-0 bg-gradient-to-b from-slate-900 to-black flex items-center justify-center z-40">
                 <div className="text-center">
-                  <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4 animate-pulse">
-                    <Phone className="w-10 h-10 text-white" />
+                  <div className="w-24 h-24 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                    <Phone className="w-12 h-12 text-white" />
                   </div>
-                  <p className="text-white text-lg">Connexion video...</p>
+                  <p className="text-white text-xl font-medium">Appel interphone</p>
+                  <p className="text-white/60 text-sm mt-2">Connexion video...</p>
                 </div>
               </div>
             )}
-            {/* Debug panel (reduit) */}
+            {/* Erreur */}
             {videoError && (
               <div className="absolute top-2 left-2 right-2 bg-red-900/90 text-white text-xs p-2 rounded z-50">
-                Erreur: {videoError}
+                {videoError}
               </div>
             )}
           </>
