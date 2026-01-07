@@ -115,6 +115,32 @@ export function IncomingCallOverlay({
           enableWorker: true,
           lowLatencyMode: false,
           backBufferLength: 30,
+          debug: true, // Active les logs détaillés
+          xhrSetup: (xhr) => {
+            // Log toutes les requêtes XHR
+            console.log("[IncomingCall] XHR setup pour:", xhr);
+          },
+        });
+
+        // Log des événements de chargement
+        hls.on(Hls.Events.MANIFEST_LOADING, (event, data) => {
+          console.log("[IncomingCall] HLS manifest loading:", data.url);
+        });
+
+        hls.on(Hls.Events.MANIFEST_LOADED, (event, data) => {
+          console.log("[IncomingCall] HLS manifest loaded:", data);
+        });
+
+        hls.on(Hls.Events.LEVEL_LOADING, (event, data) => {
+          console.log("[IncomingCall] HLS level loading:", data);
+        });
+
+        hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
+          console.log("[IncomingCall] HLS level loaded:", data);
+        });
+
+        hls.on(Hls.Events.FRAG_LOADING, (event, data) => {
+          console.log("[IncomingCall] HLS fragment loading:", data.frag.url);
         });
 
         hls.loadSource(hlsUrl);
@@ -129,10 +155,11 @@ export function IncomingCallOverlay({
         });
 
         hls.on(Hls.Events.ERROR, (event, data) => {
-          console.error("[IncomingCall] HLS error:", data);
+          console.error("[IncomingCall] HLS error:", data.type, data.details, data);
+          // Afficher toutes les erreurs, pas seulement les fatales
+          setVideoError(`${data.type}: ${data.details}`);
           if (data.fatal) {
             setVideoStatus("failed");
-            setVideoError(`HLS Error: ${data.type}`);
             // Essayer de récupérer
             if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
               console.log("[IncomingCall] Tentative de récupération réseau...");
