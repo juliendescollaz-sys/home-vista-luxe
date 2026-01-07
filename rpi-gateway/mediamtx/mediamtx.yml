@@ -16,16 +16,28 @@ apiAddress: :9997
 rtsp: yes
 rtspAddress: :8554
 protocols: [udp, tcp]
-rtspRangeType: clock
 
 # WebRTC Server (WHEP pour les panels)
 webrtc: yes
 webrtcAddress: :8889
 webrtcAllowOrigin: '*'
 webrtcICEServers2: []
+# Ports UDP pour ICE (RTP media)
+webrtcICEUDPMuxAddress: :8189
+webrtcICETCPMuxAddress: :8189
+# IP locale pour les candidats ICE (important en LAN)
+webrtcLocalUDPAddress: 192.168.1.115:8189
+webrtcLocalTCPAddress: 192.168.1.115:8189
 
-# Pas de HLS/RTMP (pas necessaire)
-hls: no
+# HLS pour lecture simple sur les navigateurs/WebViews
+hls: yes
+hlsAddress: :8888
+hlsAllowOrigin: '*'
+hlsVariant: lowLatency
+hlsSegmentCount: 3
+hlsSegmentDuration: 500ms
+
+# Pas de RTMP/SRT (pas necessaire)
 rtmp: no
 srt: no
 
