@@ -3,6 +3,7 @@ import { Phone, PhoneOff, DoorOpen, Mic, MicOff, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAkuvoxVideo } from "@/hooks/useAkuvoxVideo";
+import { useMediaMTXConfigStore } from "@/store/useMediaMTXConfigStore";
 
 interface IncomingCallOverlayProps {
   /** Visible ou non */
@@ -56,7 +57,12 @@ export function IncomingCallOverlay({
     connect: connectVideo,
     disconnect: disconnectVideo,
     setMicrophoneEnabled,
+    error: videoError,
+    isConfigValid,
   } = useAkuvoxVideo();
+
+  // Récupérer l'URL WHEP pour debug
+  const mediaMTXConfig = useMediaMTXConfigStore((s) => s.config);
 
   // Jouer la sonnerie quand l'appel sonne
   useEffect(() => {
@@ -169,12 +175,13 @@ export function IncomingCallOverlay({
               playsInline
               muted={false}
             />
-            {/* Indicateur de chargement vidéo */}
-            {videoStatus === "connecting" && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                <div className="text-white text-lg">Chargement vidéo...</div>
-              </div>
-            )}
+            {/* Indicateur de statut vidéo (debug) */}
+            <div className="absolute top-2 left-2 bg-black/70 text-white text-xs p-2 rounded max-w-[80%]">
+              <div>Status: {videoStatus}</div>
+              <div>Config: {isConfigValid ? "OK" : "INVALID"}</div>
+              <div className="truncate">URL: {mediaMTXConfig?.whepUrl || "N/A"}</div>
+              {videoError && <div className="text-red-400">Err: {videoError}</div>}
+            </div>
           </>
         ) : (
           <div className="w-full h-full bg-gradient-to-b from-slate-900 to-black flex items-center justify-center">
