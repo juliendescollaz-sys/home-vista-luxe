@@ -39,9 +39,21 @@ export function usePanelIntercom() {
   const setError = usePanelIntercomStore((s) => s.setError);
 
   const isInitializedRef = useRef(false);
+  const enabled = config.enabled;
 
-  // Initialiser le SIP au montage si configuré
+  // Initialiser le SIP au montage si configuré et activé
   useEffect(() => {
+    // Si désactivé, déconnecter
+    if (!enabled) {
+      console.log("[usePanelIntercom] Interphone désactivé");
+      if (isInitializedRef.current) {
+        linphoneSipService.destroy();
+        isInitializedRef.current = false;
+        setSipState("disconnected");
+      }
+      return;
+    }
+
     if (!isConfigured) {
       console.log("[usePanelIntercom] Interphone non configuré, skip init");
       return;
@@ -123,6 +135,7 @@ export function usePanelIntercom() {
       }
     };
   }, [
+    enabled,
     isConfigured,
     config.sip.server,
     config.sip.user,
