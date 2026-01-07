@@ -189,12 +189,15 @@ public class LinphoneSipManager {
         core.setEchoCancellationEnabled(true);
         core.setAdaptiveRateControlEnabled(true);
 
-        // Désactiver la sonnerie native de Linphone
+        // Désactiver TOUTES les sonneries natives de Linphone
         // L'app gère sa propre sonnerie via IncomingCallOverlay
-        core.setRing(null);
-        core.setRingback(null);
+        core.setRing(null);                              // Sonnerie appel entrant
+        core.setRingback(null);                          // Ringback tone (quand on appelle)
+        core.setRingDuringIncomingEarlyMedia(false);     // Pas de son pendant early media
+        core.setVibrationOnIncomingCallEnabled(false);   // Pas de vibration
+        core.setCallToneIndicationsEnabled(false);       // Pas de tonalités d'appel
 
-        Log.i(TAG, "Core configured (ringtone disabled)");
+        Log.i(TAG, "Core configured (all ringtones/vibrations disabled)");
     }
 
     /**
