@@ -56,7 +56,7 @@ export function IncomingCallOverlay({
   // Helper pour ajouter des logs de debug visibles dans l'UI
   const addDebugLog = useCallback((msg: string) => {
     console.log("[IncomingCall]", msg);
-    setDebugLogs((prev) => [...prev.slice(-10), `${new Date().toLocaleTimeString()}: ${msg}`]);
+    setDebugLogs((prev) => [...prev.slice(-25), `${new Date().toLocaleTimeString()}: ${msg}`]);
   }, []);
 
   // Convertir l'URL WHEP en URL HLS
@@ -365,15 +365,15 @@ export function IncomingCallOverlay({
               playsInline
               muted
             />
-            {/* Indicateur de statut vidéo (debug) */}
-            <div className="absolute top-2 left-2 bg-black/90 text-white text-xs p-2 rounded max-w-[90%] max-h-[40%] overflow-y-auto">
-              <div className="font-bold mb-1">Status: {videoStatus}</div>
-              <div className="truncate text-gray-300 mb-1">HLS: {hlsUrl || "N/A"}</div>
-              {videoError && <div className="text-red-400 mb-1">Err: {videoError}</div>}
-              <div className="border-t border-gray-600 pt-1 mt-1">
-                <div className="font-bold text-yellow-400">Debug Logs:</div>
+            {/* Indicateur de statut vidéo (debug) - Fenêtre agrandie */}
+            <div className="absolute top-2 left-2 right-2 bg-black/95 text-white text-xs p-3 rounded max-h-[70%] overflow-y-auto z-50">
+              <div className="font-bold mb-1 text-sm">Status: {videoStatus}</div>
+              <div className="text-gray-300 mb-1 text-[11px] break-all">HLS: {hlsUrl || "N/A"}</div>
+              {videoError && <div className="text-red-400 mb-2 font-bold">Err: {videoError}</div>}
+              <div className="border-t border-gray-600 pt-2 mt-2">
+                <div className="font-bold text-yellow-400 mb-1">Debug Logs ({debugLogs.length}):</div>
                 {debugLogs.map((log, i) => (
-                  <div key={i} className="text-gray-400 text-[10px]">{log}</div>
+                  <div key={i} className="text-gray-300 text-[11px] py-0.5 border-b border-gray-800">{log}</div>
                 ))}
               </div>
             </div>
