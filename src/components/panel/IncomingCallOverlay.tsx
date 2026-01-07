@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Phone, PhoneOff, DoorOpen, Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Hls from "hls.js";
 
 interface IncomingCallOverlayProps {
   /** Visible ou non */
@@ -57,6 +58,9 @@ export function IncomingCallOverlay({
     ? videoUrl.replace(":8889/", ":8888/").replace("/whep", "/index.m3u8")
     : null;
 
+  // Référence pour l'instance HLS
+  const hlsRef = useRef<Hls | null>(null);
+
   // Jouer la sonnerie quand l'appel sonne
   useEffect(() => {
     if (callState === "ringing" && visible) {
@@ -87,7 +91,7 @@ export function IncomingCallOverlay({
     }
   }, [callState]);
 
-  // Charger la vidéo HLS quand l'appel arrive
+  // Charger la vidéo HLS quand l'appel arrive (avec hls.js pour Android WebView)
   useEffect(() => {
     if (visible && (callState === "ringing" || callState === "incall") && hlsUrl) {
       console.log("[IncomingCall] Chargement vidéo HLS:", hlsUrl);
@@ -95,25 +99,76 @@ export function IncomingCallOverlay({
       setVideoError(null);
       setShowVideo(true);
 
-      // Charger le flux HLS dans l'élément video
-      if (videoRef.current) {
-        videoRef.current.src = hlsUrl;
-        videoRef.current.load();
+      const video = videoRef.current;
+      if (!video) return;
 
-        videoRef.current.onloadeddata = () => {
-          console.log("[IncomingCall] Vidéo HLS chargée");
+      // Détruire l'instance HLS précédente si elle existe
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+
+      // Utiliser hls.js si supporté (Android WebView, Chrome, etc.)
+      if (Hls.isSupported()) {
+        console.log("[IncomingCall] Utilisation de hls.js");
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: false,
+          backBufferLength: 30,
+        });
+
+        hls.loadSource(hlsUrl);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          console.log("[IncomingCall] HLS manifest parsed, démarrage lecture");
+          setVideoStatus("connected");
+          video.play().catch((e) => {
+            console.warn("[IncomingCall] Autoplay failed:", e);
+          });
+        });
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          console.error("[IncomingCall] HLS error:", data);
+          if (data.fatal) {
+            setVideoStatus("failed");
+            setVideoError(`HLS Error: ${data.type}`);
+            // Essayer de récupérer
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              console.log("[IncomingCall] Tentative de récupération réseau...");
+              hls.startLoad();
+            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+              console.log("[IncomingCall] Tentative de récupération média...");
+              hls.recoverMediaError();
+            }
+          }
+        });
+
+        hlsRef.current = hls;
+      }
+      // Fallback pour Safari/iOS qui supporte HLS nativement
+      else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        console.log("[IncomingCall] Utilisation HLS natif (Safari)");
+        video.src = hlsUrl;
+
+        video.onloadeddata = () => {
+          console.log("[IncomingCall] Vidéo HLS chargée (natif)");
           setVideoStatus("connected");
         };
 
-        videoRef.current.onerror = (e) => {
-          console.error("[IncomingCall] Erreur vidéo HLS:", e);
+        video.onerror = (e) => {
+          console.error("[IncomingCall] Erreur vidéo HLS (natif):", e);
           setVideoStatus("failed");
           setVideoError("Erreur chargement vidéo");
         };
 
-        videoRef.current.play().catch((e) => {
+        video.play().catch((e) => {
           console.warn("[IncomingCall] Autoplay failed:", e);
         });
+      } else {
+        console.error("[IncomingCall] HLS non supporté sur ce navigateur");
+        setVideoStatus("failed");
+        setVideoError("HLS non supporté");
       }
     } else if (!hlsUrl && visible) {
       console.warn("[IncomingCall] Pas d'URL vidéo configurée");
@@ -121,6 +176,11 @@ export function IncomingCallOverlay({
     }
 
     return () => {
+      // Détruire l'instance HLS
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
       // Arrêter la vidéo quand l'overlay se ferme
       if (videoRef.current) {
         videoRef.current.pause();

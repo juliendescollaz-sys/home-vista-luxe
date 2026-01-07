@@ -33,9 +33,9 @@ webrtcLocalTCPAddress: 192.168.1.115:8189
 hls: yes
 hlsAddress: :8888
 hlsAllowOrigin: '*'
-hlsVariant: lowLatency
+hlsVariant: mpegts
 hlsSegmentCount: 3
-hlsSegmentDuration: 500ms
+hlsSegmentDuration: 1s
 
 # Pas de RTMP/SRT (pas necessaire)
 rtmp: no
