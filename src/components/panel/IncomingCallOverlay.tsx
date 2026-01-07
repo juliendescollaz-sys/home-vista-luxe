@@ -98,19 +98,32 @@ export function IncomingCallOverlay({
     }
   }, [callState]);
 
-  // Charger la vidéo HLS quand l'appel arrive (avec hls.js pour Android WebView)
+  // Étape 1: Activer l'affichage vidéo quand un appel arrive
   useEffect(() => {
     if (visible && (callState === "ringing" || callState === "incall") && hlsUrl) {
-      addDebugLog(`Chargement HLS: ${hlsUrl}`);
+      addDebugLog(`Appel détecté, activation vidéo`);
       setVideoStatus("connecting");
       setVideoError(null);
       setShowVideo(true);
+    } else if (!hlsUrl && visible) {
+      addDebugLog("Pas d'URL vidéo configurée");
+      setVideoError("URL vidéo non configurée");
+    }
+  }, [visible, callState, hlsUrl, addDebugLog]);
 
+  // Étape 2: Charger HLS une fois que le <video> est rendu (showVideo = true)
+  useEffect(() => {
+    if (!showVideo || !hlsUrl) return;
+
+    // Petit délai pour s'assurer que le DOM est prêt
+    const timeoutId = setTimeout(() => {
       const video = videoRef.current;
       if (!video) {
-        addDebugLog("ERREUR: videoRef est null!");
+        addDebugLog("ERREUR: videoRef toujours null après délai!");
         return;
       }
+
+      addDebugLog(`videoRef OK, chargement HLS: ${hlsUrl}`);
 
       // Détruire l'instance HLS précédente si elle existe
       if (hlsRef.current) {
@@ -132,7 +145,7 @@ export function IncomingCallOverlay({
           addDebugLog(`MANIFEST_LOADING: ${data.url}`);
         });
 
-        hls.on(Hls.Events.MANIFEST_LOADED, (event, data) => {
+        hls.on(Hls.Events.MANIFEST_LOADED, () => {
           addDebugLog(`MANIFEST_LOADED OK`);
         });
 
@@ -140,7 +153,7 @@ export function IncomingCallOverlay({
           addDebugLog(`LEVEL_LOADING: level ${data.level}`);
         });
 
-        hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
+        hls.on(Hls.Events.LEVEL_LOADED, () => {
           addDebugLog(`LEVEL_LOADED OK`);
         });
 
@@ -148,7 +161,7 @@ export function IncomingCallOverlay({
           addDebugLog(`FRAG_LOADING: ${data.frag.sn}`);
         });
 
-        hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
+        hls.on(Hls.Events.FRAG_LOADED, () => {
           addDebugLog(`FRAG_LOADED OK`);
         });
 
@@ -206,12 +219,10 @@ export function IncomingCallOverlay({
         setVideoStatus("failed");
         setVideoError("HLS non supporté");
       }
-    } else if (!hlsUrl && visible) {
-      addDebugLog("Pas d'URL vidéo configurée");
-      setVideoError("URL vidéo non configurée");
-    }
+    }, 100); // 100ms pour laisser le DOM se mettre à jour
 
     return () => {
+      clearTimeout(timeoutId);
       // Détruire l'instance HLS
       if (hlsRef.current) {
         hlsRef.current.destroy();
@@ -222,12 +233,17 @@ export function IncomingCallOverlay({
         videoRef.current.pause();
         videoRef.current.src = "";
       }
-      if (!visible || callState === "ended") {
-        setShowVideo(false);
-        setVideoStatus("idle");
-      }
     };
-  }, [visible, callState, hlsUrl]);
+  }, [showVideo, hlsUrl, addDebugLog]);
+
+  // Cleanup quand l'appel se termine ou l'overlay se ferme
+  useEffect(() => {
+    if (!visible || callState === "ended") {
+      setShowVideo(false);
+      setVideoStatus("idle");
+      setDebugLogs([]);
+    }
+  }, [visible, callState]);
 
   // Gérer le délai vidéo après ouverture de porte
   useEffect(() => {
