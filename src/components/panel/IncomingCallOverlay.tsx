@@ -193,9 +193,14 @@ export function IncomingCallOverlay({
         addDebugLog("attachMedia appelé");
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          addDebugLog("MANIFEST_PARSED - démarrage lecture");
+          addDebugLog("MANIFEST_PARSED - attente premier fragment...");
+        });
+
+        // Attendre que le premier fragment soit bufferisé avant de lancer la lecture
+        hls.on(Hls.Events.FRAG_BUFFERED, () => {
+          addDebugLog("FRAG_BUFFERED - démarrage lecture");
           setVideoStatus("connected");
-          setVideoError(null); // Effacer les erreurs précédentes
+          setVideoError(null);
           // Autoplay avec muted d'abord (contourne les restrictions Android)
           video.muted = true;
           video.play()
@@ -212,7 +217,7 @@ export function IncomingCallOverlay({
             .catch((e) => {
               addDebugLog(`Autoplay failed même muted: ${e.message}`);
             });
-        });
+        }, { once: true }); // Une seule fois
 
         // Surveiller les événements vidéo pour debug
         video.onplaying = () => addDebugLog("VIDEO: playing");
@@ -354,7 +359,6 @@ export function IncomingCallOverlay({
             <video
               ref={videoRef}
               className="w-full h-full object-cover"
-              autoPlay
               playsInline
               muted
             />
