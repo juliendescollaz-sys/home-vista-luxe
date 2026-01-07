@@ -112,25 +112,30 @@ export function IncomingCallOverlay({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, callState, hlsUrl]); // Ne pas inclure addDebugLog pour éviter les re-renders
 
+  // Flag pour éviter les doubles initialisations
+  const hlsInitializedRef = useRef(false);
+
   // Étape 2: Charger HLS une fois que le <video> est rendu (showVideo = true)
   useEffect(() => {
     if (!showVideo || !hlsUrl) return;
 
-    // Éviter les doubles chargements
-    if (hlsRef.current) {
-      console.log("[IncomingCall] HLS déjà chargé, skip");
+    // Éviter les doubles chargements avec un flag
+    if (hlsInitializedRef.current) {
+      console.log("[IncomingCall] HLS déjà initialisé, skip");
       return;
     }
+    hlsInitializedRef.current = true;
 
     // Petit délai pour s'assurer que le DOM est prêt
     const timeoutId = setTimeout(() => {
       const video = videoRef.current;
       if (!video) {
         addDebugLog("ERREUR: videoRef toujours null après délai!");
+        hlsInitializedRef.current = false;
         return;
       }
 
-      addDebugLog(`videoRef OK, chargement HLS: ${hlsUrl}`);
+      addDebugLog(`videoRef OK, chargement HLS`);
 
       // Détruire l'instance HLS précédente si elle existe
       if (hlsRef.current) {
@@ -198,14 +203,23 @@ export function IncomingCallOverlay({
               addDebugLog("Lecture démarrée (muted)");
               // Démuter après le démarrage
               setTimeout(() => {
-                video.muted = false;
-                addDebugLog("Audio activé");
+                if (videoRef.current) {
+                  videoRef.current.muted = false;
+                  addDebugLog("Audio activé");
+                }
               }, 500);
             })
             .catch((e) => {
               addDebugLog(`Autoplay failed même muted: ${e.message}`);
             });
         });
+
+        // Surveiller les événements vidéo pour debug
+        video.onplaying = () => addDebugLog("VIDEO: playing");
+        video.onpause = () => addDebugLog("VIDEO: paused");
+        video.onwaiting = () => addDebugLog("VIDEO: waiting/buffering");
+        video.onstalled = () => addDebugLog("VIDEO: stalled");
+        video.onerror = () => addDebugLog(`VIDEO: error ${video.error?.message}`);
 
         hls.on(Hls.Events.ERROR, (event, data) => {
           // Ne logger que les erreurs importantes
@@ -257,6 +271,8 @@ export function IncomingCallOverlay({
 
     return () => {
       clearTimeout(timeoutId);
+      // Réinitialiser le flag pour permettre une nouvelle initialisation
+      hlsInitializedRef.current = false;
       // Détruire l'instance HLS
       if (hlsRef.current) {
         hlsRef.current.destroy();
