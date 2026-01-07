@@ -109,11 +109,18 @@ export function IncomingCallOverlay({
       addDebugLog("Pas d'URL vidéo configurée");
       setVideoError("URL vidéo non configurée");
     }
-  }, [visible, callState, hlsUrl, addDebugLog]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, callState, hlsUrl]); // Ne pas inclure addDebugLog pour éviter les re-renders
 
   // Étape 2: Charger HLS une fois que le <video> est rendu (showVideo = true)
   useEffect(() => {
     if (!showVideo || !hlsUrl) return;
+
+    // Éviter les doubles chargements
+    if (hlsRef.current) {
+      console.log("[IncomingCall] HLS déjà chargé, skip");
+      return;
+    }
 
     // Petit délai pour s'assurer que le DOM est prêt
     const timeoutId = setTimeout(() => {
@@ -261,7 +268,8 @@ export function IncomingCallOverlay({
         videoRef.current.src = "";
       }
     };
-  }, [showVideo, hlsUrl, addDebugLog]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showVideo, hlsUrl]); // Ne pas inclure addDebugLog pour éviter les re-renders
 
   // Cleanup quand l'appel se termine ou l'overlay se ferme
   useEffect(() => {
