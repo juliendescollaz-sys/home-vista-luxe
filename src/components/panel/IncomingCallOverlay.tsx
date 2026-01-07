@@ -50,7 +50,14 @@ export function IncomingCallOverlay({
   const [doorOpened, setDoorOpened] = useState(false);
   const [videoStatus, setVideoStatus] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const doorTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Helper pour ajouter des logs de debug visibles dans l'UI
+  const addDebugLog = useCallback((msg: string) => {
+    console.log("[IncomingCall]", msg);
+    setDebugLogs((prev) => [...prev.slice(-10), `${new Date().toLocaleTimeString()}: ${msg}`]);
+  }, []);
 
   // Convertir l'URL WHEP en URL HLS
   // videoUrl = http://192.168.1.115:8889/akuvox/whep -> http://192.168.1.115:8888/akuvox/index.m3u8
@@ -94,13 +101,16 @@ export function IncomingCallOverlay({
   // Charger la vidéo HLS quand l'appel arrive (avec hls.js pour Android WebView)
   useEffect(() => {
     if (visible && (callState === "ringing" || callState === "incall") && hlsUrl) {
-      console.log("[IncomingCall] Chargement vidéo HLS:", hlsUrl);
+      addDebugLog(`Chargement HLS: ${hlsUrl}`);
       setVideoStatus("connecting");
       setVideoError(null);
       setShowVideo(true);
 
       const video = videoRef.current;
-      if (!video) return;
+      if (!video) {
+        addDebugLog("ERREUR: videoRef est null!");
+        return;
+      }
 
       // Détruire l'instance HLS précédente si elle existe
       if (hlsRef.current) {
@@ -110,62 +120,61 @@ export function IncomingCallOverlay({
 
       // Utiliser hls.js si supporté (Android WebView, Chrome, etc.)
       if (Hls.isSupported()) {
-        console.log("[IncomingCall] Utilisation de hls.js");
+        addDebugLog("hls.js supporté, création instance");
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: false,
           backBufferLength: 30,
-          debug: true, // Active les logs détaillés
-          xhrSetup: (xhr) => {
-            // Log toutes les requêtes XHR
-            console.log("[IncomingCall] XHR setup pour:", xhr);
-          },
         });
 
         // Log des événements de chargement
         hls.on(Hls.Events.MANIFEST_LOADING, (event, data) => {
-          console.log("[IncomingCall] HLS manifest loading:", data.url);
+          addDebugLog(`MANIFEST_LOADING: ${data.url}`);
         });
 
         hls.on(Hls.Events.MANIFEST_LOADED, (event, data) => {
-          console.log("[IncomingCall] HLS manifest loaded:", data);
+          addDebugLog(`MANIFEST_LOADED OK`);
         });
 
         hls.on(Hls.Events.LEVEL_LOADING, (event, data) => {
-          console.log("[IncomingCall] HLS level loading:", data);
+          addDebugLog(`LEVEL_LOADING: level ${data.level}`);
         });
 
         hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
-          console.log("[IncomingCall] HLS level loaded:", data);
+          addDebugLog(`LEVEL_LOADED OK`);
         });
 
         hls.on(Hls.Events.FRAG_LOADING, (event, data) => {
-          console.log("[IncomingCall] HLS fragment loading:", data.frag.url);
+          addDebugLog(`FRAG_LOADING: ${data.frag.sn}`);
+        });
+
+        hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
+          addDebugLog(`FRAG_LOADED OK`);
         });
 
         hls.loadSource(hlsUrl);
+        addDebugLog("loadSource appelé");
         hls.attachMedia(video);
+        addDebugLog("attachMedia appelé");
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          console.log("[IncomingCall] HLS manifest parsed, démarrage lecture");
+          addDebugLog("MANIFEST_PARSED - démarrage lecture");
           setVideoStatus("connected");
           video.play().catch((e) => {
-            console.warn("[IncomingCall] Autoplay failed:", e);
+            addDebugLog(`Autoplay failed: ${e.message}`);
           });
         });
 
         hls.on(Hls.Events.ERROR, (event, data) => {
-          console.error("[IncomingCall] HLS error:", data.type, data.details, data);
-          // Afficher toutes les erreurs, pas seulement les fatales
+          addDebugLog(`ERROR: ${data.type} - ${data.details}`);
           setVideoError(`${data.type}: ${data.details}`);
           if (data.fatal) {
             setVideoStatus("failed");
-            // Essayer de récupérer
             if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-              console.log("[IncomingCall] Tentative de récupération réseau...");
+              addDebugLog("Erreur réseau fatale - retry...");
               hls.startLoad();
             } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-              console.log("[IncomingCall] Tentative de récupération média...");
+              addDebugLog("Erreur média fatale - recovery...");
               hls.recoverMediaError();
             }
           }
@@ -175,30 +184,30 @@ export function IncomingCallOverlay({
       }
       // Fallback pour Safari/iOS qui supporte HLS nativement
       else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        console.log("[IncomingCall] Utilisation HLS natif (Safari)");
+        addDebugLog("Utilisation HLS natif (Safari)");
         video.src = hlsUrl;
 
         video.onloadeddata = () => {
-          console.log("[IncomingCall] Vidéo HLS chargée (natif)");
+          addDebugLog("Vidéo HLS chargée (natif)");
           setVideoStatus("connected");
         };
 
         video.onerror = (e) => {
-          console.error("[IncomingCall] Erreur vidéo HLS (natif):", e);
+          addDebugLog(`Erreur vidéo HLS (natif): ${e}`);
           setVideoStatus("failed");
           setVideoError("Erreur chargement vidéo");
         };
 
         video.play().catch((e) => {
-          console.warn("[IncomingCall] Autoplay failed:", e);
+          addDebugLog(`Autoplay failed (natif): ${e.message}`);
         });
       } else {
-        console.error("[IncomingCall] HLS non supporté sur ce navigateur");
+        addDebugLog("HLS non supporté!");
         setVideoStatus("failed");
         setVideoError("HLS non supporté");
       }
     } else if (!hlsUrl && visible) {
-      console.warn("[IncomingCall] Pas d'URL vidéo configurée");
+      addDebugLog("Pas d'URL vidéo configurée");
       setVideoError("URL vidéo non configurée");
     }
 
@@ -283,10 +292,16 @@ export function IncomingCallOverlay({
               muted={false}
             />
             {/* Indicateur de statut vidéo (debug) */}
-            <div className="absolute top-2 left-2 bg-black/70 text-white text-xs p-2 rounded max-w-[80%]">
-              <div>Status: {videoStatus}</div>
-              <div className="truncate">HLS: {hlsUrl || "N/A"}</div>
-              {videoError && <div className="text-red-400">Err: {videoError}</div>}
+            <div className="absolute top-2 left-2 bg-black/90 text-white text-xs p-2 rounded max-w-[90%] max-h-[40%] overflow-y-auto">
+              <div className="font-bold mb-1">Status: {videoStatus}</div>
+              <div className="truncate text-gray-300 mb-1">HLS: {hlsUrl || "N/A"}</div>
+              {videoError && <div className="text-red-400 mb-1">Err: {videoError}</div>}
+              <div className="border-t border-gray-600 pt-1 mt-1">
+                <div className="font-bold text-yellow-400">Debug Logs:</div>
+                {debugLogs.map((log, i) => (
+                  <div key={i} className="text-gray-400 text-[10px]">{log}</div>
+                ))}
+              </div>
             </div>
           </>
         ) : (
