@@ -183,24 +183,30 @@ export function IncomingCallOverlay({
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           addDebugLog("MANIFEST_PARSED - démarrage lecture");
           setVideoStatus("connected");
+          setVideoError(null); // Effacer les erreurs précédentes
           video.play().catch((e) => {
             addDebugLog(`Autoplay failed: ${e.message}`);
           });
         });
 
         hls.on(Hls.Events.ERROR, (event, data) => {
-          addDebugLog(`ERROR: ${data.type} - ${data.details}`);
-          setVideoError(`${data.type}: ${data.details}`);
+          // Ne logger que les erreurs importantes
           if (data.fatal) {
-            setVideoStatus("failed");
+            addDebugLog(`FATAL ERROR: ${data.type} - ${data.details}`);
+            setVideoError(`${data.type}: ${data.details}`);
+            // Essayer de récupérer automatiquement
             if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
               addDebugLog("Erreur réseau fatale - retry...");
               hls.startLoad();
             } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
               addDebugLog("Erreur média fatale - recovery...");
               hls.recoverMediaError();
+            } else {
+              // Seulement marquer comme failed si on ne peut pas récupérer
+              setVideoStatus("failed");
             }
           }
+          // Ignorer les erreurs non-fatales (retries automatiques de hls.js)
         });
 
         hlsRef.current = hls;
