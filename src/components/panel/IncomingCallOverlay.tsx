@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Phone, PhoneOff, DoorOpen, Mic, MicOff } from "lucide-react";
+import { Phone, PhoneOff, DoorOpen, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Hls from "hls.js";
 import { KeepAwake } from "@capacitor-community/keep-awake";
@@ -47,6 +47,7 @@ export function IncomingCallOverlay({
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [micEnabled, setMicEnabled] = useState(true);
+  const [speakerVolume, setSpeakerVolume] = useState(0.8); // Volume HP interphone (0-1)
   const [showVideo, setShowVideo] = useState(false);
   const [doorOpened, setDoorOpened] = useState(false);
   const [videoStatus, setVideoStatus] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
@@ -399,6 +400,15 @@ export function IncomingCallOverlay({
     // Note: Le micro est géré par Linphone SIP, pas par la vidéo HLS
   }, [micEnabled]);
 
+  const toggleSpeakerMute = useCallback(() => {
+    setSpeakerVolume((prev) => (prev > 0 ? 0 : 0.8));
+  }, []);
+
+  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSpeakerVolume(parseFloat(e.target.value));
+    // TODO: Appliquer le volume au flux audio SIP
+  }, []);
+
   if (!visible) return null;
 
   return (
@@ -466,20 +476,20 @@ export function IncomingCallOverlay({
         {/* Contrôles */}
         <div className="flex-none p-8 pb-12">
           {callState === "ringing" ? (
-            /* Boutons sonnerie : Répondre / Raccrocher */
-            <div className="flex justify-center items-center gap-16">
+            /* Boutons sonnerie : Raccrocher / Répondre / Ouvrir porte - espacés */
+            <div className="flex justify-around items-center max-w-md mx-auto">
               {/* Raccrocher (rouge) */}
               <button
                 onClick={handleHangup}
-                className="w-20 h-20 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-colors shadow-lg"
+                className="w-20 h-20 rounded-full bg-red-600 hover:bg-red-700 active:bg-red-800 flex items-center justify-center transition-colors shadow-lg"
               >
                 <PhoneOff className="w-10 h-10 text-white" />
               </button>
 
-              {/* Répondre (vert) */}
+              {/* Répondre (vert) - plus gros et au centre */}
               <button
                 onClick={handleAnswer}
-                className="w-24 h-24 rounded-full bg-green-600 hover:bg-green-700 flex items-center justify-center transition-colors shadow-lg animate-pulse"
+                className="w-24 h-24 rounded-full bg-green-600 hover:bg-green-700 active:bg-green-800 flex items-center justify-center transition-colors shadow-lg animate-pulse"
               >
                 <Phone className="w-12 h-12 text-white" />
               </button>
@@ -487,52 +497,84 @@ export function IncomingCallOverlay({
               {/* Ouvrir porte directement */}
               <button
                 onClick={handleOpenDoor}
-                className="w-20 h-20 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center transition-colors shadow-lg"
+                className="w-20 h-20 rounded-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 flex items-center justify-center transition-colors shadow-lg"
               >
                 <DoorOpen className="w-10 h-10 text-white" />
               </button>
             </div>
           ) : callState === "incall" ? (
-            /* Boutons en communication : Micro / Raccrocher / Ouvrir porte */
-            <div className="flex justify-center items-center gap-8">
-              {/* Toggle Micro */}
-              <button
-                onClick={toggleMic}
-                className={cn(
-                  "w-16 h-16 rounded-full flex items-center justify-center transition-colors shadow-lg",
-                  micEnabled
-                    ? "bg-slate-700 hover:bg-slate-600"
-                    : "bg-red-600 hover:bg-red-700"
-                )}
-              >
-                {micEnabled ? (
-                  <Mic className="w-8 h-8 text-white" />
-                ) : (
-                  <MicOff className="w-8 h-8 text-white" />
-                )}
-              </button>
+            /* Boutons en communication avec barre de volume */
+            <div className="space-y-6">
+              {/* Ligne principale : Micro / Raccrocher / Porte */}
+              <div className="flex justify-around items-center max-w-md mx-auto">
+                {/* Toggle Micro */}
+                <button
+                  onClick={toggleMic}
+                  className={cn(
+                    "w-16 h-16 rounded-full flex items-center justify-center transition-colors shadow-lg",
+                    micEnabled
+                      ? "bg-slate-700 hover:bg-slate-600 active:bg-slate-500"
+                      : "bg-red-600 hover:bg-red-700 active:bg-red-800"
+                  )}
+                >
+                  {micEnabled ? (
+                    <Mic className="w-8 h-8 text-white" />
+                  ) : (
+                    <MicOff className="w-8 h-8 text-white" />
+                  )}
+                </button>
 
-              {/* Raccrocher */}
-              <button
-                onClick={handleHangup}
-                className="w-20 h-20 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-colors shadow-lg"
-              >
-                <PhoneOff className="w-10 h-10 text-white" />
-              </button>
+                {/* Raccrocher */}
+                <button
+                  onClick={handleHangup}
+                  className="w-20 h-20 rounded-full bg-red-600 hover:bg-red-700 active:bg-red-800 flex items-center justify-center transition-colors shadow-lg"
+                >
+                  <PhoneOff className="w-10 h-10 text-white" />
+                </button>
 
-              {/* Ouvrir porte */}
-              <button
-                onClick={handleOpenDoor}
-                disabled={doorOpened}
-                className={cn(
-                  "w-20 h-20 rounded-full flex items-center justify-center transition-colors shadow-lg",
-                  doorOpened
-                    ? "bg-green-800 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700"
-                )}
-              >
-                <DoorOpen className="w-10 h-10 text-white" />
-              </button>
+                {/* Ouvrir porte */}
+                <button
+                  onClick={handleOpenDoor}
+                  disabled={doorOpened}
+                  className={cn(
+                    "w-20 h-20 rounded-full flex items-center justify-center transition-colors shadow-lg",
+                    doorOpened
+                      ? "bg-green-800 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
+                  )}
+                >
+                  <DoorOpen className="w-10 h-10 text-white" />
+                </button>
+              </div>
+
+              {/* Barre de volume HP */}
+              <div className="flex items-center justify-center gap-3 max-w-sm mx-auto">
+                <button
+                  onClick={toggleSpeakerMute}
+                  className="w-10 h-10 rounded-full bg-slate-700/80 hover:bg-slate-600 flex items-center justify-center"
+                >
+                  {speakerVolume > 0 ? (
+                    <Volume2 className="w-5 h-5 text-white" />
+                  ) : (
+                    <VolumeX className="w-5 h-5 text-red-400" />
+                  )}
+                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={speakerVolume}
+                  onChange={handleVolumeChange}
+                  className="flex-1 h-2 bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-500"
+                  style={{
+                    background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${speakerVolume * 100}%, #334155 ${speakerVolume * 100}%, #334155 100%)`
+                  }}
+                />
+                <span className="text-white/60 text-sm w-10 text-right">
+                  {Math.round(speakerVolume * 100)}%
+                </span>
+              </div>
             </div>
           ) : null}
 
