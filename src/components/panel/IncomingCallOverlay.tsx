@@ -110,13 +110,26 @@ export function IncomingCallOverlay({
   useEffect(() => {
     if (callState === "ringing" && visible) {
       // Créer l'élément audio pour la sonnerie
-      const audio = new Audio(`/sounds/ringtones/${ringtone}.mp3`);
+      const audioPath = `/sounds/ringtones/${ringtone}.mp3`;
+      console.log("[IncomingCall] Chargement sonnerie:", audioPath);
+
+      const audio = new Audio(audioPath);
       audio.loop = true;
       audio.volume = ringtoneVolume;
       audioRef.current = audio;
 
+      audio.onerror = (e) => {
+        console.error("[IncomingCall] Erreur audio:", e, audio.error);
+        addDebugLog(`Sonnerie erreur: ${audio.error?.message || "inconnue"}`);
+      };
+
+      audio.oncanplay = () => {
+        console.log("[IncomingCall] Sonnerie prête à jouer");
+      };
+
       audio.play().catch((err) => {
         console.warn("[IncomingCall] Impossible de jouer la sonnerie:", err);
+        addDebugLog(`Sonnerie play: ${err.message}`);
       });
 
       return () => {
@@ -125,7 +138,7 @@ export function IncomingCallOverlay({
         audioRef.current = null;
       };
     }
-  }, [callState, visible, ringtone, ringtoneVolume]);
+  }, [callState, visible, ringtone, ringtoneVolume, addDebugLog]);
 
   // Arrêter la sonnerie quand on décroche ou raccroche
   useEffect(() => {
