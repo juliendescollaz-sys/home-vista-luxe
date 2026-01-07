@@ -432,46 +432,41 @@ export function IncomingCallOverlay({
     <div className="fixed inset-0 z-[10000] bg-black flex flex-col">
       {/* Zone vidéo (fond) */}
       <div className="absolute inset-0">
-        {showVideo ? (
-          <>
-            {/* Fond dégradé visible tant que la vidéo ne joue pas */}
-            {videoStatus !== "connected" && (
-              <div className="absolute inset-0 bg-gradient-to-b from-slate-900 to-black" />
-            )}
-            {/* Video cachée tant qu'elle ne joue pas */}
-            <video
-              ref={videoRef}
-              className={`w-full h-full object-cover transition-opacity duration-300 ${videoStatus === "connected" ? "opacity-100" : "opacity-0"}`}
-              playsInline
-              muted
-              autoPlay
-            />
-            {/* Indicateur de chargement - petit badge, ne bloque pas les contrôles */}
-            {videoStatus === "connecting" && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white text-sm px-4 py-2 rounded-full flex items-center gap-2 z-30">
-                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" />
-                Connexion video...
-              </div>
-            )}
-            {/* Erreur */}
-            {videoError && (
-              <div className="absolute top-2 left-2 right-2 bg-red-900/90 text-white text-xs p-2 rounded z-50">
-                {videoError}
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="w-full h-full bg-gradient-to-b from-slate-900 to-black flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-32 h-32 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-6">
-                <Phone className="w-16 h-16 text-white" />
-              </div>
+        {/* Fond dégradé + icône - TOUJOURS visible sauf quand vidéo connectée */}
+        <div
+          className={`absolute inset-0 bg-gradient-to-b from-slate-900 to-black flex items-center justify-center transition-opacity duration-500 ${
+            videoStatus === "connected" ? "opacity-0 pointer-events-none" : "opacity-100"
+          }`}
+        >
+          <div className="text-center">
+            <div className="w-32 h-32 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <Phone className="w-16 h-16 text-white" />
             </div>
+            <p className="text-white text-xl font-medium">Appel interphone</p>
+            {videoStatus === "connecting" && (
+              <p className="text-white/60 text-sm mt-2">Connexion video...</p>
+            )}
+            {videoError && (
+              <p className="text-red-400 text-sm mt-2">{videoError}</p>
+            )}
           </div>
+        </div>
+
+        {/* Video - HIDDEN tant que pas connectée (évite le lecteur Android) */}
+        {showVideo && (
+          <video
+            ref={videoRef}
+            className={`absolute inset-0 w-full h-full object-cover ${
+              videoStatus === "connected" ? "visible" : "invisible"
+            }`}
+            playsInline
+            muted
+            autoPlay
+          />
         )}
 
         {/* Overlay gradient pour lisibilité des contrôles */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
       </div>
 
       {/* Contenu (au-dessus de la vidéo) */}
