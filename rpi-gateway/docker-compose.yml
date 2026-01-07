@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  # Serveur SIP Asterisk local
+  asterisk:
+    image: andrius/asterisk:alpine-20
+    container_name: asterisk
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./asterisk/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ./asterisk/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./asterisk/rtp.conf:/etc/asterisk/rtp.conf:ro
+      - ./asterisk/asterisk.conf:/etc/asterisk/asterisk.conf:ro
+      - ./asterisk/logger.conf:/etc/asterisk/logger.conf:ro
+      - asterisk-logs:/var/log/asterisk
+    environment:
+      - TZ=Europe/Zurich
+
+  # MediaMTX pour conversion RTSP -> WebRTC (WHEP)
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: mediamtx
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    environment:
+      - TZ=Europe/Zurich
+
+  # API de configuration (appairage PIN, discovery, etc.)
+  gateway-api:
+    build: ./api
+    container_name: gateway-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ./asterisk:/app/asterisk
+    environment:
+      - TZ=Europe/Zurich
+      - ASTERISK_HOST=localhost
+      - ASTERISK_AMI_PORT=5038
+      - ASTERISK_AMI_USER=admin
+      - ASTERISK_AMI_SECRET=neolia2024
+
+  # Avahi pour mDNS discovery (neolia-gateway.local)
+  avahi:
+    image: flungo/avahi
+    container_name: avahi
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./avahi/neolia.service:/etc/avahi/services/neolia.service:ro
+
+volumes:
+  asterisk-logs:

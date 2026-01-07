@@ -1,0 +1,39 @@
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<!--
+  Service mDNS pour Neolia Gateway
+  Permet aux panels de decouvrir le R-Pi automatiquement via:
+  - neolia-gateway.local (hostname)
+  - _neolia._tcp (service discovery)
+-->
+<service-group>
+  <name replace-wildcards="yes">Neolia Gateway on %h</name>
+
+  <!-- Service principal Neolia -->
+  <service>
+    <type>_neolia._tcp</type>
+    <port>8080</port>
+    <txt-record>version=1.0</txt-record>
+    <txt-record>type=gateway</txt-record>
+  </service>
+
+  <!-- Service SIP -->
+  <service>
+    <type>_sip._udp</type>
+    <port>5060</port>
+  </service>
+
+  <!-- Service HTTP API -->
+  <service>
+    <type>_http._tcp</type>
+    <port>8080</port>
+    <txt-record>path=/api</txt-record>
+  </service>
+
+  <!-- Service WebRTC (WHEP) -->
+  <service>
+    <type>_whep._tcp</type>
+    <port>8889</port>
+    <txt-record>path=/akuvox/whep</txt-record>
+  </service>
+</service-group>

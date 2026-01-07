@@ -1,0 +1,56 @@
+# =============================================================================
+# MediaMTX Configuration pour Neolia Gateway
+# =============================================================================
+# Convertit le flux RTSP de l'Akuvox en WebRTC (WHEP) pour les panels
+# =============================================================================
+
+# Logs
+logLevel: info
+logDestinations: [stdout]
+
+# API (pour monitoring)
+api: yes
+apiAddress: :9997
+
+# RTSP Server (recoit le flux Akuvox ou le pull)
+rtsp: yes
+rtspAddress: :8554
+protocols: [udp, tcp]
+rtspRangeType: clock
+
+# WebRTC Server (WHEP pour les panels)
+webrtc: yes
+webrtcAddress: :8889
+webrtcAllowOrigin: '*'
+webrtcICEServers2: []
+
+# Pas de HLS/RTMP (pas necessaire)
+hls: no
+rtmp: no
+srt: no
+
+# =============================================================================
+# Paths (sources video)
+# =============================================================================
+paths:
+  # Flux principal Akuvox E12W
+  akuvox:
+    # Source RTSP de l'Akuvox
+    source: rtsp://admin:Neolia022@192.168.1.51:554/livestream/11
+    sourceProtocol: tcp
+    sourceOnDemand: yes
+    sourceOnDemandStartTimeout: 10s
+    sourceOnDemandCloseAfter: 10s
+
+    # Republication
+    runOnInit:
+    runOnDemand:
+    runOnReady:
+
+    # Lecture autorisee
+    readUser:
+    readPass:
+
+  # Path generique pour d'autres cameras (futur)
+  all_others:
+    source: publisher
