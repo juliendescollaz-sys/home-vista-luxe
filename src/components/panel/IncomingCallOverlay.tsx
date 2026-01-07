@@ -184,9 +184,20 @@ export function IncomingCallOverlay({
           addDebugLog("MANIFEST_PARSED - démarrage lecture");
           setVideoStatus("connected");
           setVideoError(null); // Effacer les erreurs précédentes
-          video.play().catch((e) => {
-            addDebugLog(`Autoplay failed: ${e.message}`);
-          });
+          // Autoplay avec muted d'abord (contourne les restrictions Android)
+          video.muted = true;
+          video.play()
+            .then(() => {
+              addDebugLog("Lecture démarrée (muted)");
+              // Démuter après le démarrage
+              setTimeout(() => {
+                video.muted = false;
+                addDebugLog("Audio activé");
+              }, 500);
+            })
+            .catch((e) => {
+              addDebugLog(`Autoplay failed même muted: ${e.message}`);
+            });
         });
 
         hls.on(Hls.Events.ERROR, (event, data) => {
@@ -321,7 +332,7 @@ export function IncomingCallOverlay({
               className="w-full h-full object-cover"
               autoPlay
               playsInline
-              muted={false}
+              muted
             />
             {/* Indicateur de statut vidéo (debug) */}
             <div className="absolute top-2 left-2 bg-black/90 text-white text-xs p-2 rounded max-w-[90%] max-h-[40%] overflow-y-auto">
