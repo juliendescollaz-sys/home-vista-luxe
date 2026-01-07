@@ -183,7 +183,11 @@ export function IncomingCallOverlay({
         });
 
         hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
-          addDebugLog(`LEVEL_LOADED: ${data.details.totalduration}s, ${data.details.fragments?.length || 0} frags`);
+          const frags = data.details.fragments || [];
+          addDebugLog(`LEVEL_LOADED: ${frags.length} frags, live=${data.details.live}`);
+          if (frags.length > 0) {
+            addDebugLog(`First frag: ${frags[0].url?.split("/").pop() || "?"}`);
+          }
         });
 
         hls.on(Hls.Events.FRAG_LOADING, (event, data) => {
@@ -234,13 +238,13 @@ export function IncomingCallOverlay({
         video.onerror = () => addDebugLog(`VIDEO: error ${video.error?.message}`);
 
         hls.on(Hls.Events.ERROR, (event, data) => {
-          // Logger toutes les erreurs pour le debug
-          const errDetail = `${data.type}/${data.details}${data.response?.code ? ` (HTTP ${data.response.code})` : ""}`;
+          // Logger toutes les erreurs avec plus de détails
+          const url = data.url || data.frag?.url || data.context?.url || "?";
+          const errDetail = `${data.details}${data.response?.code ? ` HTTP${data.response.code}` : ""} ${url.split("/").pop()}`;
 
           if (data.fatal) {
             addDebugLog(`FATAL: ${errDetail}`);
             setVideoError(`${data.type}: ${data.details}`);
-            // Essayer de récupérer automatiquement
             if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
               addDebugLog("Retry réseau...");
               hls.startLoad();
@@ -251,7 +255,6 @@ export function IncomingCallOverlay({
               setVideoStatus("failed");
             }
           } else {
-            // Erreurs non-fatales - logger pour debug
             addDebugLog(`WARN: ${errDetail}`);
           }
         });
