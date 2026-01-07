@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Phone, PhoneOff, DoorOpen, Mic, MicOff, Volume2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Phone, PhoneOff, DoorOpen, Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAkuvoxVideo } from "@/hooks/useAkuvoxVideo";
-import { useMediaMTXConfigStore } from "@/store/useMediaMTXConfigStore";
+import { AkuvoxWebRTCService } from "@/services/akuvoxWebRTCService";
 
 interface IncomingCallOverlayProps {
   /** Visible ou non */
@@ -45,24 +43,15 @@ export function IncomingCallOverlay({
   videoDelayAfterDoor = 5,
 }: IncomingCallOverlayProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const webrtcServiceRef = useRef<AkuvoxWebRTCService | null>(null);
+
   const [micEnabled, setMicEnabled] = useState(true);
   const [showVideo, setShowVideo] = useState(false);
   const [doorOpened, setDoorOpened] = useState(false);
+  const [videoStatus, setVideoStatus] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
+  const [videoError, setVideoError] = useState<string | null>(null);
   const doorTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Hook pour la vidéo WHEP
-  const {
-    status: videoStatus,
-    videoRef,
-    connect: connectVideo,
-    disconnect: disconnectVideo,
-    setMicrophoneEnabled,
-    error: videoError,
-    isConfigValid,
-  } = useAkuvoxVideo();
-
-  // Récupérer l'URL WHEP pour debug
-  const mediaMTXConfig = useMediaMTXConfigStore((s) => s.config);
 
   // Jouer la sonnerie quand l'appel sonne
   useEffect(() => {
@@ -96,22 +85,70 @@ export function IncomingCallOverlay({
 
   // Connecter la vidéo WHEP quand l'appel arrive
   useEffect(() => {
-    if (visible && (callState === "ringing" || callState === "incall")) {
-      // Connecter à la vidéo WHEP
-      connectVideo(false).catch((err) => {
-        console.error("[IncomingCall] Erreur connexion vidéo:", err);
-      });
+    if (visible && (callState === "ringing" || callState === "incall") && videoUrl) {
+      console.log("[IncomingCall] Connexion vidéo WHEP:", videoUrl);
+      setVideoStatus("connecting");
+      setVideoError(null);
       setShowVideo(true);
+
+      // Créer le service WebRTC
+      const service = new AkuvoxWebRTCService();
+      webrtcServiceRef.current = service;
+
+      service.connect(
+        {
+          whepUrl: videoUrl,
+          mode: "panel", // LAN direct, pas de TURN
+          enableMicrophone: false,
+        },
+        {
+          onTrack: (stream) => {
+            console.log("[IncomingCall] Stream vidéo reçu");
+            setVideoStatus("connected");
+            if (videoRef.current) {
+              videoRef.current.srcObject = stream;
+              videoRef.current.play().catch((e) => {
+                console.warn("[IncomingCall] Autoplay failed:", e);
+              });
+            }
+          },
+          onConnectionStateChange: (state) => {
+            console.log("[IncomingCall] Connection state:", state);
+            if (state === "connected") {
+              setVideoStatus("connected");
+            } else if (state === "failed") {
+              setVideoStatus("failed");
+              setVideoError("Connexion WebRTC échouée");
+            }
+          },
+          onError: (err) => {
+            console.error("[IncomingCall] Erreur WebRTC:", err);
+            setVideoStatus("failed");
+            setVideoError(err.message);
+          },
+        }
+      ).catch((err) => {
+        console.error("[IncomingCall] Erreur connexion vidéo:", err);
+        setVideoStatus("failed");
+        setVideoError(err.message || "Erreur connexion");
+      });
+    } else if (!videoUrl && visible) {
+      console.warn("[IncomingCall] Pas d'URL vidéo configurée");
+      setVideoError("URL vidéo non configurée");
     }
 
     return () => {
       // Déconnecter quand l'overlay se ferme ou l'appel se termine
+      if (webrtcServiceRef.current) {
+        webrtcServiceRef.current.disconnect();
+        webrtcServiceRef.current = null;
+      }
       if (!visible || callState === "ended") {
-        disconnectVideo();
         setShowVideo(false);
+        setVideoStatus("idle");
       }
     };
-  }, [visible, callState, connectVideo, disconnectVideo]);
+  }, [visible, callState, videoUrl]);
 
   // Gérer le délai vidéo après ouverture de porte
   useEffect(() => {
@@ -157,8 +194,10 @@ export function IncomingCallOverlay({
   const toggleMic = useCallback(() => {
     const newState = !micEnabled;
     setMicEnabled(newState);
-    setMicrophoneEnabled(newState);
-  }, [micEnabled, setMicrophoneEnabled]);
+    if (webrtcServiceRef.current) {
+      webrtcServiceRef.current.setMicrophoneEnabled(newState);
+    }
+  }, [micEnabled]);
 
   if (!visible) return null;
 
@@ -178,8 +217,7 @@ export function IncomingCallOverlay({
             {/* Indicateur de statut vidéo (debug) */}
             <div className="absolute top-2 left-2 bg-black/70 text-white text-xs p-2 rounded max-w-[80%]">
               <div>Status: {videoStatus}</div>
-              <div>Config: {isConfigValid ? "OK" : "INVALID"}</div>
-              <div className="truncate">URL: {mediaMTXConfig?.whepUrl || "N/A"}</div>
+              <div className="truncate">URL: {videoUrl || "N/A"}</div>
               {videoError && <div className="text-red-400">Err: {videoError}</div>}
             </div>
           </>
