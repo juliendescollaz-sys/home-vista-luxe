@@ -148,21 +148,22 @@ export function IncomingCallOverlay({
                                video.canPlayType("application/x-mpegURL");
 
       if (canPlayHlsNative) {
-        addDebugLog("Utilisation HLS NATIF Android");
+        addDebugLog("HLS NATIF");
         video.src = hlsUrl;
-        video.onloadeddata = () => {
-          addDebugLog("HLS natif: données chargées");
+        // Passer à connected quand la vidéo joue vraiment
+        video.onplaying = () => {
+          addDebugLog("VIDEO playing");
           setVideoStatus("connected");
         };
+        video.onloadeddata = () => addDebugLog("Data loaded");
         video.onerror = () => {
-          addDebugLog(`HLS natif erreur: ${video.error?.message}`);
+          addDebugLog(`Erreur: ${video.error?.message}`);
           setVideoStatus("failed");
-          setVideoError("Erreur HLS natif");
+          setVideoError(video.error?.message || "Erreur video");
         };
-        video.onplaying = () => addDebugLog("VIDEO: playing");
-        video.onwaiting = () => addDebugLog("VIDEO: waiting");
+        video.onwaiting = () => addDebugLog("Buffering...");
         video.muted = true;
-        video.play().catch(e => addDebugLog(`Play error: ${e.message}`));
+        video.play().catch(e => addDebugLog(`Play: ${e.message}`));
         return;
       }
 
@@ -398,19 +399,25 @@ export function IncomingCallOverlay({
               className="w-full h-full object-cover"
               playsInline
               muted
+              autoPlay
             />
-            {/* Indicateur de statut vidéo (debug) - Fenêtre agrandie */}
-            <div className="absolute top-2 left-2 right-2 bg-black/95 text-white text-xs p-3 rounded max-h-[70%] overflow-y-auto z-50">
-              <div className="font-bold mb-1 text-sm">Status: {videoStatus}</div>
-              <div className="text-gray-300 mb-1 text-[11px] break-all">HLS: {hlsUrl || "N/A"}</div>
-              {videoError && <div className="text-red-400 mb-2 font-bold">Err: {videoError}</div>}
-              <div className="border-t border-gray-600 pt-2 mt-2">
-                <div className="font-bold text-yellow-400 mb-1">Debug Logs ({debugLogs.length}):</div>
-                {debugLogs.map((log, i) => (
-                  <div key={i} className="text-gray-300 text-[11px] py-0.5 border-b border-gray-800">{log}</div>
-                ))}
+            {/* Overlay de chargement pendant connexion */}
+            {videoStatus === "connecting" && (
+              <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-40">
+                <div className="text-center">
+                  <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                    <Phone className="w-10 h-10 text-white" />
+                  </div>
+                  <p className="text-white text-lg">Connexion video...</p>
+                </div>
               </div>
-            </div>
+            )}
+            {/* Debug panel (reduit) */}
+            {videoError && (
+              <div className="absolute top-2 left-2 right-2 bg-red-900/90 text-white text-xs p-2 rounded z-50">
+                Erreur: {videoError}
+              </div>
+            )}
           </>
         ) : (
           <div className="w-full h-full bg-gradient-to-b from-slate-900 to-black flex items-center justify-center">
