@@ -143,7 +143,30 @@ export function IncomingCallOverlay({
         hlsRef.current = null;
       }
 
-      // Utiliser hls.js si supporté (Android WebView, Chrome, etc.)
+      // Tester d'abord le HLS natif (certains Android le supportent)
+      const canPlayHlsNative = video.canPlayType("application/vnd.apple.mpegurl") ||
+                               video.canPlayType("application/x-mpegURL");
+
+      if (canPlayHlsNative) {
+        addDebugLog("Utilisation HLS NATIF Android");
+        video.src = hlsUrl;
+        video.onloadeddata = () => {
+          addDebugLog("HLS natif: données chargées");
+          setVideoStatus("connected");
+        };
+        video.onerror = () => {
+          addDebugLog(`HLS natif erreur: ${video.error?.message}`);
+          setVideoStatus("failed");
+          setVideoError("Erreur HLS natif");
+        };
+        video.onplaying = () => addDebugLog("VIDEO: playing");
+        video.onwaiting = () => addDebugLog("VIDEO: waiting");
+        video.muted = true;
+        video.play().catch(e => addDebugLog(`Play error: ${e.message}`));
+        return;
+      }
+
+      // Fallback: utiliser hls.js si HLS natif non supporté
       if (Hls.isSupported()) {
         addDebugLog("hls.js supporté, création instance");
         const hls = new Hls({
