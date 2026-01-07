@@ -105,7 +105,7 @@ public class LinphoneSipPlugin extends Plugin {
         }
 
         // Vérifier les permissions micro
-        if (!hasRequiredPermissions()) {
+        if (!checkMicrophonePermission()) {
             requestAllPermissions(call, "registerCallback");
             return;
         }
@@ -125,14 +125,14 @@ public class LinphoneSipPlugin extends Plugin {
 
     @PermissionCallback
     private void registerCallback(PluginCall call) {
-        if (hasRequiredPermissions()) {
+        if (checkMicrophonePermission()) {
             register(call);
         } else {
             call.reject("Microphone permission required for SIP calls");
         }
     }
 
-    private boolean hasRequiredPermissions() {
+    private boolean checkMicrophonePermission() {
         return getPermissionState("microphone") == PermissionState.GRANTED;
     }
 

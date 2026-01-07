@@ -45,7 +45,7 @@ public class LinphoneSipManager {
         }
 
         @Override
-        public void onRegistrationStateChanged(Core core, Account account, RegistrationState state, String message) {
+        public void onAccountRegistrationStateChanged(Core core, Account account, RegistrationState state, String message) {
             Log.i(TAG, "Registration state changed: " + state + " - " + message);
 
             isRegistered = (state == RegistrationState.Ok);
@@ -186,8 +186,8 @@ public class LinphoneSipManager {
 
         // Mode audio (optimisé pour VoIP)
         core.setMediaEncryption(MediaEncryption.None); // Pas de SRTP pour Asterisk basique
-        core.enableEchoCancellation(true);
-        core.enableAdaptiveRateControl(true);
+        core.setEchoCancellationEnabled(true);
+        core.setAdaptiveRateControlEnabled(true);
 
         // Ringback (sonnerie retour)
         // core.setRingback(null); // Utiliser la sonnerie par défaut ou personnalisée
