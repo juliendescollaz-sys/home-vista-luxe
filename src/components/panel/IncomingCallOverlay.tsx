@@ -154,8 +154,10 @@ export function IncomingCallOverlay({
 
   // Flag pour éviter les doubles initialisations
   const hlsInitializedRef = useRef(false);
+  // Container ref pour ajouter la vidéo dynamiquement
+  const videoContainerRef = useRef<HTMLDivElement>(null);
 
-  // Étape 2: Charger HLS une fois que le <video> est rendu (showVideo = true)
+  // Étape 2: Charger HLS en mémoire, ajouter au DOM seulement quand prêt
   useEffect(() => {
     if (!showVideo || !hlsUrl) return;
 
@@ -166,194 +168,33 @@ export function IncomingCallOverlay({
     }
     hlsInitializedRef.current = true;
 
-    // Petit délai pour s'assurer que le DOM est prêt
-    const timeoutId = setTimeout(() => {
-      const video = videoRef.current;
-      if (!video) {
-        addDebugLog("ERREUR: videoRef toujours null après délai!");
-        hlsInitializedRef.current = false;
-        return;
-      }
+    // Créer l'élément vidéo EN MÉMOIRE (pas dans le DOM)
+    const video = document.createElement("video");
+    video.playsInline = true;
+    video.muted = true;
+    video.autoplay = true;
+    video.controls = false;
+    video.className = "absolute inset-0 w-full h-full object-cover";
+    video.setAttribute("disablePictureInPicture", "");
+    video.setAttribute("disableRemotePlayback", "");
 
-      addDebugLog(`videoRef OK, chargement HLS`);
+    // Stocker la référence
+    videoRef.current = video;
 
-      // Détruire l'instance HLS précédente si elle existe
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
+    addDebugLog(`Video créée en mémoire, chargement HLS`);
 
-      // Tester d'abord le HLS natif (certains Android le supportent)
-      const canPlayHlsNative = video.canPlayType("application/vnd.apple.mpegurl") ||
-                               video.canPlayType("application/x-mpegURL");
+    // Détruire l'instance HLS précédente si elle existe
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
 
-      if (canPlayHlsNative) {
-        addDebugLog("HLS NATIF");
-        video.src = hlsUrl;
-        // Passer à connected quand la vidéo joue vraiment
-        video.onplaying = () => {
-          addDebugLog("VIDEO playing");
-          setVideoStatus("connected");
-        };
-        video.onloadeddata = () => addDebugLog("Data loaded");
-        video.onerror = () => {
-          addDebugLog(`Erreur: ${video.error?.message}`);
-          setVideoStatus("failed");
-          setVideoError(video.error?.message || "Erreur video");
-        };
-        video.onwaiting = () => addDebugLog("Buffering...");
-        video.muted = true;
-        video.play().catch(e => addDebugLog(`Play: ${e.message}`));
-        return;
-      }
+    // Tester d'abord le HLS natif (certains Android le supportent)
+    const canPlayHlsNative = video.canPlayType("application/vnd.apple.mpegurl") ||
+                             video.canPlayType("application/x-mpegURL");
 
-      // Fallback: utiliser hls.js si HLS natif non supporté
-      if (Hls.isSupported()) {
-        addDebugLog("hls.js supporté, création instance");
-        const hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: false,
-          backBufferLength: 30,
-          // Config pour flux live avec MediaMTX (on-demand, démarrage lent)
-          manifestLoadingTimeOut: 30000,
-          manifestLoadingMaxRetry: 10,
-          manifestLoadingRetryDelay: 2000,
-          levelLoadingTimeOut: 30000,
-          levelLoadingMaxRetry: 10,
-          levelLoadingRetryDelay: 2000,
-          fragLoadingTimeOut: 30000,
-          fragLoadingMaxRetry: 10,
-          fragLoadingRetryDelay: 2000,
-          // Forcer le rechargement du playlist
-          liveSyncDurationCount: 3,
-          liveMaxLatencyDurationCount: 10,
-          // Désactiver les requêtes preflight/HEAD en forçant le mode simple
-          xhrSetup: (xhr, url) => {
-            // Pas de headers custom pour éviter les preflight CORS
-            addDebugLog(`XHR: ${url.split("/").pop()}`);
-          },
-        });
-
-        // Log des événements de chargement
-        hls.on(Hls.Events.MANIFEST_LOADING, (event, data) => {
-          addDebugLog(`MANIFEST_LOADING: ${data.url}`);
-        });
-
-        hls.on(Hls.Events.MANIFEST_LOADED, () => {
-          addDebugLog(`MANIFEST_LOADED OK`);
-        });
-
-        hls.on(Hls.Events.LEVEL_LOADING, (event, data) => {
-          addDebugLog(`LEVEL_LOADING: level ${data.level}`);
-        });
-
-        hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
-          const frags = data.details.fragments || [];
-          addDebugLog(`LEVEL_LOADED: ${frags.length} frags, live=${data.details.live}`);
-          if (frags.length > 0) {
-            addDebugLog(`First frag: ${frags[0].url?.split("/").pop() || "?"}`);
-          }
-        });
-
-        hls.on(Hls.Events.FRAG_LOADING, (event, data) => {
-          addDebugLog(`FRAG_LOADING: ${data.frag.sn}`);
-        });
-
-        hls.on(Hls.Events.FRAG_LOADED, () => {
-          addDebugLog(`FRAG_LOADED OK`);
-        });
-
-        hls.loadSource(hlsUrl);
-        addDebugLog("loadSource appelé");
-        hls.attachMedia(video);
-        addDebugLog("attachMedia appelé");
-
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          addDebugLog("MANIFEST_PARSED - attente premier fragment...");
-        });
-
-        // Attendre que le premier fragment soit bufferisé avant de lancer la lecture
-        hls.on(Hls.Events.FRAG_BUFFERED, () => {
-          addDebugLog("FRAG_BUFFERED - démarrage lecture");
-          setVideoStatus("connected");
-          setVideoError(null);
-          // Autoplay avec muted d'abord (contourne les restrictions Android)
-          video.muted = true;
-          video.play()
-            .then(() => {
-              addDebugLog("Lecture démarrée (muted)");
-              // Démuter après le démarrage
-              setTimeout(() => {
-                if (videoRef.current) {
-                  videoRef.current.muted = false;
-                  addDebugLog("Audio activé");
-                }
-              }, 500);
-            })
-            .catch((e) => {
-              addDebugLog(`Autoplay failed même muted: ${e.message}`);
-            });
-        }, { once: true }); // Une seule fois
-
-        // Surveiller les événements vidéo pour debug
-        video.onplaying = () => addDebugLog("VIDEO: playing");
-        video.onpause = () => addDebugLog("VIDEO: paused");
-        video.onwaiting = () => addDebugLog("VIDEO: waiting/buffering");
-        video.onstalled = () => addDebugLog("VIDEO: stalled");
-        video.onerror = () => addDebugLog(`VIDEO: error ${video.error?.message}`);
-
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          // Logger toutes les erreurs avec plus de détails
-          const url = data.url || data.frag?.url || data.context?.url || "?";
-          const errDetail = `${data.details}${data.response?.code ? ` HTTP${data.response.code}` : ""} ${url.split("/").pop()}`;
-
-          if (data.fatal) {
-            addDebugLog(`FATAL: ${errDetail}`);
-            setVideoError(`${data.type}: ${data.details}`);
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-              addDebugLog("Retry réseau...");
-              hls.startLoad();
-            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-              addDebugLog("Recovery média...");
-              hls.recoverMediaError();
-            } else {
-              setVideoStatus("failed");
-            }
-          } else {
-            addDebugLog(`WARN: ${errDetail}`);
-          }
-        });
-
-        hlsRef.current = hls;
-      }
-      // Fallback pour Safari/iOS qui supporte HLS nativement
-      else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        addDebugLog("Utilisation HLS natif (Safari)");
-        video.src = hlsUrl;
-
-        video.onloadeddata = () => {
-          addDebugLog("Vidéo HLS chargée (natif)");
-          setVideoStatus("connected");
-        };
-
-        video.onerror = (e) => {
-          addDebugLog(`Erreur vidéo HLS (natif): ${e}`);
-          setVideoStatus("failed");
-          setVideoError("Erreur chargement vidéo");
-        };
-
-        video.play().catch((e) => {
-          addDebugLog(`Autoplay failed (natif): ${e.message}`);
-        });
-      } else {
-        addDebugLog("HLS non supporté!");
-        setVideoStatus("failed");
-        setVideoError("HLS non supporté");
-      }
-    }, 100); // 100ms pour laisser le DOM se mettre à jour
-
-    return () => {
-      clearTimeout(timeoutId);
+    // Fonction de cleanup commune
+    const cleanup = () => {
       // Réinitialiser le flag pour permettre une nouvelle initialisation
       hlsInitializedRef.current = false;
       // Détruire l'instance HLS
@@ -361,12 +202,52 @@ export function IncomingCallOverlay({
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
-      // Arrêter la vidéo quand l'overlay se ferme
+      // Retirer et détruire la vidéo
       if (videoRef.current) {
         videoRef.current.pause();
         videoRef.current.src = "";
+        if (videoRef.current.parentNode) {
+          videoRef.current.parentNode.removeChild(videoRef.current);
+        }
+        videoRef.current = null;
       }
     };
+
+    if (canPlayHlsNative) {
+      addDebugLog("HLS NATIF");
+      video.src = hlsUrl;
+
+      // Quand la vidéo joue, l'ajouter au DOM
+      video.onplaying = () => {
+        addDebugLog("VIDEO playing - ajout au DOM");
+        if (videoContainerRef.current && !videoContainerRef.current.contains(video)) {
+          videoContainerRef.current.appendChild(video);
+        }
+        setVideoStatus("connected");
+      };
+      video.onloadeddata = () => addDebugLog("Data loaded");
+      video.onerror = () => {
+        addDebugLog(`Erreur: ${video.error?.message}`);
+        setVideoStatus("failed");
+        setVideoError(video.error?.message || "Erreur video");
+      };
+      video.onwaiting = () => addDebugLog("Buffering...");
+      video.play().catch(e => addDebugLog(`Play: ${e.message}`));
+
+      return cleanup;
+    }
+
+    // Fallback: utiliser hls.js si HLS natif non supporté
+    if (Hls.isSupported()) {
+      addDebugLog("hls.js - pas utilisé car natif préféré");
+    }
+
+    // HLS non supporté du tout
+    addDebugLog("HLS non supporté!");
+    setVideoStatus("failed");
+    setVideoError("HLS non supporté");
+
+    return cleanup;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showVideo, hlsUrl]); // Ne pas inclure addDebugLog pour éviter les re-renders
 
@@ -452,27 +333,11 @@ export function IncomingCallOverlay({
           </div>
         </div>
 
-        {/* Video - hors écran tant que pas connectée (évite le lecteur Android) */}
-        {showVideo && (
-          <video
-            ref={videoRef}
-            className="absolute w-full h-full object-cover"
-            style={{
-              // Déplacer hors écran tant que pas connecté
-              top: videoStatus === "connected" ? 0 : "-200%",
-              left: videoStatus === "connected" ? 0 : "-200%",
-              // Transition douce quand on ramène la vidéo
-              transition: videoStatus === "connected" ? "none" : "none",
-            }}
-            playsInline
-            muted
-            autoPlay
-            // Désactiver les contrôles natifs Android
-            controls={false}
-            disablePictureInPicture
-            disableRemotePlayback
-          />
-        )}
+        {/* Container pour la vidéo - la vidéo est ajoutée dynamiquement quand elle joue */}
+        <div
+          ref={videoContainerRef}
+          className="absolute inset-0"
+        />
 
         {/* Overlay gradient pour lisibilité des contrôles */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
