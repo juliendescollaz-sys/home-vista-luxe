@@ -138,16 +138,19 @@ export function IncomingCallOverlay({
   // Étape 1: Activer l'affichage vidéo quand un appel arrive
   useEffect(() => {
     if (visible && (callState === "ringing" || callState === "incall") && hlsUrl) {
-      addDebugLog(`Appel détecté, activation vidéo`);
-      setVideoStatus("connecting");
-      setVideoError(null);
-      setShowVideo(true);
+      // Ne pas réinitialiser si déjà en cours ou connecté
+      if (!showVideo) {
+        addDebugLog(`Appel détecté, activation vidéo`);
+        setVideoStatus("connecting");
+        setVideoError(null);
+        setShowVideo(true);
+      }
     } else if (!hlsUrl && visible) {
       addDebugLog("Pas d'URL vidéo configurée");
       setVideoError("URL vidéo non configurée");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, callState, hlsUrl]); // Ne pas inclure addDebugLog pour éviter les re-renders
+  }, [visible, callState, hlsUrl]); // Ne pas inclure addDebugLog/showVideo pour éviter les re-renders
 
   // Flag pour éviter les doubles initialisations
   const hlsInitializedRef = useRef(false);
