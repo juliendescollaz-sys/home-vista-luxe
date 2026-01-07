@@ -138,6 +138,16 @@ export function IncomingCallOverlay({
           enableWorker: true,
           lowLatencyMode: false,
           backBufferLength: 30,
+          // Tolérance accrue pour les flux on-demand (démarrage lent)
+          manifestLoadingTimeOut: 20000, // 20s pour charger le manifest
+          manifestLoadingMaxRetry: 6,    // 6 retries
+          manifestLoadingRetryDelay: 1000, // 1s entre retries
+          levelLoadingTimeOut: 20000,    // 20s pour charger les niveaux
+          levelLoadingMaxRetry: 6,
+          levelLoadingRetryDelay: 1000,
+          fragLoadingTimeOut: 20000,     // 20s pour les fragments
+          fragLoadingMaxRetry: 6,
+          fragLoadingRetryDelay: 1000,
         });
 
         // Log des événements de chargement

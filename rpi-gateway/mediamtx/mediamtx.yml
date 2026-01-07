@@ -34,8 +34,10 @@ hls: yes
 hlsAddress: :8888
 hlsAllowOrigin: '*'
 hlsVariant: mpegts
-hlsSegmentCount: 3
+hlsSegmentCount: 5
 hlsSegmentDuration: 1s
+# Toujours garder le stream actif pour éviter les problèmes de démarrage
+hlsAlwaysRemux: yes
 
 # Pas de RTMP/SRT (pas necessaire)
 rtmp: no
