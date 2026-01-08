@@ -275,15 +275,10 @@ class LinphoneSipService {
    * Active/désactive le microphone
    */
   async setMicrophoneEnabled(enabled: boolean): Promise<void> {
-    console.log('[LinphoneSipService] setMicrophoneEnabled:', enabled, 'isInitialized:', this.isInitialized);
-    if (!this.isInitialized) {
-      console.warn('[LinphoneSipService] setMicrophoneEnabled: not initialized, skipping');
-      return;
-    }
+    if (!this.isInitialized) return;
 
     try {
-      const result = await LinphoneSip.setMicrophoneEnabled({ enabled });
-      console.log('[LinphoneSipService] setMicrophoneEnabled result:', result);
+      await LinphoneSip.setMicrophoneEnabled({ enabled });
     } catch (error) {
       console.error('[LinphoneSipService] Erreur setMicrophoneEnabled:', error);
     }
