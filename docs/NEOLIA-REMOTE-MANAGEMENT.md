@@ -215,7 +215,41 @@ Tous les endpoints sont proteges par Cloudflare Access :
 
 ### Authentification
 
-Le panel S563 utilise une authentification par token. Le token est obtenu lors de la connexion a l'interface web et doit etre fourni dans:
+Le panel S563 utilise une authentification par token via l'API JSON.
+
+**Endpoint Login:** `POST https://<panel_ip>/api`
+
+**Request:**
+```json
+{
+  "target": "login",
+  "action": "login",
+  "data": "{\"userName\":\"admin\",\"password\":\"<MD5_HASH>\",\"rand\":\"<RANDOM_128_HEX>\"}",
+  "session": ""
+}
+```
+
+**Notes:**
+- Le `password` est hashe en **MD5** (32 caracteres hex)
+- Le `rand` est un nonce aleatoire de 128 caracteres hex (genere cote client)
+- Le champ `data` est une **string JSON encodee**, pas un objet
+
+**Response:**
+```json
+{
+  "retcode": 0,
+  "action": "login",
+  "message": "OK",
+  "data": {
+    "isFirstLogin": 0,
+    "aesKey": "...",
+    "token": "<TOKEN_128_HEX>",
+    "userType": "admin"
+  }
+}
+```
+
+Le token doit ensuite etre fourni dans:
 - Header `authorization`
 - Cookie `httpsToken`
 
@@ -286,8 +320,8 @@ python tools/s563-apk-uploader.py \
 ## Prochaines etapes
 
 1. [x] Reverse-engineering de l'upload APK sur S563
-2. [ ] Tester le script d'upload sur un panel reel
-3. [ ] Identifier l'endpoint de login pour automatiser l'auth
+2. [x] Identifier l'endpoint de login pour automatiser l'auth
+3. [ ] Tester le script d'upload sur un panel reel
 4. [ ] Setup Cloudflare Zero Trust + premier tunnel
 5. [ ] Developper l'Agent Neolia (MVP)
 6. [ ] Developper le Dashboard Neolia (MVP)

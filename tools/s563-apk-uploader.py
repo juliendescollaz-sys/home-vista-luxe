@@ -6,7 +6,7 @@ Usage:
     python s563-apk-uploader.py --ip 192.168.1.23 --user admin --password admin123 --apk app-release.apk
 
 Le script:
-1. Se connecte a l'interface web du S563
+1. Se connecte a l'interface web du S563 via l'API JSON
 2. Recupere le token d'authentification
 3. Upload l'APK via l'API
 
@@ -20,6 +20,7 @@ import sys
 import os
 import hashlib
 import json
+import secrets
 from urllib3.exceptions import InsecureRequestWarning
 
 # Desactiver les warnings SSL (certificat auto-signe)
@@ -35,87 +36,94 @@ class S563Uploader:
         self.session = requests.Session()
         self.token = None
 
+    def _generate_rand(self) -> str:
+        """
+        Genere un nonce aleatoire de 128 caracteres hex (64 bytes).
+        Le S563 attend ce format pour le login.
+        """
+        return secrets.token_hex(64).upper()
+
+    def _hash_password(self, password: str) -> str:
+        """
+        Hash le mot de passe en MD5 (format attendu par le S563).
+        """
+        return hashlib.md5(password.encode()).hexdigest()
+
     def login(self) -> bool:
         """
         Se connecte a l'interface web du S563 et recupere le token.
 
-        L'authentification Akuvox utilise generalement:
-        - Digest auth ou
-        - POST /api/login avec username/password
-        - Le token est retourne dans la reponse ou dans un cookie
+        API Login S563:
+        - Endpoint: POST /api
+        - Body: JSON avec target="login", action="login"
+        - Le champ data contient userName, password (MD5), et rand (nonce)
+        - Response: JSON avec token dans data.token
         """
         print(f"[*] Connexion a {self.base_url}...")
 
-        # Methode 1: Essayer l'endpoint de login standard
-        login_endpoints = [
-            "/api/login",
-            "/cgi-bin/login",
-            "/login",
-            "/api/Account/Login",
-        ]
+        # Generer le nonce et hasher le password
+        rand = self._generate_rand()
+        password_hash = self._hash_password(self.password)
 
-        for endpoint in login_endpoints:
-            try:
-                # Essai avec JSON body
-                resp = self.session.post(
-                    f"{self.base_url}{endpoint}",
-                    json={"username": self.username, "password": self.password},
-                    verify=self.verify_ssl,
-                    timeout=10
-                )
+        # Construire le payload de login
+        # Note: le champ "data" est une STRING JSON, pas un objet
+        data_inner = json.dumps({
+            "userName": self.username,
+            "password": password_hash,
+            "rand": rand
+        })
 
-                if resp.status_code == 200:
-                    data = resp.json() if resp.text else {}
-                    # Chercher le token dans la reponse
-                    self.token = data.get("token") or data.get("httpsToken") or data.get("accessToken")
-                    if self.token:
-                        print(f"[+] Login reussi via {endpoint}")
-                        return True
+        payload = {
+            "target": "login",
+            "action": "login",
+            "data": data_inner,
+            "session": ""
+        }
 
-                    # Verifier si le token est dans les cookies
-                    if "httpsToken" in self.session.cookies:
-                        self.token = self.session.cookies["httpsToken"]
-                        print(f"[+] Login reussi via {endpoint} (token dans cookie)")
-                        return True
-
-            except requests.exceptions.RequestException:
-                continue
-            except json.JSONDecodeError:
-                # Essayer avec form data
-                try:
-                    resp = self.session.post(
-                        f"{self.base_url}{endpoint}",
-                        data={"username": self.username, "password": self.password},
-                        verify=self.verify_ssl,
-                        timeout=10
-                    )
-                    if resp.status_code == 200 and "httpsToken" in self.session.cookies:
-                        self.token = self.session.cookies["httpsToken"]
-                        print(f"[+] Login reussi via {endpoint} (form data)")
-                        return True
-                except:
-                    continue
-
-        # Methode 2: Digest auth (utilise par certains firmwares Akuvox)
         try:
-            from requests.auth import HTTPDigestAuth
-            resp = self.session.get(
-                f"{self.base_url}/",
-                auth=HTTPDigestAuth(self.username, self.password),
+            resp = self.session.post(
+                f"{self.base_url}/api",
+                json=payload,
                 verify=self.verify_ssl,
                 timeout=10
             )
-            if resp.status_code == 200:
-                if "httpsToken" in self.session.cookies:
-                    self.token = self.session.cookies["httpsToken"]
-                    print("[+] Login reussi via Digest Auth")
-                    return True
-        except:
-            pass
 
-        print("[-] Echec de connexion - endpoint de login non trouve")
-        print("    Tu peux fournir le token manuellement avec --token")
-        return False
+            if resp.status_code != 200:
+                print(f"[-] Erreur HTTP: {resp.status_code}")
+                return False
+
+            result = resp.json()
+
+            # Verifier le code retour
+            if result.get("retcode") != 0:
+                print(f"[-] Erreur login: {result.get('message', 'Unknown error')}")
+                return False
+
+            # Extraire le token
+            data = result.get("data", {})
+            self.token = data.get("token")
+
+            if not self.token:
+                print("[-] Token non trouve dans la reponse")
+                print(f"    Reponse: {json.dumps(result, indent=2)}")
+                return False
+
+            print(f"[+] Login reussi!")
+            print(f"    User: {data.get('userType', 'unknown')}")
+            print(f"    Token: {self.token[:32]}...")
+
+            # Stocker le token dans le cookie aussi
+            self.session.cookies.set("httpsToken", self.token)
+
+            return True
+
+        except requests.exceptions.RequestException as e:
+            print(f"[-] Erreur reseau: {e}")
+            return False
+        except json.JSONDecodeError as e:
+            print(f"[-] Erreur JSON: {e}")
+            print(f"    Reponse brute: {resp.text[:500]}")
+            return False
 
     def upload_apk(self, apk_path: str) -> bool:
         """
@@ -215,6 +223,43 @@ class S563Uploader:
 
         return []
 
+    def get_system_info(self) -> dict:
+        """
+        Recupere les infos systeme du panel.
+        """
+        if not self.token:
+            return {}
+
+        headers = {"authorization": self.token}
+        cookies = {"httpsToken": self.token}
+
+        # Essayer via l'API JSON standard
+        payload = {
+            "target": "system",
+            "action": "getInfo",
+            "data": "{}",
+            "session": self.token
+        }
+
+        try:
+            resp = self.session.post(
+                f"{self.base_url}/api",
+                json=payload,
+                headers=headers,
+                cookies=cookies,
+                verify=self.verify_ssl,
+                timeout=10
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("retcode") == 0:
+                    print(f"[+] System info: {json.dumps(data.get('data', {}), indent=2)}")
+                    return data.get("data", {})
+        except:
+            pass
+
+        return {}
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -226,10 +271,13 @@ Exemples:
     python s563-apk-uploader.py --ip 192.168.1.23 --user admin --password admin123 --apk app.apk
 
     # Upload avec token manuel (recupere depuis le navigateur)
-    python s563-apk-uploader.py --ip 192.168.1.23 --token 393775BC... --apk app.apk
+    python s563-apk-uploader.py --ip 192.168.1.23 --token 6F70C544... --apk app.apk
 
     # Lister les apps installees
     python s563-apk-uploader.py --ip 192.168.1.23 --user admin --password admin123 --list
+
+    # Afficher les infos systeme
+    python s563-apk-uploader.py --ip 192.168.1.23 --user admin --password admin123 --info
         """
     )
 
@@ -239,13 +287,14 @@ Exemples:
     parser.add_argument("--token", help="Token d'authentification (si deja connu)")
     parser.add_argument("--apk", help="Chemin vers le fichier APK a uploader")
     parser.add_argument("--list", action="store_true", help="Lister les apps installees")
+    parser.add_argument("--info", action="store_true", help="Afficher les infos systeme")
     parser.add_argument("--verify-ssl", action="store_true", help="Verifier le certificat SSL")
 
     args = parser.parse_args()
 
     # Validation
-    if not args.apk and not args.list:
-        parser.error("--apk ou --list requis")
+    if not args.apk and not args.list and not args.info:
+        parser.error("--apk, --list ou --info requis")
 
     if not args.token and not args.password:
         parser.error("--password ou --token requis")
@@ -261,12 +310,15 @@ Exemples:
     # Token manuel ou login
     if args.token:
         uploader.token = args.token
-        print(f"[*] Utilisation du token fourni")
+        print(f"[*] Utilisation du token fourni: {args.token[:32]}...")
     else:
         if not uploader.login():
             sys.exit(1)
 
     # Actions
+    if args.info:
+        uploader.get_system_info()
+
     if args.list:
         uploader.list_apps()
 
