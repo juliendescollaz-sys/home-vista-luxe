@@ -20,7 +20,6 @@ import sys
 import os
 import hashlib
 import json
-import secrets
 from urllib3.exceptions import InsecureRequestWarning
 
 # Desactiver les warnings SSL (certificat auto-signe)
@@ -35,28 +34,48 @@ class S563Uploader:
         self.verify_ssl = verify_ssl
         self.session = requests.Session()
         self.token = None
+        self.random_key = None  # Cle Random du serveur (pour hash password)
+        self.aes_key = None  # Cle AES pour les requetes chiffrees
 
-    def _hash_password(self, password: str) -> str:
+    def _get_status(self) -> dict:
         """
-        Hash le mot de passe en MD5 (format attendu par le S563).
+        Recupere le status du serveur, incluant le Random (cle pour hash password).
+        GET /api/status/get -> { data: { Random: "...", ProductName: "...", ... } }
         """
-        return hashlib.md5(password.encode()).hexdigest()
+        resp = self.session.get(
+            f"{self.base_url}/api/status/get",
+            verify=self.verify_ssl,
+            timeout=10
+        )
 
-    def _generate_client_rand(self) -> str:
-        """
-        Genere un nonce aleatoire cote client (128 caracteres hex).
-        """
-        return secrets.token_hex(64).upper()
+        if resp.status_code != 200:
+            raise Exception(f"Erreur HTTP status/get: {resp.status_code}")
 
-    def _get_server_rand(self, client_rand: str) -> str:
+        result = resp.json()
+        data = result.get("data", {})
+
+        self.random_key = data.get("Random")
+        if not self.random_key:
+            raise Exception("Random non trouve dans /api/status/get")
+
+        return data
+
+    def _hash_password(self, password: str, random_key: str) -> str:
         """
-        Obtient le nonce (rand) du serveur.
-        On envoie notre client_rand dans session, et on recoit le server_rand.
+        Hash le mot de passe: MD5(password + randomKey)
+        Le randomKey vient de /api/status/get
+        """
+        combined = password + random_key
+        return hashlib.md5(combined.encode()).hexdigest()
+
+    def _get_server_rand(self) -> str:
+        """
+        Obtient le rand (challenge) du serveur pour le login.
+        POST /api { target: "login", action: "rand" } -> { data: { rand: "..." } }
         """
         payload = {
             "target": "login",
-            "action": "rand",
-            "session": client_rand  # On envoie notre rand client
+            "action": "rand"
         }
 
         resp = self.session.post(
@@ -83,45 +102,45 @@ class S563Uploader:
         """
         Se connecte a l'interface web du S563 et recupere le token.
 
-        API Login S563 (2 etapes):
-        1. Generer un client_rand (128 caracteres hex)
-        2. POST /api avec action="rand", session=client_rand -> recupere server_rand
-        3. POST /api avec action="login":
-           - session = client_rand (le MEME rand qu'on a envoye a l'etape 2)
-           - data.rand = server_rand (le rand RECU du serveur)
-           - data.password = MD5(password)
+        API Login S563 (3 etapes):
+        1. GET /api/status/get -> recupere Random (cle pour hash password)
+        2. POST /api { target: "login", action: "rand" } -> recupere rand (challenge)
+        3. POST /api { target: "login", action: "login", data: {
+               userName, password: MD5(password + Random), rand
+           }}
         """
         print(f"[*] Connexion a {self.base_url}...")
 
-        # Etape 1: Generer notre rand client
-        client_rand = self._generate_client_rand()
-        print(f"[+] Client rand: {client_rand[:32]}...")
-
-        # Etape 2: Obtenir le rand du serveur (en envoyant notre client_rand)
+        # Etape 1: Obtenir le Random (cle pour hash password)
         try:
-            server_rand = self._get_server_rand(client_rand)
+            status = self._get_status()
+            print(f"[+] Random key: {self.random_key[:16]}...")
+            print(f"    Product: {status.get('ProductName', 'unknown')}")
+        except Exception as e:
+            print(f"[-] Erreur get status: {e}")
+            return False
+
+        # Etape 2: Obtenir le rand (challenge) du serveur
+        try:
+            server_rand = self._get_server_rand()
             print(f"[+] Server rand: {server_rand[:32]}...")
         except Exception as e:
             print(f"[-] Erreur getRand: {e}")
             return False
 
-        # Etape 3: Login avec les deux rands
-        password_hash = self._hash_password(self.password)
+        # Etape 3: Login avec MD5(password + randomKey)
+        password_hash = self._hash_password(self.password, self.random_key)
+        print(f"[+] Password hash: {password_hash[:16]}...")
 
-        # Construire le payload de login
-        # Note: le champ "data" est une STRING JSON, pas un objet
-        # IMPORTANT: "session" contient le CLIENT_rand, "data.rand" contient le SERVER_rand
-        data_inner = json.dumps({
-            "userName": self.username,
-            "password": password_hash,
-            "rand": server_rand  # Le rand du SERVEUR va dans data.rand
-        })
-
+        # Construire le payload de login (data est un OBJET, pas une string)
         payload = {
             "target": "login",
             "action": "login",
-            "data": data_inner,
-            "session": client_rand  # Le rand du CLIENT va dans session
+            "data": {
+                "userName": self.username,
+                "password": password_hash,
+                "rand": server_rand
+            }
         }
 
         try:
@@ -140,12 +159,17 @@ class S563Uploader:
 
             # Verifier le code retour
             if result.get("retcode") != 0:
-                print(f"[-] Erreur login: {result.get('message', 'Unknown error')}")
+                retcode = result.get("retcode")
+                if retcode == -3:
+                    print(f"[-] Compte bloque (trop de tentatives)")
+                else:
+                    print(f"[-] Erreur login (retcode={retcode}): {result.get('message', 'Unknown error')}")
                 return False
 
-            # Extraire le token
+            # Extraire le token et aesKey
             data = result.get("data", {})
             self.token = data.get("token")
+            self.aes_key = data.get("aesKey")
 
             if not self.token:
                 print("[-] Token non trouve dans la reponse")
@@ -153,8 +177,10 @@ class S563Uploader:
                 return False
 
             print(f"[+] Login reussi!")
-            print(f"    User: {data.get('userType', 'unknown')}")
+            print(f"    User type: {data.get('userType', 'unknown')}")
             print(f"    Token: {self.token[:32]}...")
+            if self.aes_key:
+                print(f"    AES key: {self.aes_key[:16]}...")
 
             # Stocker le token dans le cookie aussi
             self.session.cookies.set("httpsToken", self.token)
