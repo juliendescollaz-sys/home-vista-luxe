@@ -215,23 +215,45 @@ Tous les endpoints sont proteges par Cloudflare Access :
 
 ### Authentification
 
-Le panel S563 utilise une authentification par token via l'API JSON.
+Le panel S563 utilise une authentification challenge-response a double nonce via l'API JSON.
 
-**Endpoint Login:** `POST https://<panel_ip>/api`
+**Etape 1 - Obtenir le nonce serveur:** `POST https://<panel_ip>/api`
 
-**Request:**
+```json
+{
+  "target": "login",
+  "action": "rand",
+  "session": "<CLIENT_RAND_128_HEX>"
+}
+```
+
+**Reponse:**
+```json
+{
+  "retcode": 0,
+  "data": {
+    "rand": "<SERVER_RAND_128_HEX>"
+  }
+}
+```
+
+**Etape 2 - Login:** `POST https://<panel_ip>/api`
+
 ```json
 {
   "target": "login",
   "action": "login",
-  "data": "{\"userName\":\"admin\",\"password\":\"<MD5_HASH>\",\"rand\":\"<RANDOM_128_HEX>\"}",
-  "session": ""
+  "data": "{\"userName\":\"admin\",\"password\":\"<MD5_HASH>\",\"rand\":\"<SERVER_RAND>\"}",
+  "session": "<CLIENT_RAND>"
 }
 ```
 
-**Notes:**
+**Notes importantes:**
+- Generer un `client_rand` (128 caracteres hex) AVANT d'appeler l'etape 1
+- Le `session` de l'etape 1 contient le `client_rand`
+- Le `session` de l'etape 2 contient le MEME `client_rand`
+- Le `data.rand` de l'etape 2 contient le `server_rand` recu a l'etape 1
 - Le `password` est hashe en **MD5** (32 caracteres hex)
-- Le `rand` est un nonce aleatoire de 128 caracteres hex (genere cote client)
 - Le champ `data` est une **string JSON encodee**, pas un objet
 
 **Response:**

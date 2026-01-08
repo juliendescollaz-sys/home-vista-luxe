@@ -48,15 +48,15 @@ class S563Uploader:
         """
         return secrets.token_hex(64).upper()
 
-    def _get_rand(self) -> str:
+    def _get_server_rand(self, client_rand: str) -> str:
         """
         Obtient le nonce (rand) du serveur.
-        C'est la premiere etape du login.
+        On envoie notre client_rand dans session, et on recoit le server_rand.
         """
         payload = {
             "target": "login",
             "action": "rand",
-            "session": ""
+            "session": client_rand  # On envoie notre rand client
         }
 
         resp = self.session.post(
@@ -84,41 +84,44 @@ class S563Uploader:
         Se connecte a l'interface web du S563 et recupere le token.
 
         API Login S563 (2 etapes):
-        1. POST /api avec action="rand" -> recupere le nonce du serveur (server_rand)
-        2. POST /api avec action="login":
-           - session = server_rand (le rand recu du serveur)
-           - data.rand = client_rand (un rand genere cote client)
+        1. Generer un client_rand (128 caracteres hex)
+        2. POST /api avec action="rand", session=client_rand -> recupere server_rand
+        3. POST /api avec action="login":
+           - session = client_rand (le MEME rand qu'on a envoye a l'etape 2)
+           - data.rand = server_rand (le rand RECU du serveur)
            - data.password = MD5(password)
         """
         print(f"[*] Connexion a {self.base_url}...")
 
-        # Etape 1: Obtenir le rand du serveur
+        # Etape 1: Generer notre rand client
+        client_rand = self._generate_client_rand()
+        print(f"[+] Client rand: {client_rand[:32]}...")
+
+        # Etape 2: Obtenir le rand du serveur (en envoyant notre client_rand)
         try:
-            server_rand = self._get_rand()
+            server_rand = self._get_server_rand(client_rand)
             print(f"[+] Server rand: {server_rand[:32]}...")
         except Exception as e:
             print(f"[-] Erreur getRand: {e}")
             return False
 
-        # Etape 2: Login avec les deux rands
+        # Etape 3: Login avec les deux rands
         password_hash = self._hash_password(self.password)
-        client_rand = self._generate_client_rand()
-        print(f"[+] Client rand: {client_rand[:32]}...")
 
         # Construire le payload de login
         # Note: le champ "data" est une STRING JSON, pas un objet
-        # Note: "session" contient le server_rand, "data.rand" contient le client_rand
+        # IMPORTANT: "session" contient le CLIENT_rand, "data.rand" contient le SERVER_rand
         data_inner = json.dumps({
             "userName": self.username,
             "password": password_hash,
-            "rand": client_rand
+            "rand": server_rand  # Le rand du SERVEUR va dans data.rand
         })
 
         payload = {
             "target": "login",
             "action": "login",
             "data": data_inner,
-            "session": server_rand  # Le rand du serveur va dans session
+            "session": client_rand  # Le rand du CLIENT va dans session
         }
 
         try:
