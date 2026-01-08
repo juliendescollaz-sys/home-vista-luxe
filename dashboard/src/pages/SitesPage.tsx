@@ -9,6 +9,7 @@ import {
   Filter,
   MoreVertical,
 } from 'lucide-react';
+import { Header } from '../components/layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
@@ -115,51 +116,46 @@ export function SitesPage() {
   });
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-dark-100">Sites</h1>
-          <p className="text-dark-400 mt-1">
-            Gestion des immeubles, villas et bureaux
-          </p>
-        </div>
-        <Button icon={<Plus size={18} />}>Nouveau site</Button>
-      </div>
+    <div>
+      <Header title="Sites" subtitle="Gestion des immeubles, villas et bureaux" />
 
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-500"
-          />
-          <input
-            type="text"
-            placeholder="Rechercher un site..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-dark-200 placeholder-dark-500 focus:outline-none focus:border-primary-500"
-          />
+      <div className="p-6 space-y-6">
+        {/* Actions & Filters */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="relative flex-1 max-w-md">
+              <Search
+                size={18}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-500"
+              />
+              <input
+                type="text"
+                placeholder="Rechercher un site..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-dark-200 placeholder-dark-500 focus:outline-none focus:border-primary-500"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter size={18} className="text-dark-500" />
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as SiteType | 'all')}
+                className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-dark-200 focus:outline-none focus:border-primary-500"
+              >
+                <option value="all">Tous les types</option>
+                <option value="building">Immeubles</option>
+                <option value="villa">Villas</option>
+                <option value="office">Bureaux</option>
+              </select>
+            </div>
+          </div>
+          <Button icon={<Plus size={18} />}>Nouveau site</Button>
         </div>
-        <div className="flex items-center gap-2">
-          <Filter size={18} className="text-dark-500" />
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value as SiteType | 'all')}
-            className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-dark-200 focus:outline-none focus:border-primary-500"
-          >
-            <option value="all">Tous les types</option>
-            <option value="building">Immeubles</option>
-            <option value="villa">Villas</option>
-            <option value="office">Bureaux</option>
-          </select>
-        </div>
-      </div>
 
-      {/* Sites Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filteredSites.map((site) => {
+        {/* Sites Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filteredSites.map((site) => {
           const TypeIcon = typeIcons[site.type];
           return (
             <Card
@@ -244,20 +240,21 @@ export function SitesPage() {
             </Card>
           );
         })}
-      </div>
-
-      {/* Empty state */}
-      {filteredSites.length === 0 && (
-        <div className="text-center py-12">
-          <Building2 size={48} className="mx-auto text-dark-600 mb-4" />
-          <h3 className="text-lg font-medium text-dark-300">Aucun site trouvé</h3>
-          <p className="text-dark-500 mt-1">
-            {searchQuery || filterType !== 'all'
-              ? 'Essayez de modifier vos filtres'
-              : 'Commencez par créer votre premier site'}
-          </p>
         </div>
-      )}
+
+        {/* Empty state */}
+        {filteredSites.length === 0 && (
+          <div className="text-center py-12">
+            <Building2 size={48} className="mx-auto text-dark-600 mb-4" />
+            <h3 className="text-lg font-medium text-dark-300">Aucun site trouvé</h3>
+            <p className="text-dark-500 mt-1">
+              {searchQuery || filterType !== 'all'
+                ? 'Essayez de modifier vos filtres'
+                : 'Commencez par créer votre premier site'}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
