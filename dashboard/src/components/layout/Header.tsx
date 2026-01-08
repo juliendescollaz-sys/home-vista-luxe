@@ -22,7 +22,7 @@ export function Header({ title, subtitle }: HeaderProps) {
           />
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Rechercher..."
             className="input pl-10 w-64"
           />
         </div>

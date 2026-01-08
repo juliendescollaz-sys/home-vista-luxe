@@ -9,35 +9,35 @@ const logs = [
     timestamp: '2024-01-15 14:32:45',
     level: 'success' as const,
     device: 'Panel Entree',
-    message: 'APK upload successful: app-debug.apk (140.77 MB)',
+    message: 'APK envoye avec succes : app-debug.apk (140.77 Mo)',
   },
   {
     id: '2',
     timestamp: '2024-01-15 14:28:12',
     level: 'success' as const,
     device: 'Panel Entree',
-    message: 'APK upload successful: app-prd-release(3.3.9).apk (46.82 MB)',
+    message: 'APK envoye avec succes : app-prd-release(3.3.9).apk (46.82 Mo)',
   },
   {
     id: '3',
     timestamp: '2024-01-15 12:15:00',
     level: 'warning' as const,
     device: 'Gateway SIP',
-    message: 'MediaMTX service restarted automatically',
+    message: 'Service MediaMTX redemarrer automatiquement',
   },
   {
     id: '4',
     timestamp: '2024-01-15 10:00:00',
     level: 'info' as const,
-    device: 'System',
-    message: 'Daily health check completed',
+    device: 'Systeme',
+    message: 'Verification de sante quotidienne terminee',
   },
   {
     id: '5',
     timestamp: '2024-01-14 23:45:00',
     level: 'error' as const,
-    device: 'Interphone E12W',
-    message: 'Connection lost - device offline',
+    device: 'Interphone Hall',
+    message: 'Connexion perdue - appareil hors ligne',
   },
 ];
 
@@ -59,7 +59,7 @@ const levelConfig = {
 export function MonitoringPage() {
   return (
     <div>
-      <Header title="Monitoring" subtitle="System logs and activity" />
+      <Header title="Monitoring" subtitle="Journaux systeme et activite" />
 
       <div className="p-6 space-y-6">
         {/* Stats */}
@@ -71,7 +71,7 @@ export function MonitoringPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-dark-100">24</p>
-                <p className="text-xs text-dark-400">Successful Operations</p>
+                <p className="text-xs text-dark-400">Operations reussies</p>
               </div>
             </div>
           </Card>
@@ -83,7 +83,7 @@ export function MonitoringPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-dark-100">3</p>
-                <p className="text-xs text-dark-400">Warnings</p>
+                <p className="text-xs text-dark-400">Avertissements</p>
               </div>
             </div>
           </Card>
@@ -95,7 +95,7 @@ export function MonitoringPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-dark-100">1</p>
-                <p className="text-xs text-dark-400">Errors</p>
+                <p className="text-xs text-dark-400">Erreurs</p>
               </div>
             </div>
           </Card>
@@ -107,7 +107,7 @@ export function MonitoringPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-dark-100">5d 12h</p>
-                <p className="text-xs text-dark-400">Uptime</p>
+                <p className="text-xs text-dark-400">Disponibilite</p>
               </div>
             </div>
           </Card>
@@ -115,7 +115,7 @@ export function MonitoringPage() {
 
         {/* Activity Log */}
         <Card>
-          <CardHeader title="Activity Log" subtitle="Recent system events" />
+          <CardHeader title="Journal d'activite" subtitle="Evenements systeme recents" />
 
           <div className="space-y-3">
             {logs.map((log) => {
@@ -149,7 +149,7 @@ export function MonitoringPage() {
 
         {/* Device Status */}
         <Card>
-          <CardHeader title="Device Health" subtitle="Current status of all devices" />
+          <CardHeader title="Etat des appareils" subtitle="Statut actuel de tous les appareils" />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 bg-dark-900 rounded-lg">
@@ -159,12 +159,12 @@ export function MonitoringPage() {
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-dark-400">Response Time</span>
+                  <span className="text-dark-400">Temps de reponse</span>
                   <span className="text-dark-200">45ms</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-dark-400">Last Check</span>
-                  <span className="text-dark-200">2 min ago</span>
+                  <span className="text-dark-400">Derniere verif.</span>
+                  <span className="text-dark-200">Il y a 2 min</span>
                 </div>
               </div>
             </div>
@@ -176,29 +176,29 @@ export function MonitoringPage() {
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-dark-400">Response Time</span>
+                  <span className="text-dark-400">Temps de reponse</span>
                   <span className="text-dark-200">12ms</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-dark-400">Last Check</span>
-                  <span className="text-dark-200">2 min ago</span>
+                  <span className="text-dark-400">Derniere verif.</span>
+                  <span className="text-dark-200">Il y a 2 min</span>
                 </div>
               </div>
             </div>
 
             <div className="p-4 bg-dark-900 rounded-lg">
               <div className="flex items-center justify-between mb-3">
-                <span className="font-medium text-dark-100">Interphone E12W</span>
+                <span className="font-medium text-dark-100">Interphone Hall</span>
                 <StatusBadge status="offline" />
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-dark-400">Response Time</span>
+                  <span className="text-dark-400">Temps de reponse</span>
                   <span className="text-dark-200">-</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-dark-400">Last Seen</span>
-                  <span className="text-red-400">12h ago</span>
+                  <span className="text-dark-400">Vu pour la derniere fois</span>
+                  <span className="text-red-400">Il y a 12h</span>
                 </div>
               </div>
             </div>

@@ -10,10 +10,10 @@ import {
 import { useState } from 'react';
 
 const navItems = [
-  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
   { path: '/sites', icon: Building2, label: 'Sites' },
   { path: '/monitoring', icon: Activity, label: 'Monitoring' },
-  { path: '/settings', icon: Settings, label: 'Paramètres' },
+  { path: '/settings', icon: Settings, label: 'Parametres' },
 ];
 
 export function Sidebar() {

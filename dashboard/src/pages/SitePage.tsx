@@ -38,49 +38,49 @@ const devices: Device[] = [
   {
     id: '1',
     siteId: '1',
-    name: 'Entrance Panel',
+    name: 'Panel Entree',
     type: 'panel',
-    model: 'Indoor Panel 7"',
+    model: 'Panel interieur 7"',
     ip: '192.168.1.23',
     status: 'online',
     firmware: '2.4.1',
-    lastSeen: '2 min ago',
+    lastSeen: 'Il y a 2 min',
   },
   {
     id: '2',
     siteId: '1',
-    name: 'Gate Intercom',
+    name: 'Interphone Portail',
     type: 'intercom',
-    model: 'Video Doorphone',
+    model: 'Visiophone',
     ip: '192.168.1.50',
     status: 'online',
     firmware: '1.8.2',
-    lastSeen: '5 min ago',
+    lastSeen: 'Il y a 5 min',
   },
   {
     id: '3',
     siteId: '1',
-    name: 'Garage Intercom',
+    name: 'Interphone Garage',
     type: 'intercom',
-    model: 'Audio Doorphone',
+    model: 'Interphone audio',
     ip: '192.168.1.51',
     status: 'offline',
-    lastSeen: '2 hours ago',
+    lastSeen: 'Il y a 2 heures',
   },
 ];
 
 const gateway: Gateway = {
   id: 'gw1',
   siteId: '1',
-  name: 'Local Gateway',
+  name: 'Gateway locale',
   type: 'gateway',
   ip: '192.168.1.115',
   status: 'online',
-  lastSeen: '1 min ago',
+  lastSeen: 'Il y a 1 min',
   services: [
-    { name: 'SIP Proxy', status: 'running', port: 5060 },
-    { name: 'Media Server', status: 'running', port: 8889 },
-    { name: 'RTSP Relay', status: 'running', port: 8554 },
+    { name: 'Proxy SIP', status: 'running', port: 5060 },
+    { name: 'Serveur Media', status: 'running', port: 8889 },
+    { name: 'Relais RTSP', status: 'running', port: 8554 },
   ],
   system: {
     uptime: '5d 12:34',
@@ -97,9 +97,9 @@ const sipAccounts: SipAccount[] = [
     siteId: '1',
     serverId: 's1',
     extension: '101',
-    username: 'villa_entrance',
+    username: 'villa_entree',
     password: 'secure123',
-    displayName: 'Entrance',
+    displayName: 'Entree',
     deviceId: '1',
     enabled: true,
   },
@@ -108,9 +108,9 @@ const sipAccounts: SipAccount[] = [
     siteId: '1',
     serverId: 's1',
     extension: '102',
-    username: 'villa_gate',
+    username: 'villa_portail',
     password: 'secure456',
-    displayName: 'Gate',
+    displayName: 'Portail',
     deviceId: '2',
     enabled: true,
   },
@@ -132,7 +132,7 @@ const sipAccounts: SipAccount[] = [
     extension: '200',
     username: 'villa_mobile',
     password: 'mobilepwd',
-    displayName: 'Mobile App',
+    displayName: 'App Mobile',
     enabled: true,
   },
 ];
@@ -152,10 +152,10 @@ export function SitePage() {
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
 
   const tabs = [
-    { id: 'devices' as const, label: 'Devices', icon: Wifi, count: devices.length },
-    { id: 'sip' as const, label: 'SIP Accounts', icon: Phone, count: sipAccounts.length },
+    { id: 'devices' as const, label: 'Appareils', icon: Wifi, count: devices.length },
+    { id: 'sip' as const, label: 'Comptes SIP', icon: Phone, count: sipAccounts.length },
     { id: 'gateway' as const, label: 'Gateway', icon: Server },
-    { id: 'deploy' as const, label: 'Deploy', icon: Upload },
+    { id: 'deploy' as const, label: 'Deploiement', icon: Upload },
   ];
 
   const togglePassword = (id: string) => {
@@ -176,7 +176,7 @@ export function SitePage() {
           className="inline-flex items-center gap-2 text-dark-400 hover:text-dark-200 mb-6"
         >
           <ArrowLeft size={18} />
-          Back to Dashboard
+          Retour au tableau de bord
         </Link>
 
         {/* Site Header Card */}
@@ -203,7 +203,7 @@ export function SitePage() {
               </div>
             </div>
             <Button variant="secondary" icon={<Settings size={16} />}>
-              Site Settings
+              Parametres du site
             </Button>
           </div>
         </Card>
@@ -244,7 +244,7 @@ export function SitePage() {
               <h3 className="text-lg font-semibold text-dark-100">
                 Devices ({devices.length})
               </h3>
-              <Button icon={<Plus size={16} />}>Add Device</Button>
+              <Button icon={<Plus size={16} />}>Ajouter un appareil</Button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -271,7 +271,7 @@ export function SitePage() {
 
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-dark-400">IP Address</span>
+                        <span className="text-dark-400">Adresse IP</span>
                         <code className="text-dark-200">{device.ip}</code>
                       </div>
                       {device.firmware && (
@@ -281,17 +281,17 @@ export function SitePage() {
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <span className="text-dark-400">Last seen</span>
+                        <span className="text-dark-400">Vu pour la derniere fois</span>
                         <span className="text-dark-200">{device.lastSeen}</span>
                       </div>
                     </div>
 
                     <div className="flex gap-2 mt-4 pt-4 border-t border-dark-700">
                       <Button size="sm" variant="secondary" icon={<Edit size={14} />}>
-                        Configure
+                        Configurer
                       </Button>
                       <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />}>
-                        Refresh
+                        Actualiser
                       </Button>
                     </div>
                   </Card>
@@ -309,9 +309,9 @@ export function SitePage() {
               </h3>
               <div className="flex gap-2">
                 <Button variant="secondary" icon={<Send size={16} />}>
-                  Push to Gateway
+                  Envoyer a la Gateway
                 </Button>
-                <Button icon={<Plus size={16} />}>Add Account</Button>
+                <Button icon={<Plus size={16} />}>Ajouter un compte</Button>
               </div>
             </div>
 
@@ -324,19 +324,19 @@ export function SitePage() {
                         Extension
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-dark-400">
-                        Display Name
+                        Nom affiche
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-dark-400">
-                        Username
+                        Utilisateur
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-dark-400">
-                        Password
+                        Mot de passe
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-dark-400">
-                        Device
+                        Appareil
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-dark-400">
-                        Status
+                        Statut
                       </th>
                       <th className="text-right py-3 px-4 text-sm font-medium text-dark-400">
                         Actions
@@ -402,7 +402,7 @@ export function SitePage() {
                                   : 'bg-dark-700 text-dark-400'
                               }`}
                             >
-                              {account.enabled ? 'Enabled' : 'Disabled'}
+                              {account.enabled ? 'Active' : 'Desactive'}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-right">
@@ -430,7 +430,7 @@ export function SitePage() {
             {/* Gateway Info */}
             <Card className="lg:col-span-2">
               <CardHeader
-                title="Local Gateway"
+                title="Gateway locale"
                 subtitle={gateway.ip}
                 action={<StatusBadge status={gateway.status} />}
               />
@@ -446,13 +446,13 @@ export function SitePage() {
                   <p className="text-xl font-bold text-dark-100">
                     {gateway.system?.memoryUsage}%
                   </p>
-                  <p className="text-xs text-dark-400">Memory</p>
+                  <p className="text-xs text-dark-400">Memoire</p>
                 </div>
                 <div className="p-3 bg-dark-900 rounded-lg text-center">
                   <p className="text-xl font-bold text-dark-100">
                     {gateway.system?.diskUsage}%
                   </p>
-                  <p className="text-xs text-dark-400">Disk</p>
+                  <p className="text-xs text-dark-400">Disque</p>
                 </div>
                 <div className="p-3 bg-dark-900 rounded-lg text-center">
                   <p className="text-xl font-bold text-dark-100">
@@ -502,16 +502,16 @@ export function SitePage() {
               <CardHeader title="Actions" />
               <div className="space-y-3">
                 <Button variant="secondary" className="w-full justify-start" icon={<RefreshCw size={16} />}>
-                  Reboot Gateway
+                  Redemarrer la Gateway
                 </Button>
                 <Button variant="secondary" className="w-full justify-start" icon={<Send size={16} />}>
-                  Push SIP Config
+                  Envoyer config SIP
                 </Button>
                 <Button variant="secondary" className="w-full justify-start" icon={<Upload size={16} />}>
-                  Update Firmware
+                  Mettre a jour le firmware
                 </Button>
                 <Button variant="secondary" className="w-full justify-start" icon={<Settings size={16} />}>
-                  SSH Console
+                  Console SSH
                 </Button>
               </div>
             </Card>
@@ -522,8 +522,8 @@ export function SitePage() {
           <div className="space-y-6">
             <Card>
               <CardHeader
-                title="Deploy Configuration"
-                subtitle="Push configurations to devices on this site"
+                title="Configuration de deploiement"
+                subtitle="Envoyer des configurations aux appareils de ce site"
               />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -534,13 +534,13 @@ export function SitePage() {
                       <Upload size={20} className="text-primary-400" />
                     </div>
                     <div>
-                      <h4 className="font-medium text-dark-100">Deploy App</h4>
+                      <h4 className="font-medium text-dark-100">Deployer l'app</h4>
                       <p className="text-sm text-dark-400">
-                        Upload APK to panels
+                        Envoyer un APK aux panels
                       </p>
                     </div>
                   </div>
-                  <Button className="w-full">Select APK File</Button>
+                  <Button className="w-full">Selectionner un fichier APK</Button>
                 </div>
 
                 {/* Deploy SIP */}
@@ -550,13 +550,13 @@ export function SitePage() {
                       <Phone size={20} className="text-purple-400" />
                     </div>
                     <div>
-                      <h4 className="font-medium text-dark-100">Deploy SIP</h4>
+                      <h4 className="font-medium text-dark-100">Deployer SIP</h4>
                       <p className="text-sm text-dark-400">
-                        Push SIP config to gateway
+                        Envoyer la config SIP a la gateway
                       </p>
                     </div>
                   </div>
-                  <Button className="w-full">Push Configuration</Button>
+                  <Button className="w-full">Envoyer la configuration</Button>
                 </div>
 
                 {/* Deploy Intercom Config */}
@@ -567,14 +567,14 @@ export function SitePage() {
                     </div>
                     <div>
                       <h4 className="font-medium text-dark-100">
-                        Configure Intercoms
+                        Configurer les interphones
                       </h4>
                       <p className="text-sm text-dark-400">
-                        Push config to door stations
+                        Envoyer la config aux platines
                       </p>
                     </div>
                   </div>
-                  <Button className="w-full">Configure</Button>
+                  <Button className="w-full">Configurer</Button>
                 </div>
 
                 {/* Network Config */}
@@ -584,41 +584,41 @@ export function SitePage() {
                       <Settings size={20} className="text-orange-400" />
                     </div>
                     <div>
-                      <h4 className="font-medium text-dark-100">Network</h4>
+                      <h4 className="font-medium text-dark-100">Reseau</h4>
                       <p className="text-sm text-dark-400">
-                        Configure IP settings
+                        Configurer les parametres IP
                       </p>
                     </div>
                   </div>
-                  <Button className="w-full">Configure</Button>
+                  <Button className="w-full">Configurer</Button>
                 </div>
               </div>
             </Card>
 
             {/* Deployment History */}
             <Card>
-              <CardHeader title="Recent Deployments" />
+              <CardHeader title="Deploiements recents" />
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-dark-900 rounded-lg">
                   <div>
-                    <p className="text-dark-200">App v3.3.9 deployed</p>
+                    <p className="text-dark-200">App v3.3.9 deployee</p>
                     <p className="text-xs text-dark-500">
-                      Entrance Panel - Today at 14:32
+                      Panel Entree - Aujourd'hui a 14:32
                     </p>
                   </div>
                   <span className="text-xs px-2 py-1 bg-green-500/10 text-green-400 rounded">
-                    Success
+                    Succes
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-dark-900 rounded-lg">
                   <div>
-                    <p className="text-dark-200">SIP config pushed</p>
+                    <p className="text-dark-200">Config SIP envoyee</p>
                     <p className="text-xs text-dark-500">
-                      Gateway - Today at 12:15
+                      Gateway - Aujourd'hui a 12:15
                     </p>
                   </div>
                   <span className="text-xs px-2 py-1 bg-green-500/10 text-green-400 rounded">
-                    Success
+                    Succes
                   </span>
                 </div>
               </div>

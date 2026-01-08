@@ -8,13 +8,13 @@ interface StatusBadgeProps {
 }
 
 const statusConfig = {
-  online: { color: 'bg-green-500', text: 'text-green-400', label: 'Online' },
-  running: { color: 'bg-green-500', text: 'text-green-400', label: 'Running' },
-  partial: { color: 'bg-yellow-500', text: 'text-yellow-400', label: 'Partial' },
-  offline: { color: 'bg-red-500', text: 'text-red-400', label: 'Offline' },
-  stopped: { color: 'bg-red-500', text: 'text-red-400', label: 'Stopped' },
-  error: { color: 'bg-orange-500', text: 'text-orange-400', label: 'Error' },
-  unknown: { color: 'bg-dark-500', text: 'text-dark-400', label: 'Unknown' },
+  online: { color: 'bg-green-500', text: 'text-green-400', label: 'En ligne' },
+  running: { color: 'bg-green-500', text: 'text-green-400', label: 'Actif' },
+  partial: { color: 'bg-yellow-500', text: 'text-yellow-400', label: 'Partiel' },
+  offline: { color: 'bg-red-500', text: 'text-red-400', label: 'Hors ligne' },
+  stopped: { color: 'bg-red-500', text: 'text-red-400', label: 'Arrete' },
+  error: { color: 'bg-orange-500', text: 'text-orange-400', label: 'Erreur' },
+  unknown: { color: 'bg-dark-500', text: 'text-dark-400', label: 'Inconnu' },
 };
 
 export function StatusBadge({ status, label, labels, size = 'md' }: StatusBadgeProps) {

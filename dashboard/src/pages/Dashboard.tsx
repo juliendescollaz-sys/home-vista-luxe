@@ -81,37 +81,37 @@ const recentActivity = [
     id: '1',
     timestamp: '14:32',
     site: 'Villa Descollaz',
-    message: 'App deployed successfully on entrance panel',
+    message: 'Application deployee avec succes sur le panel entree',
     level: 'success' as const,
   },
   {
     id: '2',
     timestamp: '12:15',
     site: 'Residence Les Music ROOM',
-    message: 'SIP configuration updated for 6 accounts',
+    message: 'Configuration SIP mise a jour pour 6 comptes',
     level: 'info' as const,
   },
   {
     id: '3',
     timestamp: '10:00',
     site: 'Bureaux NexVentures',
-    message: 'Gateway offline - connection lost',
+    message: 'Gateway hors ligne - connexion perdue',
     level: 'error' as const,
   },
 ];
 
 const siteTypeConfig = {
-  building: { icon: Building2, label: 'Building', color: 'text-primary-400' },
+  building: { icon: Building2, label: 'Immeuble', color: 'text-primary-400' },
   villa: { icon: Home, label: 'Villa', color: 'text-green-400' },
-  office: { icon: Building2, label: 'Office', color: 'text-purple-400' },
+  office: { icon: Building2, label: 'Bureaux', color: 'text-purple-400' },
 };
 
 export function Dashboard() {
   return (
     <div>
       <Header
-        title="Dashboard"
-        subtitle="Manage your sites and devices"
+        title="Tableau de bord"
+        subtitle="Gerez vos sites et appareils"
       />
 
       <div className="p-6 space-y-6">
@@ -125,7 +125,7 @@ export function Dashboard() {
               <p className="text-2xl font-bold text-dark-100">
                 {stats.sitesOnline}/{stats.totalSites}
               </p>
-              <p className="text-sm text-dark-400">Sites Online</p>
+              <p className="text-sm text-dark-400">Sites en ligne</p>
             </div>
           </Card>
 
@@ -137,7 +137,7 @@ export function Dashboard() {
               <p className="text-2xl font-bold text-dark-100">
                 {stats.devicesOnline}/{stats.totalDevices}
               </p>
-              <p className="text-sm text-dark-400">Devices Online</p>
+              <p className="text-sm text-dark-400">Appareils en ligne</p>
             </div>
           </Card>
 
@@ -149,7 +149,7 @@ export function Dashboard() {
               <p className="text-2xl font-bold text-dark-100">
                 {stats.totalSipAccounts}
               </p>
-              <p className="text-sm text-dark-400">SIP Accounts</p>
+              <p className="text-sm text-dark-400">Comptes SIP</p>
             </div>
           </Card>
 
@@ -159,7 +159,7 @@ export function Dashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold text-dark-100">{stats.alerts}</p>
-              <p className="text-sm text-dark-400">Active Alerts</p>
+              <p className="text-sm text-dark-400">Alertes actives</p>
             </div>
           </Card>
         </div>
@@ -167,12 +167,12 @@ export function Dashboard() {
         {/* Sites Grid */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-dark-100">Your Sites</h2>
+            <h2 className="text-lg font-semibold text-dark-100">Vos sites</h2>
             <Link
               to="/sites"
               className="text-sm text-primary-400 hover:text-primary-300 flex items-center gap-1"
             >
-              View all <ArrowRight size={16} />
+              Voir tout <ArrowRight size={16} />
             </Link>
           </div>
 
@@ -231,8 +231,8 @@ export function Dashboard() {
         {/* Recent Activity */}
         <Card>
           <CardHeader
-            title="Recent Activity"
-            subtitle="Latest events across all sites"
+            title="Activite recente"
+            subtitle="Derniers evenements sur tous les sites"
           />
 
           <div className="space-y-3">
