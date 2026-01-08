@@ -111,7 +111,8 @@
       "Bash(npm run build:panel:*)",
       "Bash(npx cap sync android)",
       "Bash(dir:*)",
-      "Bash(file:*)"
+      "Bash(file:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

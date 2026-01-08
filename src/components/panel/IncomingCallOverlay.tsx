@@ -403,6 +403,7 @@ export function IncomingCallOverlay({
 
   const toggleMic = useCallback(() => {
     const newState = !micEnabled;
+    console.log('[IncomingCall] toggleMic: micEnabled=' + micEnabled + ' -> newState=' + newState);
     setMicEnabled(newState);
     // Appeler Linphone pour activer/désactiver le micro
     onToggleMic?.(newState);

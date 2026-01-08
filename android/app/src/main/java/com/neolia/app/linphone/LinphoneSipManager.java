@@ -382,6 +382,7 @@ public class LinphoneSipManager {
     public void setMicrophoneEnabled(boolean enabled) {
         if (core != null) {
             core.setMicEnabled(enabled);
+            Log.i(TAG, "Microphone " + (enabled ? "enabled" : "disabled") + " - actual state: " + core.isMicEnabled());
         }
     }
 
