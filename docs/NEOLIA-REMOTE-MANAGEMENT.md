@@ -211,13 +211,87 @@ Tous les endpoints sont proteges par Cloudflare Access :
 | Reboot services | Agent -> systemctl |
 | Scanner devices LAN | Agent -> nmap/arp |
 
+## API Panel S563 (Reverse-Engineering)
+
+### Authentification
+
+Le panel S563 utilise une authentification par token. Le token est obtenu lors de la connexion a l'interface web et doit etre fourni dans:
+- Header `authorization`
+- Cookie `httpsToken`
+
+### Upload APK
+
+**Endpoint:** `POST https://<panel_ip>/api/phoneApp/upload`
+
+**Headers:**
+```
+authorization: <token>
+content-type: multipart/form-data
+```
+
+**Cookies:**
+```
+httpsToken=<token>
+```
+
+**Body:** `multipart/form-data` avec le fichier APK dans le champ `file`
+
+**Exemple curl:**
+```bash
+curl 'https://192.168.1.23/api/phoneApp/upload' \
+  -H 'authorization: 393775BC...' \
+  -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary...' \
+  -b 'httpsToken=393775BC...' \
+  -F 'file=@app-release.apk;type=application/vnd.android.package-archive' \
+  --insecure
+```
+
+**Notes:**
+- Le certificat SSL est auto-signe, donc `--insecure` est necessaire
+- Le token expire apres un certain temps (a determiner)
+- Le fichier APK doit avoir le MIME type `application/vnd.android.package-archive`
+
+### Script d'upload automatise
+
+Un script Python est disponible dans `tools/s563-apk-uploader.py`:
+
+```bash
+# Installation des dependances
+pip install requests
+
+# Upload avec credentials
+python tools/s563-apk-uploader.py \
+  --ip 192.168.1.23 \
+  --user admin \
+  --password admin123 \
+  --apk app-release.apk
+
+# Upload avec token manuel (recupere depuis le navigateur)
+python tools/s563-apk-uploader.py \
+  --ip 192.168.1.23 \
+  --token 393775BC... \
+  --apk app-release.apk
+```
+
+### Autres endpoints potentiels (a explorer)
+
+| Endpoint | Methode | Description |
+|----------|---------|-------------|
+| `/api/phoneApp/list` | GET | Liste des apps installees |
+| `/api/phoneApp/uninstall` | POST | Desinstaller une app |
+| `/api/phoneApp/start` | POST | Demarrer une app |
+| `/api/system/reboot` | POST | Redemarrer le panel |
+| `/api/system/info` | GET | Infos systeme |
+
 ## Prochaines etapes
 
-1. [ ] Reverse-engineering de l'upload APK sur S563
-2. [ ] Setup Cloudflare Zero Trust + premier tunnel
-3. [ ] Developper l'Agent Neolia (MVP)
-4. [ ] Developper le Dashboard Neolia (MVP)
-5. [ ] Tests sur site pilote
+1. [x] Reverse-engineering de l'upload APK sur S563
+2. [ ] Tester le script d'upload sur un panel reel
+3. [ ] Identifier l'endpoint de login pour automatiser l'auth
+4. [ ] Setup Cloudflare Zero Trust + premier tunnel
+5. [ ] Developper l'Agent Neolia (MVP)
+6. [ ] Developper le Dashboard Neolia (MVP)
+7. [ ] Tests sur site pilote
 
 ## References
 
