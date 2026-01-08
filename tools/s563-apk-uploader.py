@@ -20,7 +20,6 @@ import sys
 import os
 import hashlib
 import json
-import secrets
 from urllib3.exceptions import InsecureRequestWarning
 
 # Desactiver les warnings SSL (certificat auto-signe)
@@ -36,33 +35,62 @@ class S563Uploader:
         self.session = requests.Session()
         self.token = None
 
-    def _generate_rand(self) -> str:
-        """
-        Genere un nonce aleatoire de 128 caracteres hex (64 bytes).
-        Le S563 attend ce format pour le login.
-        """
-        return secrets.token_hex(64).upper()
-
     def _hash_password(self, password: str) -> str:
         """
         Hash le mot de passe en MD5 (format attendu par le S563).
         """
         return hashlib.md5(password.encode()).hexdigest()
 
+    def _get_rand(self) -> str:
+        """
+        Obtient le nonce (rand) du serveur.
+        C'est la premiere etape du login.
+        """
+        payload = {
+            "target": "login",
+            "action": "rand",
+            "session": ""
+        }
+
+        resp = self.session.post(
+            f"{self.base_url}/api",
+            json=payload,
+            verify=self.verify_ssl,
+            timeout=10
+        )
+
+        if resp.status_code != 200:
+            raise Exception(f"Erreur HTTP: {resp.status_code}")
+
+        result = resp.json()
+        if result.get("retcode") != 0:
+            raise Exception(f"Erreur getRand: {result.get('message')}")
+
+        rand = result.get("data", {}).get("rand")
+        if not rand:
+            raise Exception("Rand non trouve dans la reponse")
+
+        return rand
+
     def login(self) -> bool:
         """
         Se connecte a l'interface web du S563 et recupere le token.
 
-        API Login S563:
-        - Endpoint: POST /api
-        - Body: JSON avec target="login", action="login"
-        - Le champ data contient userName, password (MD5), et rand (nonce)
-        - Response: JSON avec token dans data.token
+        API Login S563 (2 etapes):
+        1. POST /api avec action="rand" -> recupere le nonce du serveur
+        2. POST /api avec action="login" + rand du serveur + password MD5
         """
         print(f"[*] Connexion a {self.base_url}...")
 
-        # Generer le nonce et hasher le password
-        rand = self._generate_rand()
+        # Etape 1: Obtenir le rand du serveur
+        try:
+            rand = self._get_rand()
+            print(f"[+] Rand obtenu: {rand[:32]}...")
+        except Exception as e:
+            print(f"[-] Erreur getRand: {e}")
+            return False
+
+        # Etape 2: Login avec le rand
         password_hash = self._hash_password(self.password)
 
         # Construire le payload de login

@@ -112,7 +112,8 @@
       "Bash(npx cap sync android)",
       "Bash(dir:*)",
       "Bash(file:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(python:*)"
     ]
   }
 }
