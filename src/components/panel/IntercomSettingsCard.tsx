@@ -161,27 +161,21 @@ export function IntercomSettingsCard() {
 
   // Tester la sonnerie
   const handleTestRingtone = () => {
-    // Sur Capacitor Android, utiliser le chemin relatif depuis les assets
-    const basePath = isAndroid ? "" : "";
-    const audioPath = `${basePath}/sounds/ringtones/${config.ringtone.name}.mp3`;
-
-    console.log("[Ringtone] Test:", audioPath);
-
+    const audioPath = `/sounds/ringtones/${config.ringtone.name}.mp3`;
     const audio = new Audio(audioPath);
     audio.volume = config.ringtone.volume;
 
-    audio.onerror = (e) => {
-      console.error("[Ringtone] Error:", e, audio.error);
-      toast.error(`Impossible de jouer: ${config.ringtone.name} (${audio.error?.message || "erreur inconnue"})`);
+    audio.onerror = () => {
+      toast.error(`Impossible de jouer: ${config.ringtone.name}`);
     };
 
-    audio.play().catch((err) => {
-      console.error("[Ringtone] Play error:", err);
-      toast.error(`Impossible de jouer la sonnerie: ${err.message}`);
+    audio.play().catch(() => {
+      toast.error("Impossible de jouer la sonnerie");
     });
 
-    // Arrêter après 3 secondes
+    // Arrêter après 3 secondes (désactiver onerror avant de vider src)
     setTimeout(() => {
+      audio.onerror = null;
       audio.pause();
       audio.src = "";
     }, 3000);
