@@ -263,12 +263,15 @@ export function IntercomSettingsCard() {
             <span className="text-xs text-muted-foreground w-12">Volume</span>
             <Slider
               value={[config.ringtone.volume * 100]}
+              min={5}
               max={100}
               step={5}
               onValueChange={([v]) => setRingtoneConfig({ volume: v / 100 })}
               className="flex-1"
             />
-            <span className="text-xs w-8">{Math.round(config.ringtone.volume * 100)}%</span>
+            <span className="text-xs w-10 text-right">
+              {config.ringtone.volume <= 0.05 ? "MIN" : config.ringtone.volume >= 1 ? "MAX" : `${Math.round(config.ringtone.volume * 100)}%`}
+            </span>
           </div>
         </div>
 
