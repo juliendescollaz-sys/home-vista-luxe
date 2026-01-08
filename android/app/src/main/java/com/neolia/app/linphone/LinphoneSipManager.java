@@ -404,6 +404,39 @@ public class LinphoneSipManager {
     }
 
     /**
+     * Règle le volume de lecture audio (0.0 à 1.0)
+     * Utilise le gain en dB de Linphone (-100 dB à 0 dB)
+     */
+    public void setPlaybackGain(float gain) {
+        if (core == null) return;
+
+        // Convertir 0.0-1.0 en dB (-100 à 0)
+        // 0.0 -> -100 dB (muet), 1.0 -> 0 dB (volume max)
+        float dbGain;
+        if (gain <= 0.0f) {
+            dbGain = -100.0f; // Muet
+        } else if (gain >= 1.0f) {
+            dbGain = 0.0f; // Volume max
+        } else {
+            // Conversion logarithmique : dB = 20 * log10(gain)
+            dbGain = (float) (20.0 * Math.log10(gain));
+            // Limiter à -100 dB minimum
+            if (dbGain < -100.0f) dbGain = -100.0f;
+        }
+
+        core.setPlaybackGainDb(dbGain);
+        Log.i(TAG, "Playback gain set to " + dbGain + " dB (linear: " + gain + ")");
+    }
+
+    /**
+     * Retourne l'état du micro
+     */
+    public boolean isMicrophoneEnabled() {
+        if (core == null) return true;
+        return core.isMicEnabled();
+    }
+
+    /**
      * Envoie des DTMF (ex: pour ouvrir une porte)
      */
     public void sendDtmf(String dtmf) {

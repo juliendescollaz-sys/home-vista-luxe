@@ -65,6 +65,10 @@ export class LinphoneSipWeb implements LinphoneSipPlugin {
     return { success: false, speakerEnabled: options.enabled };
   }
 
+  async setPlaybackGain(options: { gain: number }): Promise<{ success: boolean; gain: number }> {
+    return { success: false, gain: options.gain };
+  }
+
   async sendDtmf(_options: { dtmf: string }): Promise<{ success: boolean }> {
     console.warn('[LinphoneSip Web] sendDtmf() non disponible sur le web');
     return { success: false };

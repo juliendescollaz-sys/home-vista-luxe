@@ -19,6 +19,10 @@ interface IncomingCallOverlayProps {
   onHangup: () => void;
   /** Callback quand on ouvre la porte */
   onOpenDoor: () => void;
+  /** Callback pour activer/désactiver le micro */
+  onToggleMic?: (enabled: boolean) => void;
+  /** Callback pour régler le volume du HP (0-1) */
+  onSetPlaybackGain?: (gain: number) => void;
   /** Sonnerie sélectionnée (nom du fichier sans extension) */
   ringtone?: string;
   /** Volume de la sonnerie (0-1) */
@@ -39,6 +43,8 @@ export function IncomingCallOverlay({
   onAnswer,
   onHangup,
   onOpenDoor,
+  onToggleMic,
+  onSetPlaybackGain,
   ringtone = "default",
   ringtoneVolume = 0.8,
   videoDelayAfterDoor = 5,
@@ -398,17 +404,22 @@ export function IncomingCallOverlay({
   const toggleMic = useCallback(() => {
     const newState = !micEnabled;
     setMicEnabled(newState);
-    // Note: Le micro est géré par Linphone SIP, pas par la vidéo HLS
-  }, [micEnabled]);
+    // Appeler Linphone pour activer/désactiver le micro
+    onToggleMic?.(newState);
+  }, [micEnabled, onToggleMic]);
 
   const toggleSpeakerMute = useCallback(() => {
-    setSpeakerVolume((prev) => (prev > 0 ? 0 : 0.8));
-  }, []);
+    const newVolume = speakerVolume > 0 ? 0 : 0.8;
+    setSpeakerVolume(newVolume);
+    onSetPlaybackGain?.(newVolume);
+  }, [speakerVolume, onSetPlaybackGain]);
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSpeakerVolume(parseFloat(e.target.value));
-    // TODO: Appliquer le volume au flux audio SIP
-  }, []);
+    const newVolume = parseFloat(e.target.value);
+    setSpeakerVolume(newVolume);
+    // Appliquer le volume au flux audio SIP via Linphone
+    onSetPlaybackGain?.(newVolume);
+  }, [onSetPlaybackGain]);
 
   if (!visible) return null;
 

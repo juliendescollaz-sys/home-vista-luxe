@@ -229,6 +229,13 @@ export function usePanelIntercom() {
     await linphoneSipService.setSpeakerEnabled(enabled);
   }, []);
 
+  /**
+   * Régler le volume du haut-parleur (0.0 à 1.0)
+   */
+  const setPlaybackGain = useCallback(async (gain: number) => {
+    await linphoneSipService.setPlaybackGain(gain);
+  }, []);
+
   return {
     // État
     isConfigured,
@@ -255,6 +262,7 @@ export function usePanelIntercom() {
     openDoor,
     toggleMicrophone,
     toggleSpeaker,
+    setPlaybackGain,
   };
 }
 

@@ -58,6 +58,8 @@ export function PanelRootLayout() {
     answer,
     hangup,
     openDoor,
+    toggleMicrophone,
+    setPlaybackGain,
   } = usePanelIntercom();
 
   // Afficher l'overlay d'appel si un appel est en cours
@@ -189,6 +191,8 @@ export function PanelRootLayout() {
           onAnswer={answer}
           onHangup={hangup}
           onOpenDoor={openDoor}
+          onToggleMic={toggleMicrophone}
+          onSetPlaybackGain={setPlaybackGain}
           ringtone={intercomConfig.ringtone.name}
           ringtoneVolume={intercomConfig.ringtone.volume}
           videoDelayAfterDoor={intercomConfig.door.videoDelayAfterOpen}

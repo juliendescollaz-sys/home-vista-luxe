@@ -283,6 +283,26 @@ public class LinphoneSipPlugin extends Plugin {
     }
 
     /**
+     * Règle le volume de lecture audio (0.0 à 1.0)
+     */
+    @PluginMethod
+    public void setPlaybackGain(PluginCall call) {
+        Float gain = call.getFloat("gain", 1.0f);
+
+        if (sipManager == null) {
+            call.reject("Linphone not initialized");
+            return;
+        }
+
+        sipManager.setPlaybackGain(gain);
+
+        JSObject result = new JSObject();
+        result.put("success", true);
+        result.put("gain", gain);
+        call.resolve(result);
+    }
+
+    /**
      * Envoie une requête DTMF (pour ouvrir une porte par exemple)
      */
     @PluginMethod

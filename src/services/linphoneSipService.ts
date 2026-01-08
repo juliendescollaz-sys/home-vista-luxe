@@ -298,6 +298,19 @@ class LinphoneSipService {
   }
 
   /**
+   * Règle le volume de lecture audio (0.0 à 1.0)
+   */
+  async setPlaybackGain(gain: number): Promise<void> {
+    if (!this.isInitialized) return;
+
+    try {
+      await LinphoneSip.setPlaybackGain({ gain });
+    } catch (error) {
+      console.error('[LinphoneSipService] Erreur setPlaybackGain:', error);
+    }
+  }
+
+  /**
    * Envoie des DTMF (ex: code pour ouvrir la porte)
    */
   async sendDtmf(dtmf: string): Promise<void> {

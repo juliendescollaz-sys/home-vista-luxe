@@ -61,6 +61,11 @@ export interface LinphoneSipPlugin {
   setSpeakerEnabled(options: { enabled: boolean }): Promise<{ success: boolean; speakerEnabled: boolean }>;
 
   /**
+   * Règle le volume de lecture audio (0.0 à 1.0)
+   */
+  setPlaybackGain(options: { gain: number }): Promise<{ success: boolean; gain: number }>;
+
+  /**
    * Envoie des DTMF (ex: pour ouvrir une porte via code)
    */
   sendDtmf(options: { dtmf: string }): Promise<{ success: boolean }>;
