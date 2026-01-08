@@ -20,6 +20,7 @@ import sys
 import os
 import hashlib
 import json
+import secrets
 from urllib3.exceptions import InsecureRequestWarning
 
 # Desactiver les warnings SSL (certificat auto-signe)
@@ -40,6 +41,12 @@ class S563Uploader:
         Hash le mot de passe en MD5 (format attendu par le S563).
         """
         return hashlib.md5(password.encode()).hexdigest()
+
+    def _generate_client_rand(self) -> str:
+        """
+        Genere un nonce aleatoire cote client (128 caracteres hex).
+        """
+        return secrets.token_hex(64).upper()
 
     def _get_rand(self) -> str:
         """
@@ -77,35 +84,41 @@ class S563Uploader:
         Se connecte a l'interface web du S563 et recupere le token.
 
         API Login S563 (2 etapes):
-        1. POST /api avec action="rand" -> recupere le nonce du serveur
-        2. POST /api avec action="login" + rand du serveur + password MD5
+        1. POST /api avec action="rand" -> recupere le nonce du serveur (server_rand)
+        2. POST /api avec action="login":
+           - session = server_rand (le rand recu du serveur)
+           - data.rand = client_rand (un rand genere cote client)
+           - data.password = MD5(password)
         """
         print(f"[*] Connexion a {self.base_url}...")
 
         # Etape 1: Obtenir le rand du serveur
         try:
-            rand = self._get_rand()
-            print(f"[+] Rand obtenu: {rand[:32]}...")
+            server_rand = self._get_rand()
+            print(f"[+] Server rand: {server_rand[:32]}...")
         except Exception as e:
             print(f"[-] Erreur getRand: {e}")
             return False
 
-        # Etape 2: Login avec le rand
+        # Etape 2: Login avec les deux rands
         password_hash = self._hash_password(self.password)
+        client_rand = self._generate_client_rand()
+        print(f"[+] Client rand: {client_rand[:32]}...")
 
         # Construire le payload de login
         # Note: le champ "data" est une STRING JSON, pas un objet
+        # Note: "session" contient le server_rand, "data.rand" contient le client_rand
         data_inner = json.dumps({
             "userName": self.username,
             "password": password_hash,
-            "rand": rand
+            "rand": client_rand
         })
 
         payload = {
             "target": "login",
             "action": "login",
             "data": data_inner,
-            "session": ""
+            "session": server_rand  # Le rand du serveur va dans session
         }
 
         try:
