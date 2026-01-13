@@ -40,7 +40,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun NeoliaTheme(
+fun NeoliaPanelTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {

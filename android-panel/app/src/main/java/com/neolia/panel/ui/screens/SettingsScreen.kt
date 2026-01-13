@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import com.neolia.panel.data.PanelConfig
 import com.neolia.panel.sip.LinphoneManager
 import kotlinx.coroutines.launch
+import org.linphone.core.RegistrationState
 
 /**
  * Ecran des parametres du Panel
@@ -206,18 +207,18 @@ fun SettingsScreen(
 
                         Surface(
                             color = when (sipState) {
-                                LinphoneManager.RegistrationState.REGISTERED -> MaterialTheme.colorScheme.primary
-                                LinphoneManager.RegistrationState.REGISTERING -> MaterialTheme.colorScheme.tertiary
-                                LinphoneManager.RegistrationState.FAILED -> MaterialTheme.colorScheme.error
+                                RegistrationState.Ok -> MaterialTheme.colorScheme.primary
+                                RegistrationState.Progress -> MaterialTheme.colorScheme.tertiary
+                                RegistrationState.Failed -> MaterialTheme.colorScheme.error
                                 else -> MaterialTheme.colorScheme.outline
                             },
                             shape = MaterialTheme.shapes.small
                         ) {
                             Text(
                                 text = when (sipState) {
-                                    LinphoneManager.RegistrationState.REGISTERED -> "Connecté"
-                                    LinphoneManager.RegistrationState.REGISTERING -> "Connexion..."
-                                    LinphoneManager.RegistrationState.FAILED -> "Erreur"
+                                    RegistrationState.Ok -> "Connecté"
+                                    RegistrationState.Progress -> "Connexion..."
+                                    RegistrationState.Failed -> "Erreur"
                                     else -> "Déconnecté"
                                 },
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -250,7 +251,7 @@ fun SettingsScreen(
                         OutlinedButton(
                             onClick = {
                                 scope.launch {
-                                    if (sipState == LinphoneManager.RegistrationState.REGISTERED) {
+                                    if (sipState == RegistrationState.Ok) {
                                         LinphoneManager.unregister()
                                     } else {
                                         LinphoneManager.register(
@@ -265,7 +266,7 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                if (sipState == LinphoneManager.RegistrationState.REGISTERED) {
+                                if (sipState == RegistrationState.Ok) {
                                     "Déconnecter"
                                 } else {
                                     "Tester connexion"

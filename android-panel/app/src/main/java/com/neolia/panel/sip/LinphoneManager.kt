@@ -36,13 +36,12 @@ object LinphoneManager {
         factory.setDebugMode(true, "Linphone")
 
         core = factory.createCore(null, null, context).apply {
-            // Configuration audio
-            enableMic(true)
-            enableSpeaker(true)
+            // Configuration audio via AudioDevice ou config directe
+            isMicEnabled = true
 
             // Desactiver la video cote Linphone (on utilise ExoPlayer pour RTSP)
-            enableVideoCapture(false)
-            enableVideoDisplay(false)
+            isVideoCaptureEnabled = false
+            isVideoDisplayEnabled = false
 
             // Configuration reseau
             setUserAgent("NeoliaPanel", "1.0.0")

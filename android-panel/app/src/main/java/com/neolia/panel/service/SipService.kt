@@ -15,6 +15,8 @@ import com.neolia.panel.sip.LinphoneManager
 import com.neolia.panel.ui.call.IncomingCallActivity
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
+import org.linphone.core.Call
+import org.linphone.core.RegistrationState
 
 /**
  * Service foreground pour maintenir la connexion SIP active
@@ -47,15 +49,15 @@ class SipService : Service() {
         scope.launch {
             LinphoneManager.callState.collectLatest { state ->
                 when (state) {
-                    LinphoneManager.CallState.INCOMING -> {
+                    Call.State.IncomingReceived, Call.State.IncomingEarlyMedia -> {
                         Log.d(TAG, "Incoming call detected, launching call screen")
                         launchIncomingCallScreen()
                     }
-                    LinphoneManager.CallState.IDLE -> {
+                    Call.State.Idle, Call.State.End, Call.State.Released -> {
                         // Appel termine, on peut mettre a jour la notification
                         updateNotification("En attente d'appel")
                     }
-                    LinphoneManager.CallState.IN_CALL -> {
+                    Call.State.Connected, Call.State.StreamsRunning -> {
                         updateNotification("Appel en cours")
                     }
                     else -> {}
@@ -67,10 +69,11 @@ class SipService : Service() {
         scope.launch {
             LinphoneManager.registrationState.collectLatest { state ->
                 val statusText = when (state) {
-                    LinphoneManager.RegistrationState.REGISTERED -> "Connecté"
-                    LinphoneManager.RegistrationState.REGISTERING -> "Connexion..."
-                    LinphoneManager.RegistrationState.FAILED -> "Erreur connexion"
-                    LinphoneManager.RegistrationState.UNREGISTERED -> "Déconnecté"
+                    RegistrationState.Ok -> "Connecté"
+                    RegistrationState.Progress -> "Connexion..."
+                    RegistrationState.Failed -> "Erreur connexion"
+                    RegistrationState.Cleared -> "Déconnecté"
+                    else -> "Déconnecté"
                 }
                 updateNotification(statusText)
             }
