@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Neolia Panel</string>
+    <string name="incoming_call">Appel entrant</string>
+    <string name="answer">Répondre</string>
+    <string name="decline">Refuser</string>
+    <string name="open_door">Ouvrir</string>
+    <string name="hang_up">Raccrocher</string>
+    <string name="connecting">Connexion...</string>
+    <string name="connected">Connecté</string>
+    <string name="disconnected">Déconnecté</string>
+    <string name="notification_channel_name">Interphone SIP</string>
+    <string name="notification_channel_description">Notifications pour les appels interphone</string>
+</resources>
