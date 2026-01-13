@@ -1,7 +1,9 @@
 /**
- * Page Accueil pour le mode PANEL
- * Copie complète de la version Tablet (src/pages/Home.tsx)
- * SANS TopBar ni BottomNav (gérés par PanelRootLayout)
+ * Page Accueil pour le mode PANEL 8" (1280x800)
+ * Optimisee pour lisibilite a 1m de distance
+ * - Grille 2 colonnes pour tiles plus grandes
+ * - Titres en text-xl (20px)
+ * - Espacement augmente
  */
 import { useHAStore } from "@/store/useHAStore";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -116,12 +118,12 @@ export function PanelHome() {
   if (!client || !entities || entities.length === 0) {
     return (
       <div className="h-full flex flex-col bg-background">
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
-          <Skeleton className="h-48 w-full rounded-3xl shrink-0" />
-          <div className="space-y-3">
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-20 w-full rounded-2xl" />
-            <Skeleton className="h-20 w-full rounded-2xl" />
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-5">
+          <Skeleton className="h-56 w-full rounded-3xl shrink-0" />
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-28 w-full rounded-2xl" />
+            <Skeleton className="h-28 w-full rounded-2xl" />
           </div>
         </div>
       </div>
@@ -130,22 +132,22 @@ export function PanelHome() {
 
   return (
     <div className="h-full flex flex-col bg-background">
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-3 pb-4 space-y-3">
-        {/* Section météo */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-4 pb-5 space-y-4">
+        {/* Section meteo - prend toute la largeur */}
         <div className="animate-fade-in shrink-0">
           <AnimatedWeatherTile />
         </div>
 
-        {/* Appareils actifs */}
-        <div className="space-y-2 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-          <h2 className="text-lg font-semibold">Appareils actifs</h2>
+        {/* Appareils actifs - grille 2 colonnes pour lisibilite */}
+        <div className="space-y-3 animate-fade-in" style={{ animationDelay: "0.1s" }}>
+          <h2 className="text-xl font-semibold">Appareils actifs</h2>
 
           {enrichedActiveDevices.length === 0 ? (
-            <div className="flex items-center justify-center min-h-[120px]">
-              <p className="text-muted-foreground">Aucun appareil actif</p>
+            <div className="flex items-center justify-center min-h-[140px]">
+              <p className="text-lg text-muted-foreground">Aucun appareil actif</p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               {enrichedActiveDevices.map(({ entity, area, floor }) => {
                 const isMediaPlayer = entity.entity_id.startsWith("media_player.");
                 const isCover = entity.entity_id.startsWith("cover.");
@@ -157,6 +159,7 @@ export function PanelHome() {
                       entity={entity}
                       floor={floor}
                       area={area}
+                      size="panel"
                     />
                   );
                 }
@@ -168,6 +171,7 @@ export function PanelHome() {
                       entity={entity}
                       floor={floor}
                       area={area}
+                      size="panel"
                     />
                   );
                 }
@@ -179,6 +183,7 @@ export function PanelHome() {
                     onToggle={handleDeviceToggle}
                     floor={floor}
                     area={area}
+                    size="panel"
                   />
                 );
               })}

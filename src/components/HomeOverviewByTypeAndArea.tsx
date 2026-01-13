@@ -335,6 +335,9 @@ export function HomeOverviewByTypeAndArea({
                     const area = areaId ? areas.find((a) => a.area_id === areaId) || null : null;
                     const floor = area?.floor_id ? floors.find((f) => f.floor_id === area.floor_id) || null : null;
 
+                    // Panel 8" : taille "panel" pour lisibilite a 1m
+                    const tileSize = displayMode === "panel" ? "panel" : "default";
+
                     if (entity.entity_id.startsWith("media_player.")) {
                       return (
                         <SortableMediaPlayerCard
@@ -342,6 +345,7 @@ export function HomeOverviewByTypeAndArea({
                           entity={entity}
                           floor={floor}
                           area={area}
+                          size={tileSize}
                         />
                       );
                     }
@@ -353,6 +357,7 @@ export function HomeOverviewByTypeAndArea({
                           entity={entity}
                           floor={floor}
                           area={area}
+                          size={tileSize}
                         />
                       );
                     }
@@ -365,6 +370,7 @@ export function HomeOverviewByTypeAndArea({
                         floor={floor}
                         area={area}
                         onOpenDetails={(e) => setDetailsEntity(e)}
+                        size={tileSize}
                       />
                     );
                   })}

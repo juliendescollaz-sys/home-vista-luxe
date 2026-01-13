@@ -18,6 +18,7 @@ interface SortableCoverEntityTileProps {
   floor?: HAFloor | null;
   area?: HAArea | null;
   onEditName?: (entity: HAEntity) => void;
+  size?: "default" | "panel";
 }
 
 /**
@@ -44,10 +45,11 @@ function getCoverStateLabel(state: string, position?: number | null): string {
   }
 }
 
-export function SortableCoverEntityTile({ entity, floor, area, onEditName }: SortableCoverEntityTileProps) {
+export function SortableCoverEntityTile({ entity, floor, area, onEditName, size = "default" }: SortableCoverEntityTileProps) {
   const realState = entity.state;
   const name = entity.attributes.friendly_name || entity.entity_id;
   const deviceClass = entity.attributes.device_class ?? null;
+  const isPanel = size === "panel";
   
   // Position et tilt depuis les attributs
   const currentPosition = typeof entity.attributes.current_position === "number" 
@@ -214,9 +216,19 @@ export function SortableCoverEntityTile({ entity, floor, area, onEditName }: Sor
   const state = optimisticState;
   const isOpen = state === "open" || state === "opening";
   const isUnavailable = state === "unavailable";
-  
+
+  // Tailles selon le mode panel
+  const iconContainerSize = isPanel ? "w-16 h-16" : "w-14 h-14";
+  const iconSize = isPanel ? "h-9 w-9" : "h-8 w-8";
+  const titleSize = isPanel ? "text-lg" : "text-base";
+  const stateSize = isPanel ? "text-base" : "text-sm";
+  const padding = isPanel ? "p-5 pt-12" : "p-4 pt-10";
+  const gap = isPanel ? "gap-4 mb-5" : "gap-3 mb-4";
+  const actionBtnSize = isPanel ? "h-9 w-9" : "h-7 w-7";
+  const actionIconSize = isPanel ? "h-5 w-5" : "h-4 w-4";
+
   return (
-    <Card 
+    <Card
       ref={setNodeRef}
       style={style}
       {...attributes}
@@ -226,23 +238,23 @@ export function SortableCoverEntityTile({ entity, floor, area, onEditName }: Sor
       )}
     >
       <LocationBadge floor={floor} area={area} />
-      
-      <div className="p-4 pt-10">
+
+      <div className={padding}>
         {/* Header - identique à MediaPlayerCard */}
-        <div className="mt-1 flex items-start gap-3 mb-4">
-          <div 
+        <div className={`mt-1 flex items-start ${gap}`}>
+          <div
             className={cn(
-              "w-14 h-14 rounded-lg flex-shrink-0 transition-all flex items-center justify-center",
+              `${iconContainerSize} rounded-xl flex-shrink-0 transition-all flex items-center justify-center`,
               isOpen ? "bg-primary/20 text-primary" : "bg-muted/50 text-muted-foreground"
             )}
             aria-label={`Icône ${deviceClass || "volet"}`}
           >
-            <Icon className="h-8 w-8" />
+            <Icon className={iconSize} />
           </div>
-          
+
           <div className="flex-1 min-w-0 pt-0.5">
-            <h3 className="font-semibold text-base truncate mb-0.5">{name}</h3>
-            <p className="text-sm text-muted-foreground">
+            <h3 className={`font-semibold ${titleSize} truncate mb-0.5`}>{name}</h3>
+            <p className={`${stateSize} text-muted-foreground`}>
               {getCoverStateLabel(state, supportsPosition ? currentPosition : null)}
             </p>
           </div>
@@ -252,19 +264,19 @@ export function SortableCoverEntityTile({ entity, floor, area, onEditName }: Sor
               <button
                 type="button"
                 onClick={handleEditClick}
-                className="inline-flex items-center justify-center h-7 w-7 rounded-full border border-border/40 bg-background/40 hover:bg-accent/60 hover:border-accent/60 text-muted-foreground hover:text-foreground transition-colors"
+                className={`inline-flex items-center justify-center ${actionBtnSize} rounded-full border border-border/40 bg-background/40 hover:bg-accent/60 hover:border-accent/60 text-muted-foreground hover:text-foreground transition-colors`}
                 aria-label="Renommer l'appareil"
               >
-                <Pencil className="h-3.5 w-3.5" />
+                <Pencil className={isPanel ? "h-4 w-4" : "h-3.5 w-3.5"} />
               </button>
             )}
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
+              className={`${actionBtnSize} bg-transparent active:bg-accent/50 active:scale-95 transition-all`}
               onClick={handleFavoriteClick}
             >
-              <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+              <Star className={`${actionIconSize} ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
             </Button>
           </div>
         </div>

@@ -14,9 +14,11 @@ interface MediaPlayerCardProps {
   entity: HAEntity;
   floor?: HAFloor | null;
   area?: HAArea | null;
+  size?: "default" | "panel";
 }
 
-export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) => {
+export const MediaPlayerCard = ({ entity, floor, area, size = "default" }: MediaPlayerCardProps) => {
+  const isPanel = size === "panel";
   const navigate = useNavigate();
   const connection = useHAStore((state) => state.connection);
   const client = useHAStore((state) => state.client);
@@ -86,17 +88,30 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
   };
 
 
+  // Tailles selon le mode panel
+  const albumSize = isPanel ? "w-16 h-16" : "w-14 h-14";
+  const musicIconSize = isPanel ? "h-8 w-8" : "h-7 w-7";
+  const titleSize = isPanel ? "text-lg" : "text-base";
+  const artistSize = isPanel ? "text-base" : "text-sm";
+  const padding = isPanel ? "p-5 pt-12" : "p-4 pt-10";
+  const gap = isPanel ? "gap-4 mb-5" : "gap-3 mb-4";
+  const playBtnSize = isPanel ? "h-11 w-11" : "h-9 w-9";
+  const playIconSize = isPanel ? "h-6 w-6" : "h-5 w-5";
+  const favBtnSize = isPanel ? "h-9 w-9" : "h-7 w-7";
+  const favIconSize = isPanel ? "h-5 w-5" : "h-4 w-4";
+  const timeTextSize = isPanel ? "text-sm" : "text-xs";
+
   return (
     <Card
       className="overflow-hidden cursor-pointer glass-card elevated-subtle elevated-active border-border/50 relative"
       onClick={handleCardClick}
     >
       <LocationBadge floor={floor} area={area} />
-      
-      <div className="p-4 pt-10">
-        <div className="mt-1 flex items-start gap-3 mb-4">
+
+      <div className={padding}>
+        <div className={`mt-1 flex items-start ${gap}`}>
           {/* Jaquette */}
-          <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted/50 backdrop-blur-sm border border-border/50">
+          <div className={`${albumSize} rounded-xl overflow-hidden flex-shrink-0 bg-muted/50 backdrop-blur-sm border border-border/50`}>
             {albumArt ? (
               <img
                 src={albumArt}
@@ -105,16 +120,16 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <Music className="h-7 w-7 text-muted-foreground" />
+                <Music className={`${musicIconSize} text-muted-foreground`} />
               </div>
             )}
           </div>
 
           {/* Titre et artiste */}
           <div className="flex-1 min-w-0 pt-0.5">
-            <h3 className="font-semibold text-base truncate mb-0.5">{mediaTitle}</h3>
+            <h3 className={`font-semibold ${titleSize} truncate mb-0.5`}>{mediaTitle}</h3>
             {mediaArtist && (
-              <p className="text-sm text-muted-foreground truncate">
+              <p className={`${artistSize} text-muted-foreground truncate`}>
                 {mediaArtist}
               </p>
             )}
@@ -127,32 +142,32 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
               size="icon"
               onClick={handlePlayPause}
               disabled={playPauseInFlight}
-              className="h-9 w-9 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
+              className={`${playBtnSize} bg-transparent active:bg-accent/50 active:scale-95 transition-all`}
               data-control
             >
               {playPauseInFlight || isBuffering ? (
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <Loader2 className={`${playIconSize} animate-spin text-primary`} />
               ) : isPlaying ? (
-                <Pause className="h-5 w-5 text-primary" />
+                <Pause className={`${playIconSize} text-primary`} />
               ) : (
-                <Play className="h-5 w-5 text-muted-foreground" />
+                <Play className={`${playIconSize} text-muted-foreground`} />
               )}
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 bg-transparent active:bg-accent/50 active:scale-95 transition-all"
+              className={`${favBtnSize} bg-transparent active:bg-accent/50 active:scale-95 transition-all`}
               onClick={handleFavoriteClick}
               data-control
             >
-              <Star className={`h-4 w-4 ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+              <Star className={`${favIconSize} ${isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
             </Button>
           </div>
         </div>
 
         {/* Timeline interactive */}
         {duration > 0 && (
-          <div className="space-y-1.5 pt-2 border-t border-border/30" data-control>
+          <div className={`space-y-1.5 ${isPanel ? "pt-3" : "pt-2"} border-t border-border/30`} data-control>
             <Slider
               value={[position]}
               max={duration}
@@ -167,7 +182,7 @@ export const MediaPlayerCard = ({ entity, floor, area }: MediaPlayerCardProps) =
               )}
               style={{ touchAction: "none" }}
             />
-            <div className="flex justify-between text-xs text-muted-foreground">
+            <div className={`flex justify-between ${timeTextSize} text-muted-foreground`}>
               <span>{formatTime(position)}</span>
               <span>{formatTime(duration)}</span>
             </div>

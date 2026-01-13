@@ -1,40 +1,42 @@
 /**
- * Configuration de grille homogène pour toutes les pages
- * Optimisé pour Tablet et Panel avec exploitation maximale de l'espace
+ * Configuration de grille homogene pour toutes les pages
+ * Panel 8" : 2 colonnes pour tiles plus grandes et lisibles a 1m
+ * Tablet : 3 colonnes
  */
 
-export type ContentType = 
+export type ContentType =
   | "devices"      // Appareils, Media Players
-  | "rooms"        // Pièces
-  | "floors"       // Étages
-  | "cards";       // Scènes, Routines, Groupes, Smart
+  | "rooms"        // Pieces
+  | "floors"       // Etages
+  | "cards";       // Scenes, Routines, Groupes, Smart
 
 export type DisplayMode = "mobile" | "tablet" | "panel";
 
 /**
  * Retourne les classes Tailwind de grille selon le type de contenu et le mode d'affichage
+ * Panel 8" : 2 colonnes pour maximiser la taille des tiles (lisibilite a 1m)
  */
 export function getGridColumns(contentType: ContentType, displayMode: DisplayMode): string {
   const layouts: Record<ContentType, Record<DisplayMode, string>> = {
     devices: {
       mobile: "grid-cols-1",
       tablet: "grid-cols-3",
-      panel: "grid-cols-3",
+      panel: "grid-cols-2",  // 2 colonnes pour tiles plus grandes
     },
     rooms: {
       mobile: "grid-cols-1",
       tablet: "grid-cols-3",
-      panel: "grid-cols-3",
+      panel: "grid-cols-2",  // 2 colonnes pour cards pieces plus grandes
     },
     floors: {
       mobile: "grid-cols-1",
       tablet: "grid-cols-3",
-      panel: "grid-cols-3",
+      panel: "grid-cols-2",
     },
     cards: {
       mobile: "grid-cols-1",
       tablet: "grid-cols-3",
-      panel: "grid-cols-3",
+      panel: "grid-cols-2",  // 2 colonnes pour scenes/routines/groupes
     },
   };
 
@@ -42,9 +44,11 @@ export function getGridColumns(contentType: ContentType, displayMode: DisplayMod
 }
 
 /**
- * Retourne les classes complètes de la grille avec gap
+ * Retourne les classes completes de la grille avec gap
+ * Panel : gap-5 pour espacement plus genereux
  */
 export function getGridClasses(contentType: ContentType, displayMode: DisplayMode): string {
   const columns = getGridColumns(contentType, displayMode);
-  return `grid ${columns} gap-4`;
+  const gap = displayMode === "panel" ? "gap-5" : "gap-4";
+  return `grid ${columns} ${gap}`;
 }
