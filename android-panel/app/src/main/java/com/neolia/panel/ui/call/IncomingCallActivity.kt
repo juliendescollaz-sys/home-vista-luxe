@@ -39,7 +39,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.rtsp.RtspMediaSource
 import androidx.media3.ui.PlayerView
 import com.neolia.panel.sip.LinphoneManager
-import com.neolia.panel.ui.theme.NeoliaTheme
+import com.neolia.panel.ui.theme.NeoliaPanelTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.linphone.core.Call
@@ -65,7 +65,7 @@ class IncomingCallActivity : ComponentActivity() {
         startRinging()
 
         setContent {
-            NeoliaTheme {
+            NeoliaPanelTheme {
                 IncomingCallScreen(
                     onAnswer = { answerCall() },
                     onDecline = { declineCall() },

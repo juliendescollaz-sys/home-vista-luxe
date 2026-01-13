@@ -113,7 +113,8 @@
       "Bash(dir:*)",
       "Bash(file:*)",
       "Bash(npx tsc:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(.gradlew.bat assembleDebug)"
     ]
   }
 }
