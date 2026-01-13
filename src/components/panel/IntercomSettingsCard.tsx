@@ -183,25 +183,26 @@ export function IntercomSettingsCard() {
 
   return (
     <>
-      <Card className="p-5 bg-gradient-card border-border/50">
+      <Card className="flex-1 p-6 bg-gradient-card border-border/50">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Phone className="h-5 w-5 text-primary" />
-            <h3 className="text-base font-semibold">Interphone</h3>
+          <div className="flex items-center gap-3">
+            <Phone className="h-6 w-6 text-primary" />
+            <h3 className="text-lg font-semibold">Interphone</h3>
           </div>
           <Switch
             checked={config.enabled}
             onCheckedChange={handleToggleEnabled}
+            className="scale-125"
           />
         </div>
 
         {/* Statut */}
         <div className="space-y-3 mb-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Statut SIP</span>
+            <span className="text-sm text-muted-foreground">Statut SIP</span>
             <div className="flex items-center gap-2">
               <div
-                className={`h-2 w-2 rounded-full ${
+                className={`h-3 w-3 rounded-full ${
                   sipState === "registered"
                     ? "bg-green-500"
                     : sipState === "registering"
@@ -211,7 +212,7 @@ export function IntercomSettingsCard() {
                     : "bg-gray-400"
                 }`}
               />
-              <span className="text-xs">
+              <span className="text-sm">
                 {sipState === "registered"
                   ? "Connecté"
                   : sipState === "registering"
@@ -224,7 +225,7 @@ export function IntercomSettingsCard() {
           </div>
 
           {config.sip.server && (
-            <div className="text-xs text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
               Serveur: {config.sip.server}
             </div>
           )}
@@ -233,16 +234,16 @@ export function IntercomSettingsCard() {
         {/* Sonnerie */}
         <div className="space-y-3 mb-4">
           <div className="flex items-center gap-2">
-            <Volume2 className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Sonnerie</span>
+            <Volume2 className="h-5 w-5 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Sonnerie</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Select
               value={config.ringtone.name}
               onValueChange={(value) => setRingtoneConfig({ name: value })}
             >
-              <SelectTrigger className="h-8 text-xs">
+              <SelectTrigger className="h-10 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -254,13 +255,13 @@ export function IntercomSettingsCard() {
               </SelectContent>
             </Select>
 
-            <Button variant="outline" size="sm" onClick={handleTestRingtone}>
+            <Button variant="outline" className="h-10" onClick={handleTestRingtone}>
               Test
             </Button>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground w-12">Volume</span>
+            <span className="text-sm text-muted-foreground w-14">Volume</span>
             <Slider
               value={[config.ringtone.volume * 100]}
               min={5}
@@ -269,28 +270,26 @@ export function IntercomSettingsCard() {
               onValueChange={([v]) => setRingtoneConfig({ volume: v / 100 })}
               className="flex-1"
             />
-            <span className="text-xs w-10 text-right">
+            <span className="text-sm w-12 text-right">
               {config.ringtone.volume <= 0.05 ? "MIN" : config.ringtone.volume >= 1 ? "MAX" : `${Math.round(config.ringtone.volume * 100)}%`}
             </span>
           </div>
         </div>
 
         {/* Boutons */}
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <Button
             variant="outline"
-            size="sm"
-            className="flex-1"
+            className="flex-1 h-11 text-base"
             onClick={handleOpenPinDialog}
           >
-            <KeyRound className="h-4 w-4 mr-1" />
+            <KeyRound className="h-5 w-5 mr-2" />
             Appairage PIN
           </Button>
 
           <Button
             variant="outline"
-            size="sm"
-            className="flex-1"
+            className="flex-1 h-11 text-base"
             onClick={() => {
               setFormData({
                 server: config.sip.server,
@@ -304,7 +303,7 @@ export function IntercomSettingsCard() {
               setShowConfigDialog(true);
             }}
           >
-            <Settings className="h-4 w-4 mr-1" />
+            <Settings className="h-5 w-5 mr-2" />
             Configurer
           </Button>
         </div>
@@ -313,8 +312,7 @@ export function IntercomSettingsCard() {
         {config.sip.server && isAndroid && (
           <Button
             variant="secondary"
-            size="sm"
-            className="w-full mt-2"
+            className="w-full mt-3 h-11 text-base"
             onClick={handleTestConnection}
           >
             Tester la connexion
@@ -322,7 +320,7 @@ export function IntercomSettingsCard() {
         )}
 
         {!isAndroid && (
-          <p className="text-xs text-muted-foreground mt-3 text-center">
+          <p className="text-sm text-muted-foreground mt-4 text-center">
             L'interphone SIP natif est disponible uniquement sur Android.
           </p>
         )}

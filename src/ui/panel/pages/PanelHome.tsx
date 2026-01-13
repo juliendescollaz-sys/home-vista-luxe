@@ -138,7 +138,7 @@ export function PanelHome() {
           <AnimatedWeatherTile />
         </div>
 
-        {/* Appareils actifs - grille 2 colonnes pour lisibilite */}
+        {/* Appareils actifs - grille 3 colonnes */}
         <div className="space-y-3 animate-fade-in" style={{ animationDelay: "0.1s" }}>
           <h2 className="text-xl font-semibold">Appareils actifs</h2>
 
@@ -147,7 +147,7 @@ export function PanelHome() {
               <p className="text-lg text-muted-foreground">Aucun appareil actif</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               {enrichedActiveDevices.map(({ entity, area, floor }) => {
                 const isMediaPlayer = entity.entity_id.startsWith("media_player.");
                 const isCover = entity.entity_id.startsWith("cover.");
@@ -159,7 +159,6 @@ export function PanelHome() {
                       entity={entity}
                       floor={floor}
                       area={area}
-                      size="panel"
                     />
                   );
                 }
@@ -171,7 +170,6 @@ export function PanelHome() {
                       entity={entity}
                       floor={floor}
                       area={area}
-                      size="panel"
                     />
                   );
                 }
@@ -183,7 +181,6 @@ export function PanelHome() {
                     onToggle={handleDeviceToggle}
                     floor={floor}
                     area={area}
-                    size="panel"
                   />
                 );
               })}

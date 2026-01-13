@@ -58,78 +58,75 @@ export function PanelSettings() {
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-background px-4 py-4">
-      <div className="flex-1 min-h-0 grid grid-cols-3 gap-4">
+    <div className="w-full h-full flex flex-col bg-background px-6 py-5">
+      <div className="flex-1 min-h-0 grid grid-cols-3 gap-5">
         {/* Colonne 1: Connexion + Déconnexion */}
-        <div className="flex flex-col gap-4">
-          <Card className="flex-1 p-5 bg-gradient-card border-border/50">
-            <h3 className="text-base font-semibold mb-3">Connexion</h3>
-            <div className="space-y-3">
+        <div className="flex flex-col gap-5">
+          <Card className="flex-1 p-6 bg-gradient-card border-border/50">
+            <h3 className="text-lg font-semibold mb-4">Connexion</h3>
+            <div className="space-y-4">
               <div>
-                <p className="text-xs text-muted-foreground">URL Home Assistant</p>
-                <p className="font-mono text-xs break-all">{connection?.url}</p>
+                <p className="text-sm text-muted-foreground">URL Home Assistant</p>
+                <p className="font-mono text-sm break-all mt-1">{connection?.url}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Statut</p>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-                  <span className="text-xs">Connecté</span>
+                <p className="text-sm text-muted-foreground">Statut</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="h-3 w-3 rounded-full bg-success animate-pulse" />
+                  <span className="text-sm">Connecté</span>
                 </div>
               </div>
             </div>
           </Card>
 
-          <Button variant="destructive" className="w-full" onClick={handleDisconnect}>
-            <LogOut className="mr-2 h-4 w-4" />
+          <Button variant="destructive" className="w-full h-12 text-base" onClick={handleDisconnect}>
+            <LogOut className="mr-2 h-5 w-5" />
             Se déconnecter
           </Button>
         </div>
 
         {/* Colonne 2: Apparence + Journal */}
-        <div className="flex flex-col gap-4">
-          <Card className="p-5 bg-gradient-card border-border/50">
-            <h3 className="text-base font-semibold mb-3">Apparence</h3>
+        <div className="flex flex-col gap-5">
+          <Card className="p-6 bg-gradient-card border-border/50">
+            <h3 className="text-lg font-semibold mb-4">Apparence</h3>
             <div>
-              <p className="text-xs text-muted-foreground mb-2">Thème</p>
-              <div className="flex gap-2">
+              <p className="text-sm text-muted-foreground mb-3">Thème</p>
+              <div className="flex gap-3">
                 <Button
                   variant={theme === "light" ? "default" : "outline"}
-                  className="flex-1"
-                  size="sm"
+                  className="flex-1 h-11 text-base"
                   onClick={() => setTheme("light")}
                 >
-                  <Sun className="mr-1 h-3 w-3" />
+                  <Sun className="mr-2 h-5 w-5" />
                   Clair
                 </Button>
                 <Button
                   variant={theme === "dark" ? "default" : "outline"}
-                  className="flex-1"
-                  size="sm"
+                  className="flex-1 h-11 text-base"
                   onClick={() => setTheme("dark")}
                 >
-                  <Moon className="mr-1 h-3 w-3" />
+                  <Moon className="mr-2 h-5 w-5" />
                   Sombre
                 </Button>
               </div>
             </div>
           </Card>
 
-          <Card className="flex-1 p-5 bg-gradient-card border-border/50">
-            <h3 className="text-base font-semibold mb-3">Journal d'activité</h3>
-            <div className="space-y-2">
-              <div className="flex items-start gap-2">
-                <Activity className="h-4 w-4 text-primary mt-0.5" />
+          <Card className="flex-1 p-6 bg-gradient-card border-border/50">
+            <h3 className="text-lg font-semibold mb-4">Journal d'activité</h3>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <Activity className="h-6 w-6 text-primary mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-xs font-medium">Suivi des événements</p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-sm font-medium">Suivi des événements</p>
+                  <p className="text-sm text-muted-foreground mt-1">
                     Enregistre toutes les actions de votre maison.
                   </p>
                 </div>
               </div>
               <Button
                 variant="outline"
-                className="w-full"
-                size="sm"
+                className="w-full h-11 text-base"
                 onClick={() => toast.info("Fonctionnalité à venir")}
               >
                 Voir le journal
@@ -139,12 +136,12 @@ export function PanelSettings() {
         </div>
 
         {/* Colonne 3: Interphone + À propos */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           <IntercomSettingsCard />
 
-          <Card className="p-5 bg-gradient-card border-border/50">
-            <h3 className="text-base font-semibold mb-3">À propos</h3>
-            <div className="space-y-1 text-xs text-muted-foreground">
+          <Card className="p-6 bg-gradient-card border-border/50">
+            <h3 className="text-lg font-semibold mb-4">À propos</h3>
+            <div className="space-y-2 text-sm text-muted-foreground">
               <p>Neolia Smart Home v1.0.0</p>
               <p>Powered by Home Assistant</p>
               <p>© 2025 Neolia. Tous droits réservés.</p>
