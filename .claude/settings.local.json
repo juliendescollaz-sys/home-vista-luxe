@@ -114,7 +114,9 @@
       "Bash(file:*)",
       "Bash(npx tsc:*)",
       "Bash(python:*)",
-      "Bash(.gradlew.bat assembleDebug)"
+      "Bash(.gradlew.bat assembleDebug)",
+      "Bash(npx @react-native-community/cli@latest init:*)",
+      "Bash(npx tailwindcss init)"
     ]
   }
 }
