@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2,
@@ -8,87 +8,14 @@ import {
   Search,
   Filter,
   MoreVertical,
+  Loader2,
 } from 'lucide-react';
 import { Header } from '../components/layout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
-import type { Site, SiteType } from '../types';
-
-// Donnees mock pour demo
-const mockSites: Site[] = [
-  {
-    id: '1',
-    name: 'Residence Les Jardins',
-    type: 'building',
-    address: '123 Avenue des Fleurs',
-    city: 'Paris',
-    country: 'France',
-    status: 'online',
-    gatewayId: 'gw-001',
-    createdAt: '2024-01-15',
-    updatedAt: '2024-03-20',
-    stats: {
-      totalDevices: 8,
-      onlineDevices: 7,
-      offlineDevices: 1,
-      sipAccounts: 24,
-    },
-  },
-  {
-    id: '2',
-    name: 'Villa Bellevue',
-    type: 'villa',
-    address: '45 Chemin des Collines',
-    city: 'Nice',
-    country: 'France',
-    status: 'online',
-    gatewayId: 'gw-002',
-    createdAt: '2024-02-10',
-    updatedAt: '2024-03-18',
-    stats: {
-      totalDevices: 3,
-      onlineDevices: 3,
-      offlineDevices: 0,
-      sipAccounts: 4,
-    },
-  },
-  {
-    id: '3',
-    name: 'Tour Horizon',
-    type: 'building',
-    address: '78 Boulevard Central',
-    city: 'Lyon',
-    country: 'France',
-    status: 'partial',
-    gatewayId: 'gw-003',
-    createdAt: '2024-01-20',
-    updatedAt: '2024-03-19',
-    stats: {
-      totalDevices: 15,
-      onlineDevices: 12,
-      offlineDevices: 3,
-      sipAccounts: 45,
-    },
-  },
-  {
-    id: '4',
-    name: 'Bureaux Technoparc',
-    type: 'office',
-    address: '5 Rue de l\'Innovation',
-    city: 'Sophia Antipolis',
-    country: 'France',
-    status: 'offline',
-    createdAt: '2024-03-01',
-    updatedAt: '2024-03-01',
-    stats: {
-      totalDevices: 4,
-      onlineDevices: 0,
-      offlineDevices: 4,
-      sipAccounts: 8,
-    },
-  },
-];
+import { useSites } from '../hooks';
+import type { SiteType } from '../types';
 
 const typeIcons: Record<SiteType, typeof Building2> = {
   building: Building2,
@@ -107,13 +34,42 @@ export function SitesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<SiteType | 'all'>('all');
 
-  const filteredSites = mockSites.filter((site) => {
-    const matchesSearch =
-      site.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      site.city.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = filterType === 'all' || site.type === filterType;
-    return matchesSearch && matchesType;
-  });
+  const { data: sites = [], isLoading, error } = useSites();
+
+  const filteredSites = useMemo(() => {
+    return sites.filter((site) => {
+      const matchesSearch =
+        site.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        site.city.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesType = filterType === 'all' || site.type === filterType;
+      return matchesSearch && matchesType;
+    });
+  }, [sites, searchQuery, filterType]);
+
+  if (isLoading) {
+    return (
+      <div>
+        <Header title="Sites" subtitle="Gestion des immeubles, villas et bureaux" />
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="w-8 h-8 animate-spin text-primary-400" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div>
+        <Header title="Sites" subtitle="Gestion des immeubles, villas et bureaux" />
+        <div className="p-6">
+          <Card className="p-8 text-center">
+            <p className="text-red-400">Erreur lors du chargement des sites</p>
+            <p className="text-sm text-dark-500 mt-2">{String(error)}</p>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

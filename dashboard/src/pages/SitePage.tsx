@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Header } from '../components/layout';
 import { Card, CardHeader, StatusBadge, Button } from '../components/ui';
@@ -20,56 +20,13 @@ import {
   Send,
   Building2,
   Home,
+  Loader2,
 } from 'lucide-react';
-import type { Device, SipAccount, Gateway } from '../types';
+import { useSite, useDevices, useSipAccounts } from '../hooks';
+import type { Gateway } from '../types';
 
-// Mock data
-const siteData = {
-  id: '1',
-  name: 'Villa Descollaz',
-  type: 'villa' as const,
-  address: '45 Chemin des Vignes',
-  city: 'Geneve',
-  country: 'Suisse',
-  status: 'online' as const,
-};
-
-const devices: Device[] = [
-  {
-    id: '1',
-    siteId: '1',
-    name: 'Panel Entree',
-    type: 'panel',
-    model: 'Panel interieur 7"',
-    ip: '192.168.1.23',
-    status: 'online',
-    firmware: '2.4.1',
-    lastSeen: 'Il y a 2 min',
-  },
-  {
-    id: '2',
-    siteId: '1',
-    name: 'Interphone Portail',
-    type: 'intercom',
-    model: 'Visiophone',
-    ip: '192.168.1.50',
-    status: 'online',
-    firmware: '1.8.2',
-    lastSeen: 'Il y a 5 min',
-  },
-  {
-    id: '3',
-    siteId: '1',
-    name: 'Interphone Garage',
-    type: 'intercom',
-    model: 'Interphone audio',
-    ip: '192.168.1.51',
-    status: 'offline',
-    lastSeen: 'Il y a 2 heures',
-  },
-];
-
-const gateway: Gateway = {
+// Mock gateway data (a charger via API quand disponible)
+const mockGateway: Gateway = {
   id: 'gw1',
   siteId: '1',
   name: 'Gateway locale',
@@ -91,52 +48,6 @@ const gateway: Gateway = {
   },
 };
 
-const sipAccounts: SipAccount[] = [
-  {
-    id: '1',
-    siteId: '1',
-    serverId: 's1',
-    extension: '101',
-    username: 'villa_entree',
-    password: 'secure123',
-    displayName: 'Entree',
-    deviceId: '1',
-    enabled: true,
-  },
-  {
-    id: '2',
-    siteId: '1',
-    serverId: 's1',
-    extension: '102',
-    username: 'villa_portail',
-    password: 'secure456',
-    displayName: 'Portail',
-    deviceId: '2',
-    enabled: true,
-  },
-  {
-    id: '3',
-    siteId: '1',
-    serverId: 's1',
-    extension: '103',
-    username: 'villa_garage',
-    password: 'secure789',
-    displayName: 'Garage',
-    deviceId: '3',
-    enabled: true,
-  },
-  {
-    id: '4',
-    siteId: '1',
-    serverId: 's1',
-    extension: '200',
-    username: 'villa_mobile',
-    password: 'mobilepwd',
-    displayName: 'App Mobile',
-    enabled: true,
-  },
-];
-
 type TabType = 'devices' | 'sip' | 'gateway' | 'deploy';
 
 const deviceTypeConfig = {
@@ -145,14 +56,53 @@ const deviceTypeConfig = {
   gateway: { label: 'Gateway', color: 'text-green-400', bg: 'bg-green-500/10' },
 };
 
+// Formatter last_seen pour affichage
+function formatLastSeen(lastSeen?: string): string {
+  if (!lastSeen) return 'Inconnu';
+  const date = new Date(lastSeen);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+
+  if (diffMin < 1) return 'A l\'instant';
+  if (diffMin < 60) return `Il y a ${diffMin} min`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `Il y a ${diffHours} heures`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `Il y a ${diffDays} jours`;
+}
+
 export function SitePage() {
-  const { siteId: _siteId } = useParams();
-  // TODO: Charger les donnees du site via API avec _siteId
+  const { siteId } = useParams();
   const [activeTab, setActiveTab] = useState<TabType>('devices');
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
 
+  // Charger les donnees via API
+  const { data: site, isLoading: siteLoading } = useSite(siteId || '');
+  const { data: devices = [], isLoading: devicesLoading } = useDevices(siteId || '');
+  const { data: sipAccounts = [], isLoading: sipLoading } = useSipAccounts(siteId || '');
+
+  // Gateway depuis les devices de type gateway (fallback sur mock)
+  const gateway = useMemo(() => {
+    const gatewayDevice = devices.find(d => d.type === 'gateway');
+    if (gatewayDevice) {
+      return {
+        ...mockGateway,
+        id: gatewayDevice.id,
+        siteId: gatewayDevice.siteId,
+        name: gatewayDevice.name,
+        ip: gatewayDevice.ip,
+        status: gatewayDevice.status,
+        lastSeen: formatLastSeen(gatewayDevice.lastSeen),
+      };
+    }
+    return mockGateway;
+  }, [devices]);
+
+  const isLoading = siteLoading || devicesLoading || sipLoading;
+
   const tabs = [
-    { id: 'devices' as const, label: 'Appareils', icon: Wifi, count: devices.length },
+    { id: 'devices' as const, label: 'Appareils', icon: Wifi, count: devices.filter(d => d.type !== 'gateway').length },
     { id: 'sip' as const, label: 'Comptes SIP', icon: Phone, count: sipAccounts.length },
     { id: 'gateway' as const, label: 'Gateway', icon: Server },
     { id: 'deploy' as const, label: 'Deploiement', icon: Upload },
@@ -162,11 +112,25 @@ export function SitePage() {
     setShowPasswords((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  if (isLoading || !site) {
+    return (
+      <div>
+        <Header title="Chargement..." subtitle="" />
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="w-8 h-8 animate-spin text-primary-400" />
+        </div>
+      </div>
+    );
+  }
+
+  // Filtrer les devices pour ne pas afficher la gateway dans la liste des appareils
+  const displayDevices = devices.filter(d => d.type !== 'gateway');
+
   return (
     <div>
       <Header
-        title={siteData.name}
-        subtitle={`${siteData.address}, ${siteData.city}`}
+        title={site.name}
+        subtitle={`${site.address}, ${site.city}`}
       />
 
       <div className="p-6">
@@ -184,7 +148,7 @@ export function SitePage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-dark-700 rounded-xl">
-                {siteData.type === 'villa' ? (
+                {site.type === 'villa' ? (
                   <Home size={24} className="text-green-400" />
                 ) : (
                   <Building2 size={24} className="text-primary-400" />
@@ -193,12 +157,12 @@ export function SitePage() {
               <div>
                 <div className="flex items-center gap-3">
                   <h2 className="text-xl font-semibold text-dark-100">
-                    {siteData.name}
+                    {site.name}
                   </h2>
-                  <StatusBadge status={siteData.status} />
+                  <StatusBadge status={site.status} />
                 </div>
                 <p className="text-dark-400">
-                  {siteData.address}, {siteData.city}, {siteData.country}
+                  {site.address}, {site.city}, {site.country}
                 </p>
               </div>
             </div>
@@ -242,13 +206,13 @@ export function SitePage() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold text-dark-100">
-                Devices ({devices.length})
+                Devices ({displayDevices.length})
               </h3>
               <Button icon={<Plus size={16} />}>Ajouter un appareil</Button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {devices.map((device) => {
+              {displayDevices.map((device) => {
                 const config = deviceTypeConfig[device.type];
                 return (
                   <Card key={device.id} hover>
@@ -282,7 +246,7 @@ export function SitePage() {
                       )}
                       <div className="flex justify-between">
                         <span className="text-dark-400">Vu pour la derniere fois</span>
-                        <span className="text-dark-200">{device.lastSeen}</span>
+                        <span className="text-dark-200">{formatLastSeen(device.lastSeen)}</span>
                       </div>
                     </div>
 
@@ -345,7 +309,7 @@ export function SitePage() {
                   </thead>
                   <tbody>
                     {sipAccounts.map((account) => {
-                      const linkedDevice = devices.find(
+                      const linkedDevice = displayDevices.find(
                         (d) => d.id === account.deviceId
                       );
                       return (

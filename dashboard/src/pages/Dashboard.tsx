@@ -8,97 +8,11 @@ import {
   AlertTriangle,
   ArrowRight,
   MapPin,
+  Loader2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { Site, DashboardStats } from '../types';
-
-// Mock data
-const stats: DashboardStats = {
-  totalSites: 3,
-  sitesOnline: 2,
-  totalDevices: 8,
-  devicesOnline: 6,
-  totalSipAccounts: 12,
-  alerts: 1,
-};
-
-const sites: Site[] = [
-  {
-    id: '1',
-    name: 'Residence Les Music ROOM',
-    type: 'building',
-    address: '12 Rue de la Paix',
-    city: 'Paris',
-    country: 'France',
-    status: 'online',
-    createdAt: '2024-01-01',
-    updatedAt: '2024-01-15',
-    stats: {
-      totalDevices: 4,
-      onlineDevices: 4,
-      offlineDevices: 0,
-      sipAccounts: 6,
-    },
-  },
-  {
-    id: '2',
-    name: 'Villa Descollaz',
-    type: 'villa',
-    address: '45 Chemin des Vignes',
-    city: 'Geneve',
-    country: 'Suisse',
-    status: 'online',
-    createdAt: '2024-01-05',
-    updatedAt: '2024-01-14',
-    stats: {
-      totalDevices: 3,
-      onlineDevices: 2,
-      offlineDevices: 1,
-      sipAccounts: 4,
-    },
-  },
-  {
-    id: '3',
-    name: 'Bureaux NexVentures',
-    type: 'office',
-    address: '8 Avenue du Tech',
-    city: 'Lyon',
-    country: 'France',
-    status: 'offline',
-    createdAt: '2024-01-10',
-    updatedAt: '2024-01-10',
-    stats: {
-      totalDevices: 1,
-      onlineDevices: 0,
-      offlineDevices: 1,
-      sipAccounts: 2,
-    },
-  },
-];
-
-const recentActivity = [
-  {
-    id: '1',
-    timestamp: '14:32',
-    site: 'Villa Descollaz',
-    message: 'Application deployee avec succes sur le panel entree',
-    level: 'success' as const,
-  },
-  {
-    id: '2',
-    timestamp: '12:15',
-    site: 'Residence Les Music ROOM',
-    message: 'Configuration SIP mise a jour pour 6 comptes',
-    level: 'info' as const,
-  },
-  {
-    id: '3',
-    timestamp: '10:00',
-    site: 'Bureaux NexVentures',
-    message: 'Gateway hors ligne - connexion perdue',
-    level: 'error' as const,
-  },
-];
+import { useSites, useDashboardStats, useActivityLogs } from '../hooks';
+import { mockSites } from '../data/mockData';
 
 const siteTypeConfig = {
   building: { icon: Building2, label: 'Immeuble', color: 'text-primary-400' },
@@ -106,7 +20,34 @@ const siteTypeConfig = {
   office: { icon: Building2, label: 'Bureaux', color: 'text-purple-400' },
 };
 
+// Formatter l'heure pour l'affichage
+function formatTime(timestamp: string): string {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Trouver le nom du site par ID
+function getSiteName(siteId: string | undefined, sites: typeof mockSites): string {
+  if (!siteId) return 'Global';
+  const site = sites.find(s => s.id === siteId);
+  return site?.name || 'Site inconnu';
+}
+
 export function Dashboard() {
+  const { data: sites = [], isLoading: sitesLoading } = useSites();
+  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const { data: recentActivity = [], isLoading: logsLoading } = useActivityLogs({ limit: 5 });
+
+  const isLoading = sitesLoading || statsLoading || logsLoading;
+
+  if (isLoading && !stats) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-primary-400" />
+      </div>
+    );
+  }
+
   return (
     <div>
       <Header
@@ -123,7 +64,7 @@ export function Dashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold text-dark-100">
-                {stats.sitesOnline}/{stats.totalSites}
+                {stats?.sitesOnline ?? 0}/{stats?.totalSites ?? 0}
               </p>
               <p className="text-sm text-dark-400">Sites en ligne</p>
             </div>
@@ -135,7 +76,7 @@ export function Dashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold text-dark-100">
-                {stats.devicesOnline}/{stats.totalDevices}
+                {stats?.devicesOnline ?? 0}/{stats?.totalDevices ?? 0}
               </p>
               <p className="text-sm text-dark-400">Appareils en ligne</p>
             </div>
@@ -147,7 +88,7 @@ export function Dashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold text-dark-100">
-                {stats.totalSipAccounts}
+                {stats?.totalSipAccounts ?? 0}
               </p>
               <p className="text-sm text-dark-400">Comptes SIP</p>
             </div>
@@ -158,7 +99,7 @@ export function Dashboard() {
               <AlertTriangle size={24} className="text-orange-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-dark-100">{stats.alerts}</p>
+              <p className="text-2xl font-bold text-dark-100">{stats?.alerts ?? 0}</p>
               <p className="text-sm text-dark-400">Alertes actives</p>
             </div>
           </Card>
@@ -247,15 +188,17 @@ export function Dashboard() {
                       ? 'bg-green-500'
                       : activity.level === 'error'
                         ? 'bg-red-500'
-                        : 'bg-primary-500'
+                        : activity.level === 'warning'
+                          ? 'bg-orange-500'
+                          : 'bg-primary-500'
                   }`}
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-dark-200">{activity.message}</p>
-                  <p className="text-xs text-dark-500">{activity.site}</p>
+                  <p className="text-xs text-dark-500">{getSiteName(activity.siteId, sites)}</p>
                 </div>
                 <span className="text-xs text-dark-500 whitespace-nowrap">
-                  {activity.timestamp}
+                  {formatTime(activity.timestamp)}
                 </span>
               </div>
             ))}

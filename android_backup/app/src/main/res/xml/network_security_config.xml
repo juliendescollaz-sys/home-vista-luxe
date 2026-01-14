@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<network-security-config>
-    <!-- Autoriser le HTTP clair vers Home Assistant -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain>192.168.1.219</domain>
-    </domain-config>
-</network-security-config>
