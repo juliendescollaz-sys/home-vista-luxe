@@ -22,6 +22,7 @@ import { PanelOnboarding } from "@/ui/panel/PanelOnboarding";
 import Onboarding from "@/pages/Onboarding";
 import Auth from "@/pages/Auth";
 import Admin from "@/pages/Admin";
+import AdminIntercom from "@/pages/AdminIntercom";
 import OnboardingScan from "@/pages/OnboardingScan";
 import OnboardingManual from "@/pages/OnboardingManual";
 import { sipService } from "@/services/sipService";
@@ -199,6 +200,17 @@ const App = () => {
                       <AdminRoute>
                         <Suspense fallback={<LoadingScreen />}>
                           <Admin />
+                        </Suspense>
+                      </AdminRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/admin/intercom"
+                    element={
+                      <AdminRoute>
+                        <Suspense fallback={<LoadingScreen />}>
+                          <AdminIntercom />
                         </Suspense>
                       </AdminRoute>
                     }
