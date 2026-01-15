@@ -47,34 +47,38 @@ RTPEngine gère automatiquement :
 
 ## État des comptes SIP
 
-### Situation actuelle
+### Situation actuelle (mise a jour 15/01/2026)
 
-Le serveur utilise `usrloc` en mode mémoire (db_mode=0) :
-- ❌ Pas de persistance des comptes
-- ❌ Pas d'authentification (MODULE AUTH NON CHARGÉ)
-- ✅ Enregistrements dynamiques en mémoire
+Le serveur utilise maintenant l'authentification MySQL :
+- ✅ Authentification activee (modules auth + auth_db)
+- ✅ Base de donnees MySQL (table subscriber)
+- ✅ Comptes SIP geres par le dashboard
+- ✅ Enregistrements persistes en memoire
 
 **Commande pour voir les enregistrements actifs :**
 ```bash
 ssh debian@141.227.158.64 "sudo kamctl ul show"
 ```
 
-**Résultat actuel :** 0 enregistrements actifs (aucun client connecté)
+**Commande pour lister les comptes SIP :**
+```bash
+ssh debian@141.227.158.64 "mysql -u kamailio -pKamailioSIP2024! kamailio -e 'SELECT username, domain FROM subscriber;'"
+```
 
-### Problème identifié
+### Comptes SIP de test
 
-Le serveur Kamailio n'a PAS le module `auth` et `auth_db` chargé. Cela signifie :
-1. N'importe qui peut s'enregistrer avec n'importe quel nom
-2. Pas de gestion de comptes utilisateurs
-3. Impossible de lister les "comptes" car ils n'existent pas en DB
+| Username | Domain | Password | Usage |
+|----------|--------|----------|-------|
+| testuser | sip.neolia.app | test123 | Tests generaux |
+| panel101 | sip.neolia.app | Panel2024! | Panel logement 101 |
+| mobile101 | sip.neolia.app | Mobile2024! | App mobile logement 101 |
 
-### Solution à implémenter
+### Credentials MySQL
 
-Pour avoir une gestion propre des comptes SIP :
-
-1. **Activer l'authentification** dans Kamailio
-2. **Utiliser une base de données** (MySQL ou SQLite)
-3. **Créer une API** pour gérer les comptes depuis le dashboard
+| User | Password | Database |
+|------|----------|----------|
+| root | Neolia2024! | - |
+| kamailio | KamailioSIP2024! | kamailio |
 
 ## Code Frontend Existant
 
@@ -196,53 +200,70 @@ CallRule
 | `docs/SIP-INTEGRATION.md` | Guide d'installation Kamailio |
 | `docs/NEOLIA-REMOTE-MANAGEMENT.md` | Gestion remote Cloudflare |
 
-## Credentials (à documenter ailleurs)
+## Credentials
 
-> **IMPORTANT :** Les credentials réels doivent être stockés dans un vault sécurisé, pas dans le Git.
+> **IMPORTANT :** Ces credentials sont pour l'environnement de dev. En production, utiliser un vault securise.
 
 **VPS Kamailio :**
 - SSH : `debian@141.227.158.64`
-- DB Kamailio : `kamailio` / `Kampass2024!` (accès refusé actuellement - à fixer)
+- MySQL root : `Neolia2024!`
+- MySQL kamailio : `KamailioSIP2024!`
 
 **Kamailio Config :**
 - Domaine : `sip.neolia.app`
+- Port SIP : 5060 (UDP/TCP)
 - Port WSS : 8443
 
-## Prochaines étapes
+## Statut des phases
 
-### Phase 1 : Activer l'authentification Kamailio
+### Phase 1 : Activer l'authentification Kamailio ✅ COMPLETE
 
-```bash
-# Sur le VPS
-sudo nano /etc/kamailio/kamailio.cfg
+- [x] Modules auth et auth_db charges
+- [x] Base MySQL configuree
+- [x] Table subscriber creee
+- [x] Comptes de test crees
+- [x] Kamailio redemarre avec succes
 
-# Ajouter :
-loadmodule "auth.so"
-loadmodule "auth_db.so"
-modparam("auth_db", "db_url", "mysql://kamailio:xxx@localhost/kamailio")
-modparam("auth_db", "calculate_ha1", yes)
-modparam("auth_db", "password_column", "password")
+### Phase 2 : Dashboard Frontend ✅ COMPLETE
 
-# Dans route[REGISTRAR], ajouter avant save() :
-if (!www_authenticate("sip.neolia.app", "subscriber")) {
-    www_challenge("sip.neolia.app", "0");
-    exit;
-}
-```
+- [x] Page `/admin/intercom` creee
+- [x] Onglets Sites/Batiments/Logements/SIP
+- [x] Formulaires de creation
+- [x] Bouton sync Kamailio
 
-### Phase 2 : Dashboard Frontend
+### Phase 3 : API Backend ✅ COMPLETE
 
-1. Créer page `/admin/intercom`
-2. Composants : SitesList, BuildingsList, UnitsList
-3. Forms : CreateSite, CreateBuilding, CreateUnit, CreateSIPAccount
-4. Intégration API Supabase
+- [x] Types TypeScript definis
+- [x] Hook React Query (useIntercomAdmin)
+- [x] Migration SQL Supabase
+- [x] Edge Function kamailio-sync
 
-### Phase 3 : API Backend
+## Prochaines etapes
 
-1. Edge functions Supabase pour CRUD
-2. Fonction `sync-kamailio` pour créer comptes sur VPS
-3. Webhook pour actions depuis le dashboard
+### A faire
+
+1. **Deployer la migration Supabase** :
+   ```bash
+   cd home-vista-luxe && supabase db push
+   ```
+
+2. **Deployer l'Edge Function** :
+   ```bash
+   supabase functions deploy kamailio-sync
+   ```
+
+3. **Configurer les secrets Supabase** :
+   ```bash
+   supabase secrets set KAMAILIO_HOST=141.227.158.64
+   supabase secrets set KAMAILIO_DB_USER=kamailio
+   supabase secrets set KAMAILIO_DB_PASS=KamailioSIP2024!
+   ```
+
+4. **Tester l'appel SIP de bout en bout** :
+   - Configurer l'app avec panel101@sip.neolia.app
+   - Verifier l'enregistrement sur Kamailio
+   - Tester un appel depuis Akuvox
 
 ---
 
-*Document généré automatiquement - voir Git pour historique des modifications*
+*Derniere mise a jour : 15 janvier 2026*
