@@ -139,6 +139,21 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetail
     );
   };
 
+  const handleBrightnessChange = (value: number[]) => {
+    setBrightness(value[0]);
+  };
+
+  const handleBrightnessCommit = async (value: number[]) => {
+    if (!client) return;
+    const previous = brightness;
+    try {
+      await client.callService("light", "turn_on", { brightness: value[0] }, { entity_id: entity.entity_id });
+    } catch (error) {
+      setBrightness(previous);
+      toast.error("Impossible de régler la luminosité");
+    }
+  };
+
   // Tailles selon le mode : compact < default < panel
   const iconContainerSize = isPanel ? "w-16 h-16" : isCompact ? "w-10 h-10" : "w-14 h-14";
   const iconSize = isPanel ? "h-9 w-9" : isCompact ? "h-5 w-5" : "h-8 w-8";
@@ -149,6 +164,14 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetail
   const actionBtnSize = isPanel ? "h-9 w-9" : isCompact ? "h-6 w-6" : "h-7 w-7";
   const actionIconSize = isPanel ? "h-5 w-5" : isCompact ? "h-3.5 w-3.5" : "h-4 w-4";
   const switchScale = isPanel ? "scale-150" : isCompact ? "" : "scale-125";
+
+  // Affichage état : pour les lights dimmables, afficher le %
+  const stateDisplay = (() => {
+    if (domain === "light" && supportsBrightness && isActive && brightness > 0) {
+      return `${Math.round((brightness / 255) * 100)}%`;
+    }
+    return entity.state;
+  })();
 
   return (
     <Card
@@ -171,7 +194,7 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetail
 
           <div className="flex-1 min-w-0 pt-0.5">
             <h3 className={`font-semibold ${titleSize} truncate mb-0.5`}>{name}</h3>
-            <p className={`${stateSize} text-muted-foreground capitalize`}>{entity.state}</p>
+            <p className={`${stateSize} text-muted-foreground capitalize`}>{stateDisplay}</p>
           </div>
 
           <div className="flex items-center gap-1 flex-shrink-0">
@@ -196,13 +219,38 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetail
           </div>
         </div>
 
+        {/* Contrôles ON/OFF + Slider luminosité pour lights dimmables */}
         {(domain === "light" || domain === "switch") && (
-          <div className={`flex items-center justify-end ${isPanel ? "pt-3" : isCompact ? "pt-1" : "pt-2"}`} onClick={(e) => e.stopPropagation()}>
-            <Switch
-              checked={isActive}
-              onCheckedChange={handleToggle}
-              className={`data-[state=checked]:bg-primary ${switchScale}`}
-            />
+          <div className={`space-y-2 ${isPanel ? "pt-3" : isCompact ? "pt-1" : "pt-2"}`} onClick={(e) => e.stopPropagation()}>
+            {/* Slider luminosité pour lights dimmables quand allumé */}
+            {domain === "light" && supportsBrightness && isActive && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <Sun className="h-3.5 w-3.5" />
+                    <span>Luminosité</span>
+                  </div>
+                  <span className="font-medium text-foreground">{Math.round((brightness / 255) * 100)}%</span>
+                </div>
+                <Slider
+                  value={[brightness]}
+                  onValueChange={handleBrightnessChange}
+                  onValueCommit={handleBrightnessCommit}
+                  min={1}
+                  max={255}
+                  step={1}
+                  className="py-1"
+                />
+              </div>
+            )}
+            
+            <div className="flex items-center justify-end">
+              <Switch
+                checked={isActive}
+                onCheckedChange={handleToggle}
+                className={`data-[state=checked]:bg-primary ${switchScale}`}
+              />
+            </div>
           </div>
         )}
        </div>
