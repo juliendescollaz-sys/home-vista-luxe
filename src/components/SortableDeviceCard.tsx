@@ -1,14 +1,17 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card } from "@/components/ui/card";
-import { Lightbulb, Thermometer, Music, Lock, Camera, MoreVertical, Power, Star, Pencil } from "lucide-react";
+import { Lightbulb, Thermometer, Music, Lock, Camera, MoreVertical, Power, Star, Pencil, Sun } from "lucide-react";
 import type { HAEntity, EntityDomain, HAFloor, HAArea } from "@/types/homeassistant";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { useHAStore } from "@/store/useHAStore";
 import { Button } from "@/components/ui/button";
 import { LocationBadge } from "./LocationBadge";
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { lightSupportsBrightness } from "@/lib/entityUtils";
+import { useOptimisticToggle } from "@/hooks/useOptimisticToggle";
 
 const domainIcons: Partial<Record<EntityDomain, any>> = {
   light: Lightbulb,
@@ -43,6 +46,7 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetail
   const isCompact = size === "compact";
   const isPanel = size === "panel";
   
+  const client = useHAStore((state) => state.client);
   const favorites = useHAStore((state) => state.favorites);
   const toggleFavorite = useHAStore((state) => state.toggleFavorite);
   const pendingActions = useHAStore((state) => state.pendingActions);
@@ -51,9 +55,17 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetail
   const pending = pendingActions[entity.entity_id];
   const isPending = !!(pending && !pending.cooldownUntil);
   const isInCooldown = !!(pending?.cooldownUntil && Date.now() < pending.cooldownUntil);
+  const { controlEntity } = useOptimisticToggle();
+
+  const supportsBrightness = domain === "light" && lightSupportsBrightness(entity);
 
   // État optimiste local pour le toggle ON/OFF
   const [optimisticActive, setOptimisticActive] = useState(realIsActive);
+
+  // Luminosité (uniquement utile pour les lights dimmables)
+  const [brightness, setBrightness] = useState<number>(
+    typeof entity.attributes.brightness === "number" ? entity.attributes.brightness : 0,
+  );
 
   // Resynchronisation avec l'état réel de HA (uniquement si pas d'action en cours)
   useEffect(() => {
@@ -61,6 +73,12 @@ export const SortableDeviceCard = ({ entity, onToggle, floor, area, onOpenDetail
       setOptimisticActive(realIsActive);
     }
   }, [realIsActive, isPending, isInCooldown]);
+
+  useEffect(() => {
+    if (typeof entity.attributes.brightness === "number") {
+      setBrightness(entity.attributes.brightness);
+    }
+  }, [entity.attributes.brightness]);
 
   const isActive = optimisticActive;
 
