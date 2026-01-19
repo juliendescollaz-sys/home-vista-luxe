@@ -438,11 +438,74 @@ export function filterPrimaryControlEntities(
 }
 
 /**
- * Vérifie si une entité supporte une feature spécifique
+ * Vérifie si une entité supporte une feature spécifique (bitmask)
  */
 export function supportsFeature(entity: HAEntity, feature: number): boolean {
   const supportedFeatures = entity.attributes.supported_features || 0;
   return (supportedFeatures & feature) !== 0;
+}
+
+/**
+ * Vérifie si une lumière supporte le contrôle de luminosité
+ * Utilise supported_color_modes (HA moderne) + fallback sur bitmask
+ */
+export function lightSupportsBrightness(entity: HAEntity): boolean {
+  const domain = entity.entity_id.split(".")[0];
+  if (domain !== "light") return false;
+
+  // Méthode moderne: supported_color_modes
+  const colorModes = entity.attributes.supported_color_modes as string[] | undefined;
+  if (Array.isArray(colorModes) && colorModes.length > 0) {
+    // Tous les modes sauf "onoff" supportent la luminosité
+    return colorModes.some(mode => 
+      ["brightness", "color_temp", "hs", "xy", "rgb", "rgbw", "rgbww", "white"].includes(mode)
+    );
+  }
+
+  // Fallback: bitmask (anciennes intégrations)
+  const supportedFeatures = entity.attributes.supported_features || 0;
+  if ((supportedFeatures & LIGHT_FEATURES.SUPPORT_BRIGHTNESS) !== 0) {
+    return true;
+  }
+
+  // Dernier recours: si l'entité a un attribut brightness, elle le supporte
+  return typeof entity.attributes.brightness === "number";
+}
+
+/**
+ * Vérifie si une lumière supporte la température de couleur
+ */
+export function lightSupportsColorTemp(entity: HAEntity): boolean {
+  const domain = entity.entity_id.split(".")[0];
+  if (domain !== "light") return false;
+
+  const colorModes = entity.attributes.supported_color_modes as string[] | undefined;
+  if (Array.isArray(colorModes)) {
+    return colorModes.includes("color_temp");
+  }
+
+  // Fallback bitmask
+  const supportedFeatures = entity.attributes.supported_features || 0;
+  return (supportedFeatures & LIGHT_FEATURES.SUPPORT_COLOR_TEMP) !== 0;
+}
+
+/**
+ * Vérifie si une lumière supporte les couleurs RGB/RGBW
+ */
+export function lightSupportsColor(entity: HAEntity): boolean {
+  const domain = entity.entity_id.split(".")[0];
+  if (domain !== "light") return false;
+
+  const colorModes = entity.attributes.supported_color_modes as string[] | undefined;
+  if (Array.isArray(colorModes)) {
+    return colorModes.some(mode => 
+      ["hs", "xy", "rgb", "rgbw", "rgbww"].includes(mode)
+    );
+  }
+
+  // Fallback bitmask
+  const supportedFeatures = entity.attributes.supported_features || 0;
+  return (supportedFeatures & LIGHT_FEATURES.SUPPORT_COLOR) !== 0;
 }
 
 /**

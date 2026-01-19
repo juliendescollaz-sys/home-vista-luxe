@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { supportsFeature, LIGHT_FEATURES } from "@/lib/entityUtils";
+import { lightSupportsBrightness, lightSupportsColorTemp, lightSupportsColor } from "@/lib/entityUtils";
 import { toast } from "sonner";
 import { useHAStore } from "@/store/useHAStore";
 import { cn } from "@/lib/utils";
@@ -24,9 +24,9 @@ export function LightTile({ entity, onControl }: LightTileProps) {
   const isPending = !!(pending && !pending.cooldownUntil);
   const isInCooldown = !!(pending?.cooldownUntil && Date.now() < pending.cooldownUntil);
 
-  const supportsBrightness = supportsFeature(entity, LIGHT_FEATURES.SUPPORT_BRIGHTNESS);
-  const supportsColor = supportsFeature(entity, LIGHT_FEATURES.SUPPORT_COLOR);
-  const supportsColorTemp = supportsFeature(entity, LIGHT_FEATURES.SUPPORT_COLOR_TEMP);
+  const supportsBrightness = lightSupportsBrightness(entity);
+  const supportsColor = lightSupportsColor(entity);
+  const supportsColorTemp = lightSupportsColorTemp(entity);
 
   // État optimiste local pour le toggle ON/OFF
   const [optimisticOn, setOptimisticOn] = useState(realIsOn);
