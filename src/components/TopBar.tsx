@@ -29,7 +29,7 @@ export const TopBar = ({
   const isMobile = displayMode === "mobile";
   const isLeftHanded = handedness === "left";
   return <>
-      <div className="fixed top-0 left-0 right-0 glass-nav border-b border-border/30 z-40">
+      <div className="fixed top-0 left-0 right-0 glass-nav border-b border-border/30 z-40" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="max-w-screen-xl mx-auto px-4 h-16 flex items-center justify-between">
           {/* Logo - à gauche si droitier, à droite si gaucher */}
           <div className={`${isLeftHanded && isMobile ? "order-2" : "order-1"}`}>
@@ -51,7 +51,7 @@ export const TopBar = ({
       </div>
 
       {/* Titre sous le header - uniquement pour mobile */}
-      {title && isMobile && <div className="fixed top-16 left-0 right-0 glass-nav border-b border-border/30 z-40">
+      {title && isMobile && <div className="fixed left-0 right-0 glass-nav border-b border-border/30 z-40" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 4rem)' }}>
           <div className="max-w-screen-xl mx-auto px-4 h-12 flex items-center justify-center">
             <h1 className="text-2xl font-bold">{title}</h1>
           </div>

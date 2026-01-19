@@ -12,7 +12,7 @@
  * Cette fonction est preparee pour quand l'auth sera configuree.
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
@@ -46,6 +46,15 @@ interface SyncResult {
   accounts_deleted: number;
   errors: string[];
   warnings: string[];
+}
+
+interface SipAccount {
+  id: string;
+  username: string;
+  password_hash: string | null;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
@@ -107,7 +116,7 @@ async function checkKamailioStatus(): Promise<{
 /**
  * Synchronise tous les comptes SIP avec Kamailio
  */
-async function syncAllAccounts(supabase: ReturnType<typeof createClient>): Promise<SyncResult> {
+async function syncAllAccounts(supabase: SupabaseClient): Promise<SyncResult> {
   const result: SyncResult = {
     success: false,
     action: "sync_all",
@@ -133,7 +142,7 @@ async function syncAllAccounts(supabase: ReturnType<typeof createClient>): Promi
   const { data: accounts, error } = await supabase
     .from("sip_accounts")
     .select("*")
-    .eq("enabled", true);
+    .eq("enabled", true) as { data: SipAccount[] | null; error: { message: string } | null };
 
   if (error) {
     result.errors.push(`Erreur Supabase: ${error.message}`);
@@ -175,7 +184,7 @@ async function syncAllAccounts(supabase: ReturnType<typeof createClient>): Promi
  * Cree un compte SIP sur Kamailio
  */
 async function createSIPAccount(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   accountId: string,
   username?: string,
   password?: string
@@ -205,7 +214,7 @@ async function createSIPAccount(
     .from("sip_accounts")
     .select("*")
     .eq("id", accountId)
-    .single();
+    .single() as { data: SipAccount | null; error: { message: string } | null };
 
   if (error || !account) {
     result.errors.push(`Compte non trouve: ${accountId}`);
