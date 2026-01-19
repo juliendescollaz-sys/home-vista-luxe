@@ -35,7 +35,8 @@ import { GroupBadge } from "./GroupBadge";
 import { GroupEditDialog } from "./GroupEditDialog";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { cn } from "@/lib/utils";
-import { getMixedGroupState } from "@/lib/entityUtils";
+import { getMixedGroupState, lightSupportsBrightness } from "@/lib/entityUtils";
+import { Sun } from "lucide-react";
 
 const DOMAIN_ICONS: Record<HaGroupDomain, any> = {
   light: Lightbulb,
@@ -116,6 +117,37 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
 
   // Pour media_player, toujours utiliser l'état réel
   const isActive = group.domain === "media_player" ? realIsActive : optimisticActive;
+
+  // Vérifier si tous les membres du groupe supportent la variation (dimmable)
+  const groupBrightnessState = useMemo(() => {
+    // Récupérer les entités light du groupe
+    const lightEntities = group.entityIds
+      .map((id) => entities.find((e) => e.entity_id === id))
+      .filter((e) => e && e.entity_id.startsWith("light."));
+    
+    if (lightEntities.length === 0) return null;
+    
+    // Vérifier si TOUS les membres sont dimmables
+    const allDimmable = lightEntities.every((e) => e && lightSupportsBrightness(e));
+    if (!allDimmable) return null;
+    
+    // Calculer la luminosité moyenne
+    const brightnesses = lightEntities
+      .map((e) => e?.attributes?.brightness)
+      .filter((b): b is number => typeof b === "number");
+    
+    const avgBrightness = brightnesses.length > 0 
+      ? Math.round(brightnesses.reduce((a, b) => a + b, 0) / brightnesses.length)
+      : 128;
+    
+    return { allDimmable: true, avgBrightness, lightEntities };
+  }, [group.entityIds, entities]);
+
+  // État local pour le slider de luminosité du groupe
+  const [localBrightness, setLocalBrightness] = useState<number | null>(null);
+  
+  // Luminosité affichée (locale pendant le drag, sinon moyenne du groupe)
+  const displayBrightness = localBrightness ?? groupBrightnessState?.avgBrightness ?? 128;
 
   const mediaPlayerState = useMemo(() => {
     if (group.domain !== "media_player") return null;
@@ -228,6 +260,30 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
     } catch (error) {
       toast.error("Erreur lors du réglage du volume");
       setLocalVolume(null);
+    }
+  };
+
+  // Handlers pour la luminosité du groupe
+  const client = useHAStore((state) => state.client);
+  
+  const handleGroupBrightnessChange = (value: number[]) => {
+    setLocalBrightness(value[0]);
+  };
+
+  const handleGroupBrightnessCommit = async (value: number[]) => {
+    if (!client || !groupBrightnessState?.lightEntities) {
+      setLocalBrightness(null);
+      return;
+    }
+    
+    try {
+      // Appliquer la luminosité à tous les membres du groupe
+      const entityIds = groupBrightnessState.lightEntities.map((e) => e!.entity_id);
+      await client.callService("light", "turn_on", { brightness: value[0] }, { entity_id: entityIds });
+      setLocalBrightness(null);
+    } catch (error) {
+      toast.error("Erreur lors du réglage de la luminosité");
+      setLocalBrightness(null);
     }
   };
 
@@ -382,15 +438,40 @@ export function GroupTile({ group, hideEditButton = false, sortableProps }: Grou
           </div>
         )}
 
-        {/* Switch en bas pour light/switch/fan – sans bordure ni marge top */}
+        {/* Contrôles pour light/switch/fan – slider luminosité si groupe dimmable */}
         {group.domain !== "cover" && group.domain !== "media_player" && (
-          <div className="flex items-center justify-end pt-2">
-            <Switch 
-              checked={isActive} 
-              onCheckedChange={handleToggle} 
-              disabled={isPending}
-              className="scale-125" 
-            />
+          <div className="space-y-2 pt-2">
+            {/* Slider de luminosité pour groupes de lights dimmables quand allumé */}
+            {groupBrightnessState?.allDimmable && isActive && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <Sun className="h-3.5 w-3.5" />
+                    <span>Luminosité</span>
+                  </div>
+                  <span className="font-medium text-foreground">{Math.round((displayBrightness / 255) * 100)}%</span>
+                </div>
+                <Slider
+                  value={[displayBrightness]}
+                  onValueChange={handleGroupBrightnessChange}
+                  onValueCommit={handleGroupBrightnessCommit}
+                  min={1}
+                  max={255}
+                  step={1}
+                  className="py-1"
+                  disabled={isPending}
+                />
+              </div>
+            )}
+            
+            <div className="flex items-center justify-end">
+              <Switch 
+                checked={isActive} 
+                onCheckedChange={handleToggle} 
+                disabled={isPending}
+                className="scale-125" 
+              />
+            </div>
           </div>
         )}
 
