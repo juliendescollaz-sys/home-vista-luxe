@@ -91,7 +91,9 @@ export function usePanelIntercom() {
         },
         onRegistrationStateChanged: (state) => {
           console.log("[usePanelIntercom] État SIP:", state);
-          setSipState(state);
+          // Map 'failed' from service to 'error' for store
+          const mappedState = state === 'failed' ? 'error' : state;
+          setSipState(mappedState);
         },
         onError: (error) => {
           console.error("[usePanelIntercom] Erreur SIP:", error);
